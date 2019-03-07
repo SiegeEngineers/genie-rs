@@ -1,0 +1,10 @@
+[package]
+name = "genie-rs"
+version = "0.1.0"
+authors = ["Renée Kooi <renee@kooi.me>"]
+edition = "2018"
+
+[dependencies]
+genie-hki = { path = "crates/genie-hki" }
+genie-scx = { path = "crates/genie-scx" }
+genie-cpx = { path = "crates/genie-cpx" }
