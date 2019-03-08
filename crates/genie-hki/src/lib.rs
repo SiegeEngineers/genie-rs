@@ -316,23 +316,23 @@ impl Default for Hotkey {
 }
 
 impl Hotkey {
-    pub fn key(mut self, key: i32) -> Self {
+    pub fn key(self, key: i32) -> Self {
         Self { key, ..self }
     }
 
-    pub fn string_id(mut self, string_id: i32) -> Self {
+    pub fn string_id(self, string_id: i32) -> Self {
         Self { string_id, ..self }
     }
 
-    pub fn ctrl(mut self, ctrl: bool) -> Self {
+    pub fn ctrl(self, ctrl: bool) -> Self {
         Self { ctrl, ..self }
     }
 
-    pub fn alt(mut self, alt: bool) -> Self {
+    pub fn alt(self, alt: bool) -> Self {
         Self { alt, ..self }
     }
 
-    pub fn shift(mut self, shift: bool) -> Self {
+    pub fn shift(self, shift: bool) -> Self {
         Self { shift, ..self }
     }
 
@@ -379,7 +379,7 @@ impl HotkeyGroup {
 
     /// Write a hotkey group to an output stream.
     pub(crate) fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        output.write_u32::<LE>(self.hotkeys.len() as u32);
+        output.write_u32::<LE>(self.hotkeys.len() as u32)?;
         for hotkey in &self.hotkeys {
             hotkey.write_to(output)?;
         }
