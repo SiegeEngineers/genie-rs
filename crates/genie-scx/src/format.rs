@@ -1673,8 +1673,7 @@ impl SCXFormat {
             b"1.06" => Self::load_106(),
             b"1.07" => Self::load_107(),
             b"1.08" => Self::load_108(),
-            b"1.09" |
-            b"1.11" => Self::load_121(format_version, 1.11, input),
+            b"1.09" | b"1.10" | b"1.11" => Self::load_121(format_version, 1.11, input),
             b"1.12" => Self::load_121(format_version, 1.12, input),
             b"1.13" | b"1.14" | b"1.15" | b"1.16" => Self::load_121(format_version, 1.12, input),
             b"1.17" => Self::load_121(format_version, 1.14, input),
@@ -1724,6 +1723,24 @@ mod tests {
     #[test]
     fn oldest_aoe1_scn_on_aoeheaven() {
         let mut f = File::open("test/scenarios/ The Destruction of Rome.scn").unwrap();
+        let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
+        let mut out = vec![];
+        format.write_to(&mut out).expect("failed to write");
+    }
+
+    /// Source: http://aoe.heavengames.com/dl-php/showfile.php?fileid=1678
+    #[test]
+    fn aoe1_trial_scn() {
+        let mut f = File::open("test/scenarios/Bronze Age Art of War.scn").unwrap();
+        let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
+        let mut out = vec![];
+        format.write_to(&mut out).expect("failed to write");
+    }
+
+    /// Source: http://aoe.heavengames.com/dl-php/showfile.php?fileid=2409
+    #[test]
+    fn aoe1_ppc_trial_scn() {
+        let mut f = File::open("test/scenarios/CEASAR.scn").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
         format.write_to(&mut out).expect("failed to write");

@@ -6,6 +6,6 @@ edition = "2018"
 
 [dependencies]
 chariot_palette = "^0.1.5"
+genie-cpx = { path = "crates/genie-cpx" }
 genie-hki = { path = "crates/genie-hki" }
 genie-scx = { path = "crates/genie-scx" }
-genie-cpx = { path = "crates/genie-cpx" }

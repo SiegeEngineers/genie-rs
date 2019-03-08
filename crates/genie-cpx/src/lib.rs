@@ -1,9 +1,11 @@
 mod read;
 mod write;
 
+pub type CPXVersion = [u8; 4];
+
 #[derive(Debug, Clone)]
 pub struct CampaignHeader {
-    pub(crate) version: f32,
+    pub(crate) version: CPXVersion,
     pub(crate) name: String,
     pub(crate) num_scenarios: usize,
 }
@@ -11,7 +13,7 @@ pub struct CampaignHeader {
 impl CampaignHeader {
     pub fn new(name: &str) -> Self {
         Self {
-            version: 2.0,
+            version: *b"1.00",
             name: name.to_string(),
             num_scenarios: 0,
         }
@@ -28,11 +30,3 @@ pub struct ScenarioMeta {
 
 pub use read::Campaign;
 pub use write::CampaignWriter;
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}

@@ -5,7 +5,7 @@ use crate::{CampaignHeader, ScenarioMeta};
 fn write_campaign_header<W: Write>(header: &CampaignHeader, output: &mut W) -> Result<()> {
     assert!(header.num_scenarios < std::i32::MAX as usize);
 
-    output.write_f32::<LE>(header.version)?;
+    output.write_all(&header.version)?;
     let mut name_bytes = header.name.as_bytes().to_vec();
     assert!(name_bytes.len() < 255);
     name_bytes.extend(vec![0; name_bytes.len() - 255]);

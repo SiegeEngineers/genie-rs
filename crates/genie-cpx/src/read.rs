@@ -1,13 +1,12 @@
 use std::io::{Seek, SeekFrom, Read, Result, Error, ErrorKind};
 use byteorder::{ReadBytesExt, LE};
 use genie_scx::Scenario;
-use crate::{CampaignHeader, ScenarioMeta};
+use crate::{CPXVersion, CampaignHeader, ScenarioMeta};
 
-pub fn read_fixed_str<R: Read>(input: &mut R) -> Result<Option<String>> {
-    let mut bytes = [0; 255];
-    input.read_exact(&mut bytes)?;
+pub fn read_fixed_str<R: Read>(input: &mut R, len: usize) -> Result<Option<String>> {
+    let mut bytes = vec![0; len];
+    input.read_exact(&mut bytes[0..len])?;
 
-    let mut bytes = bytes.to_vec();
     if let Some(end) = bytes.iter().position(|&byte| byte == 0) {
         bytes.truncate(end);
     }
@@ -21,8 +20,9 @@ pub fn read_fixed_str<R: Read>(input: &mut R) -> Result<Option<String>> {
 }
 
 fn read_campaign_header<R: Read>(input: &mut R) -> Result<CampaignHeader> {
-    let version = input.read_f32::<LE>()?;
-    let name = read_fixed_str(input)?.expect("must have a name");
+    let mut version = [0; 4];
+    input.read_exact(&mut version)?;
+    let name = read_fixed_str(input, 256)?.expect("must have a name");
     let num_scenarios = input.read_i32::<LE>()? as usize;
 
     Ok(CampaignHeader {
@@ -35,8 +35,8 @@ fn read_campaign_header<R: Read>(input: &mut R) -> Result<CampaignHeader> {
 fn read_scenario_meta<R: Read>(input: &mut R) -> Result<ScenarioMeta> {
     let size = input.read_i32::<LE>()? as usize;
     let offset = input.read_i32::<LE>()? as usize;
-    let name = read_fixed_str(input)?.expect("must have a name");
-    let filename = read_fixed_str(input)?.expect("must have a name");
+    let name = read_fixed_str(input, 255)?.expect("must have a name");
+    let filename = read_fixed_str(input, 255)?.expect("must have a name");
 
     Ok(ScenarioMeta {
         size,
@@ -83,8 +83,12 @@ impl<R> Campaign<R>
     }
 
     /// Get the campaign file version.
-    pub fn version(&self) -> f32 {
+    pub fn version(&self) -> CPXVersion {
         self.header.version
+    }
+
+    pub fn name(&self) -> &str {
+        &self.header.name
     }
 
     /// Iterate over the scenario metadata for this campaign.
@@ -141,5 +145,33 @@ impl<R> Campaign<R>
             .read_to_end(&mut result)?;
 
         Ok(result)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs::File;
+
+    /// Source: http://aoe.heavengames.com/dl-php/showfile.php?fileid=1678
+    #[test]
+    fn aoe1_trial_cpn() {
+        let f = File::open("test/campaigns/Armies at War A Combat Showcase.cpn").unwrap();
+        let mut c = Campaign::from(f).expect("could not read meta");
+
+        assert_eq!(c.version(), *b"1.00");
+        assert_eq!(c.name(), "Armies at War, A Combat Showcase");
+        assert_eq!(c.len(), 1);
+        let names: Vec<&String> = c.entries()
+            .map(|e| &e.name)
+            .collect();
+        assert_eq!(names, vec!["Bronze Age Art of War"]);
+        let filenames: Vec<&String> = c.entries()
+            .map(|e| &e.filename)
+            .collect();
+        assert_eq!(filenames, vec!["Bronze Age Art of War.scn"]);
+
+        c.by_index_raw(0).expect("could not read raw file");
+        c.by_name_raw("Bronze Age Art of War.scn").expect("could not read raw file");
     }
 }
