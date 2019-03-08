@@ -96,6 +96,7 @@ impl VersionBundle {
     }
 }
 
+/// A Scenario file.
 pub struct Scenario {
     format: SCXFormat,
     version: VersionBundle,
