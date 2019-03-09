@@ -1562,46 +1562,6 @@ pub struct SCXFormat {
 }
 
 impl SCXFormat {
-    fn load_101() -> Result<Self> {
-        unimplemented!()
-    }
-
-    fn load_102() -> Result<Self> {
-        unimplemented!()
-    }
-
-    fn load_103() -> Result<Self> {
-        unimplemented!()
-    }
-
-    fn load_104() -> Result<Self> {
-        unimplemented!()
-    }
-
-    fn load_105() -> Result<Self> {
-        unimplemented!()
-    }
-
-    fn load_106() -> Result<Self> {
-        unimplemented!()
-    }
-
-    fn load_107() -> Result<Self> {
-        unimplemented!()
-    }
-
-    fn load_108() -> Result<Self> {
-        unimplemented!()
-    }
-
-    fn load_112() -> Result<Self> {
-        unimplemented!()
-    }
-
-    fn load_113() -> Result<Self> {
-        unimplemented!()
-    }
-
     fn load_121<R: Read>(version: SCXVersion, player_version: f32, input: &mut R) -> Result<Self> {
         let header = SCXHeader::from(input, version)?;
 
@@ -1665,14 +1625,14 @@ impl SCXFormat {
         let mut format_version = [0; 4];
         input.read_exact(&mut format_version)?;
         match &format_version {
-            b"1.01" => Self::load_101(),
-            b"1.02" => Self::load_102(),
-            b"1.03" => Self::load_103(),
-            b"1.04" => Self::load_104(),
-            b"1.05" => Self::load_105(),
-            b"1.06" => Self::load_106(),
-            b"1.07" => Self::load_107(),
-            b"1.08" => Self::load_108(),
+            b"1.01" => unimplemented!(),
+            b"1.02" => unimplemented!(),
+            b"1.03" => unimplemented!(),
+            b"1.04" => unimplemented!(),
+            b"1.05" => unimplemented!(),
+            b"1.06" => unimplemented!(),
+            b"1.07" => Self::load_121(format_version, 1.07, input),
+            b"1.08" => unimplemented!(),
             b"1.09" | b"1.10" | b"1.11" => Self::load_121(format_version, 1.11, input),
             b"1.12" => Self::load_121(format_version, 1.12, input),
             b"1.13" | b"1.14" | b"1.15" | b"1.16" => Self::load_121(format_version, 1.12, input),
