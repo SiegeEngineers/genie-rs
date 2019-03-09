@@ -531,7 +531,8 @@ impl RGEScen {
         }
 
         if version >= 1.02 {
-            debug_assert_eq!(input.read_i32::<LE>()?, -99);
+            let sep = input.read_i32::<LE>()?;
+            debug_assert_eq!(sep, -99);
         }
 
         Ok(RGEScen {
@@ -914,6 +915,7 @@ impl VictoryPointEntry {
 #[derive(Debug)]
 struct VictoryConditions {
     version: f32,
+    victory: bool,
     total_points: i32,
     starting_points: i32,
     starting_group: i32,
@@ -938,14 +940,13 @@ impl VictoryConditions {
         }
 
         let mut total_points = 0;
-        let mut num_point_entries = 0;
         let mut point_entries = vec![];
         let mut starting_points = 0;
         let mut starting_group = 0;
 
         if version >= 1.0 {
             total_points = input.read_i32::<LE>()?;
-            num_point_entries = input.read_i32::<LE>()?;
+            let num_point_entries = input.read_i32::<LE>()?;
 
             if version >= 2.0 {
                 starting_points = input.read_i32::<LE>()?;
@@ -959,6 +960,7 @@ impl VictoryConditions {
 
         Ok(Self {
             version,
+            victory,
             total_points,
             starting_points,
             starting_group,
@@ -974,9 +976,8 @@ impl VictoryConditions {
 
         let version = version.unwrap_or(std::f32::MIN);
 
-        let victory = true; // TODO
         output.write_i32::<LE>(self.entries.len() as i32)?;
-        output.write_u8(if victory { 1 } else { 0 })?;
+        output.write_u8(if self.victory { 1 } else { 0 })?;
 
         for entry in &self.entries {
             entry.write_to(output)?;
@@ -1326,6 +1327,78 @@ impl ScenarioObject {
     }
 }
 
+/// AoE1's victory info.
+///
+/// This was replaced by VictoryConditions in AoE2.
+#[derive(Debug, Clone, Default)]
+pub struct LegacyVictoryInfo {
+    pub object_type: i32,
+    pub all_flag: bool,
+    pub player_id: i32,
+    pub dest_object_id: i32,
+    pub area: (f32, f32, f32, f32),
+    pub victory_type: i32,
+    pub amount: i32,
+    pub attribute: i32,
+    pub object_id: i32,
+    pub dest_object_id2: i32,
+}
+
+impl LegacyVictoryInfo {
+    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+        let object_type = input.read_i32::<LE>()?;
+        let all_flag = input.read_i32::<LE>()? != 0;
+        let player_id = input.read_i32::<LE>()?;
+        let dest_object_id = input.read_i32::<LE>()?;
+        let area = (
+            input.read_f32::<LE>()?,
+            input.read_f32::<LE>()?,
+            input.read_f32::<LE>()?,
+            input.read_f32::<LE>()?,
+        );
+        let victory_type = input.read_i32::<LE>()?;
+        let amount = input.read_i32::<LE>()?;
+        let attribute = input.read_i32::<LE>()?;
+        let object_id = input.read_i32::<LE>()?;
+        let dest_object_id2 = input.read_i32::<LE>()?;
+        // Should be 0 because they're pointers
+        let _object = input.read_u32::<LE>()?;
+        let _dest_object = input.read_u32::<LE>()?;
+
+        Ok(Self {
+            object_type,
+            all_flag,
+            player_id,
+            dest_object_id,
+            area,
+            victory_type,
+            amount,
+            attribute,
+            object_id,
+            dest_object_id2,
+        })
+    }
+
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        output.write_i32::<LE>(self.object_type)?;
+        output.write_i32::<LE>(if self.all_flag { 1 } else { 0 })?;
+        output.write_i32::<LE>(self.player_id)?;
+        output.write_i32::<LE>(self.dest_object_id)?;
+        output.write_f32::<LE>(self.area.0)?;
+        output.write_f32::<LE>(self.area.1)?;
+        output.write_f32::<LE>(self.area.2)?;
+        output.write_f32::<LE>(self.area.3)?;
+        output.write_i32::<LE>(self.victory_type)?;
+        output.write_i32::<LE>(self.amount)?;
+        output.write_i32::<LE>(self.attribute)?;
+        output.write_i32::<LE>(self.object_id)?;
+        output.write_i32::<LE>(self.dest_object_id2)?;
+        output.write_u32::<LE>(0)?;
+        output.write_u32::<LE>(0)?;
+        Ok(())
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct TribeScen {
     /// "Engine" data.
@@ -1348,6 +1421,7 @@ pub(crate) struct TribeScen {
     victory_time: i32,
     /// Initial diplomacy stances between players.
     diplomacy: Vec<Vec<DiplomaticStance>>,
+    legacy_victory_info: Vec<Vec<LegacyVictoryInfo>>,
     /// Whether Allied Victory is enabled for each player.
     allied_victory: Vec<i32>,
     teams_locked: bool,
@@ -1415,7 +1489,8 @@ impl TribeScen {
         }
 
         if version >= 1.02 {
-            debug_assert_eq!(input.read_i32::<LE>()?, -99);
+            let sep = input.read_i32::<LE>()?;
+            debug_assert_eq!(sep, -99);
         }
 
         let victory = VictoryInfo::from(input)?;
@@ -1447,11 +1522,19 @@ impl TribeScen {
             diplomacy.push(player_diplomacy);
         }
 
-        let mut sp_victory_info = [0; 720 * 16];
-        input.read_exact(&mut sp_victory_info)?;
+        let mut legacy_victory_info = vec![vec![]; 16];
+        for list in legacy_victory_info.iter_mut() {
+            for _ in 0..12 {
+                list.push(LegacyVictoryInfo::from(input)?);
+                if list.last().unwrap().victory_type != 0 {
+                    dbg!(list.last());
+                }
+            }
+        }
 
         if version >= 1.02 {
-            debug_assert_eq!(input.read_i32::<LE>()?, -99);
+            let sep = input.read_i32::<LE>()?;
+            debug_assert_eq!(sep, -99);
         }
 
         let mut allied_victory = vec![];
@@ -1556,7 +1639,8 @@ impl TribeScen {
         }
 
         if version >= 1.02 {
-            debug_assert_eq!(input.read_i32::<LE>()?, -99);
+            let sep = input.read_i32::<LE>()?;
+            debug_assert_eq!(sep, -99);
         }
 
         let view = if version >= 1.19 {
@@ -1596,6 +1680,7 @@ impl TribeScen {
             victory_score,
             victory_time,
             diplomacy,
+            legacy_victory_info,
             allied_victory,
             teams_locked,
             can_change_teams,
@@ -1664,9 +1749,11 @@ impl TribeScen {
             }
         }
 
-        // TODO
-        let sp_victory_info = [0; 720 * 16];
-        output.write_all(&sp_victory_info)?;
+        for list in &self.legacy_victory_info {
+            for entry in list {
+                entry.write_to(output)?;
+            }
+        }
 
         if version >= 1.02 {
             output.write_i32::<LE>(-99)?;
