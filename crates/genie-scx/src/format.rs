@@ -453,23 +453,19 @@ impl RGEScen {
         };
 
         let mut player_build_lists = vec![None; 16];
-        if version > 1.13 {
-            for build_list in player_build_lists.iter_mut() {
-                let len = input.read_u16::<LE>()? as usize;
-                *build_list = read_str(input, len)?;
-            }
+        for build_list in player_build_lists.iter_mut() {
+            let len = input.read_u16::<LE>()? as usize;
+            *build_list = read_str(input, len)?;
         }
 
         let mut player_city_plans = vec![None; 16];
-        if version > 1.13 {
-            for city_plan in player_city_plans.iter_mut() {
-                let len = input.read_u16::<LE>()? as usize;
-                *city_plan = read_str(input, len)?;
-            }
+        for city_plan in player_city_plans.iter_mut() {
+            let len = input.read_u16::<LE>()? as usize;
+            *city_plan = read_str(input, len)?;
         }
 
         let mut player_ai_rules = vec![None; 16];
-        if version > 1.06 {
+        if version >= 1.08 {
             for ai_rules in player_ai_rules.iter_mut() {
                 let len = input.read_u16::<LE>()? as usize;
                 *ai_rules = read_str(input, len)?;
@@ -881,7 +877,7 @@ impl VictoryConditions {
 
 #[derive(Debug)]
 struct ScenarioPlayerData {
-    name: String,
+    name: Option<String>,
     view: (f32, f32),
     location: (i16, i16),
     allied_victory: bool,
@@ -894,8 +890,7 @@ struct ScenarioPlayerData {
 impl ScenarioPlayerData {
     pub fn from<R: Read>(input: &mut R, version: f32) -> Result<Self> {
         let len = input.read_u16::<LE>()?;
-        let name = read_str(input, len as usize)?
-            .ok_or_else(|| Error::new(ErrorKind::Other, "missing name"))?;
+        let name = read_str(input, len as usize)?;
 
         let view = (
             input.read_f32::<LE>()?,
@@ -1568,7 +1563,6 @@ impl SCXFormat {
         let mut input = DeflateDecoder::new(input);
         let next_object_id = input.read_i32::<LE>()?;
 
-        // let rge_scen = RGEScen::from(&mut input)?;
         let tribe_scen = TribeScen::from(&mut input)?;
 
         let map = Map::from(&mut input)?;
@@ -1683,6 +1677,14 @@ mod tests {
     #[test]
     fn oldest_aoe1_scn_on_aoeheaven() {
         let mut f = File::open("test/scenarios/ The Destruction of Rome.scn").unwrap();
+        let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
+        let mut out = vec![];
+        format.write_to(&mut out).expect("failed to write");
+    }
+
+    #[test]
+    fn aoe1_beta_scn() {
+        let mut f = File::open("test/scenarios/Dawn of a New Age.scn").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
         format.write_to(&mut out).expect("failed to write");
