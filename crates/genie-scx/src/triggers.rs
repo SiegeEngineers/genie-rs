@@ -467,6 +467,17 @@ pub struct TriggerSystem {
     trigger_order: Vec<i32>,
 }
 
+impl Default for TriggerSystem {
+    fn default() -> Self {
+        Self {
+            version: 1.6,
+            objectives_state: 0,
+            triggers: vec![],
+            trigger_order: vec![],
+        }
+    }
+}
+
 impl TriggerSystem {
     pub fn from<R: Read>(input: &mut R) -> Result<Self> {
         let version = input.read_f64::<LE>()?;
@@ -499,5 +510,15 @@ impl TriggerSystem {
             triggers,
             trigger_order,
         })
+    }
+
+    pub fn write_to<W: Write>(&self, output: &mut W, version: f64) -> Result<()> {
+        output.write_f64::<LE>(version)?;
+        if version >= 1.5 {
+            output.write_i8(self.objectives_state)?;
+        }
+        // num triggers
+        output.write_u32::<LE>(0)?;
+        Ok(())
     }
 }

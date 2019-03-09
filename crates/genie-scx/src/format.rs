@@ -14,6 +14,7 @@ use std::io::{
 use crate::util::*;
 use crate::types::*;
 use crate::triggers::TriggerSystem;
+use crate::VersionBundle;
 
 /// Compare floats with some error.
 macro_rules! cmp_float {
@@ -37,11 +38,31 @@ fn cmp_scx_version(a: SCXVersion, b: SCXVersion) -> Ordering {
     a[3].cmp(&b[3])
 }
 
+// pub enum LostInformation {
+//     DisabledTechs(i32, i32),
+//     DisabledUnits(i32, i32),
+//     DisabledBuildings(i32, i32),
+//     MapType,
+// }
+
 #[derive(Debug)]
 pub struct DLCOptions {
      pub version: i32,
      pub game_data_set: DataSet,
      pub dependencies: Vec<DLCPackage>,
+}
+
+impl Default for DLCOptions {
+    fn default() -> Self {
+        Self {
+            version: 1000,
+            game_data_set: DataSet::BaseGame,
+            dependencies: vec![
+                DLCPackage::AgeOfKings,
+                DLCPackage::AgeOfConquerors,
+            ],
+        }
+    }
 }
 
 impl DLCOptions {
@@ -146,36 +167,45 @@ impl SCXHeader {
     }
 
     /// Serialize an SCX header to a byte stream.
-    ///
-    /// With hd_edition = true, it writes a Version 3 header with DLC information.
-    /// With hd_edition = false, it writes a Version 2 header.
-    pub fn write_to<W: Write>(&self, output: &mut W, hd_edition: bool) -> Result<()> {
+    pub fn write_to<W: Write>(&self, output: &mut W, format_version: SCXVersion, version: u32) -> Result<()> {
+        let mut intermediate = vec![];
+
+        intermediate.write_u32::<LE>(version)?;
+
+        if version >= 2 {
+            let system_time = std::time::SystemTime::now();
+            let duration = system_time.duration_since(std::time::UNIX_EPOCH);
+            intermediate.write_u32::<LE>(duration.map(|d| d.as_secs() as u32).unwrap_or(0))?;
+        }
+
         let mut description_bytes = vec![];
         if let Some(ref description) = self.description {
             description_bytes.write_all(description.as_bytes())?;
+            description_bytes.push(0);
         }
-        let mut dlc_options_bytes = vec![];
-        if hd_edition {
-            if let Some(ref options) = self.dlc_options {
-                options.write_to(&mut dlc_options_bytes)?;
-            }
+        if format_version == *b"3.13" {
+            assert!(description_bytes.len() <= std::u16::MAX as usize, "description length must fit in u16");
+            intermediate.write_u16::<LE>(description_bytes.len() as u16)?;
+        } else {
+            assert!(description_bytes.len() <= std::u32::MAX as usize, "description length must fit in u32");
+            intermediate.write_u32::<LE>(description_bytes.len() as u32)?;
         }
-        let header_size = (4 + 4 + description_bytes.len() + 4 + 4 + dlc_options_bytes.len()) as u32;
+        intermediate.write_all(&description_bytes)?;
 
-        let version = if hd_edition { 3 } else { 2 };
-        output.write_u32::<LE>(version)?;
-        output.write_u32::<LE>(header_size)?;
+        intermediate.write_u32::<LE>(if self.any_sp_victory { 1 } else { 0 })?;
+        intermediate.write_u32::<LE>(self.active_player_count)?;
 
-        let system_time = std::time::SystemTime::now();
-        let duration = system_time.duration_since(std::time::UNIX_EPOCH);
-        output.write_u32::<LE>(duration.map(|d| d.as_secs() as u32).unwrap_or(0))?;
+        if version > 2 && format_version != *b"3.13" {
+            let def = DLCOptions::default();
+            let dlc_options = match self.dlc_options {
+                Some(ref options) => options,
+                None => &def,
+            };
+            dlc_options.write_to(&mut intermediate)?;
+        }
 
-        assert!(description_bytes.len() <= std::u16::MAX as usize, "description length must fit in u16");
-        output.write_u16::<LE>(description_bytes.len() as u16)?;
-        output.write_all(&description_bytes)?;
-
-        output.write_u32::<LE>(if self.any_sp_victory { 1 } else { 0 })?;
-        output.write_u32::<LE>(self.active_player_count)?;
+        output.write_u32::<LE>(intermediate.len() as u32)?;
+        output.write_all(&intermediate)?;
 
         Ok(())
     }
@@ -501,8 +531,7 @@ impl RGEScen {
         }
 
         if version >= 1.02 {
-            // skip separator thing
-            input.read_u32::<LE>()?;
+            debug_assert_eq!(input.read_i32::<LE>()?, -99);
         }
 
         Ok(RGEScen {
@@ -539,27 +568,35 @@ impl RGEScen {
     pub fn write_to<W: Write>(&self, output: &mut W, version: f32) -> Result<()> {
         output.write_f32::<LE>(version)?;
 
-        for name in &self.player_names {
-            let mut padded_bytes = vec![0; 256];
-            if let Some(ref name) = name {
-                let name_bytes = name.as_bytes();
-                padded_bytes.write_all(name_bytes)?;
+        if version > 1.13 {
+            for name in &self.player_names {
+                let mut padded_bytes = vec![0; 256];
+                if let Some(ref name) = name {
+                    let name_bytes = name.as_bytes();
+                    padded_bytes.write_all(name_bytes)?;
+                }
+                output.write_all(&padded_bytes)?;
             }
-            output.write_all(&padded_bytes)?;
         }
 
-        for id in &self.player_string_table {
-            output.write_i32::<LE>(*id)?;
+        if version > 1.16 {
+            for id in &self.player_string_table {
+                output.write_i32::<LE>(*id)?;
+            }
         }
 
-        for props in &self.player_base_properties {
-            output.write_i32::<LE>(props.active)?;
-            output.write_i32::<LE>(props.player_type)?;
-            output.write_i32::<LE>(props.civilization)?;
-            output.write_i32::<LE>(props.posture)?;
+        if version > 1.13 {
+            for props in &self.player_base_properties {
+                output.write_i32::<LE>(props.active)?;
+                output.write_i32::<LE>(props.player_type)?;
+                output.write_i32::<LE>(props.civilization)?;
+                output.write_i32::<LE>(props.posture)?;
+            }
         }
 
-        output.write_u8(if self.victory_conquest { 1 } else { 0 })?;
+        if version >= 1.07 {
+            output.write_u8(if self.victory_conquest { 1 } else { 0 })?;
+        }
 
         // RGE_Timeline
         output.write_i16::<LE>(0)?;
@@ -568,20 +605,24 @@ impl RGEScen {
 
         write_str(output, &self.name)?;
 
-        output.write_i32::<LE>(self.description_string_table)?;
-        output.write_i32::<LE>(self.hints_string_table)?;
-        output.write_i32::<LE>(self.win_message_string_table)?;
-        output.write_i32::<LE>(self.loss_message_string_table)?;
-        output.write_i32::<LE>(self.history_string_table)?;
+        if version >= 1.16 {
+            output.write_i32::<LE>(self.description_string_table)?;
+            output.write_i32::<LE>(self.hints_string_table)?;
+            output.write_i32::<LE>(self.win_message_string_table)?;
+            output.write_i32::<LE>(self.loss_message_string_table)?;
+            output.write_i32::<LE>(self.history_string_table)?;
+        }
         if version >= 1.22 {
             output.write_i32::<LE>(self.scout_string_table)?;
         }
 
         write_opt_str(output, &self.description)?;
-        write_opt_str(output, &self.hints)?;
-        write_opt_str(output, &self.win_message)?;
-        write_opt_str(output, &self.loss_message)?;
-        write_opt_str(output, &self.history)?;
+        if version >= 1.11 {
+            write_opt_str(output, &self.hints)?;
+            write_opt_str(output, &self.win_message)?;
+            write_opt_str(output, &self.loss_message)?;
+            write_opt_str(output, &self.history)?;
+        }
         if version >= 1.22 {
             write_opt_str(output, &self.scout)?;
         }
@@ -589,14 +630,18 @@ impl RGEScen {
         write_opt_str(output, &self.pregame_cinematic)?;
         write_opt_str(output, &self.victory_cinematic)?;
         write_opt_str(output, &self.loss_cinematic)?;
-        // mission_bmp
-        write_opt_str(output, &None)?;
+        if version >= 1.09 {
+            // mission_bmp
+            write_opt_str(output, &None)?;
+        }
 
-        // mission_picture
-        output.write_u32::<LE>(0)?;
-        output.write_u32::<LE>(0)?;
-        output.write_u32::<LE>(0)?;
-        output.write_u16::<LE>(1)?;
+        if version >= 1.10 {
+            // mission_picture
+            output.write_u32::<LE>(0)?;
+            output.write_u32::<LE>(0)?;
+            output.write_u32::<LE>(0)?;
+            output.write_u16::<LE>(1)?;
+        }
 
         for build_list in &self.player_build_lists {
             write_opt_str(output, build_list)?;
@@ -606,18 +651,24 @@ impl RGEScen {
             write_opt_str(output, city_plan)?;
         }
 
-        for ai_rules in &self.player_ai_rules {
-            write_opt_str(output, ai_rules)?;
+        if version >= 1.08 {
+            for ai_rules in &self.player_ai_rules {
+                write_opt_str(output, ai_rules)?;
+            }
         }
 
         for files in &self.player_files {
             write_opt_i32_str(output, &files.build_list)?;
             write_opt_i32_str(output, &files.city_plan)?;
-            write_opt_i32_str(output, &files.ai_rules)?;
+            if version >= 1.08 {
+                write_opt_i32_str(output, &files.ai_rules)?;
+            }
         }
 
-        for ai_rules_type in &self.ai_rules_types {
-            output.write_i8(*ai_rules_type)?;
+        if version >= 1.20 {
+            for ai_rules_type in &self.ai_rules_types {
+                output.write_i8(*ai_rules_type)?;
+            }
         }
 
         output.write_i32::<LE>(-99)?;
@@ -774,6 +825,24 @@ impl VictoryEntry {
             state,
         })
     }
+
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        output.write_i8(self.command)?;
+        output.write_i32::<LE>(self.object_type)?;
+        output.write_i32::<LE>(self.player_id)?;
+        output.write_f32::<LE>(self.x0)?;
+        output.write_f32::<LE>(self.y0)?;
+        output.write_f32::<LE>(self.x1)?;
+        output.write_f32::<LE>(self.y1)?;
+        output.write_i32::<LE>(self.number)?;
+        output.write_i32::<LE>(self.count)?;
+        output.write_i32::<LE>(self.source_object)?;
+        output.write_i32::<LE>(self.target_object)?;
+        output.write_i8(self.victory_group)?;
+        output.write_i8(self.ally_flag)?;
+        output.write_i8(self.state)?;
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
@@ -822,6 +891,24 @@ impl VictoryPointEntry {
             current_attribute_amount1,
         })
     }
+
+    pub fn write_to<W: Write>(&self, output: &mut W, version: f32) -> Result<()> {
+        output.write_i8(self.command)?;
+        output.write_i8(self.state)?;
+        output.write_i32::<LE>(self.attribute)?;
+        output.write_i32::<LE>(self.amount)?;
+        output.write_i32::<LE>(self.points)?;
+        output.write_i32::<LE>(self.current_points)?;
+        output.write_i8(self.id)?;
+        output.write_i8(self.group)?;
+        output.write_f32::<LE>(self.current_attribute_amount)?;
+        if version >= 2.0 {
+            output.write_i32::<LE>(self.attribute1)?;
+            output.write_f32::<LE>(self.current_attribute_amount1)?;
+        }
+
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
@@ -850,18 +937,24 @@ impl VictoryConditions {
             entries.push(VictoryEntry::from(input)?);
         }
 
-        let total_points = input.read_i32::<LE>()?;
-        let num_point_entries = input.read_i32::<LE>()?;
+        let mut total_points = 0;
+        let mut num_point_entries = 0;
+        let mut point_entries = vec![];
+        let mut starting_points = 0;
+        let mut starting_group = 0;
 
-        let (starting_points, starting_group) = if version >= 2.0 {
-            (input.read_i32::<LE>()?, input.read_i32::<LE>()?)
-        } else {
-            (0, 0)
-        };
+        if version >= 1.0 {
+            total_points = input.read_i32::<LE>()?;
+            num_point_entries = input.read_i32::<LE>()?;
 
-        let mut point_entries = Vec::with_capacity(num_point_entries as usize);
-        for _ in 0..num_point_entries {
-            point_entries.push(VictoryPointEntry::from(input, version)?);
+            if version >= 2.0 {
+                starting_points = input.read_i32::<LE>()?;
+                starting_group = input.read_i32::<LE>()?;
+            }
+
+            for _ in 0..num_point_entries {
+                point_entries.push(VictoryPointEntry::from(input, version)?);
+            }
         }
 
         Ok(Self {
@@ -872,6 +965,38 @@ impl VictoryConditions {
             entries,
             point_entries,
         })
+    }
+
+    pub fn write_to<W: Write>(&self, output: &mut W, version: Option<f32>) -> Result<()> {
+        if let Some(v) = version {
+            output.write_f32::<LE>(v)?;
+        }
+
+        let version = version.unwrap_or(std::f32::MIN);
+
+        let victory = true; // TODO
+        output.write_i32::<LE>(self.entries.len() as i32)?;
+        output.write_u8(if victory { 1 } else { 0 })?;
+
+        for entry in &self.entries {
+            entry.write_to(output)?;
+        }
+
+        if version >= 1.0 {
+            output.write_i32::<LE>(self.total_points)?;
+            output.write_i32::<LE>(self.point_entries.len() as i32)?;
+
+            if version >= 2.0 {
+                output.write_i32::<LE>(self.starting_points)?;
+                output.write_i32::<LE>(self.starting_group)?;
+            }
+
+            for entry in &self.point_entries {
+                entry.write_to(output, version)?;
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -948,6 +1073,49 @@ impl ScenarioPlayerData {
             color,
             victory,
         })
+    }
+
+    pub fn write_to<W: Write>(&self, output: &mut W, version: f32, victory_version: f32) -> Result<()> {
+        write_opt_str(output, &self.name)?;
+
+        output.write_f32::<LE>(self.view.0)?;
+        output.write_f32::<LE>(self.view.1)?;
+
+        output.write_i16::<LE>(self.location.0)?;
+        output.write_i16::<LE>(self.location.1)?;
+
+        if version > 1.0 {
+            output.write_u8(if self.allied_victory { 1 } else { 0 })?;
+        };
+
+        output.write_i16::<LE>(self.relations.len() as i16)?;
+        for rel in &self.relations {
+            output.write_i8(*rel)?;
+        }
+
+        if version >= 1.08 {
+            output.write_i32::<LE>(self.unit_diplomacy[0])?;
+            output.write_i32::<LE>(self.unit_diplomacy[1])?;
+            output.write_i32::<LE>(self.unit_diplomacy[2])?;
+            output.write_i32::<LE>(self.unit_diplomacy[3])?;
+            output.write_i32::<LE>(self.unit_diplomacy[4])?;
+            output.write_i32::<LE>(self.unit_diplomacy[5])?;
+            output.write_i32::<LE>(self.unit_diplomacy[6])?;
+            output.write_i32::<LE>(self.unit_diplomacy[7])?;
+            output.write_i32::<LE>(self.unit_diplomacy[8])?;
+        }
+
+        if version >= 1.13 {
+            output.write_i32::<LE>(self.color.unwrap_or(-1))?;
+        }
+
+        self.victory.write_to(output, if version >= 1.09 {
+            Some(victory_version)
+        } else {
+            None
+        })?;
+
+        Ok(())
     }
 }
 
@@ -1115,13 +1283,16 @@ impl ScenarioObject {
         output.write_i16::<LE>(self.object_type)?;
         output.write_u8(self.state)?;
         output.write_f32::<LE>(self.angle)?;
-        if version != *b"1.14" {
+        if cmp_scx_version(version, *b"1.14") == Ordering::Greater {
             output.write_i16::<LE>(self.frame)?;
         }
-        match self.garrisoned_in {
-            Some(id) => output.write_i32::<LE>(id),
-            None => output.write_i32::<LE>(-1),
+        if cmp_scx_version(version, *b"1.12") == Ordering::Greater {
+            match self.garrisoned_in {
+                Some(id) => output.write_i32::<LE>(id)?,
+                None => output.write_i32::<LE>(-1)?,
+            }
         }
+        Ok(())
     }
 }
 
@@ -1149,6 +1320,10 @@ pub(crate) struct TribeScen {
     diplomacy: Vec<Vec<DiplomaticStance>>,
     /// Whether Allied Victory is enabled for each player.
     allied_victory: Vec<i32>,
+    teams_locked: bool,
+    can_change_teams: bool,
+    random_start_locations: bool,
+    max_teams: u8,
     /// Number of disabled techs per player.
     num_disabled_techs: Vec<i32>,
     /// Disabled tech IDs per player.
@@ -1173,20 +1348,44 @@ pub(crate) struct TribeScen {
     view: (i32, i32),
     /// The map type.
     map_type: Option<i32>,
+    base_priorities: Vec<i8>,
 }
 
 impl TribeScen {
     pub fn from<R: Read>(input: &mut R) -> Result<Self> {
-        let base = RGEScen::from(input)?;
+        let mut base = RGEScen::from(input)?;
         let version = base.version;
 
         let mut player_start_resources = vec![];
-        for _ in 0..16 {
-            player_start_resources.push(PlayerStartResources::from(input, version)?);
+
+        // Moved to RGEScen in 1.13
+        if version <= 1.13 {
+            for name in base.player_names.iter_mut() {
+                *name = read_str(input, 256)?;
+            }
+
+            for _ in 0..16 {
+                let active = input.read_i32::<LE>()?;
+                let resources = PlayerStartResources::from(input, version)?;
+                let player_type = input.read_i32::<LE>()?;
+                let civilization = input.read_i32::<LE>()?;
+                let posture = input.read_i32::<LE>()?;
+                player_start_resources.push(resources);
+                base.player_base_properties.push(PlayerBaseProperties {
+                    active,
+                    civilization,
+                    player_type,
+                    posture,
+                });
+            }
+        } else {
+            for _ in 0..16 {
+                player_start_resources.push(PlayerStartResources::from(input, version)?);
+            }
         }
 
         if version >= 1.02 {
-            input.read_u32::<LE>()?;
+            debug_assert_eq!(input.read_i32::<LE>()?, -99);
         }
 
         let victory = VictoryInfo::from(input)?;
@@ -1222,7 +1421,7 @@ impl TribeScen {
         input.read_exact(&mut sp_victory_info)?;
 
         if version >= 1.02 {
-            input.read_u32::<LE>()?;
+            debug_assert_eq!(input.read_i32::<LE>()?, -99);
         }
 
         let mut allied_victory = vec![];
@@ -1253,62 +1452,53 @@ impl TribeScen {
             (false, true, true, 4)
         };
 
-        let mut num_disabled_techs = vec![];
-        let mut disabled_techs = vec![];
-        let mut num_disabled_units = vec![];
-        let mut disabled_units = vec![];
-        let mut num_disabled_buildings = vec![];
-        let mut disabled_buildings = vec![];
+        let mut num_disabled_techs = vec![0; 16];
+        let mut disabled_techs = vec![vec![]; 16];
+        let mut num_disabled_units = vec![0; 16];
+        let mut disabled_units = vec![vec![]; 16];
+        let mut num_disabled_buildings = vec![0; 16];
+        let mut disabled_buildings = vec![vec![]; 16];
 
         if version >= 1.18 {
-            for _ in 0..16 {
-                num_disabled_techs.push(input.read_i32::<LE>()?);
+            for num in num_disabled_techs.iter_mut() {
+                *num = input.read_i32::<LE>()?;
             }
-            for _ in 0..16 {
-                let mut player_disabled_techs = vec![];
+            for player_disabled_techs in disabled_techs.iter_mut() {
                 for _ in 0..30 {
                     player_disabled_techs.push(input.read_i32::<LE>()?);
                 }
-                disabled_techs.push(player_disabled_techs);
             }
 
-            for _ in 0..16 {
-                num_disabled_units.push(input.read_i32::<LE>()?);
+            for num in num_disabled_units.iter_mut() {
+                *num = input.read_i32::<LE>()?;
             }
-            for _ in 0..16 {
-                let mut player_disabled_units = vec![];
+            for player_disabled_units in disabled_units.iter_mut() {
                 for _ in 0..30 {
                     player_disabled_units.push(input.read_i32::<LE>()?);
                 }
-                disabled_units.push(player_disabled_units);
             }
 
-            for _ in 0..16 {
-                num_disabled_buildings.push(input.read_i32::<LE>()?);
+            for num in num_disabled_buildings.iter_mut() {
+                *num = input.read_i32::<LE>()?;
             }
             let max_disabled_buildings = if version >= 1.25 { 30 } else { 20 };
-            for _ in 0..16 {
-                let mut player_disabled_buildings = vec![];
+            for player_disabled_buildings in disabled_buildings.iter_mut() {
                 for _ in 0..max_disabled_buildings {
                     player_disabled_buildings.push(input.read_i32::<LE>()?);
                 }
-                disabled_buildings.push(player_disabled_buildings);
             }
         } else if version > 1.03 {
             // Old scenarios only allowed disabling up to 20 techs per player.
-            for _ in 0..16 {
-                let mut player_disabled_techs = vec![];
+            for i in 0..16 {
+                let player_disabled_techs = &mut disabled_techs[i];
                 for _ in 0..20 {
                     player_disabled_techs.push(input.read_i32::<LE>()?);
                 }
                 // The number of disabled techs wasn't stored either, so we need to guess it!
-                num_disabled_techs.push(
-                    player_disabled_techs.iter()
-                        .position(|val| *val <= 0)
-                        .map(|index| (index as i32) + 1)
-                        .unwrap_or(0)
-                );
-                disabled_techs.push(player_disabled_techs);
+                num_disabled_techs[i] = player_disabled_techs.iter()
+                    .position(|val| *val <= 0)
+                    .map(|index| (index as i32) + 1)
+                    .unwrap_or(0);
             }
         } else {
             // <= 1.03 did not support disabling anything
@@ -1336,7 +1526,7 @@ impl TribeScen {
         }
 
         if version >= 1.02 {
-            input.read_i32::<LE>()?;
+            debug_assert_eq!(input.read_i32::<LE>()?, -99);
         }
 
         let view = if version >= 1.19 {
@@ -1349,7 +1539,13 @@ impl TribeScen {
         };
 
         let map_type = if version >= 1.21 {
-            Some(input.read_i32::<LE>()?)
+            Some(input.read_i32::<LE>()?).and_then(|v| {
+                if v != -1 {
+                    Some(v)
+                } else {
+                    None
+                }
+            })
         } else {
             None
         };
@@ -1371,6 +1567,10 @@ impl TribeScen {
             victory_time,
             diplomacy,
             allied_victory,
+            teams_locked,
+            can_change_teams,
+            random_start_locations,
+            max_teams,
             num_disabled_techs,
             disabled_techs,
             num_disabled_units,
@@ -1383,19 +1583,181 @@ impl TribeScen {
             player_start_ages,
             view,
             map_type,
+            base_priorities,
         })
     }
 
     pub fn write_to<W: Write>(&self, output: &mut W, version: f32) -> Result<()> {
         self.base.write_to(output, version)?;
 
-        for start_resources in &self.player_start_resources {
-            start_resources.write_to(output, version)?;
+        if version <= 1.13 {
+            for name in &self.base.player_names {
+                let mut padded_bytes = vec![0; 256];
+                if let Some(ref name) = name {
+                    let name_bytes = name.as_bytes();
+                    padded_bytes.write_all(name_bytes)?;
+                }
+                output.write_all(&padded_bytes)?;
+            }
+
+            for i in 0..16 {
+                let properties = &self.base.player_base_properties[i];
+                let resources = &self.player_start_resources[i];
+                output.write_i32::<LE>(properties.active)?;
+                resources.write_to(output, version)?;
+                output.write_i32::<LE>(properties.player_type)?;
+                output.write_i32::<LE>(properties.civilization)?;
+                output.write_i32::<LE>(properties.posture)?;
+            }
+        } else {
+            for start_resources in &self.player_start_resources {
+                start_resources.write_to(output, version)?;
+            }
         }
 
-        output.write_i32::<LE>(-99)?;
+        if version >= 1.02 {
+            output.write_i32::<LE>(-99)?;
+        }
 
         self.victory.write_to(output)?;
+        output.write_i32::<LE>(if self.victory_all_flag { 1 } else { 0 })?;
+
+        if version >= 1.13 {
+            output.write_i32::<LE>(self.mp_victory_type)?;
+            output.write_i32::<LE>(self.victory_score)?;
+            output.write_i32::<LE>(self.victory_time)?;
+        }
+
+        for player_diplomacy in &self.diplomacy {
+            for stance in player_diplomacy {
+                output.write_i32::<LE>((*stance).into())?;
+            }
+        }
+
+        // TODO
+        let sp_victory_info = [0; 720 * 16];
+        output.write_all(&sp_victory_info)?;
+
+        if version >= 1.02 {
+            output.write_i32::<LE>(-99)?;
+        }
+
+        for value in &self.allied_victory {
+            output.write_i32::<LE>(*value)?;
+        }
+
+        if version >= 1.24 {
+            output.write_i8(if self.teams_locked { 1 } else { 0 })?;
+            output.write_i8(if self.can_change_teams { 1 } else { 0 })?;
+            output.write_i8(if self.random_start_locations { 1 } else { 0 })?;
+            output.write_u8(self.max_teams)?;
+        } else if cmp_float!(version == 1.23) {
+            output.write_i32::<LE>(if self.teams_locked { 1 } else { 0 })?;
+        }
+
+        let max_disabled_buildings = if version >= 1.25 { 30 } else { 20 };
+        if version >= 1.18 {
+            let most = *self.num_disabled_buildings.iter().max().unwrap_or(&0);
+            if most > max_disabled_buildings {
+                return Err(Error::new(ErrorKind::Other,
+                      format!("too many disabled buildings: got {}, but requested version supports up to {}", most, max_disabled_buildings)));
+            }
+
+            for num in &self.num_disabled_techs {
+                output.write_i32::<LE>(*num)?;
+            }
+            for player_disabled_techs in &self.disabled_techs {
+                for i in 0..30 {
+                    output.write_i32::<LE>(*player_disabled_techs.get(i).unwrap_or(&-1))?;
+                }
+            }
+
+            for num in &self.num_disabled_units {
+                output.write_i32::<LE>(*num)?;
+            }
+            for player_disabled_units in &self.disabled_units {
+                for i in 0..30 {
+                    output.write_i32::<LE>(*player_disabled_units.get(i).unwrap_or(&-1))?;
+                }
+            }
+
+            for num in &self.num_disabled_buildings {
+                output.write_i32::<LE>(*num)?;
+            }
+            for player_disabled_buildings in &self.disabled_buildings {
+                for i in 0..max_disabled_buildings as usize {
+                    output.write_i32::<LE>(*player_disabled_buildings.get(i).unwrap_or(&-1))?;
+                }
+            }
+        } else if version > 1.03 {
+            let most = *self.num_disabled_techs.iter().max().unwrap_or(&0);
+            if most > 20 {
+                return Err(Error::new(ErrorKind::Other,
+                      format!("too many disabled techs: got {}, but requested version supports up to 20", most)));
+            }
+            if self.num_disabled_units.iter().any(|&n| n > 0) {
+                return Err(Error::new(ErrorKind::Other,
+                      format!("requested version does not support disabling units")));
+            }
+            if self.num_disabled_buildings.iter().any(|&n| n > 0) {
+                return Err(Error::new(ErrorKind::Other,
+                      format!("requested version does not support disabling buildings")));
+            }
+
+            // Old scenarios only allowed disabling up to 20 techs per player.
+            for player_disabled_techs in &self.disabled_techs {
+                for i in 0..20 {
+                    output.write_i32::<LE>(*player_disabled_techs.get(i).unwrap_or(&-1))?;
+                }
+            }
+        } else {
+            // <= 1.03 did not support disabling anything
+            if self.num_disabled_techs.iter().any(|&n| n > 0) {
+                return Err(Error::new(ErrorKind::Other,
+                      format!("requested version does not support disabling techs")));
+            }
+            if self.num_disabled_units.iter().any(|&n| n > 0) {
+                return Err(Error::new(ErrorKind::Other,
+                      format!("requested version does not support disabling units")));
+            }
+            if self.num_disabled_buildings.iter().any(|&n| n > 0) {
+                return Err(Error::new(ErrorKind::Other,
+                      format!("requested version does not support disabling buildings")));
+            }
+        }
+
+        if version > 1.04 {
+            output.write_i32::<LE>(0)?;
+        }
+        if version >= 1.12 {
+            output.write_i32::<LE>(0)?;
+            output.write_i32::<LE>(if self.all_techs { 1 } else { 0 })?;
+        }
+
+        if version > 1.05 {
+            for start_age in &self.player_start_ages {
+                output.write_i32::<LE>(start_age.to_i32(version))?;
+            }
+        }
+
+        if version >= 1.02 {
+            output.write_i32::<LE>(-99)?;
+        }
+
+        if version >= 1.19 {
+            output.write_i32::<LE>(self.view.0)?;
+            output.write_i32::<LE>(self.view.1)?;
+        }
+
+        if version >= 1.21 {
+            output.write_i32::<LE>(self.map_type.unwrap_or(-1))?;
+        }
+
+        if version >= 1.24 {
+            for priority in &self.base_priorities {
+                output.write_i8(*priority)?;
+            }
+        }
 
         Ok(())
     }
@@ -1411,7 +1773,7 @@ impl TribeScen {
     }
 }
 
-#[derive(Debug, FromPrimitive)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, FromPrimitive)]
 enum AIErrorCode {
     ConstantAlreadyDefined = 0x0,
     FileOpenFailed = 0x1,
@@ -1442,7 +1804,7 @@ enum AIErrorCode {
     UnexpectedEOF = 0x1A,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AIErrorInfo {
     filename: String,
     line_number: i32,
@@ -1484,7 +1846,7 @@ impl AIErrorInfo {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AIFile {
     filename: String,
     content: String,
@@ -1501,7 +1863,7 @@ impl AIFile {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
 pub struct AIInfo {
     error: Option<AIErrorInfo>,
     files: Vec<AIFile>,
@@ -1530,6 +1892,12 @@ impl AIInfo {
 
         Ok(Some(Self { error, files }))
     }
+
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        output.write_u32::<LE>(0)?;
+        output.write_u32::<LE>(0)?;
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
@@ -1557,6 +1925,16 @@ pub struct SCXFormat {
 }
 
 impl SCXFormat {
+    /// Extract version bundle information from a parsed SCX file.
+    pub fn version(&self) -> VersionBundle {
+        VersionBundle {
+            format: self.version,
+            header: self.header.version,
+            data: self.tribe_scen.version(),
+            ..VersionBundle::aoc()
+        }
+    }
+
     fn load_121<R: Read>(version: SCXVersion, player_version: f32, input: &mut R) -> Result<Self> {
         let header = SCXHeader::from(input, version)?;
 
@@ -1569,7 +1947,7 @@ impl SCXFormat {
 
         let num_players = input.read_i32::<LE>()?;
         let mut world_players = vec![];
-        for _ in 0..8 {
+        for _ in 1..num_players {
             world_players.push(WorldPlayerData::from(&mut input, player_version)?);
         }
 
@@ -1585,7 +1963,7 @@ impl SCXFormat {
 
         let num_scenario_players = input.read_i32::<LE>()?;
         let mut scenario_players = vec![];
-        for _ in 0..8 {
+        for _ in 1..num_scenario_players {
             scenario_players.push(ScenarioPlayerData::from(&mut input, player_version)?);
         }
 
@@ -1628,8 +2006,7 @@ impl SCXFormat {
             b"1.07" => Self::load_121(format_version, 1.07, input),
             b"1.08" => unimplemented!(),
             b"1.09" | b"1.10" | b"1.11" => Self::load_121(format_version, 1.11, input),
-            b"1.12" => Self::load_121(format_version, 1.12, input),
-            b"1.13" | b"1.14" | b"1.15" | b"1.16" => Self::load_121(format_version, 1.12, input),
+            b"1.12" | b"1.13" | b"1.14" | b"1.15" | b"1.16" => Self::load_121(format_version, 1.12, input),
             b"1.17" => Self::load_121(format_version, 1.14, input),
             b"1.18" | b"1.19" => Self::load_121(format_version, 1.13, input),
             b"1.20" | b"1.21" => Self::load_121(format_version, 1.14, input),
@@ -1639,31 +2016,60 @@ impl SCXFormat {
         }
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        output.write_all(&self.version)?;
+    pub fn write_to<W: Write>(&self, output: &mut W, version: &VersionBundle) -> Result<()> {
+        let player_version = match &version.format {
+            b"1.07" => 1.07,
+            b"1.09" | b"1.10" | b"1.11" => 1.11,
+            b"1.12" | b"1.13" | b"1.14" | b"1.15" | b"1.16" => 1.12,
+            b"1.18" | b"1.19" => 1.13,
+            b"1.14" | b"1.20" | b"1.21" => 1.14,
+            _ => panic!("writing version {} is not supported", String::from_utf8_lossy(&version.format)),
+        };
+
+        output.write_all(&version.format)?;
+        self.header.write_to(output, version.format, version.header)?;
 
         let mut output = DeflateEncoder::new(output, Compression::default());
         output.write_i32::<LE>(self.next_object_id)?;
 
-        self.tribe_scen.write_to(&mut output, 1.25)?;
+        self.tribe_scen.write_to(&mut output, version.data)?;
         self.map.write_to(&mut output)?;
 
-        let player_version = match &self.version {
-            b"1.11" => 1.11,
-            b"1.12" | b"1.13" | b"1.14" | b"1.15" | b"1.16" => 1.12,
-            b"1.18" | b"1.19" => 1.13,
-            _ => 1.14,
-        };
-
-        output.write_i32::<LE>(self.world_players.len() as i32)?;
-        for player in self.world_players.iter() {
+        output.write_i32::<LE>(self.player_objects.len() as i32)?;
+        for player in &self.world_players {
             player.write_to(&mut output, player_version)?;
         }
-        for objects in self.player_objects.iter() {
+
+        for objects in &self.player_objects {
+            output.write_i32::<LE>(objects.len() as i32)?;
             for object in objects {
-                object.write_to(&mut output, self.version)?;
+                object.write_to(&mut output, version.format)?;
             }
         }
+
+        output.write_i32::<LE>(self.scenario_players.len() as i32 + 1)?;
+        for player in &self.scenario_players {
+            player.write_to(&mut output, player_version, version.victory)?;
+        }
+
+        if cmp_scx_version(version.format, *b"1.13") == Ordering::Greater {
+            let def = TriggerSystem::default();
+            let triggers = match self.triggers {
+                Some(ref tr) => tr,
+                None => &def,
+            };
+            triggers.write_to(&mut output, version.triggers)?;
+        }
+
+        if cmp_scx_version(version.format, *b"1.17") == Ordering::Greater && cmp_scx_version(version.format, *b"2.00") == Ordering::Less {
+            let def = AIInfo::default();
+            let ai_info = match self.ai_info {
+                Some(ref ai) => ai,
+                None => &def,
+            };
+            ai_info.write_to(&mut output)?;
+        }
+
         Ok(())
     }
 }
@@ -1671,6 +2077,7 @@ impl SCXFormat {
 #[cfg(test)]
 mod tests {
     use super::SCXFormat;
+    use crate::VersionBundle;
     use std::fs::File;
 
     /// Source: http://aoe.heavengames.com/dl-php/showfile.php?fileid=42
@@ -1679,15 +2086,32 @@ mod tests {
         let mut f = File::open("test/scenarios/ The Destruction of Rome.scn").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
-        format.write_to(&mut out).expect("failed to write");
+        format.write_to(&mut out, &format.version()).expect("failed to write");
     }
 
     #[test]
-    fn aoe1_beta_scn() {
+    fn aoe1_beta_scn_reserialize() {
         let mut f = File::open("test/scenarios/Dawn of a New Age.scn").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
-        format.write_to(&mut out).expect("failed to write");
+        format.write_to(&mut out, &format.version()).expect("failed to write");
+
+        let mut f = std::io::Cursor::new(out);
+        let format2 = SCXFormat::load_scenario(&mut f).expect("failed to read");
+        assert_eq!(format!("{:#?}", format), format!("{:#?}", format2), "should produce exactly the same scenario");
+    }
+
+    #[test]
+    fn aoe1_beta_scn_to_aoc() {
+        let mut f = File::open("test/scenarios/Dawn of a New Age.scn").unwrap();
+        let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
+        let mut out = vec![];
+        format.write_to(&mut out, &VersionBundle::aoc()).expect("failed to write");
+        std::fs::write("test/scenarios/aoc-Dawn of a New Age.scn", &out).unwrap();
+
+        let mut f = std::io::Cursor::new(out);
+        let format2 = SCXFormat::load_scenario(&mut f).expect("failed to read");
+        assert_eq!(format2.version(), VersionBundle::aoc(), "should have converted to AoC versions");
     }
 
     /// Source: http://aoe.heavengames.com/dl-php/showfile.php?fileid=1678
@@ -1696,7 +2120,7 @@ mod tests {
         let mut f = File::open("test/scenarios/Bronze Age Art of War.scn").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
-        format.write_to(&mut out).expect("failed to write");
+        format.write_to(&mut out, &format.version()).expect("failed to write");
     }
 
     /// Source: http://aoe.heavengames.com/dl-php/showfile.php?fileid=2409
@@ -1705,7 +2129,7 @@ mod tests {
         let mut f = File::open("test/scenarios/CEASAR.scn").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
-        format.write_to(&mut out).expect("failed to write");
+        format.write_to(&mut out, &format.version()).expect("failed to write");
     }
 
     /// Source: http://aoe.heavengames.com/dl-php/showfile.php?fileid=1651
@@ -1714,7 +2138,7 @@ mod tests {
         let mut f = File::open("test/scenarios/A New Emporer.scn").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
-        format.write_to(&mut out).expect("failed to write");
+        format.write_to(&mut out, &format.version()).expect("failed to write");
     }
 
     /// Source: http://aoe.heavengames.com/dl-php/showfile.php?fileid=880
@@ -1723,7 +2147,7 @@ mod tests {
         let mut f = File::open("test/scenarios/Jeremiah Johnson (Update).scx").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
-        format.write_to(&mut out).expect("failed to write");
+        format.write_to(&mut out, &format.version()).expect("failed to write");
     }
 
     /// Source: http://aok.heavengames.com/blacksmith/showfile.php?fileid=1271
@@ -1732,7 +2156,7 @@ mod tests {
         let mut f = File::open("test/scenarios/CAMELOT.SCN").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
-        format.write_to(&mut out).expect("failed to write");
+        format.write_to(&mut out, &format.version()).expect("failed to write");
     }
 
     #[test]
@@ -1740,7 +2164,7 @@ mod tests {
         let mut f = File::open("test/scenarios/Age of Heroes b1-3-5.scx").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
-        format.write_to(&mut out).expect("failed to write");
+        format.write_to(&mut out, &format.version()).expect("failed to write");
     }
 
     #[test]
@@ -1748,7 +2172,7 @@ mod tests {
         let mut f = File::open("test/scenarios/Year_of_the_Pig.aoe2scenario").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
-        format.write_to(&mut out).expect("failed to write");
+        format.write_to(&mut out, &format.version()).expect("failed to write");
     }
 
     #[test]
@@ -1756,7 +2180,7 @@ mod tests {
         let mut f = File::open("test/scenarios/real_world_amazon.scx").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
-        format.write_to(&mut out).expect("failed to write");
+        format.write_to(&mut out, &format.version()).expect("failed to write");
     }
 
     /// A Definitive Edition scenario.
@@ -1769,6 +2193,6 @@ mod tests {
         let mut f = File::open("test/scenarios/Corlis.aoescn").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
-        format.write_to(&mut out).expect("failed to write");
+        format.write_to(&mut out, &format.version()).expect("failed to write");
     }
 }

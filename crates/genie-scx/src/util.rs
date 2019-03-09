@@ -18,7 +18,7 @@ pub fn read_str<R: Read>(input: &mut R, length: usize) -> Result<Option<String>>
         if bytes.is_empty() {
             Ok(None)
         } else {
-            let (result, enc, failed) = WINDOWS_1252.decode(&bytes);
+            let (result, _enc, failed) = WINDOWS_1252.decode(&bytes);
             if failed {
                 Err(Error::new(ErrorKind::Other, "invalid string"))
             } else {
@@ -31,19 +31,19 @@ pub fn read_str<R: Read>(input: &mut R, length: usize) -> Result<Option<String>>
 }
 
 pub fn write_str<W: Write>(output: &mut W, string: &str) -> Result<()> {
-    let bytes = string.as_bytes();
+    let (bytes, _enc, failed) = WINDOWS_1252.encode(string);
     assert!(bytes.len() < std::i16::MAX as usize);
     output.write_i16::<LE>(bytes.len() as i16 + 1)?;
-    output.write_all(bytes)?;
+    output.write_all(&bytes)?;
     output.write_u8(0)?;
     Ok(())
 }
 
 pub fn write_i32_str<W: Write>(output: &mut W, string: &str) -> Result<()> {
-    let bytes = string.as_bytes();
+    let (bytes, _enc, failed) = WINDOWS_1252.encode(string);
     assert!(bytes.len() < std::i32::MAX as usize);
     output.write_i32::<LE>(bytes.len() as i32 + 1)?;
-    output.write_all(bytes)?;
+    output.write_all(&bytes)?;
     output.write_u8(0)?;
     Ok(())
 }

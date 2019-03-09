@@ -24,78 +24,6 @@ pub use triggers::{
     TriggerEffect,
 };
 
-/// All the versions an SCX file uses in a single struct.
-#[derive(Debug)]
-pub struct VersionBundle {
-    /// The version of the 'container' file format.
-    pub format: SCXVersion,
-    /// The version of the header.
-    pub header: u32,
-    /// The version of the HD Edition DLC Options, only if `header` >= 3.
-    pub dlc_options: i32,
-    /// The compressed data version.
-    pub data: f32,
-    /// The version of embedded bitmaps.
-    pub picture: u32,
-    /// The version of the victory conditions data.
-    pub victory: f32,
-    /// The version of the trigger system.
-    pub triggers: f64,
-}
-
-impl VersionBundle {
-    /// A version bundle with the parameters AoK uses by default
-    pub fn aok() -> Self {
-        unimplemented!()
-    }
-
-    /// A version bundle with the parameters AoC uses by default
-    pub fn aoc() -> Self {
-        Self {
-            format: *b"1.21",
-            header: 2,
-            dlc_options: -1,
-            data: 1.22,
-            picture: 1,
-            victory: 2.0,
-            triggers: 1.6,
-        }
-    }
-
-    /// A version bundle with the parameters UserPatch 1.4 uses by default.
-    pub fn userpatch_14() -> Self {
-        Self::aoc()
-    }
-
-    /// A version bundle with the parameters UserPatch 1.5 uses by default.
-    pub fn userpatch_15() -> Self {
-        Self::userpatch_14()
-    }
-
-    /// A version bundle with the parameters HD Edition uses by default.
-    pub fn hd_edition() -> Self {
-        Self {
-            format: *b"1.21",
-            header: 3,
-            dlc_options: 1000,
-            data: 1.26,
-            picture: 3,
-            victory: 2.0,
-            triggers: 1.6,
-        }
-    }
-
-    /// Extract version bundle information from a parsed SCX file.
-    pub fn from(format: &SCXFormat) -> Self {
-        Self {
-            format: format.version,
-            header: format.header.version,
-            data: format.tribe_scen.version(),
-            ..Self::aoc()
-        }
-    }
-}
-
 /// A Scenario file.
 pub struct Scenario {
     format: SCXFormat,
@@ -106,13 +34,13 @@ impl Scenario {
     /// Read a scenario file.
     pub fn from<R: Read>(input: &mut R) -> Result<Self> {
         let format = SCXFormat::load_scenario(input)?;
-        let version = VersionBundle::from(&format);
+        let version = format.version();
 
         Ok(Self { format, version })
     }
 
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        self.format.write_to(output)
+        self.format.write_to(output, self.version())
     }
 
     /// Get the format version of this SCX file.

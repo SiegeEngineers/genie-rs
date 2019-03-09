@@ -138,4 +138,100 @@ impl StartingAge {
             }
         }
     }
+
+    pub fn to_i32(&self, version: f32) -> i32 {
+        if version < 1.25 {
+            match *self {
+                StartingAge::Default => -1,
+                StartingAge::Nomad |
+                StartingAge::DarkAge => 0,
+                StartingAge::FeudalAge => 1,
+                StartingAge::CastleAge => 2,
+                StartingAge::ImperialAge => 3,
+                StartingAge::PostImperialAge => 4,
+            }
+        } else {
+            match *self {
+                StartingAge::Default => 0,
+                StartingAge::Nomad => 1,
+                StartingAge::DarkAge => 2,
+                StartingAge::FeudalAge => 3,
+                StartingAge::CastleAge => 4,
+                StartingAge::ImperialAge => 5,
+                StartingAge::PostImperialAge => 6,
+            }
+        }
+    }
+}
+
+/// All the versions an SCX file uses in a single struct.
+#[derive(Debug, Clone, PartialEq)]
+pub struct VersionBundle {
+    /// The version of the 'container' file format.
+    pub format: SCXVersion,
+    /// The version of the header.
+    pub header: u32,
+    /// The version of the HD Edition DLC Options, only if `header` >= 3.
+    pub dlc_options: i32,
+    /// The compressed data version.
+    pub data: f32,
+    /// The version of embedded bitmaps.
+    pub picture: u32,
+    /// The version of the victory conditions data.
+    pub victory: f32,
+    /// The version of the trigger system.
+    pub triggers: f64,
+}
+
+impl VersionBundle {
+    /// A version bundle with the parameters AoE1 uses by default
+    pub fn aoe() -> Self {
+        unimplemented!()
+    }
+
+    /// A version bundle with the parameters AoE1: Rise of Rome uses by default
+    pub fn ror() -> Self {
+        unimplemented!()
+    }
+
+    /// A version bundle with the parameters AoK uses by default
+    pub fn aok() -> Self {
+        unimplemented!()
+    }
+
+    /// A version bundle with the parameters AoC uses by default
+    pub fn aoc() -> Self {
+        Self {
+            format: *b"1.21",
+            header: 2,
+            dlc_options: -1,
+            data: 1.22,
+            picture: 1,
+            victory: 2.0,
+            triggers: 1.6,
+        }
+    }
+
+    /// A version bundle with the parameters UserPatch 1.4 uses by default.
+    pub fn userpatch_14() -> Self {
+        Self::aoc()
+    }
+
+    /// A version bundle with the parameters UserPatch 1.5 uses by default.
+    pub fn userpatch_15() -> Self {
+        Self::userpatch_14()
+    }
+
+    /// A version bundle with the parameters HD Edition uses by default.
+    pub fn hd_edition() -> Self {
+        Self {
+            format: *b"1.21",
+            header: 3,
+            dlc_options: 1000,
+            data: 1.26,
+            picture: 3,
+            victory: 2.0,
+            triggers: 1.6,
+        }
+    }
 }
