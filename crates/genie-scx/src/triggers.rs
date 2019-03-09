@@ -29,11 +29,17 @@ impl TriggerCondition {
         })
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    pub fn write_to<W: Write>(&self, output: &mut W, version: f64) -> Result<()> {
         output.write_i32::<LE>(self.condition_type)?;
-        output.write_i32::<LE>(self.properties.len() as i32)?;
-        for value in &self.properties {
-            output.write_i32::<LE>(*value)?;
+        if version > 1.0 {
+            output.write_i32::<LE>(self.properties.len() as i32)?;
+            for value in &self.properties {
+                output.write_i32::<LE>(*value)?;
+            }
+        } else {
+            for i in 0..13 {
+                output.write_i32::<LE>(*self.properties.get(i).unwrap_or(&0))?;
+            }
         }
 
         Ok(())
@@ -456,6 +462,16 @@ impl Trigger {
             conditions,
             condition_order,
         })
+    }
+
+    pub fn conditions(&self) -> impl Iterator<Item = &TriggerCondition> {
+        self.condition_order.iter()
+            .map(move |index| &self.conditions[*index as usize])
+    }
+
+    pub fn effects(&self) -> impl Iterator<Item = &TriggerEffect> {
+        self.effect_order.iter()
+            .map(move |index| &self.effects[*index as usize])
     }
 }
 

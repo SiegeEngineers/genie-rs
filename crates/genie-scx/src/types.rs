@@ -164,6 +164,22 @@ impl StartingAge {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum VictoryCondition {
+    Capture = 0,
+    Create = 1,
+    Destroy = 2,
+    DestroyMultiple = 3,
+    BringToArea = 4,
+    BringToObject = 5,
+    Attribute = 6,
+    Explore = 7,
+    CreateInArea = 8,
+    DestroyAll = 9,
+    DestroyPlayer = 10,
+    Points = 11,
+}
+
 /// All the versions an SCX file uses in a single struct.
 #[derive(Debug, Clone, PartialEq)]
 pub struct VersionBundle {

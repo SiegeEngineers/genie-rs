@@ -874,7 +874,7 @@ impl VictoryPointEntry {
         let (attribute1, current_attribute_amount1) = if version >= 2.0 {
             (input.read_i32::<LE>()?, input.read_f32::<LE>()?)
         } else {
-            (0, 0.0)
+            (-1, 0.0)
         };
 
         Ok(Self {
@@ -1164,7 +1164,7 @@ pub struct Tile {
 }
 
 #[derive(Debug)]
-struct Map {
+pub struct Map {
     /// Width of this map in tiles.
     width: u32,
     /// Height of this map in tiles.
@@ -1213,25 +1213,55 @@ impl Map {
 
         Ok(())
     }
+
+    pub fn width(&self) -> u32 {
+        self.width
+    }
+
+    pub fn height(&self) -> u32 {
+        self.height
+    }
+
+    pub fn tile(&self, x: u32, y: u32) -> Option<&Tile> {
+        self.tiles.get(y as usize)
+            .and_then(|row| row.get(x as usize))
+    }
+
+    pub fn tile_mut(&mut self, x: u32, y: u32) -> Option<&mut Tile> {
+        self.tiles.get_mut(y as usize)
+            .and_then(|row| row.get_mut(x as usize))
+    }
+
+    pub fn tiles(&self) -> impl Iterator<Item = &Tile> {
+        self.tiles.iter()
+            .map(|row| row.iter())
+            .flatten()
+    }
+
+    pub fn tiles_mut(&mut self) -> impl Iterator<Item = &mut Tile> {
+        self.tiles.iter_mut()
+            .map(|row| row.iter_mut())
+            .flatten()
+    }
 }
 
 #[derive(Debug)]
-struct ScenarioObject {
+pub struct ScenarioObject {
     /// Position (x, y, z) of this object.
-    position: (f32, f32, f32),
+    pub position: (f32, f32, f32),
     /// This object's unique ID.
-    id: i32,
+    pub id: i32,
     /// The type ID of this object.
-    object_type: i16,
+    pub object_type: i16,
     /// State value.
-    state: u8,
+    pub state: u8,
     /// Radian angle this unit is facing.
-    angle: f32,
+    pub angle: f32,
     /// Current animation frame.
-    frame: i16,
+    pub frame: i16,
     /// ID of the object this object is garrisoned in, or -1 when not
     /// garrisoned.
-    garrisoned_in: Option<i32>,
+    pub garrisoned_in: Option<i32>,
 }
 
 impl ScenarioObject {
@@ -1911,11 +1941,11 @@ pub struct SCXFormat {
     /// Scenario data.
     pub(crate) tribe_scen: TribeScen,
     /// Map data.
-    map: Map,
+    pub(crate) map: Map,
     /// Player data.
     world_players: Vec<WorldPlayerData>,
     /// Objects data.
-    player_objects: Vec<Vec<ScenarioObject>>,
+    pub(crate) player_objects: Vec<Vec<ScenarioObject>>,
     /// Player data.
     scenario_players: Vec<ScenarioPlayerData>,
     /// Triggers (only in AoK and up).
@@ -2107,7 +2137,6 @@ mod tests {
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
         format.write_to(&mut out, &VersionBundle::aoc()).expect("failed to write");
-        std::fs::write("test/scenarios/aoc-Dawn of a New Age.scn", &out).unwrap();
 
         let mut f = std::io::Cursor::new(out);
         let format2 = SCXFormat::load_scenario(&mut f).expect("failed to read");

@@ -17,6 +17,8 @@ pub use format::{
     DLCOptions,
     Tile,
     SCXHeader,
+    Map,
+    ScenarioObject,
 };
 pub use triggers::{
     Trigger,
@@ -41,6 +43,10 @@ impl Scenario {
 
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         self.format.write_to(output, self.version())
+    }
+
+    pub fn write_to_version<W: Write>(&self, output: &mut W, version: &VersionBundle) -> Result<()> {
+        self.format.write_to(output, version)
     }
 
     /// Get the format version of this SCX file.
@@ -82,5 +88,25 @@ impl Scenario {
             Some(options) => options.dependencies.iter().any(|dep| *dep == dlc),
             None => false,
         }
+    }
+
+    pub fn objects(&self) -> impl Iterator<Item = &ScenarioObject> {
+        self.format.player_objects.iter()
+            .map(|list| list.iter())
+            .flatten()
+    }
+
+    pub fn objects_mut(&mut self) -> impl Iterator<Item = &mut ScenarioObject> {
+        self.format.player_objects.iter_mut()
+            .map(|list| list.iter_mut())
+            .flatten()
+    }
+
+    pub fn map(&self) -> &Map {
+        &self.format.map
+    }
+
+    pub fn map_mut(&mut self) -> &mut Map {
+        &mut self.format.map
     }
 }
