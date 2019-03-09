@@ -24,8 +24,8 @@ impl CampaignHeader {
 pub struct ScenarioMeta {
     pub(crate) size: usize,
     pub(crate) offset: usize,
-    pub(crate) name: String,
-    pub(crate) filename: String,
+    pub name: String,
+    pub filename: String,
 }
 
 pub use read::Campaign;

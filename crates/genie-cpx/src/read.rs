@@ -37,6 +37,8 @@ fn read_scenario_meta<R: Read>(input: &mut R) -> Result<ScenarioMeta> {
     let offset = input.read_i32::<LE>()? as usize;
     let name = read_fixed_str(input, 255)?.expect("must have a name");
     let filename = read_fixed_str(input, 255)?.expect("must have a name");
+    let mut padding = [0; 2];
+    input.read_exact(&mut padding)?;
 
     Ok(ScenarioMeta {
         size,
@@ -173,5 +175,32 @@ mod tests {
 
         c.by_index_raw(0).expect("could not read raw file");
         c.by_name_raw("Bronze Age Art of War.scn").expect("could not read raw file");
+    }
+
+    #[test]
+    fn aoe1_beta_cpn() {
+        let f = File::open("test/campaigns/Rise of Egypt Learning Campaign.cpn").unwrap();
+        let mut c = Campaign::from(f).expect("could not read meta");
+
+        assert_eq!(c.version(), *b"1.00");
+        assert_eq!(c.name(), "Rise of Egypt Learning Campaign");
+        assert_eq!(c.len(), 12);
+        let filenames: Vec<&String> = c.entries()
+            .map(|e| &e.filename)
+            .collect();
+        assert_eq!(filenames, vec![
+            "HUNTING.scn",
+            "FORAGING.scn",
+            "Discoveries.scn",
+            "Dawn of a New Age.scn",
+            "SKIRMISH.scn",
+            "Lands Unknown.scn",
+            "FARMING.scn",
+            "TRADE.scn",
+            "CRUSADE.scn",
+            "Establish a Second Colony.scn",
+            "Naval Battle.scn",
+            "Siege Battle.scn",
+        ]);
     }
 }

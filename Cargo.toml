@@ -1,5 +1,5 @@
 [package]
-name = "genie-rs"
+name = "genie"
 version = "0.1.0"
 authors = ["Renée Kooi <renee@kooi.me>"]
 edition = "2018"
