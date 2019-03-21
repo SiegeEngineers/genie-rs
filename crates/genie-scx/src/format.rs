@@ -1,4 +1,7 @@
 //! This module contains the data format reading/writing.
+
+#![allow(clippy::cyclomatic_complexity)]
+
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 use num_derive::FromPrimitive;
@@ -1811,11 +1814,11 @@ impl TribeScen {
             }
             if self.num_disabled_units.iter().any(|&n| n > 0) {
                 return Err(Error::new(ErrorKind::Other,
-                      format!("requested version does not support disabling units")));
+                      "requested version does not support disabling units".to_string()));
             }
             if self.num_disabled_buildings.iter().any(|&n| n > 0) {
                 return Err(Error::new(ErrorKind::Other,
-                      format!("requested version does not support disabling buildings")));
+                      "requested version does not support disabling buildings".to_string()));
             }
 
             // Old scenarios only allowed disabling up to 20 techs per player.
@@ -1828,15 +1831,15 @@ impl TribeScen {
             // <= 1.03 did not support disabling anything
             if self.num_disabled_techs.iter().any(|&n| n > 0) {
                 return Err(Error::new(ErrorKind::Other,
-                      format!("requested version does not support disabling techs")));
+                      "requested version does not support disabling techs".to_string()));
             }
             if self.num_disabled_units.iter().any(|&n| n > 0) {
                 return Err(Error::new(ErrorKind::Other,
-                      format!("requested version does not support disabling units")));
+                      "requested version does not support disabling units".to_string()));
             }
             if self.num_disabled_buildings.iter().any(|&n| n > 0) {
                 return Err(Error::new(ErrorKind::Other,
-                      format!("requested version does not support disabling buildings")));
+                      "requested version does not support disabling buildings".to_string()));
             }
         }
 
@@ -1889,33 +1892,33 @@ impl TribeScen {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromPrimitive)]
 enum AIErrorCode {
-    ConstantAlreadyDefined = 0x0,
-    FileOpenFailed = 0x1,
-    FileReadFailed = 0x2,
-    InvalidIdentifier = 0x3,
-    InvalidKeyword = 0x4,
-    InvalidPreprocessorDirective = 0x5,
-    ListFull = 0x6,
-    MissingArrow = 0x7,
-    MissingClosingParenthesis = 0x8,
-    MissingClosingQuote = 0x9,
-    MissingEndIf = 0xA,
-    MissingFileName = 0xB,
-    MissingIdentifier = 0xC,
-    MissingKeyword = 0xD,
-    MissingLHS = 0xE,
-    MissingOpeningParenthesis = 0xF,
-    MissingPreprocessorSymbol = 0x10,
-    MissingRHS = 0x11,
-    NoRules = 0x12,
-    PreprocessorNestingTooDeep = 0x13,
-    RuleTooLong = 0x14,
-    StringTableFull = 0x15,
-    UndocumentedError = 0x16,
-    UnexpectedElse = 0x17,
-    UnexpectedEndIf = 0x18,
-    UnexpectedError = 0x19,
-    UnexpectedEOF = 0x1A,
+    ConstantAlreadyDefined = 0,
+    FileOpenFailed = 1,
+    FileReadFailed = 2,
+    InvalidIdentifier = 3,
+    InvalidKeyword = 4,
+    InvalidPreprocessorDirective = 5,
+    ListFull = 6,
+    MissingArrow = 7,
+    MissingClosingParenthesis = 8,
+    MissingClosingQuote = 9,
+    MissingEndIf = 10,
+    MissingFileName = 11,
+    MissingIdentifier = 12,
+    MissingKeyword = 13,
+    MissingLHS = 14,
+    MissingOpeningParenthesis = 15,
+    MissingPreprocessorSymbol = 16,
+    MissingRHS = 17,
+    NoRules = 18,
+    PreprocessorNestingTooDeep = 19,
+    RuleTooLong = 20,
+    StringTableFull = 21,
+    UndocumentedError = 22,
+    UnexpectedElse = 23,
+    UnexpectedEndIf = 24,
+    UnexpectedError = 25,
+    UnexpectedEOF = 26,
 }
 
 #[derive(Debug, Clone)]

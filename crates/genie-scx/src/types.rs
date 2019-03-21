@@ -139,9 +139,9 @@ impl StartingAge {
         }
     }
 
-    pub fn to_i32(&self, version: f32) -> i32 {
+    pub fn to_i32(self, version: f32) -> i32 {
         if version < 1.25 {
-            match *self {
+            match self {
                 StartingAge::Default => -1,
                 StartingAge::Nomad |
                 StartingAge::DarkAge => 0,
@@ -151,7 +151,7 @@ impl StartingAge {
                 StartingAge::PostImperialAge => 4,
             }
         } else {
-            match *self {
+            match self {
                 StartingAge::Default => 0,
                 StartingAge::Nomad => 1,
                 StartingAge::DarkAge => 2,
