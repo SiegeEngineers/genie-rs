@@ -21,6 +21,7 @@ pub use format::{
     ScenarioObject,
 };
 pub use triggers::{
+    TriggerSystem,
     Trigger,
     TriggerCondition,
     TriggerEffect,
@@ -108,5 +109,9 @@ impl Scenario {
 
     pub fn map_mut(&mut self) -> &mut Map {
         &mut self.format.map
+    }
+
+    pub fn triggers(&self) -> Option<&TriggerSystem> {
+        self.format.triggers.as_ref()
     }
 }

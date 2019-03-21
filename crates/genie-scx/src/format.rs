@@ -2033,7 +2033,7 @@ pub struct SCXFormat {
     /// Player data.
     scenario_players: Vec<ScenarioPlayerData>,
     /// Triggers (only in AoK and up).
-    triggers: Option<TriggerSystem>,
+    pub(crate) triggers: Option<TriggerSystem>,
     /// AI information (AoK and up).
     ai_info: Option<AIInfo>,
 }
