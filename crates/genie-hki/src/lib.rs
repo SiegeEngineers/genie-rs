@@ -407,7 +407,7 @@ pub struct HotkeyInfo {
 
 impl HotkeyInfo {
     /// Read a hotkey info structure from an uncompressed stream.
-    pub fn from_uncompressed<R: Read>(input: &mut R) -> Result<Self> {
+    fn from_uncompressed<R: Read>(input: &mut R) -> Result<Self> {
         let version = input.read_f32::<LE>()?;
         let num_groups = input.read_u32::<LE>()?;
         let mut groups = Vec::with_capacity(num_groups as usize);
@@ -425,7 +425,7 @@ impl HotkeyInfo {
     }
 
     /// Write a hotkey info structure to an uncompressed stream.
-    pub fn write_to_uncompressed<W: Write>(&self, output: &mut W) -> Result<()> {
+    fn write_to_uncompressed<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_f32::<LE>(self.version)?;
         output.write_u32::<LE>(self.groups.len() as u32)?;
         for group in &self.groups {
