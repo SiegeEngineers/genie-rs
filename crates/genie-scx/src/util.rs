@@ -32,6 +32,9 @@ pub fn read_str<R: Read>(input: &mut R, length: usize) -> Result<Option<String>>
 
 pub fn write_str<W: Write>(output: &mut W, string: &str) -> Result<()> {
     let (bytes, _enc, failed) = WINDOWS_1252.encode(string);
+    if failed {
+        return Err(Error::new(ErrorKind::Other, "invalid string"))
+    }
     assert!(bytes.len() < std::i16::MAX as usize);
     output.write_i16::<LE>(bytes.len() as i16 + 1)?;
     output.write_all(&bytes)?;
@@ -41,6 +44,9 @@ pub fn write_str<W: Write>(output: &mut W, string: &str) -> Result<()> {
 
 pub fn write_i32_str<W: Write>(output: &mut W, string: &str) -> Result<()> {
     let (bytes, _enc, failed) = WINDOWS_1252.encode(string);
+    if failed {
+        return Err(Error::new(ErrorKind::Other, "invalid string"))
+    }
     assert!(bytes.len() < std::i32::MAX as usize);
     output.write_i32::<LE>(bytes.len() as i32 + 1)?;
     output.write_all(&bytes)?;
