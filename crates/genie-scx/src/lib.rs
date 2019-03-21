@@ -114,4 +114,8 @@ impl Scenario {
     pub fn triggers(&self) -> Option<&TriggerSystem> {
         self.format.triggers.as_ref()
     }
+
+    pub fn triggers_mut(&mut self) -> Option<&mut TriggerSystem> {
+        self.format.triggers.as_mut()
+    }
 }

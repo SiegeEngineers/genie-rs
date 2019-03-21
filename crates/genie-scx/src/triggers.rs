@@ -469,9 +469,17 @@ impl Trigger {
             .map(move |index| &self.conditions[*index as usize])
     }
 
+    pub fn conditions_unordered_mut(&mut self) -> impl Iterator<Item = &mut TriggerCondition> {
+        self.conditions.iter_mut()
+    }
+
     pub fn effects(&self) -> impl Iterator<Item = &TriggerEffect> {
         self.effect_order.iter()
             .map(move |index| &self.effects[*index as usize])
+    }
+
+    pub fn effects_unordered_mut(&mut self) -> impl Iterator<Item = &mut TriggerEffect> {
+        self.effects.iter_mut()
     }
 }
 
@@ -536,5 +544,14 @@ impl TriggerSystem {
         // num triggers
         output.write_u32::<LE>(0)?;
         Ok(())
+    }
+
+    pub fn triggers(&self) -> impl Iterator<Item = &Trigger> {
+        self.trigger_order.iter()
+            .map(move |index| &self.triggers[*index as usize])
+    }
+
+    pub fn triggers_unordered_mut(&mut self) -> impl Iterator<Item = &mut Trigger> {
+        self.triggers.iter_mut()
     }
 }
