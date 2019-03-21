@@ -1526,9 +1526,6 @@ impl TribeScen {
         for list in legacy_victory_info.iter_mut() {
             for _ in 0..12 {
                 list.push(LegacyVictoryInfo::from(input)?);
-                if list.last().unwrap().victory_type != 0 {
-                    dbg!(list.last());
-                }
             }
         }
 
