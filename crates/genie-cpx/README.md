@@ -1,6 +1,6 @@
 # genie-cpx
 
-Read Age of Empires 2 campaign files.
+Read and write Age of Empires I/II campaign files.
 
 ## Usage
 

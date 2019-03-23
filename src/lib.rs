@@ -39,8 +39,8 @@
 //!
 //! Supported version range: all versions
 //!
-//! Campaign files are archives that contain a bunch of scenario files. At the moment, genie-cpx
-//! can only _read_ campaign files and extract the scenarios. It cannot write cpx files yet.
+//! Campaign files are archives that contain a bunch of scenario files. genie-cpx can extract
+//! scenarios from campaign archives and create new campaign archives.
 //!
 //! ## Hotkey Files
 //!

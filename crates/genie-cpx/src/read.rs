@@ -107,6 +107,14 @@ impl<R> Campaign<R>
         self.entries.is_empty()
     }
 
+    pub fn get_name(&self, id: usize) -> Option<&str> {
+        self.entries.get(id).map(|entry| entry.name.as_ref())
+    }
+
+    pub fn get_filename(&self, id: usize) -> Option<&str> {
+        self.entries.get(id).map(|entry| entry.filename.as_ref())
+    }
+
     fn get_id(&self, filename: &str) -> Option<usize> {
         self.entries.iter().position(|entry| entry.filename == filename)
     }
@@ -180,7 +188,7 @@ mod tests {
     #[test]
     fn aoe1_beta_cpn() {
         let f = File::open("test/campaigns/Rise of Egypt Learning Campaign.cpn").unwrap();
-        let mut c = Campaign::from(f).expect("could not read meta");
+        let c = Campaign::from(f).expect("could not read meta");
 
         assert_eq!(c.version(), *b"1.00");
         assert_eq!(c.name(), "Rise of Egypt Learning Campaign");

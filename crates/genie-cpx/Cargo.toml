@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Renée Kooi <renee@kooi.me>"]
 edition = "2018"
 license = "GPL-3.0"
-description = "Read Age of Empires I/II campaign files."
+description = "Read and write Age of Empires I/II campaign files."
 homepage = "https://github.com/SiegeEngineers/genie-rs"
 repository = "https://github.com/SiegeEngineers/genie-rs"
 
