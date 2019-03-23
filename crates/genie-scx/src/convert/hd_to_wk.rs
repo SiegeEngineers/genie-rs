@@ -5,6 +5,7 @@ use crate::{
     Trigger,
     Tile,
 };
+use super::ConvertError;
 
 pub struct HDToWK {
     object_ids_map: HashMap<i32, i32>,
@@ -112,7 +113,7 @@ impl HDToWK {
     }
 
     /// Convert a scenario from HD to WK in-place.
-    pub fn convert(&self, scen: &mut Scenario) {
+    pub fn convert(&self, scen: &mut Scenario) -> Result<(), ConvertError> {
         for object in scen.objects_mut() {
             self.convert_object(object);
         }
@@ -126,5 +127,7 @@ impl HDToWK {
                 self.convert_trigger(trigger);
             }
         }
+
+        Ok(())
     }
 }

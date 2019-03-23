@@ -5,6 +5,7 @@ use crate::{
     Trigger,
     Tile,
 };
+use super::ConvertError;
 
 pub struct AoCToWK {
     object_ids_map: HashMap<i32, i32>,
@@ -74,7 +75,7 @@ impl AoCToWK {
     }
 
     /// Convert a scenario from AoC to WK in-place.
-    pub fn convert(&self, scen: &mut Scenario) {
+    pub fn convert(&self, scen: &mut Scenario) -> Result<(), ConvertError> {
         for object in scen.objects_mut() {
             self.convert_object(object);
         }
@@ -88,5 +89,7 @@ impl AoCToWK {
                 self.convert_trigger(trigger);
             }
         }
+
+        Ok(())
     }
 }
