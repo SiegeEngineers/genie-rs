@@ -6,6 +6,7 @@ mod format;
 mod triggers;
 mod util;
 mod types;
+pub mod convert;
 
 use std::io::{Result, Read, Write};
 use format::{
