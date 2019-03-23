@@ -1,6 +1,6 @@
 # genie-hki
 
-Read/write Age of Empires 2 hotkey files.
+Read Age of Empires 2 hotkey files.
 
 ## Usage
 
