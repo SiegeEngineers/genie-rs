@@ -575,7 +575,7 @@ impl RGEScen {
         if version > 1.13 {
             assert_eq!(self.player_names.len(), 16);
             for name in &self.player_names {
-                let mut padded_bytes = vec![];
+                let mut padded_bytes = Vec::with_capacity(256);
                 if let Some(ref name) = name {
                     let name_bytes = name.as_bytes();
                     padded_bytes.write_all(name_bytes)?;
@@ -1302,8 +1302,8 @@ impl ScenarioObject {
             id => Some(id),
         })
         .and_then(|id| match id {
-            // 0 means -1 in more recent versions
-            0 if &version == b"1.21" || &version == b"1.22" => None,
+            // 0 means -1 in "recent" versions
+            0 if cmp_scx_version(version, *b"1.12") == Ordering::Greater => None,
             id => Some(id),
         });
 
@@ -1715,15 +1715,19 @@ impl TribeScen {
         self.base.write_to(output, version)?;
 
         if version <= 1.13 {
+            assert_eq!(self.base.player_names.len(), 16);
             for name in &self.base.player_names {
-                let mut padded_bytes = vec![0; 256];
+                let mut padded_bytes = Vec::with_capacity(256);
                 if let Some(ref name) = name {
                     let name_bytes = name.as_bytes();
                     padded_bytes.write_all(name_bytes)?;
                 }
+                padded_bytes.extend(vec![0; 256 - padded_bytes.len()]);
                 output.write_all(&padded_bytes)?;
             }
 
+            assert_eq!(self.base.player_base_properties.len(), 16);
+            assert_eq!(self.player_start_resources.len(), 16);
             for i in 0..16 {
                 let properties = &self.base.player_base_properties[i];
                 let resources = &self.player_start_resources[i];
@@ -1734,6 +1738,7 @@ impl TribeScen {
                 output.write_i32::<LE>(properties.posture)?;
             }
         } else {
+            assert_eq!(self.player_start_resources.len(), 16);
             for start_resources in &self.player_start_resources {
                 start_resources.write_to(output, version)?;
             }
@@ -1752,12 +1757,15 @@ impl TribeScen {
             output.write_i32::<LE>(self.victory_time)?;
         }
 
+        assert_eq!(self.diplomacy.len(), 16);
         for player_diplomacy in &self.diplomacy {
+            assert_eq!(player_diplomacy.len(), 16);
             for stance in player_diplomacy {
                 output.write_i32::<LE>((*stance).into())?;
             }
         }
 
+        assert_eq!(self.legacy_victory_info.len(), 16);
         for list in &self.legacy_victory_info {
             for entry in list {
                 entry.write_to(output)?;
@@ -1880,6 +1888,7 @@ impl TribeScen {
         }
 
         if version >= 1.24 {
+            assert_eq!(self.base_priorities.len(), 16);
             for priority in &self.base_priorities {
                 output.write_i8(*priority)?;
             }
