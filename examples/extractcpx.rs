@@ -1,4 +1,4 @@
-use genie::cpx::Campaign;
+use genie::Campaign;
 use std::path::PathBuf;
 use std::fs::File;
 
@@ -9,6 +9,7 @@ fn main() {
         .unwrap_or_else(|| {
             std::env::current_dir().expect("invalid cwd")
         });
+    let dry_run = std::env::args().any(|arg| arg == "-l" || arg == "--list");
 
     let f = File::open(filename).expect("could not open file");
     let mut campaign = Campaign::from(f).expect("not a campaign file");
@@ -25,6 +26,8 @@ fn main() {
         let bytes = campaign.by_index_raw(i).expect("missing scenario data");
         println!("- {} ({} B)", names[i], bytes.len());
 
-        std::fs::write(dir.join(&names[i]), bytes).expect("failed to write");
+        if !dry_run {
+            std::fs::write(dir.join(&names[i]), bytes).expect("failed to write");
+        }
     }
 }
