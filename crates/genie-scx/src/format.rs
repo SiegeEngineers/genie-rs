@@ -184,8 +184,8 @@ impl SCXHeader {
         let mut description_bytes = vec![];
         if let Some(ref description) = self.description {
             description_bytes.write_all(description.as_bytes())?;
-            description_bytes.push(0);
         }
+        description_bytes.push(0);
         if format_version == *b"3.13" {
             assert!(description_bytes.len() <= std::u16::MAX as usize, "description length must fit in u16");
             intermediate.write_u16::<LE>(description_bytes.len() as u16)?;
@@ -573,23 +573,27 @@ impl RGEScen {
         output.write_f32::<LE>(version)?;
 
         if version > 1.13 {
+            assert_eq!(self.player_names.len(), 16);
             for name in &self.player_names {
-                let mut padded_bytes = vec![0; 256];
+                let mut padded_bytes = vec![];
                 if let Some(ref name) = name {
                     let name_bytes = name.as_bytes();
                     padded_bytes.write_all(name_bytes)?;
                 }
+                padded_bytes.extend(vec![0; 256 - padded_bytes.len()]);
                 output.write_all(&padded_bytes)?;
             }
         }
 
         if version > 1.16 {
+            assert_eq!(self.player_string_table.len(), 16);
             for id in &self.player_string_table {
                 output.write_i32::<LE>(*id)?;
             }
         }
 
         if version > 1.13 {
+            assert_eq!(self.player_base_properties.len(), 16);
             for props in &self.player_base_properties {
                 output.write_i32::<LE>(props.active)?;
                 output.write_i32::<LE>(props.player_type)?;
@@ -647,20 +651,24 @@ impl RGEScen {
             output.write_u16::<LE>(1)?;
         }
 
+        assert_eq!(self.player_build_lists.len(), 16);
         for build_list in &self.player_build_lists {
             write_opt_str(output, build_list)?;
         }
 
+        assert_eq!(self.player_city_plans.len(), 16);
         for city_plan in &self.player_city_plans {
             write_opt_str(output, city_plan)?;
         }
 
         if version >= 1.08 {
+            assert_eq!(self.player_ai_rules.len(), 16);
             for ai_rules in &self.player_ai_rules {
                 write_opt_str(output, ai_rules)?;
             }
         }
 
+        assert_eq!(self.player_files.len(), 16);
         for files in &self.player_files {
             write_opt_i32_str(output, &files.build_list)?;
             write_opt_i32_str(output, &files.city_plan)?;
@@ -670,6 +678,7 @@ impl RGEScen {
         }
 
         if version >= 1.20 {
+            assert_eq!(self.ai_rules_types.len(), 16);
             for ai_rules_type in &self.ai_rules_types {
                 output.write_i8(*ai_rules_type)?;
             }
@@ -2186,6 +2195,8 @@ impl SCXFormat {
             };
             ai_info.write_to(&mut output)?;
         }
+
+        output.finish()?;
 
         Ok(())
     }
