@@ -200,17 +200,17 @@ pub struct VersionBundle {
 }
 
 impl VersionBundle {
-    /// A version bundle with the parameters AoE1 uses by default
+    /// A version bundle with the parameters AoE1 uses by default.
     pub fn aoe() -> Self {
         unimplemented!()
     }
 
-    /// A version bundle with the parameters AoE1: Rise of Rome uses by default
+    /// A version bundle with the parameters AoE1: Rise of Rome uses by default.
     pub fn ror() -> Self {
         unimplemented!()
     }
 
-    /// A version bundle with the parameters AoK uses by default
+    /// A version bundle with the parameters AoK uses by default.
     pub fn aok() -> Self {
         unimplemented!()
     }
@@ -249,5 +249,23 @@ impl VersionBundle {
             victory: 2.0,
             triggers: 1.6,
         }
+    }
+
+    /// Returns whether this version is (likely) for an AoK scenario.
+    pub fn is_aok(&self) -> bool {
+        match &self.format {
+            b"1.18" | b"1.19" | b"1.20" => true,
+            _ => false,
+        }
+    }
+
+    /// Returns whether this version is (likely) for an AoC scenario.
+    pub fn is_aoc(&self) -> bool {
+        self.format == *b"1.21" && self.data <= 1.22
+    }
+
+    /// Returns whether this version is (likely) for an HD Edition scenario.
+    pub fn is_hd_edition(&self) -> bool {
+        self.format == *b"1.21" || self.format == *b"1.22" && self.data > 1.22
     }
 }
