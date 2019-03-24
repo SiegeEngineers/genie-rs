@@ -25,7 +25,7 @@
 //! scen.write_to_version(&mut output, &VersionBundle::aoc())
 //!     .expect("failed to write scenario");
 //!
-//! std::fs::remove("converted.scx")
+//! std::fs::remove_file("converted.scx")
 //!     .expect("failed to delete file");
 //! ```
 //!
