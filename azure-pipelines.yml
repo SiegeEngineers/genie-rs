@@ -1,20 +1,20 @@
 # https://nbsoftsolutions.com/blog/azure-pipelines-for-rust-projects
 matrix:
   windows-stable:
-	 imageName: 'vs2017-win2016'
-	 rustup_toolchain: stable
+    imageName: 'vs2017-win2016'
+    rustup_toolchain: stable
   mac-stable:
-	 imageName: 'macos-10.13'
-	 rustup_toolchain: stable
+    imageName: 'macos-10.13'
+    rustup_toolchain: stable
   linux-stable:
-	 imageName: 'ubuntu-16.04'
-	 rustup_toolchain: stable
+    imageName: 'ubuntu-16.04'
+    rustup_toolchain: stable
   linux-beta:
-	 imageName: 'ubuntu-16.04'
-	 rustup_toolchain: beta
+    imageName: 'ubuntu-16.04'
+    rustup_toolchain: beta
   linux-nightly:
-	 imageName: 'ubuntu-16.04'
-	 rustup_toolchain: nightly
+    imageName: 'ubuntu-16.04'
+    rustup_toolchain: nightly
 
 pool:
   vmImage: $(imageName)
