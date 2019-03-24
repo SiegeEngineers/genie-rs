@@ -1,9 +1,12 @@
 [package]
 name = "genie-drs"
-description = "Read .drs archive files from the Genie Engine, used in Age of Empires 1/2 and SWGB"
 version = "0.1.0"
 authors = ["Renée Kooi <renee@kooi.me>"]
-license = "GPL-3.0-or-later"
+edition = "2018"
+license = "GPL-3.0"
+description = "Read .drs archive files from the Genie Engine, used in Age of Empires 1/2 and SWGB"
+homepage = "https://github.com/SiegeEngineers/genie-rs"
+repository = "https://github.com/SiegeEngineers/genie-rs"
 readme = "README.md"
 
 [dependencies]

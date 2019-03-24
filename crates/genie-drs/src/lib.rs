@@ -5,7 +5,6 @@
 //! ## Example
 //!
 //! ```rust
-//! extern crate genie_drs;
 //! use std::fs::File;
 //! use genie_drs::DRSReader;
 //!
@@ -19,8 +18,6 @@
 //!     }
 //! }
 //! ```
-
-extern crate byteorder;
 
 use std::io::{Read, Seek, SeekFrom, Error, ErrorKind};
 use std::slice;
@@ -264,12 +261,13 @@ impl DRSReader {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use std::fs::File;
 
     #[test]
     fn it_works() {
         let mut file = File::open("test.drs").unwrap();
-        let drs = ::DRSReader::new(&mut file).unwrap();
+        let drs = DRSReader::new(&mut file).unwrap();
         let mut expected = vec![
             // (reversed_type, id, size)
             (b"  sj", 1, 632),
