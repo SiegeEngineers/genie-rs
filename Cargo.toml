@@ -7,10 +7,12 @@ license = "GPL-3.0"
 description = "Libraries for reading/writing Age of Empires II data files"
 homepage = "https://github.com/SiegeEngineers/genie-rs"
 repository = "https://github.com/SiegeEngineers/genie-rs"
+readme = "README.md"
 
 [dependencies]
 chariot_palette = "^0.1.5"
 genie-cpx = { version = "0.1.0", path = "crates/genie-cpx" }
+genie-drs = { version = "0.1.0", path = "crates/genie-drs" }
 genie-hki = { version = "0.1.0", path = "crates/genie-hki" }
 genie-scx = { version = "1.0.0", path = "crates/genie-scx" }
 
@@ -21,6 +23,7 @@ structopt = "^0.2.0"
 [workspace]
 members = [
   "crates/genie-cpx",
+  "crates/genie-drs",
   "crates/genie-hki",
   "crates/genie-scx"
 ]
