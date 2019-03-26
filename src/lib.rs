@@ -2,7 +2,7 @@
 //!
 //! ## Scenario Files
 //!
-//! Supported version range: AoE1 betas through to Age of Empires 2: HD Edition
+//! > Supported version range: AoE1 betas through to Age of Empires 2: HD Edition
 //!
 //! genie-scx can read and write scenario files for almost all Age of Empires versions. When
 //! reading a file, the version is detected automatically. When writing a file, you can choose the
@@ -37,20 +37,20 @@
 //!
 //! ## Campaign Files
 //!
-//! Supported version range: all versions
+//! > Supported version range: all versions
 //!
 //! Campaign files are archives that contain a bunch of scenario files. genie-cpx can extract
 //! scenarios from campaign archives and create new campaign archives.
 //!
 //! ## Hotkey Files
 //!
-//! Supported version range: all versions
+//! > Supported version range: all versions
 //!
 //! Hotkey files contain groups of key mappings for different game areas.
 //!
 //! ## Palette Files
 //!
-//! Supported version range: all versions
+//! > Supported version range: all versions
 //!
 //! Support for palette files is implemented by [chariot_palette](https://github.com/ChariotEngine/Palette/).
 //! chariot_palette only supports _reading_ palette files at the moment.
