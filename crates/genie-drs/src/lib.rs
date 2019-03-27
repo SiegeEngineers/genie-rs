@@ -24,12 +24,18 @@ use std::slice;
 use std::str;
 use byteorder::{ReadBytesExt, LE};
 
+/// A DRS version string.
+type DRSVersion = [u8; 4];
+
+/// A resource type name.
+pub type ResourceType = [u8; 4];
+
 /// The DRS archive header.
 pub struct DRSHeader {
     /// A copyright message.
     banner_msg: [u8; 40],
     /// File version. (always "1.00")
-    version: [u8; 4],
+    version: DRSVersion,
     /// File password / identifier.
     password: [u8; 12],
     /// The amount of resource types (tables).
@@ -75,7 +81,7 @@ impl std::fmt::Debug for DRSHeader {
 /// A table containing resource entries.
 pub struct DRSTable {
     /// Type of the resource as a little-endian char array.
-    pub resource_type: [u8; 4],
+    pub resource_type: ResourceType,
     /// Offset in the DRS archive where this table's resource entries can be found.
     offset: u32,
     /// Number of resource entries in this table.
@@ -224,23 +230,23 @@ impl DRSReader {
     }
 
     /// Get the table for the given resource type.
-    pub fn get_table(&self, resource_type: [u8; 4]) -> Option<&DRSTable> {
+    pub fn get_table(&self, resource_type: ResourceType) -> Option<&DRSTable> {
         self.tables.iter().find(|table| { table.resource_type == resource_type })
     }
 
     /// Get a resource of a given type and ID.
-    pub fn get_resource(&self, resource_type: [u8; 4], id: u32) -> Option<&DRSResource> {
+    pub fn get_resource(&self, resource_type: ResourceType, id: u32) -> Option<&DRSResource> {
         self.get_table(resource_type).and_then(|table| table.get_resource(id))
     }
 
     /// Get the type of a resource with the given ID.
-    pub fn get_resource_type(&self, id: u32) -> Option<[u8; 4]> {
+    pub fn get_resource_type(&self, id: u32) -> Option<ResourceType> {
         self.tables.iter().find(|table| table.get_resource(id).is_some())
             .map(|table| table.resource_type)
     }
 
     /// Read a file from the DRS archive.
-    pub fn read_resource<R: Read + Seek>(&self, handle: &mut R, resource_type: [u8; 4], id: u32) -> Result<Box<[u8]>, Error> {
+    pub fn read_resource<R: Read + Seek>(&self, handle: &mut R, resource_type: ResourceType, id: u32) -> Result<Box<[u8]>, Error> {
         let &DRSResource { size, offset, .. } = self.get_resource(resource_type, id)
             .ok_or_else(|| Error::new(ErrorKind::NotFound, "Resource not found in this archive"))
             ?;
