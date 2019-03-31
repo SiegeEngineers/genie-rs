@@ -66,11 +66,3 @@ pub use genie_hki::HotkeyInfo;
 pub use genie_scx::Scenario;
 pub use chariot_palette::Palette;
 pub use chariot_palette::read_from as read_palette;
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}
