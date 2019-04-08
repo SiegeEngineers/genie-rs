@@ -57,12 +57,14 @@
 pub use genie_cpx as cpx;
 pub use genie_drs as drs;
 pub use genie_hki as hki;
+pub use genie_lang as lang;
 pub use genie_scx as scx;
 pub use chariot_palette as pal;
 
 pub use genie_cpx::Campaign;
 pub use genie_drs::DRSReader;
 pub use genie_hki::HotkeyInfo;
+pub use genie_lang::LangFile;
 pub use genie_scx::Scenario;
 pub use chariot_palette::Palette;
 pub use chariot_palette::read_from as read_palette;
