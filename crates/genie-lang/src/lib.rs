@@ -30,7 +30,7 @@
 //! ```
 //!
 //! ## HD key-value files
-//! ```rust,ignore
+//! ```rust
 //! use genie_lang::LangFile;
 //! use std::io::Cursor;
 //! let text = br#"
@@ -139,7 +139,7 @@ impl LangFile {
         let input = BufReader::new(input);
         for line in input.lines() {
             let line = line?;
-            lang_file.load_hd_line(&line)?;
+            lang_file.load_keyval_line(&line)?;
         }
 
         Ok(lang_file)
@@ -218,21 +218,40 @@ impl LangFile {
     /// Parse an HD Edition string line.
     ///
     /// This is incomplete, unquoting and unescaping is not yet done.
-    fn load_hd_line(&mut self, line: &str) -> Result<(), LoadError> {
+    fn load_keyval_line(&mut self, line: &str) -> Result<(), LoadError> {
         let line = line.trim();
         if line.starts_with("//") || line.is_empty() {
             return Ok(());
         }
-        let mut split = line.splitn(2, ' ');
 
-        let id = match split.next() {
-            Some(id) => id,
-            None => return Ok(()),
-        };
-        let value = match split.next() {
-            Some(value) => value.to_string(),
-            None => return Ok(()),
-        };
+        let mut iter = line.chars().skip_while(|&c| char::is_whitespace(c));
+        let id = iter.by_ref().take_while(|&c| !char::is_whitespace(c)).collect::<String>();
+        let mut iter = iter.skip_while(|&c| char::is_whitespace(c));
+        let mut value = String::new();
+        if let Some('"') = iter.next() {
+            let mut prev = 'x'; // some innocuous character
+            for c in iter {
+                // NOTE this does not support escapes like "\\n", which should print out "\n"
+                // literally, instead we get "\" followed by a newline.
+                // Could be solved by making `prev` an Option
+                match (prev, c) {
+                    ('\\', '\\') => value.push('\\'),
+                    ('\\', 'n') => value.push('\n'),
+                    ('\\', 'r') => value.push('\r'),
+                    ('\\', 't') => value.push('\t'),
+                    ('\\', '"') => value.push('"'),
+                    (_, '\\') => {}, // Might be escape, wait for one more
+                    ('\\', _) => {
+                        // Previous character was escape, but this is not part of a sequence
+                        value.push('\\');
+                        value.push(c);
+                    },
+                    (_, '"') => break, // End of string
+                    (_, _) => value.push(c),
+                }
+                prev = c;
+            }
+        }
 
         if id.chars().all(|ch| ch.is_digit(10)) {
             let id = id.parse()?;
