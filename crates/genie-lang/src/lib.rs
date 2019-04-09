@@ -44,8 +44,31 @@
 //! assert_eq!(lang_file.get(46523), Some("The Uighurs will join if you kill Ornlu the wolf and return to tell the tale."));
 //! assert_eq!(lang_file.get_named("LOBBYBROWSER_DATMOD_TITLE_FORMAT"), Some(r#"DatMod: "%s""#));
 //! ```
+//!
+//! ## Creating a file from scratch
+//! ```rust
+//! use genie_lang::LangFile;
+//! use std::str;
+//! let mut lang_file = LangFile::default();
+//! lang_file.set(46604, "Kill the traitor, Kushluk.\n\nPrevent the tent of Genghis Khan (Wonder) from being destroyed.");
+//! lang_file.set_named("LOBBYBROWSER_DATMOD_TITLE_FORMAT", r#"DatMod: "%s""#);
+//! let mut out = vec![];
+//! lang_file.write_to_ini(&mut out).unwrap();
+//! assert_eq!(
+//!     str::from_utf8(&out).unwrap(),
+//!     r"46604=Kill the traitor, Kushluk.\n\nPrevent the tent of Genghis Khan (Wonder) from being destroyed.
+//! ");
+//! let mut out = vec![];
+//! lang_file.write_to_keyval(&mut out).unwrap();
+//! assert_eq!(
+//!     str::from_utf8(&out).unwrap(),
+//!     r#"46604 "Kill the traitor, Kushluk.\n\nPrevent the tent of Genghis Khan (Wonder) from being destroyed."
+//!
+//! LOBBYBROWSER_DATMOD_TITLE_FORMAT "DatMod: \"%s\""
+//! "#);
+//! ```
 
-use std::io::{Read, BufRead, BufReader, Error as IoError};
+use std::io::{Read, Write, BufRead, BufReader, Error as IoError};
 use std::collections::HashMap;
 use std::num::ParseIntError;
 use byteorder::{ReadBytesExt, LE};
@@ -206,9 +229,11 @@ impl LangFile {
             None => return Ok(()),
         };
         let value = match split.next() {
-            Some(value) => value.to_string(),
+            Some(value) => value,
             None => return Ok(()),
         };
+
+        let value = unescape(value.chars(), false);
 
         let id = id.parse()?;
         self.strings.insert(id, value);
@@ -227,31 +252,11 @@ impl LangFile {
         let mut iter = line.chars().skip_while(|&c| char::is_whitespace(c));
         let id = iter.by_ref().take_while(|&c| !char::is_whitespace(c)).collect::<String>();
         let mut iter = iter.skip_while(|&c| char::is_whitespace(c));
-        let mut value = String::new();
-        if let Some('"') = iter.next() {
-            let mut prev = 'x'; // some innocuous character
-            for c in iter {
-                // NOTE this does not support escapes like "\\n", which should print out "\n"
-                // literally, instead we get "\" followed by a newline.
-                // Could be solved by making `prev` an Option
-                match (prev, c) {
-                    ('\\', '\\') => value.push('\\'),
-                    ('\\', 'n') => value.push('\n'),
-                    ('\\', 'r') => value.push('\r'),
-                    ('\\', 't') => value.push('\t'),
-                    ('\\', '"') => value.push('"'),
-                    (_, '\\') => {}, // Might be escape, wait for one more
-                    ('\\', _) => {
-                        // Previous character was escape, but this is not part of a sequence
-                        value.push('\\');
-                        value.push(c);
-                    },
-                    (_, '"') => break, // End of string
-                    (_, _) => value.push(c),
-                }
-                prev = c;
-            }
-        }
+        let value = if let Some('"') = iter.next() {
+            unescape(iter, true)
+        } else {
+            return Ok(());
+        };
 
         if id.chars().all(|ch| ch.is_digit(10)) {
             let id = id.parse()?;
@@ -272,6 +277,30 @@ impl LangFile {
         self.named_strings.get(name).map(|string| &**string)
     }
 
+    /// Set a string at the given numeric index.
+    pub fn set(&mut self, index: u32, value: impl Into<String>) {
+        self.strings.insert(index, value.into());
+    }
+
+    /// Set a string by name.
+    pub fn set_named(&mut self, name: &str, value: impl Into<String>) {
+        self.named_strings.insert(name.to_string(), value.into());
+    }
+
+    /// Delete a string by its numeric index.
+    ///
+    /// Returns the string if it previously existed.
+    pub fn del(&mut self, index: u32) -> Option<String> {
+        self.strings.remove(&index)
+    }
+
+    /// Delete a string by name.
+    ///
+    /// Returns the string if it previously existed.
+    pub fn del_named(&mut self, name: &str) -> Option<String> {
+        self.named_strings.remove(name)
+    }
+
     /// Get an iterator over all the numerically indexed strings.
     pub fn iter(&self) -> impl Iterator<Item = (u32, &str)> {
         self.strings.iter()
@@ -283,4 +312,64 @@ impl LangFile {
         self.named_strings.iter()
             .map(|(name, string)| (&**name, &**string))
     }
+
+    pub fn write_to_ini<W: Write>(&self, output: &mut W) -> std::io::Result<()> {
+        for (id, string) in self.iter() {
+            output.write_all(format!("{}={}\n", id, escape(string, false)).as_bytes())?;
+        }
+        Ok(())
+    }
+
+    pub fn write_to_keyval<W: Write>(&self, output: &mut W) -> std::io::Result<()> {
+        for (id, string) in self.iter() {
+            output.write_all(format!("{} \"{}\"\n", id, escape(string, true)).as_bytes())?;
+        }
+        output.write_all(b"\n")?;
+        for (name, string) in self.iter_named() {
+            output.write_all(format!("{} \"{}\"\n", name, escape(string, true)).as_bytes())?;
+        }
+        Ok(())
+    }
+}
+
+fn unescape(escaped: impl Iterator<Item = char>, quoted: bool) -> String {
+    let mut unescaped = String::new();
+    let mut prev = 'x'; // Innocuous character
+    for c in escaped {
+        // NOTE this does not support escapes like "\\n", which should print out "\n"
+        // literally, instead we get "\" followed by a newline.
+        // Could be solved by making `prev` an Option
+        match (prev, c) {
+            ('\\', '\\') => unescaped.push('\\'),
+            ('\\', 'n') => unescaped.push('\n'),
+            ('\\', 'r') => unescaped.push('\r'),
+            ('\\', 't') => unescaped.push('\t'),
+            ('\\', '"') if quoted => unescaped.push('"'),
+            (_, '"') if quoted => break,
+            (_, '\\') => {}, // Might be escape, wait for one more
+            ('\\', c) => {
+                // Previous character was escape, but this is not part of a sequence
+                unescaped.push('\\');
+                unescaped.push(c);
+            },
+            (_, c) => unescaped.push(c),
+        }
+        prev = c;
+    }
+    unescaped
+}
+
+fn escape(source: &str, quoted: bool) -> String {
+    let mut escaped = String::new();
+    for c in source.chars() {
+        match c {
+            '\\' => escaped.push_str(r"\\"),
+            '\n' => escaped.push_str(r"\n"),
+            '\r' => escaped.push_str(r"\r"),
+            '\t' => escaped.push_str(r"\t"),
+            '"' if quoted => escaped.push_str(r#"\""#),
+            c => escaped.push(c),
+        }
+    }
+    escaped
 }
