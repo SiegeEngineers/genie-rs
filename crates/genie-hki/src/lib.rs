@@ -6,6 +6,7 @@
 //! group determines the action that will be taken when it is activated.
 
 use std::io::{Read, Write, Result};
+use std::fmt;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 
@@ -317,6 +318,19 @@ impl Default for Hotkey {
     }
 }
 
+impl fmt::Display for Hotkey {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f, "{}: {}{}{}{}",
+            self.string_id,
+            if self.ctrl  { "Ctrl-"  } else { "" } ,
+            if self.alt   { "Alt-"   } else { "" } ,
+            if self.shift { "Shift-" } else { "" } ,
+            self.key
+        )
+    }
+}
+
 impl Hotkey {
     pub fn key(self, key: i32) -> Self {
         Self { key, ..self }
@@ -396,6 +410,20 @@ impl HotkeyGroup {
     /// This way, you can edit or replace the mapping.
     pub fn hotkey_mut(&mut self, index: usize) -> Option<&mut Hotkey> {
         self.hotkeys.get_mut(index)
+    }
+}
+
+impl fmt::Display for HotkeyGroup {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let group_string = if self.hotkeys.is_empty() {
+            String::from(" no hotkeys")
+        } else {
+            let hotkeys: Vec<String> = self.hotkeys.iter()
+                                                   .map(|hk| hk.to_string())
+                                                   .collect();
+            format!("\n  {}", hotkeys.join("\n  "))
+        };
+        write!(f, "Group:{}", group_string)
     }
 }
 
@@ -486,6 +514,19 @@ impl HotkeyInfo {
     fn group_mut_raw(&mut self, group_id: usize) -> Option<&mut HotkeyGroup> {
         self.groups.get_mut(group_id)
     }
+
+}
+
+impl fmt::Display for HotkeyInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let group_string = if self.groups.is_empty() { String::from("") } else {
+            let groups: Vec<String> = self.groups.iter()
+                                                .map(|grp| grp.to_string())
+                                                .collect();
+            format!("\n{}", groups.join("\n"))
+        };
+        write!(f, "Version: {}{}", self.version, group_string)
+    }
 }
 
 #[cfg(test)]
@@ -521,5 +562,19 @@ mod tests {
     fn hd1() {
         let mut f = File::open("test/files/hd1.hki").unwrap();
         HotkeyInfo::from(&mut f).expect("failed to read file");
+    }
+
+    #[test]
+    fn wk() {
+        let mut f = File::open("test/files/wk.hki").unwrap();
+        HotkeyInfo::from(&mut f).expect("failed to read file");
+    }
+
+    #[test]
+    fn display() {
+        let mut f = File::open("test/files/wk.hki").unwrap();
+        let aoc1 = HotkeyInfo::from(&mut f).expect("failed to read file");
+        println!("{}", aoc1);
+        panic!("Print something please!");
     }
 }
