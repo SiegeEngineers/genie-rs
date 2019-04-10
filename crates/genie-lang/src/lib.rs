@@ -11,8 +11,21 @@
 //! use std::fs::File;
 //! let f = File::open("./test/dlls/language_x1_p1.dll").unwrap();
 //! let lang_file = LangFile::from_dll(f).unwrap();
-//! assert_eq!(lang_file.get(30177), Some("Turbo Random Map - Buildings create units faster, villagers gather faster, build faster, and carry more."));
-//! assert_eq!(lang_file.get(20156), Some("<b>Byzantines<b> \nDefensive civilization \n· Buildings +10% HPs Dark, +20% Feudal, \n +30% Castle, +40% Imperial Age \n· Camels, skirmishers, Pikemen, Halberdiers cost -25% \n· Fire ships +20% attack \n· Advance to Imperial Age costs -33% \n· Town Watch free \n\n<b>Unique Unit:<b> Cataphract (cavalry) \n\n<b>Unique Tech:<b> Logistica (Cataphracts cause trample damage) \n\n<b>Team Bonus:<b> Monks +50% heal speed"));
+//! assert_eq!(
+//!     lang_file.get(30177),
+//!     Some("Turbo Random Map - Buildings create units faster, villagers gather faster, build faster, and carry more."));
+//! assert_eq!(
+//!     lang_file.get(20156),
+//!     Some("<b>Byzantines<b> \n\
+//!           Defensive civilization \n\
+//!           · Buildings +10% HPs Dark, +20% Feudal, \n +30% Castle, +40% Imperial Age \n\
+//!           · Camels, skirmishers, Pikemen, Halberdiers cost -25% \n\
+//!           · Fire ships +20% attack \n\
+//!           · Advance to Imperial Age costs -33% \n\
+//!           · Town Watch free \n\n\
+//!           <b>Unique Unit:<b> Cataphract (cavalry) \n\n\
+//!           <b>Unique Tech:<b> Logistica (Cataphracts cause trample damage) \n\n\
+//!           <b>Team Bonus:<b> Monks +50% heal speed"));
 //! ```
 //!
 //! ## INI files
@@ -26,7 +39,9 @@
 //! "#;
 //! let f = Cursor::new(&text[..]);
 //! let lang_file = LangFile::from_ini(f).unwrap();
-//! assert_eq!(lang_file.get(46523), Some("The Uighurs will join if you kill Ornlu the wolf and return to tell the tale."));
+//! assert_eq!(
+//!     lang_file.get(46523),
+//!     Some("The Uighurs will join if you kill Ornlu the wolf and return to tell the tale."));
 //! ```
 //!
 //! ## HD key-value files
@@ -41,8 +56,12 @@
 //! "#;
 //! let f = Cursor::new(&text[..]);
 //! let lang_file = LangFile::from_keyval(f).unwrap();
-//! assert_eq!(lang_file.get(46523), Some("The Uighurs will join if you kill Ornlu the wolf and return to tell the tale."));
-//! assert_eq!(lang_file.get_named("LOBBYBROWSER_DATMOD_TITLE_FORMAT"), Some(r#"DatMod: "%s""#));
+//! assert_eq!(
+//!     lang_file.get(46523),
+//!     Some("The Uighurs will join if you kill Ornlu the wolf and return to tell the tale."));
+//! assert_eq!(
+//!     lang_file.get_named("LOBBYBROWSER_DATMOD_TITLE_FORMAT"),
+//!     Some(r#"DatMod: "%s""#));
 //! ```
 //!
 //! ## Creating a file from scratch
@@ -50,7 +69,8 @@
 //! use genie_lang::LangFile;
 //! use std::str;
 //! let mut lang_file = LangFile::default();
-//! lang_file.set(46604, "Kill the traitor, Kushluk.\n\nPrevent the tent of Genghis Khan (Wonder) from being destroyed.");
+//! lang_file.set(46604, "Kill the traitor, Kushluk.\n\n\
+//!                       Prevent the tent of Genghis Khan (Wonder) from being destroyed.");
 //! lang_file.set_named("LOBBYBROWSER_DATMOD_TITLE_FORMAT", r#"DatMod: "%s""#);
 //! let mut out = vec![];
 //! lang_file.write_to_ini(&mut out).unwrap();
