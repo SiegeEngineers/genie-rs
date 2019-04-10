@@ -176,7 +176,7 @@ pub enum VillagerHotkeys {
   BuildBlacksmith = 0x2,
   BuildDock = 0x3,
   BuildBarracks = 0x4,
-  BuildPallisadeWall = 0x5,
+  BuildPalisadeWall = 0x5,
   BuildMarket = 0x6,
   BuildStoneWall = 0x7,
   BuildTower = 0x8,
