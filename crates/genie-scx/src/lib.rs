@@ -2,25 +2,24 @@
 //!
 //! This crate aims to support every single scenario that exists. If a scenario file from any Age
 //! of Empires 1 or Age of Empires 2 version does not work, please upload it and file an issue!
+mod ai;
 mod format;
+mod header;
+mod map;
+mod player;
 mod triggers;
-mod util;
 mod types;
+mod util;
+mod victory;
 pub mod convert;
 
 use std::io::{Result, Read, Write};
-use format::{
-    SCXFormat,
-};
+use format::{SCXFormat};
 
 pub use types::*;
-pub use format::{
-    DLCOptions,
-    Tile,
-    SCXHeader,
-    Map,
-    ScenarioObject,
-};
+pub use format::{ScenarioObject};
+pub use header::{DLCOptions, SCXHeader};
+pub use map::{Tile, Map};
 pub use triggers::{
     TriggerSystem,
     Trigger,
