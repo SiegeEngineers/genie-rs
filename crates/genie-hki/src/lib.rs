@@ -569,12 +569,4 @@ mod tests {
         let mut f = File::open("test/files/wk.hki").unwrap();
         HotkeyInfo::from(&mut f).expect("failed to read file");
     }
-
-    #[test]
-    fn display() {
-        let mut f = File::open("test/files/wk.hki").unwrap();
-        let wk = HotkeyInfo::from(&mut f).expect("failed to read file");
-        println!("{}", wk);
-        panic!("Print something please!");
-    }
 }
