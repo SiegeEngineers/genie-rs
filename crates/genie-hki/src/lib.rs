@@ -1,8 +1,10 @@
 //! Reader/writer for Age of Empires 2 Hotkey info files.
 //!
-//! Hotkey files in AoE2 contain groups, each of which contain some number of hotkeys. Hotkeys have
-//! a string ID, a keycode, and flags for Ctrl/Alt/Shift modifiers. The index of the hotkey in its
+//! Hotkey files in AoE2 contain groups, each of which contain some number of
+//! hotkeys. Hotkeys have a string ID, a keycode, and flags
+//! for Ctrl/Alt/Shift modifiers. The index of the hotkey in its
 //! group determines the action that will be taken when it is activated.
+
 use std::io::{Read, Write, Result};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
@@ -287,8 +289,8 @@ pub enum BlacksmithHotkeys {
 pub struct Hotkey {
     /// Keycode that activates this hotkey.
     ///
-    /// You can use a crate like [keycodes](https://docs.rs/keycodes/0.1.0/) to compare this to
-    /// named virtual keys like `keycodes::KEY_RETURN`.
+    /// You can use a crate like [keycodes](https://docs.rs/keycodes/0.1.0/)
+    /// to compare this to named virtual keys like `keycodes::KEY_RETURN`.
     pub key: i32,
     /// The string ID for this hotkey's label. -1 if this hotkey is unused.
     pub string_id: i32,
@@ -390,7 +392,8 @@ impl HotkeyGroup {
         self.hotkeys.get(index)
     }
 
-    /// Get a mutable reference to a single hotkey. This way, you can edit or replace the mapping.
+    /// Get a mutable reference to a single hotkey.
+    /// This way, you can edit or replace the mapping.
     pub fn hotkey_mut(&mut self, index: usize) -> Option<&mut Hotkey> {
         self.hotkeys.get_mut(index)
     }
@@ -475,7 +478,8 @@ impl HotkeyInfo {
         self.groups.get(group_id)
     }
 
-    pub fn group_mut(&mut self, group_id: HotkeyGroupId) -> Option<&mut HotkeyGroup> {
+    pub fn group_mut(&mut self, group_id: HotkeyGroupId)
+            -> Option<&mut HotkeyGroup> {
         self.group_mut_raw(group_id as usize)
     }
 
