@@ -282,6 +282,7 @@ pub enum MarketHotkeys {
   CreateTradeCart = 0x0,
 }
 
+/// Hotkeys for the blacksmith.
 pub enum BlacksmithHotkeys {
 }
 
@@ -376,6 +377,9 @@ impl Hotkey {
     }
 }
 
+/// Represents a group of `Hotkey`s.
+///
+/// Different groups may have different numbers of hotkeys.
 #[derive(Debug, Clone)]
 pub struct HotkeyGroup {
     hotkeys: Vec<Hotkey>,
@@ -402,6 +406,8 @@ impl HotkeyGroup {
         Ok(())
     }
 
+    /// Returns an immutable reference to a single hotkey, if that hotkey is
+    /// present in this `HotkeyGroup`.
     pub fn hotkey(&self, index: usize) -> Option<&Hotkey> {
         self.hotkeys.get(index)
     }
@@ -423,7 +429,6 @@ impl HotkeyGroup {
     /// ```
     pub fn num_hotkeys(&self) -> usize { self.hotkeys.len() }
 
-    // TODO implement an iterator
 }
 
 impl fmt::Display for HotkeyGroup {
@@ -439,6 +444,8 @@ impl fmt::Display for HotkeyGroup {
         write!(f, "Group:{}", group_string)
     }
 }
+
+// TODO implement an iterator for HotkeyGroup
 
 /// Represents a HKI file containing hotkey settings.
 #[derive(Debug, Clone)]
@@ -515,19 +522,36 @@ impl HotkeyInfo {
         self.group_raw(group_id as usize)
     }
 
+    /// Returns an immutable reference to a hotkey group, if that group exists.
     fn group_raw(&self, group_id: usize) -> Option<&HotkeyGroup> {
         self.groups.get(group_id)
     }
 
+    /// Returns a mutable reference to a hotkey group, if that group exists.
     pub fn group_mut(&mut self, group_id: HotkeyGroupId)
             -> Option<&mut HotkeyGroup> {
         self.group_mut_raw(group_id as usize)
     }
 
+    /// Returns a mutable reference to a hotkey group, if that group exists.
     fn group_mut_raw(&mut self, group_id: usize) -> Option<&mut HotkeyGroup> {
         self.groups.get_mut(group_id)
     }
 
+    /// Returns the number of hotkey groups in this info's hotkey file.
+    /// ```rust
+    /// use std::fs::File;
+    /// use genie_hki::{HotkeyInfo, HotkeyGroupId};
+    ///
+    /// let mut f = File::open("test/files/aoc1.hki").unwrap();
+    /// let info = HotkeyInfo::from(&mut f).expect("failed to read file");
+    /// assert_eq!(14, info.num_groups());
+    ///
+    /// let mut f = File::open("test/files/wk.hki").unwrap();
+    /// let info = HotkeyInfo::from(&mut f).expect("failed to read file");
+    /// assert_eq!(15, info.num_groups());
+    /// ```
+    pub fn num_groups(&self) -> usize { self.groups.len() }
 }
 
 impl fmt::Display for HotkeyInfo {
@@ -541,6 +565,8 @@ impl fmt::Display for HotkeyInfo {
         write!(f, "Version: {}{}", self.version, group_string)
     }
 }
+
+// TODO implement an iterator for HotkeyInfo
 
 #[cfg(test)]
 mod tests {
