@@ -5,7 +5,8 @@
 //! for Ctrl/Alt/Shift modifiers. The index of the hotkey in its
 //! group determines the action that will be taken when it is activated.
 
-use std::io::{Read, Write, Result};
+use std::io;
+use std::io::{Read, Write};
 use std::fmt;
 use std::slice::Iter;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
@@ -29,6 +30,8 @@ pub enum HotkeyGroupId {
     Castle = 0xD,
     Mill = 0xE,
 }
+
+// TODO variant for these enums so clients don't need to specify usize
 
 /// Hotkeys for castles.
 pub enum CastleHotkeys {
@@ -355,7 +358,7 @@ impl Hotkey {
     }
 
     /// Read a hotkey from an input stream.
-    pub(crate) fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub(crate) fn from<R: Read>(input: &mut R) -> io::Result<Self> {
         let key = input.read_i32::<LE>()?;
         let string_id = input.read_i32::<LE>()?;
         let ctrl = input.read_u8()? != 0;
@@ -367,7 +370,7 @@ impl Hotkey {
     }
 
     /// Write a hotkey to an output stream.
-    pub(crate) fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    pub(crate) fn write_to<W: Write>(&self, output: &mut W) -> io::Result<()> {
         output.write_i32::<LE>(self.key)?;
         output.write_i32::<LE>(self.string_id)?;
         output.write_u8(if self.ctrl { 1 } else { 0 })?;
@@ -390,7 +393,7 @@ pub struct HotkeyGroup {
 
 impl HotkeyGroup {
     /// Read a hotkey group from an input stream.
-    pub(crate) fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub(crate) fn from<R: Read>(input: &mut R) -> io::Result<Self> {
         let num_hotkeys = input.read_u32::<LE>()?;
         let mut hotkeys = Vec::with_capacity(num_hotkeys as usize);
         for _ in 0..num_hotkeys {
@@ -401,7 +404,7 @@ impl HotkeyGroup {
     }
 
     /// Write a hotkey group to an output stream.
-    pub(crate) fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    pub(crate) fn write_to<W: Write>(&self, output: &mut W) -> io::Result<()> {
         output.write_u32::<LE>(self.hotkeys.len() as u32)?;
         for hotkey in &self.hotkeys {
             hotkey.write_to(output)?;
@@ -419,6 +422,42 @@ impl HotkeyGroup {
     /// This way, you can edit or replace the mapping.
     pub fn hotkey_mut(&mut self, index: usize) -> Option<&mut Hotkey> {
         self.hotkeys.get_mut(index)
+    }
+
+    // TODO create error type
+    // TODO specify
+    pub fn unbind(&self, index: usize) -> Result<Self, String> {
+        if index >= self.num_hotkeys() {
+            return Err(String::from("Cannot unbind nonexistent index."));
+        }
+        let mut i = 0;
+        let mut update = |hk: Hotkey| {
+            let result =
+                if i == index { hk.key(0).ctrl(false).alt(false).shift(false) }
+                else { hk };
+            i += 1;
+            result
+        };
+        let hotkeys = self.hotkeys.iter().map(|hk| update(*hk)).collect();
+        Ok(Self { hotkeys })
+    }
+
+    // TODO specify
+    pub fn bind(&self, index: usize, key: i32,
+            ctrl: bool, alt: bool, shift: bool) -> Result<Self, String> {
+        if index >= self.num_hotkeys() {
+            return Err(String::from("Cannot bind nonexistent index."));
+        }
+        let mut i = 0;
+        let mut update = |hk: Hotkey| {
+            let result =
+                if i == index { hk.key(key).ctrl(ctrl).alt(alt).shift(shift) }
+                else { hk };
+            i += 1;
+            result
+        };
+        let hotkeys = self.hotkeys.iter().map(|hk| update(*hk)).collect();
+        Ok(Self { hotkeys })
     }
 
     /// Returns the number of hotkeys in this `HotkeyGroup`.
@@ -467,7 +506,7 @@ pub struct HotkeyInfo {
 
 impl HotkeyInfo {
     /// Read a hotkey info structure from an uncompressed stream.
-    fn from_uncompressed<R: Read>(input: &mut R) -> Result<Self> {
+    fn from_uncompressed<R: Read>(input: &mut R) -> io::Result<Self> {
         let version = input.read_f32::<LE>()?;
         let num_groups = input.read_u32::<LE>()?;
         let mut groups = Vec::with_capacity(num_groups as usize);
@@ -479,13 +518,14 @@ impl HotkeyInfo {
     }
 
     /// Read a hotkey info file.
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn from<R: Read>(input: &mut R) -> io::Result<Self> {
         let mut input = DeflateDecoder::new(input);
         Self::from_uncompressed(&mut input)
     }
 
     /// Write a hotkey info structure to an uncompressed stream.
-    fn write_to_uncompressed<W: Write>(&self, output: &mut W) -> Result<()> {
+    fn write_to_uncompressed<W: Write>(&self, output: &mut W)
+            -> io::Result<()> {
         output.write_f32::<LE>(self.version)?;
         output.write_u32::<LE>(self.groups.len() as u32)?;
         for group in &self.groups {
@@ -495,7 +535,7 @@ impl HotkeyInfo {
     }
 
     /// Write a hotkey info file.
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    pub fn write_to<W: Write>(&self, output: &mut W) -> io::Result<()> {
         let mut output = DeflateEncoder::new(output, Compression::default());
         self.write_to_uncompressed(&mut output)
     }
@@ -565,6 +605,64 @@ impl HotkeyInfo {
     /// Returns an iterator over the hotkey groups present in this info's hotkey
     /// file.
     pub fn iter(&self) -> Iter<HotkeyGroup> { self.groups.iter() }
+
+    pub fn unbind_key(&self, group_index: HotkeyGroupId, key_index: usize)
+            -> Result<Self, String> {
+        self.unbind_key_index(group_index as usize, key_index)
+    }
+
+    // TODO create error type
+    // TODO specify
+    pub fn unbind_key_index(&self, group_index: usize, key_index: usize)
+            -> Result<Self, String> {
+        if group_index >= self.num_groups() {
+            return Err(String::from(
+                "Cannot unbind key from nonexistent group."
+            ));
+        }
+        let mut i = 0;
+        let mut update = |grp: &HotkeyGroup| -> Result<HotkeyGroup, String> {
+            let result =
+                if i == group_index { grp.unbind(key_index)? }
+                else { grp.clone() };
+            i += 1;
+            Ok(result)
+        };
+        // TODO remove unwrap
+        let groups = self.groups.iter()
+                                .map(|grp| update(grp).unwrap())
+                                .collect();
+        Ok(Self { groups, ..*self })
+    }
+
+    // TODO specify
+    pub fn bind_key(&self, group_index: HotkeyGroupId, key_index: usize,
+            key: i32, ctrl: bool, alt: bool, shift: bool)
+            -> Result<Self, String> {
+        self.bind_key_index(group_index as usize, key_index, key,
+                            ctrl, alt, shift)
+    }
+
+    // TODO specify
+    pub fn bind_key_index(&self, group_index: usize, key_index: usize, key: i32,
+            ctrl: bool, alt: bool, shift: bool) -> Result<Self, String> {
+        if group_index >= self.num_groups() {
+            return Err(String::from("Cannot bind key from nonexistent group."));
+        }
+        let mut i = 0;
+        let mut update = |grp: &HotkeyGroup| -> Result<HotkeyGroup, String> {
+            let result = if i == group_index {
+                grp.bind(key_index, key, ctrl, alt, shift)?
+            } else { grp.clone() };
+            i += 1;
+            Ok(result)
+        };
+        // TODO remove the unwrap
+        let groups = self.groups.iter()
+                                .map(|grp| update(grp).unwrap())
+                                .collect();
+        Ok(Self { groups, ..*self })
+    }
 }
 
 impl fmt::Display for HotkeyInfo {
@@ -670,5 +768,54 @@ mod tests {
         assert_eq!(info.group(HotkeyGroupId::MilitaryUnits), iter.next());
         assert_eq!(info.group(HotkeyGroupId::Castle), iter.next());
         assert_eq!(None, iter.next());
+    }
+
+    // TODO test with error messages
+
+    #[test]
+    fn hg_group_unbind() {
+        let mut f = File::open("test/files/aoc1.hki").unwrap();
+        let info = HotkeyInfo::from(&mut f).expect("failed to read file");
+        let group0 = info.group(HotkeyGroupId::UnitCommands).unwrap();
+        let group1 = group0.unbind(UnitCommandHotkeys::BuildEconomic as usize)
+                           .unwrap();
+        assert_eq!(66, group0.hotkey(0).unwrap().key);
+        assert_eq!(0, group1.hotkey(0).unwrap().key);
+    }
+
+    #[test]
+    fn hk_group_bind() {
+        let mut f = File::open("test/files/aoc1.hki").unwrap();
+        let info = HotkeyInfo::from(&mut f).expect("failed to read file");
+        let group0 = info.group(HotkeyGroupId::UnitCommands).unwrap();
+        let group1 = group0.bind(UnitCommandHotkeys::BuildEconomic as usize, 65,
+                               false, false, false).unwrap();
+        assert_eq!(66, group0.hotkey(0).unwrap().key);
+        assert_eq!(65, group1.hotkey(0).unwrap().key);
+    }
+
+    #[test]
+    fn hk_info_unbind() {
+        let mut f = File::open("test/files/aoc1.hki").unwrap();
+        let info0 = HotkeyInfo::from(&mut f).expect("failed to read file");
+        let info1 = info0.unbind_key(HotkeyGroupId::UnitCommands,
+            UnitCommandHotkeys::BuildEconomic as usize).unwrap();
+        assert_eq!(66, info0.group(HotkeyGroupId::UnitCommands).unwrap()
+                            .hotkey(0).unwrap().key);
+        assert_eq!(0,  info1.group(HotkeyGroupId::UnitCommands).unwrap()
+                            .hotkey(0).unwrap().key);
+    }
+
+    #[test]
+    fn hk_info_bind() {
+        let mut f = File::open("test/files/aoc1.hki").unwrap();
+        let info0 = HotkeyInfo::from(&mut f).expect("failed to read file");
+        let info1 = info0.bind_key(HotkeyGroupId::UnitCommands,
+            UnitCommandHotkeys::BuildEconomic as usize, 65, false, false, false)
+            .unwrap();
+        assert_eq!(66, info0.group(HotkeyGroupId::UnitCommands).unwrap()
+                            .hotkey(0).unwrap().key);
+        assert_eq!(65, info1.group(HotkeyGroupId::UnitCommands).unwrap()
+                            .hotkey(0).unwrap().key);
     }
 }
