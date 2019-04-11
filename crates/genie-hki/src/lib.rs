@@ -286,7 +286,7 @@ pub enum BlacksmithHotkeys {
 }
 
 /// The information about a single hotkey.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Hotkey {
     /// Keycode that activates this hotkey.
     ///
