@@ -579,6 +579,12 @@ impl fmt::Display for HotkeyInfo {
     }
 }
 
+impl IntoIterator for HotkeyInfo {
+    type Item = HotkeyGroup;
+    type IntoIter = std::vec::IntoIter<HotkeyGroup>;
+    fn into_iter(self) -> Self::IntoIter { self.groups.into_iter() }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
