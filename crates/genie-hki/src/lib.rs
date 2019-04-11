@@ -411,6 +411,19 @@ impl HotkeyGroup {
     pub fn hotkey_mut(&mut self, index: usize) -> Option<&mut Hotkey> {
         self.hotkeys.get_mut(index)
     }
+
+    /// Returns the number of hotkeys in this `HotkeyGroup`.
+    /// ```rust
+    /// use std::fs::File;
+    /// use genie_hki::{HotkeyInfo, HotkeyGroupId};
+    /// let mut f = File::open("test/files/aoc1.hki").unwrap();
+    /// let info = HotkeyInfo::from(&mut f).expect("failed to read file");
+    /// let group = info.group(HotkeyGroupId::Villager).unwrap();
+    /// assert_eq!(28, group.num_hotkeys());
+    /// ```
+    pub fn num_hotkeys(&self) -> usize { self.hotkeys.len() }
+
+    // TODO implement an iterator
 }
 
 impl fmt::Display for HotkeyGroup {
