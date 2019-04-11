@@ -7,6 +7,7 @@
 
 use std::io::{Read, Write, Result};
 use std::fmt;
+use std::slice::Iter;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 
@@ -380,7 +381,7 @@ impl Hotkey {
 /// Represents a group of `Hotkey`s.
 ///
 /// Different groups may have different numbers of hotkeys.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HotkeyGroup {
     /// The hotkeys in this group, ordered by the order they appear in a
     /// hotkey file.
@@ -431,9 +432,8 @@ impl HotkeyGroup {
     /// ```
     pub fn num_hotkeys(&self) -> usize { self.hotkeys.len() }
 
-    pub fn iter(&self) -> impl Iterator<Item=&Hotkey> {
-        self.hotkeys.iter()
-    }
+    /// Returns an iterator over this group's hotkeys.
+    pub fn iter(&self) -> Iter<Hotkey> { self.hotkeys.iter() }
 }
 
 impl fmt::Display for HotkeyGroup {
@@ -457,7 +457,7 @@ impl IntoIterator for HotkeyGroup {
 }
 
 /// Represents a HKI file containing hotkey settings.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct HotkeyInfo {
     /// The file version.
     version: f32,
@@ -561,6 +561,10 @@ impl HotkeyInfo {
     /// assert_eq!(15, info.num_groups());
     /// ```
     pub fn num_groups(&self) -> usize { self.groups.len() }
+
+    /// Returns an iterator over the hotkey groups present in this info's hotkey
+    /// file.
+    pub fn iter(&self) -> Iter<HotkeyGroup> { self.groups.iter() }
 }
 
 impl fmt::Display for HotkeyInfo {
@@ -574,8 +578,6 @@ impl fmt::Display for HotkeyInfo {
         write!(f, "Version: {}{}", self.version, group_string)
     }
 }
-
-// TODO implement an iterator for HotkeyInfo
 
 #[cfg(test)]
 mod tests {
@@ -640,5 +642,27 @@ mod tests {
         assert_eq!(19002, hotkey_iter.next().unwrap().string_id);
         assert_eq!(19220, hotkey_iter.next().unwrap().string_id);
         assert_eq!(None, hotkey_iter.next());
+    }
+
+    #[test]
+    fn hk_info_iter() {
+        let mut f = File::open("test/files/aoc1.hki").unwrap();
+        let info = HotkeyInfo::from(&mut f).expect("failed to read file");
+        let mut iter = info.iter();
+        assert_eq!(info.group(HotkeyGroupId::UnitCommands), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::GameCommands), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::Scroll), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::Villager), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::TownCenter), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::Dock), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::Barracks), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::ArcheryRange), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::Stable), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::SiegeWorkshop), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::Monastery), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::Market), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::MilitaryUnits), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::Castle), iter.next());
+        assert_eq!(None, iter.next());
     }
 }
