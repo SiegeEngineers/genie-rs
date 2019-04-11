@@ -1,5 +1,4 @@
 use genie::Campaign;
-use quicli::prelude::*;
 use structopt::StructOpt;
 use std::path::PathBuf;
 use std::fs::File;
