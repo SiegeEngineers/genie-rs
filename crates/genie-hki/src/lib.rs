@@ -287,7 +287,7 @@ pub enum BlacksmithHotkeys {
 }
 
 /// The information about a single hotkey.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Hotkey {
     /// Keycode that activates this hotkey.
     ///
@@ -382,6 +382,8 @@ impl Hotkey {
 /// Different groups may have different numbers of hotkeys.
 #[derive(Debug, Clone)]
 pub struct HotkeyGroup {
+    /// The hotkeys in this group, ordered by the order they appear in a
+    /// hotkey file.
     hotkeys: Vec<Hotkey>,
 }
 
@@ -429,6 +431,9 @@ impl HotkeyGroup {
     /// ```
     pub fn num_hotkeys(&self) -> usize { self.hotkeys.len() }
 
+    pub fn iter(&self) -> impl Iterator<Item=&Hotkey> {
+        self.hotkeys.iter()
+    }
 }
 
 impl fmt::Display for HotkeyGroup {
@@ -445,7 +450,11 @@ impl fmt::Display for HotkeyGroup {
     }
 }
 
-// TODO implement an iterator for HotkeyGroup
+impl IntoIterator for HotkeyGroup {
+    type Item = Hotkey;
+    type IntoIter = std::vec::IntoIter<Hotkey>;
+    fn into_iter(self) -> Self::IntoIter { self.hotkeys.into_iter() }
+}
 
 /// Represents a HKI file containing hotkey settings.
 #[derive(Debug, Clone)]
@@ -607,5 +616,29 @@ mod tests {
     fn wk() {
         let mut f = File::open("test/files/wk.hki").unwrap();
         HotkeyInfo::from(&mut f).expect("failed to read file");
+    }
+
+    #[test]
+    fn hk_group_iter() {
+        let mut f = File::open("test/files/aoc1.hki").unwrap();
+        let info = HotkeyInfo::from(&mut f).expect("failed to read file");
+        let group = info.group(HotkeyGroupId::UnitCommands).unwrap();
+        let mut hotkey_iter = group.iter();
+        assert_eq!(19214, hotkey_iter.next().unwrap().string_id);
+        assert_eq!(19215, hotkey_iter.next().unwrap().string_id);
+        assert_eq!(19224, hotkey_iter.next().unwrap().string_id);
+        assert_eq!(-1, hotkey_iter.next().unwrap().string_id);
+        assert_eq!(-1, hotkey_iter.next().unwrap().string_id);
+        assert_eq!(19216, hotkey_iter.next().unwrap().string_id);
+        assert_eq!(19225, hotkey_iter.next().unwrap().string_id);
+        assert_eq!(19241, hotkey_iter.next().unwrap().string_id);
+        assert_eq!(19242, hotkey_iter.next().unwrap().string_id);
+        assert_eq!(19221, hotkey_iter.next().unwrap().string_id);
+        assert_eq!(19222, hotkey_iter.next().unwrap().string_id);
+        assert_eq!(19012, hotkey_iter.next().unwrap().string_id);
+        assert_eq!(19000, hotkey_iter.next().unwrap().string_id);
+        assert_eq!(19002, hotkey_iter.next().unwrap().string_id);
+        assert_eq!(19220, hotkey_iter.next().unwrap().string_id);
+        assert_eq!(None, hotkey_iter.next());
     }
 }
