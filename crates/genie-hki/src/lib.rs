@@ -6,8 +6,7 @@
 //! group determines the action that will be taken when it is activated.
 
 use std::error::Error;
-use std::io;
-use std::io::{Read, Write};
+use std::io::{self,Read, Write};
 use std::fmt;
 use std::slice::Iter;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
