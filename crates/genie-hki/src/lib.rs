@@ -230,21 +230,21 @@ pub enum TownCenterHotkeys {
 
 /// Hotkeys for mills.
 pub enum MillHotkeys {
-  AddFarm = 0x0,
+    AddFarm = 0x0,
 }
 
 /// Hotkeys for docks.
 pub enum DockHotkeys {
-  CreateFishingShip = 0x0,
-  CreateTradeCog = 0x1,
-  CreateGalley = 0x2,
-  CreateCannonGalleon = 0x3,
-  CreateFireGalley = 0x4,
-  CreateDemolitionShip = 0x5,
-  CreateBoardingGalley = 0x6,
-  CreateTransport = 0x7,
-  CreateLongboat = 0x8,
-  CreateTurtleShip = 0x9,
+    CreateFishingShip = 0x0,
+    CreateTradeCog = 0x1,
+    CreateGalley = 0x2,
+    CreateCannonGalleon = 0x3,
+    CreateFireGalley = 0x4,
+    CreateDemolitionShip = 0x5,
+    CreateBoardingGalley = 0x6,
+    CreateTransport = 0x7,
+    CreateLongboat = 0x8,
+    CreateTurtleShip = 0x9,
 }
 
 /// Hotkeys for the barracks.
