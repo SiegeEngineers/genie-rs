@@ -32,8 +32,6 @@ pub enum HotkeyGroupId {
     Mill = 0xE,
 }
 
-// TODO variant for these enums so clients don't need to specify usize
-
 /// Hotkeys for castles.
 pub enum CastleHotkeys {
   Trebuchet = 0x0,
@@ -847,8 +845,6 @@ mod tests {
         assert_eq!(None, iter.next());
     }
 
-    // TODO test with error messages
-
     #[test]
     fn hk_group_unbind() {
         let mut f = File::open("test/files/aoc1.hki").unwrap();
@@ -869,6 +865,18 @@ mod tests {
                                false, false, false).unwrap();
         assert_eq!(66, group0.hotkey(0).unwrap().key);
         assert_eq!(65, group1.hotkey(0).unwrap().key);
+    }
+
+    #[test]
+    fn hk_group_bad_index() {
+        let mut f = File::open("test/files/aoc1.hki").unwrap();
+        let info = HotkeyInfo::from(&mut f).expect("failed to read file");
+        let group = info.group(HotkeyGroupId::UnitCommands).unwrap();
+        let result = group.unbind(99999);
+        match result {
+            Ok(_) => panic!("Index should be out of bounds."),
+            Err(_) => () // test succeeds
+        }
     }
 
     #[test]
@@ -894,5 +902,27 @@ mod tests {
                             .hotkey(0).unwrap().key);
         assert_eq!(65, info1.group(HotkeyGroupId::UnitCommands).unwrap()
                             .hotkey(0).unwrap().key);
+    }
+
+    #[test]
+    fn hk_info_bad_index_group() {
+        let mut f = File::open("test/files/aoc1.hki").unwrap();
+        let info = HotkeyInfo::from(&mut f).expect("failed to read file");
+        let result = info.unbind_key_index(999999, 0);
+        match result {
+            Ok(_) => panic!("Index should be out of bounds."),
+            Err(_) => () // test succeeds
+        }
+    }
+
+    #[test]
+    fn hk_info_bad_index_hk() {
+        let mut f = File::open("test/files/aoc1.hki").unwrap();
+        let info = HotkeyInfo::from(&mut f).expect("failed to read file");
+        let result = info.unbind_key_index(0, 999999);
+        match result {
+            Ok(_) => panic!("Index should be out of bounds."),
+            Err(_) => () // test succeeds
+        }
     }
 }
