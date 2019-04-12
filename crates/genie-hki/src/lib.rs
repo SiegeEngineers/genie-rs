@@ -12,6 +12,14 @@ use std::slice::Iter;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 
+/// Returns `Ok(id)`, where `id` is the id number of the string giving the text
+/// representation of `keycode` in a language file.
+/// Returns `None` if `keycode` is not represented in a language file.
+pub fn keycode_id(keycode: i32) -> Option<i32> {
+    // TODO implement
+    Some(0)
+}
+
 /// Available hotkey groups.
 pub enum HotkeyGroupId {
     UnitCommands = 0x0,
