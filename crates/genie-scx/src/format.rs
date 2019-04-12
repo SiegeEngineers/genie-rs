@@ -135,7 +135,8 @@ impl Bitmap {
 
         if width > 0 && height > 0 {
             let info = BitmapInfo::from(input)?;
-            let mut pixels = vec![0u8; (height * ((width + 3) & !3)) as usize];
+            let aligned_width = height * ((width + 3) & !3);
+            let mut pixels = vec![0u8; aligned_width as usize];
             input.read_exact(&mut pixels)?;
             Ok(Some(Bitmap {
                 own_memory,
@@ -148,6 +149,87 @@ impl Bitmap {
         } else {
             Ok(None)
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct ScenarioObject {
+    /// Position (x, y, z) of this object.
+    pub position: (f32, f32, f32),
+    /// This object's unique ID.
+    pub id: i32,
+    /// The type ID of this object.
+    pub object_type: i16,
+    /// State value.
+    pub state: u8,
+    /// Radian angle this unit is facing.
+    pub angle: f32,
+    /// Current animation frame.
+    pub frame: i16,
+    /// ID of the object this object is garrisoned in, or -1 when not
+    /// garrisoned.
+    pub garrisoned_in: Option<i32>,
+}
+
+impl ScenarioObject {
+    pub fn from<R: Read>(input: &mut R, version: SCXVersion) -> Result<Self> {
+        let position = (
+            input.read_f32::<LE>()?,
+            input.read_f32::<LE>()?,
+            input.read_f32::<LE>()?,
+        );
+        let id = input.read_i32::<LE>()?;
+        let object_type = input.read_i16::<LE>()?;
+        let state = input.read_u8()?;
+        let angle = input.read_f32::<LE>()?;
+        let frame = if cmp_scx_version(version, *b"1.15") == Ordering::Less {
+            -1
+        } else {
+            input.read_i16::<LE>()?
+        };
+        let garrisoned_in = if cmp_scx_version(version, *b"1.13") == Ordering::Less {
+            None
+        } else {
+            Some(input.read_i32::<LE>()?)
+        }.and_then(|id| match id {
+            -1 => None,
+            id => Some(id),
+        })
+        .and_then(|id| match id {
+            // 0 means -1 in "recent" versions
+            0 if cmp_scx_version(version, *b"1.12") == Ordering::Greater => None,
+            id => Some(id),
+        });
+
+        Ok(Self {
+            position,
+            id,
+            object_type,
+            state,
+            angle,
+            frame,
+            garrisoned_in,
+        })
+    }
+
+    pub fn write_to<W: Write>(&self, output: &mut W, version: SCXVersion) -> Result<()> {
+        output.write_f32::<LE>(self.position.0)?;
+        output.write_f32::<LE>(self.position.1)?;
+        output.write_f32::<LE>(self.position.2)?;
+        output.write_i32::<LE>(self.id)?;
+        output.write_i16::<LE>(self.object_type)?;
+        output.write_u8(self.state)?;
+        output.write_f32::<LE>(self.angle)?;
+        if cmp_scx_version(version, *b"1.14") == Ordering::Greater {
+            output.write_i16::<LE>(self.frame)?;
+        }
+        if cmp_scx_version(version, *b"1.12") == Ordering::Greater {
+            match self.garrisoned_in {
+                Some(id) => output.write_i32::<LE>(id)?,
+                None => output.write_i32::<LE>(-1)?,
+            }
+        }
+        Ok(())
     }
 }
 
@@ -505,87 +587,6 @@ impl RGEScen {
 
         output.write_i32::<LE>(-99)?;
 
-        Ok(())
-    }
-}
-
-#[derive(Debug)]
-pub struct ScenarioObject {
-    /// Position (x, y, z) of this object.
-    pub position: (f32, f32, f32),
-    /// This object's unique ID.
-    pub id: i32,
-    /// The type ID of this object.
-    pub object_type: i16,
-    /// State value.
-    pub state: u8,
-    /// Radian angle this unit is facing.
-    pub angle: f32,
-    /// Current animation frame.
-    pub frame: i16,
-    /// ID of the object this object is garrisoned in, or -1 when not
-    /// garrisoned.
-    pub garrisoned_in: Option<i32>,
-}
-
-impl ScenarioObject {
-    pub fn from<R: Read>(input: &mut R, version: SCXVersion) -> Result<Self> {
-        let position = (
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-        );
-        let id = input.read_i32::<LE>()?;
-        let object_type = input.read_i16::<LE>()?;
-        let state = input.read_u8()?;
-        let angle = input.read_f32::<LE>()?;
-        let frame = if cmp_scx_version(version, *b"1.15") == Ordering::Less {
-            -1
-        } else {
-            input.read_i16::<LE>()?
-        };
-        let garrisoned_in = if cmp_scx_version(version, *b"1.13") == Ordering::Less {
-            None
-        } else {
-            Some(input.read_i32::<LE>()?)
-        }.and_then(|id| match id {
-            -1 => None,
-            id => Some(id),
-        })
-        .and_then(|id| match id {
-            // 0 means -1 in "recent" versions
-            0 if cmp_scx_version(version, *b"1.12") == Ordering::Greater => None,
-            id => Some(id),
-        });
-
-        Ok(Self {
-            position,
-            id,
-            object_type,
-            state,
-            angle,
-            frame,
-            garrisoned_in,
-        })
-    }
-
-    pub fn write_to<W: Write>(&self, output: &mut W, version: SCXVersion) -> Result<()> {
-        output.write_f32::<LE>(self.position.0)?;
-        output.write_f32::<LE>(self.position.1)?;
-        output.write_f32::<LE>(self.position.2)?;
-        output.write_i32::<LE>(self.id)?;
-        output.write_i16::<LE>(self.object_type)?;
-        output.write_u8(self.state)?;
-        output.write_f32::<LE>(self.angle)?;
-        if cmp_scx_version(version, *b"1.14") == Ordering::Greater {
-            output.write_i16::<LE>(self.frame)?;
-        }
-        if cmp_scx_version(version, *b"1.12") == Ordering::Greater {
-            match self.garrisoned_in {
-                Some(id) => output.write_i32::<LE>(id)?,
-                None => output.write_i32::<LE>(-1)?,
-            }
-        }
         Ok(())
     }
 }
