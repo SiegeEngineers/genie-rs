@@ -526,19 +526,16 @@ impl HotkeyGroup {
         self.hotkeys.get_mut(index)
     }
 
-    // TODO specify
+    /// Returns a hotkey group equivalent to this group but with the hotkey
+    /// at `index` unbound so that the key is `0` and all modifier keys are
+    /// `false`. Returns an error if the index does not exist.
     pub fn unbind(&self, index: usize) -> Result<Self, HotkeyIndexError> {
-        if index >= self.num_hotkeys() {
-            return Err(HotkeyIndexError::new(index, self.num_hotkeys()));
-        }
-        let hotkeys = self.hotkeys.iter().enumerate().map(|(i, &hk)|
-            if i == index { hk.key(0).ctrl(false).alt(false).shift(false) }
-            else { hk }
-        ).collect();
-        Ok(Self { hotkeys })
+        self.bind(index, 0, false, false, false)
     }
 
-    // TODO specify
+    /// Returns a hotkey group equivalent to this group but with the hotkey
+    /// at `index` bound with the given key and modifier keys.
+    /// Returns an error if the index does not exist.
     pub fn bind(&self, index: usize, key: i32, ctrl: bool, alt: bool,
             shift: bool) -> Result<Self, HotkeyIndexError> {
         if index >= self.num_hotkeys() {
@@ -696,29 +693,26 @@ impl HotkeyInfo {
     /// file.
     pub fn iter(&self) -> Iter<HotkeyGroup> { self.groups.iter() }
 
+    /// Returns a `HotkeyInfo` struct equivalent to this `HotkeyInfo`, but with
+    /// the key at index `key_index` of the group given by `group_index`
+    /// unbound. Returns an error if either index does not exist.
     pub fn unbind_key(&self, group_index: HotkeyGroupId, key_index: usize)
             -> Result<Self, IndexError> {
-        self.unbind_key_index(group_index as usize, key_index)
+        self.bind_key(group_index, key_index, 0, false, false, false)
     }
 
-    // TODO specify
+    /// Returns a `HotkeyInfo` struct equivalent to this `HotkeyInfo`, but with
+    /// the key at index `key_index` of the group given by `group_index`
+    /// unbound. Returns an error if either index does not exist.
     pub fn unbind_key_index(&self, group_index: usize, key_index: usize)
             -> Result<Self, IndexError> {
-        if group_index >= self.num_groups() {
-            return Err(IndexError::GroupIndex(GroupIndexError::new(
-                group_index, self.num_groups())));
-        }
-        let mut groups = Vec::with_capacity(self.num_groups());
-        for (i, grp) in self.groups.iter().enumerate() {
-            let append =
-                if i == group_index { grp.unbind(key_index)? }
-                else                { grp.clone() };
-            groups.push(append);
-        }
-        Ok(Self { groups, ..*self })
+        self.bind_key_index(group_index, key_index, 0, false, false, false)
     }
 
-    // TODO specify
+    /// Returns a `HotkeyInfo` struct equivalent to this `HotkeyInfo`, but with
+    /// the key at index `key_index` of the group given by `group_index`
+    /// bound with the given key and key modifiers. Returns an error if either
+    /// index does not exist.
     pub fn bind_key(&self, group_index: HotkeyGroupId, key_index: usize,
             key: i32, ctrl: bool, alt: bool, shift: bool)
             -> Result<Self, IndexError> {
@@ -726,7 +720,10 @@ impl HotkeyInfo {
                             ctrl, alt, shift)
     }
 
-    // TODO specify
+    /// Returns a `HotkeyInfo` struct equivalent to this `HotkeyInfo`, but with
+    /// the key at index `key_index` of the group given by `group_index`
+    /// bound with the given key and key modifiers. Returns an error if either
+    /// index does not exist.
     pub fn bind_key_index(&self, group_index: usize, key_index: usize, key: i32,
             ctrl: bool, alt: bool, shift: bool) -> Result<Self, IndexError> {
         if group_index >= self.num_groups() {
@@ -853,7 +850,7 @@ mod tests {
     // TODO test with error messages
 
     #[test]
-    fn hg_group_unbind() {
+    fn hk_group_unbind() {
         let mut f = File::open("test/files/aoc1.hki").unwrap();
         let info = HotkeyInfo::from(&mut f).expect("failed to read file");
         let group0 = info.group(HotkeyGroupId::UnitCommands).unwrap();
