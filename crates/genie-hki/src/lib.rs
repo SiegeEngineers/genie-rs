@@ -5,6 +5,7 @@
 //! for Ctrl/Alt/Shift modifiers. The index of the hotkey in its
 //! group determines the action that will be taken when it is activated.
 
+use std::error::Error;
 use std::io;
 use std::io::{Read, Write};
 use std::fmt;
@@ -290,6 +291,107 @@ pub enum MarketHotkeys {
 pub enum BlacksmithHotkeys {
 }
 
+/// Represents an error when binding or unbinding a hotkey that doesn't exist.
+#[derive(Debug)]
+pub enum IndexError {
+    /// Represents an index error when accessing a nonexistent group.
+    GroupIndex(GroupIndexError),
+
+    /// Represents an index error when accessing a nonexistent hotkey within a
+    /// group.
+    HotkeyIndex(HotkeyIndexError),
+}
+
+impl fmt::Display for IndexError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            IndexError::GroupIndex(err) => err.fmt(f),
+            IndexError::HotkeyIndex(err) => err.fmt(f),
+        }
+    }
+}
+
+impl Error for IndexError { }
+
+impl From<GroupIndexError> for IndexError {
+    fn from(err: GroupIndexError) -> Self { IndexError::GroupIndex(err) }
+}
+
+impl From<HotkeyIndexError> for IndexError {
+    fn from(err: HotkeyIndexError) -> Self { IndexError::HotkeyIndex(err) }
+}
+
+/// Represents an error when accessing a hotkey group that does not exist.
+///
+/// The first index represents the index of the group, and the second index
+/// represents the number of groups. The first index must be greater than or
+/// equal to the second index.
+#[derive(Debug)]
+pub struct GroupIndexError {
+    /// The index of the group, must be greater than or equal to `num_groups`.
+    index: usize,
+    /// The number of groups, must be less than or equal to `index`.
+    num_groups: usize,
+}
+
+impl GroupIndexError {
+    /// Returns a `GroupIndexError` with group index `index` and a number of
+    /// groups equal to `num_groups`.
+    /// Panics if `index < num_groups`.
+    pub fn new(index: usize, num_groups: usize) -> Self {
+        assert!(num_groups <= index);
+        Self { index, num_groups }
+    }
+
+    /// Returns the index of the group that was accessed.
+    pub fn index(&self) -> usize { self.index }
+
+    /// Returns the number of valid groups.
+    pub fn num_groups(&self) -> usize { self.num_groups }
+}
+
+impl fmt::Display for GroupIndexError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Group id {} must be less than the number of groups {}.",
+            self.index, self.num_groups)
+    }
+}
+
+impl Error for GroupIndexError { }
+
+/// Represents an error when accessing a hotkey that does not exist.
+#[derive(Debug)]
+pub struct HotkeyIndexError {
+    /// The index of the hotkey, must be greater than or equal to `num_hotkeys`.
+    index: usize,
+    /// The number of hotkeys, must be less than or equal to `index`.
+    num_hotkeys: usize,
+}
+
+impl HotkeyIndexError {
+    /// Returns a `HotkeyIndexError` with hotkey index `index` and a number of
+    /// hotkeys equal to `num_hotkeys`.
+    pub fn new(index: usize, num_hotkeys: usize) -> Self {
+        assert!(num_hotkeys <= index);
+        Self { index, num_hotkeys }
+    }
+
+    /// Returns the index of the hotkey that was accessed.
+    pub fn index(&self) -> usize { self.index }
+
+    /// Returns the number of valid hotkeys.
+    pub fn num_hotkeys(&self) -> usize { self.num_hotkeys }
+}
+
+impl fmt::Display for HotkeyIndexError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Hotkey id {} must be less than the number of hotkeys {}.",
+            self.index, self.num_hotkeys)
+    }
+}
+
+impl Error for HotkeyIndexError { }
+
 /// The information about a single hotkey.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Hotkey {
@@ -424,39 +526,28 @@ impl HotkeyGroup {
         self.hotkeys.get_mut(index)
     }
 
-    // TODO create error type
     // TODO specify
-    pub fn unbind(&self, index: usize) -> Result<Self, String> {
+    pub fn unbind(&self, index: usize) -> Result<Self, HotkeyIndexError> {
         if index >= self.num_hotkeys() {
-            return Err(String::from("Cannot unbind nonexistent index."));
+            return Err(HotkeyIndexError::new(index, self.num_hotkeys()));
         }
-        let mut i = 0;
-        let mut update = |hk: Hotkey| {
-            let result =
-                if i == index { hk.key(0).ctrl(false).alt(false).shift(false) }
-                else { hk };
-            i += 1;
-            result
-        };
-        let hotkeys = self.hotkeys.iter().map(|hk| update(*hk)).collect();
+        let hotkeys = self.hotkeys.iter().enumerate().map(|(i, &hk)|
+            if i == index { hk.key(0).ctrl(false).alt(false).shift(false) }
+            else { hk }
+        ).collect();
         Ok(Self { hotkeys })
     }
 
     // TODO specify
-    pub fn bind(&self, index: usize, key: i32,
-            ctrl: bool, alt: bool, shift: bool) -> Result<Self, String> {
+    pub fn bind(&self, index: usize, key: i32, ctrl: bool, alt: bool,
+            shift: bool) -> Result<Self, HotkeyIndexError> {
         if index >= self.num_hotkeys() {
-            return Err(String::from("Cannot bind nonexistent index."));
+            return Err(HotkeyIndexError::new(index, self.num_hotkeys()));
         }
-        let mut i = 0;
-        let mut update = |hk: Hotkey| {
-            let result =
-                if i == index { hk.key(key).ctrl(ctrl).alt(alt).shift(shift) }
-                else { hk };
-            i += 1;
-            result
-        };
-        let hotkeys = self.hotkeys.iter().map(|hk| update(*hk)).collect();
+        let hotkeys = self.hotkeys.iter().enumerate().map(|(i, &hk)|
+            if i == index { hk.key(key).ctrl(ctrl).alt(alt).shift(shift) }
+            else { hk }
+        ).collect();
         Ok(Self { hotkeys })
     }
 
@@ -481,8 +572,7 @@ impl fmt::Display for HotkeyGroup {
             String::from(" no hotkeys")
         } else {
             let hotkeys: Vec<String> = self.hotkeys.iter()
-                                                   .map(|hk| hk.to_string())
-                                                   .collect();
+                .map(|hk| hk.to_string()).collect();
             format!("\n  {}", hotkeys.join("\n  "))
         };
         write!(f, "Group:{}", group_string)
@@ -607,60 +697,51 @@ impl HotkeyInfo {
     pub fn iter(&self) -> Iter<HotkeyGroup> { self.groups.iter() }
 
     pub fn unbind_key(&self, group_index: HotkeyGroupId, key_index: usize)
-            -> Result<Self, String> {
+            -> Result<Self, IndexError> {
         self.unbind_key_index(group_index as usize, key_index)
     }
 
-    // TODO create error type
     // TODO specify
     pub fn unbind_key_index(&self, group_index: usize, key_index: usize)
-            -> Result<Self, String> {
+            -> Result<Self, IndexError> {
         if group_index >= self.num_groups() {
-            return Err(String::from(
-                "Cannot unbind key from nonexistent group."
-            ));
+            return Err(IndexError::GroupIndex(GroupIndexError::new(
+                group_index, self.num_groups())));
         }
-        let mut i = 0;
-        let mut update = |grp: &HotkeyGroup| -> Result<HotkeyGroup, String> {
-            let result =
+        let mut groups = Vec::with_capacity(self.num_groups());
+        for (i, grp) in self.groups.iter().enumerate() {
+            let append =
                 if i == group_index { grp.unbind(key_index)? }
-                else { grp.clone() };
-            i += 1;
-            Ok(result)
-        };
-        // TODO remove unwrap
-        let groups = self.groups.iter()
-                                .map(|grp| update(grp).unwrap())
-                                .collect();
+                else                { grp.clone() };
+            groups.push(append);
+        }
         Ok(Self { groups, ..*self })
     }
 
     // TODO specify
     pub fn bind_key(&self, group_index: HotkeyGroupId, key_index: usize,
             key: i32, ctrl: bool, alt: bool, shift: bool)
-            -> Result<Self, String> {
+            -> Result<Self, IndexError> {
         self.bind_key_index(group_index as usize, key_index, key,
                             ctrl, alt, shift)
     }
 
     // TODO specify
     pub fn bind_key_index(&self, group_index: usize, key_index: usize, key: i32,
-            ctrl: bool, alt: bool, shift: bool) -> Result<Self, String> {
+            ctrl: bool, alt: bool, shift: bool) -> Result<Self, IndexError> {
         if group_index >= self.num_groups() {
-            return Err(String::from("Cannot bind key from nonexistent group."));
+            return Err(IndexError::GroupIndex(GroupIndexError::new(
+                group_index, self.num_groups())));
         }
-        let mut i = 0;
-        let mut update = |grp: &HotkeyGroup| -> Result<HotkeyGroup, String> {
-            let result = if i == group_index {
+        let mut groups = Vec::with_capacity(self.num_groups());
+        for (i, grp) in self.groups.iter().enumerate() {
+            let append = if i == group_index {
                 grp.bind(key_index, key, ctrl, alt, shift)?
-            } else { grp.clone() };
-            i += 1;
-            Ok(result)
-        };
-        // TODO remove the unwrap
-        let groups = self.groups.iter()
-                                .map(|grp| update(grp).unwrap())
-                                .collect();
+            } else {
+                grp.clone()
+            };
+            groups.push(append);
+        }
         Ok(Self { groups, ..*self })
     }
 }
@@ -669,8 +750,7 @@ impl fmt::Display for HotkeyInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let group_string = if self.groups.is_empty() { String::from("") } else {
             let groups: Vec<String> = self.groups.iter()
-                                                .map(|grp| grp.to_string())
-                                                .collect();
+                .map(|grp| grp.to_string()).collect();
             format!("\n{}", groups.join("\n"))
         };
         write!(f, "Version: {}{}", self.version, group_string)
