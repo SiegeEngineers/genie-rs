@@ -56,8 +56,5 @@ fn main() -> Result<(), Box<dyn Error>> {
         cli_input.keycode, cli_input.ctrl, cli_input.alt, cli_input.shift)?;
     let mut f = File::create(&cli_input.file_name)?;
     info.write_to(&mut f)?;
-
-    let mut f = File::open(&cli_input.file_name)?;
-    let info = HotkeyInfo::from(&mut f)?;
     Ok(())
 }
