@@ -16,8 +16,10 @@ use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 /// representation of `keycode` in a language file.
 /// Returns `None` if `keycode` is not represented in a language file.
 pub fn keycode_id(keycode: i32) -> Option<i32> {
-    // TODO implement
-    Some(0)
+    match keycode {
+        // TODO implement
+        _ => None,
+    }
 }
 
 /// Available hotkey groups.
