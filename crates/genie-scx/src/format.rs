@@ -13,6 +13,7 @@ use std::io::{
     ErrorKind,
 };
 use crate::ai::AIInfo;
+use crate::bitmap::Bitmap;
 use crate::header::SCXHeader;
 use crate::map::Map;
 use crate::player::*;
@@ -51,103 +52,84 @@ fn cmp_scx_version(a: SCXVersion, b: SCXVersion) -> Ordering {
 //     MapType,
 // }
 
-#[derive(Debug, Clone, Copy)]
-struct BitmapColor(pub u8, pub u8, pub u8, pub u8);
-
-impl BitmapColor {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
-        let r = input.read_u8()?;
-        let g = input.read_u8()?;
-        let b = input.read_u8()?;
-        let reserved = input.read_u8()?;
-        Ok(BitmapColor(r, g, b, reserved))
-    }
-}
-
 #[derive(Debug)]
-struct BitmapInfo {
-    size: u32,
-    width: i32,
-    height: i32,
-    planes: u16,
-    bit_count: u16,
-    compression: u32,
-    size_image: u32,
-    xpels_per_meter: i32,
-    ypels_per_meter: i32,
-    clr_used: u32,
-    clr_important: u32,
-    colors: Vec<BitmapColor>,
+pub struct ScenarioObject {
+    /// Position (x, y, z) of this object.
+    pub position: (f32, f32, f32),
+    /// This object's unique ID.
+    pub id: i32,
+    /// The type ID of this object.
+    pub object_type: i16,
+    /// State value.
+    pub state: u8,
+    /// Radian angle this unit is facing.
+    pub angle: f32,
+    /// Current animation frame.
+    pub frame: i16,
+    /// ID of the object this object is garrisoned in, or -1 when not
+    /// garrisoned.
+    pub garrisoned_in: Option<i32>,
 }
 
-impl BitmapInfo {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
-        let size = input.read_u32::<LE>()?;
-        let width = input.read_i32::<LE>()?;
-        let height = input.read_i32::<LE>()?;
-        let planes = input.read_u16::<LE>()?;
-        let bit_count = input.read_u16::<LE>()?;
-        let compression = input.read_u32::<LE>()?;
-        let size_image = input.read_u32::<LE>()?;
-        let xpels_per_meter = input.read_i32::<LE>()?;
-        let ypels_per_meter = input.read_i32::<LE>()?;
-        let clr_used = input.read_u32::<LE>()?;
-        let clr_important = input.read_u32::<LE>()?;
-        let mut colors = Vec::with_capacity(256);
+impl ScenarioObject {
+    pub fn from<R: Read>(input: &mut R, version: SCXVersion) -> Result<Self> {
+        let position = (
+            input.read_f32::<LE>()?,
+            input.read_f32::<LE>()?,
+            input.read_f32::<LE>()?,
+        );
+        let id = input.read_i32::<LE>()?;
+        let object_type = input.read_i16::<LE>()?;
+        let state = input.read_u8()?;
+        let angle = input.read_f32::<LE>()?;
+        let frame = if cmp_scx_version(version, *b"1.15") == Ordering::Less {
+            -1
+        } else {
+            input.read_i16::<LE>()?
+        };
+        let garrisoned_in = if cmp_scx_version(version, *b"1.13") == Ordering::Less {
+            None
+        } else {
+            Some(input.read_i32::<LE>()?)
+        }.and_then(|id| match id {
+            -1 => None,
+            id => Some(id),
+        })
+        .and_then(|id| match id {
+            // 0 means -1 in "recent" versions
+            0 if cmp_scx_version(version, *b"1.12") == Ordering::Greater => None,
+            id => Some(id),
+        });
 
-        for _ in 0..256 {
-            colors.push(BitmapColor::from(input)?);
-        }
-
-        Ok(BitmapInfo {
-            size,
-            width,
-            height,
-            planes,
-            bit_count,
-            compression,
-            size_image,
-            xpels_per_meter,
-            ypels_per_meter,
-            clr_used,
-            clr_important,
-            colors,
+        Ok(Self {
+            position,
+            id,
+            object_type,
+            state,
+            angle,
+            frame,
+            garrisoned_in,
         })
     }
-}
 
-#[derive(Debug)]
-struct Bitmap {
-    own_memory: u32,
-    width: u32,
-    height: u32,
-    orientation: u16,
-    info: BitmapInfo,
-    pixels: Vec<u8>,
-}
-
-impl Bitmap {
-    pub fn from<R: Read>(input: &mut R) -> Result<Option<Self>> {
-        let own_memory = input.read_u32::<LE>()?;
-        let width = input.read_u32::<LE>()?;
-        let height = input.read_u32::<LE>()?;
-        let orientation = input.read_u16::<LE>()?;
-
-        if width > 0 && height > 0 {
-            let info = BitmapInfo::from(input)?;
-            let mut pixels = vec![0u8; (height * ((width + 3) & !3)) as usize];
-            input.read_exact(&mut pixels)?;
-            Ok(Some(Bitmap {
-                own_memory,
-                width,
-                height,
-                orientation,
-                info,
-                pixels,
-            }))
-        } else {
-            Ok(None)
+    pub fn write_to<W: Write>(&self, output: &mut W, version: SCXVersion) -> Result<()> {
+        output.write_f32::<LE>(self.position.0)?;
+        output.write_f32::<LE>(self.position.1)?;
+        output.write_f32::<LE>(self.position.2)?;
+        output.write_i32::<LE>(self.id)?;
+        output.write_i16::<LE>(self.object_type)?;
+        output.write_u8(self.state)?;
+        output.write_f32::<LE>(self.angle)?;
+        if cmp_scx_version(version, *b"1.14") == Ordering::Greater {
+            output.write_i16::<LE>(self.frame)?;
         }
+        if cmp_scx_version(version, *b"1.12") == Ordering::Greater {
+            match self.garrisoned_in {
+                Some(id) => output.write_i32::<LE>(id)?,
+                None => output.write_i32::<LE>(-1)?,
+            }
+        }
+        Ok(())
     }
 }
 
@@ -505,87 +487,6 @@ impl RGEScen {
 
         output.write_i32::<LE>(-99)?;
 
-        Ok(())
-    }
-}
-
-#[derive(Debug)]
-pub struct ScenarioObject {
-    /// Position (x, y, z) of this object.
-    pub position: (f32, f32, f32),
-    /// This object's unique ID.
-    pub id: i32,
-    /// The type ID of this object.
-    pub object_type: i16,
-    /// State value.
-    pub state: u8,
-    /// Radian angle this unit is facing.
-    pub angle: f32,
-    /// Current animation frame.
-    pub frame: i16,
-    /// ID of the object this object is garrisoned in, or -1 when not
-    /// garrisoned.
-    pub garrisoned_in: Option<i32>,
-}
-
-impl ScenarioObject {
-    pub fn from<R: Read>(input: &mut R, version: SCXVersion) -> Result<Self> {
-        let position = (
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-        );
-        let id = input.read_i32::<LE>()?;
-        let object_type = input.read_i16::<LE>()?;
-        let state = input.read_u8()?;
-        let angle = input.read_f32::<LE>()?;
-        let frame = if cmp_scx_version(version, *b"1.15") == Ordering::Less {
-            -1
-        } else {
-            input.read_i16::<LE>()?
-        };
-        let garrisoned_in = if cmp_scx_version(version, *b"1.13") == Ordering::Less {
-            None
-        } else {
-            Some(input.read_i32::<LE>()?)
-        }.and_then(|id| match id {
-            -1 => None,
-            id => Some(id),
-        })
-        .and_then(|id| match id {
-            // 0 means -1 in "recent" versions
-            0 if cmp_scx_version(version, *b"1.12") == Ordering::Greater => None,
-            id => Some(id),
-        });
-
-        Ok(Self {
-            position,
-            id,
-            object_type,
-            state,
-            angle,
-            frame,
-            garrisoned_in,
-        })
-    }
-
-    pub fn write_to<W: Write>(&self, output: &mut W, version: SCXVersion) -> Result<()> {
-        output.write_f32::<LE>(self.position.0)?;
-        output.write_f32::<LE>(self.position.1)?;
-        output.write_f32::<LE>(self.position.2)?;
-        output.write_i32::<LE>(self.id)?;
-        output.write_i16::<LE>(self.object_type)?;
-        output.write_u8(self.state)?;
-        output.write_f32::<LE>(self.angle)?;
-        if cmp_scx_version(version, *b"1.14") == Ordering::Greater {
-            output.write_i16::<LE>(self.frame)?;
-        }
-        if cmp_scx_version(version, *b"1.12") == Ordering::Greater {
-            match self.garrisoned_in {
-                Some(id) => output.write_i32::<LE>(id)?,
-                None => output.write_i32::<LE>(-1)?,
-            }
-        }
         Ok(())
     }
 }

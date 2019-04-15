@@ -3,6 +3,7 @@
 //! This crate aims to support every single scenario that exists. If a scenario file from any Age
 //! of Empires 1 or Age of Empires 2 version does not work, please upload it and file an issue!
 mod ai;
+mod bitmap;
 mod format;
 mod header;
 mod map;
