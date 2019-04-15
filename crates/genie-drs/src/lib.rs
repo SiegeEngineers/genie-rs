@@ -118,6 +118,11 @@ impl DRSTable {
         self.num_resources as usize
     }
 
+    /// Check if the table contains no resources.
+    pub fn is_empty(&self) -> bool {
+        self.num_resources == 0
+    }
+
     /// Iterate over the resources in this table.
     pub fn resources(&self) -> DRSResourceIterator {
         self.resources.iter()
