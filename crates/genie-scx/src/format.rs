@@ -13,6 +13,7 @@ use std::io::{
     ErrorKind,
 };
 use crate::ai::AIInfo;
+use crate::bitmap::Bitmap;
 use crate::header::SCXHeader;
 use crate::map::Map;
 use crate::player::*;
@@ -50,107 +51,6 @@ fn cmp_scx_version(a: SCXVersion, b: SCXVersion) -> Ordering {
 //     DisabledBuildings(i32, i32),
 //     MapType,
 // }
-
-#[derive(Debug, Clone, Copy)]
-struct BitmapColor(pub u8, pub u8, pub u8, pub u8);
-
-impl BitmapColor {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
-        let r = input.read_u8()?;
-        let g = input.read_u8()?;
-        let b = input.read_u8()?;
-        let reserved = input.read_u8()?;
-        Ok(BitmapColor(r, g, b, reserved))
-    }
-}
-
-#[derive(Debug)]
-struct BitmapInfo {
-    size: u32,
-    width: i32,
-    height: i32,
-    planes: u16,
-    bit_count: u16,
-    compression: u32,
-    size_image: u32,
-    xpels_per_meter: i32,
-    ypels_per_meter: i32,
-    clr_used: u32,
-    clr_important: u32,
-    colors: Vec<BitmapColor>,
-}
-
-impl BitmapInfo {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
-        let size = input.read_u32::<LE>()?;
-        let width = input.read_i32::<LE>()?;
-        let height = input.read_i32::<LE>()?;
-        let planes = input.read_u16::<LE>()?;
-        let bit_count = input.read_u16::<LE>()?;
-        let compression = input.read_u32::<LE>()?;
-        let size_image = input.read_u32::<LE>()?;
-        let xpels_per_meter = input.read_i32::<LE>()?;
-        let ypels_per_meter = input.read_i32::<LE>()?;
-        let clr_used = input.read_u32::<LE>()?;
-        let clr_important = input.read_u32::<LE>()?;
-        let mut colors = Vec::with_capacity(256);
-
-        for _ in 0..256 {
-            colors.push(BitmapColor::from(input)?);
-        }
-
-        Ok(BitmapInfo {
-            size,
-            width,
-            height,
-            planes,
-            bit_count,
-            compression,
-            size_image,
-            xpels_per_meter,
-            ypels_per_meter,
-            clr_used,
-            clr_important,
-            colors,
-        })
-    }
-}
-
-#[derive(Debug)]
-struct Bitmap {
-    own_memory: u32,
-    width: u32,
-    height: u32,
-    orientation: u16,
-    info: BitmapInfo,
-    pixels: Vec<u8>,
-}
-
-impl Bitmap {
-    pub fn from<R: Read>(input: &mut R) -> Result<Option<Self>> {
-        let own_memory = input.read_u32::<LE>()?;
-        let width = input.read_u32::<LE>()?;
-        let height = input.read_u32::<LE>()?;
-        let orientation = input.read_u16::<LE>()?;
-
-        if width > 0 && height > 0 {
-            let info = BitmapInfo::from(input)?;
-            let aligned_width = height * ((width + 3) & !3);
-            let mut pixels = vec![0u8; aligned_width as usize];
-            input.read_exact(&mut pixels)?;
-            Ok(Some(Bitmap {
-                own_memory,
-                width,
-                height,
-                orientation,
-                info,
-                pixels,
-            }))
-        } else {
-            Ok(None)
-        }
-    }
-}
 
 #[derive(Debug)]
 pub struct ScenarioObject {
