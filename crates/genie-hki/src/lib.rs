@@ -17,7 +17,33 @@ use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 /// Returns `None` if `keycode` is not represented in a language file.
 pub fn keycode_id(keycode: i32) -> Option<i32> {
     match keycode {
-        // TODO implement
+        112 => Some(19545),
+        113 => Some(19546),
+        114 => Some(19547),
+        115 => Some(19548),
+        116 => Some(19549),
+        117 => Some(19550),
+        118 => Some(19551),
+        119 => Some(19552),
+        120 => Some(19553),
+        // Note F10 is reserved for opening the menu and cannot be reassigned
+        122 => Some(19555),
+        123 => Some(19556),
+        124 => Some(19557),
+        125 => Some(19558),
+        126 => Some(19559),
+        127 => Some(19560),
+        128 => Some(19561),
+        129 => Some(19562),
+        130 => Some(19563),
+        131 => Some(19564),
+        132 => Some(19565),
+        133 => Some(19566),
+        134 => Some(19567),
+        135 => Some(19568),
+        253 => Some(19712),
+        254 => Some(19711),
+        255 => Some(19710),
         _ => None,
     }
 }
@@ -378,6 +404,7 @@ pub struct HotkeyIndexError {
 impl HotkeyIndexError {
     /// Returns a `HotkeyIndexError` with hotkey index `index` and a number of
     /// hotkeys equal to `num_hotkeys`.
+    /// Panics if `index < num_hotkeys`.
     pub fn new(index: usize, num_hotkeys: usize) -> Self {
         assert!(num_hotkeys <= index);
         Self { index, num_hotkeys }
@@ -666,7 +693,7 @@ impl HotkeyInfo {
     }
 
     /// Returns an immutable reference to a hotkey group, if that group exists.
-    fn group_raw(&self, group_id: usize) -> Option<&HotkeyGroup> {
+    pub fn group_raw(&self, group_id: usize) -> Option<&HotkeyGroup> {
         self.groups.get(group_id)
     }
 
