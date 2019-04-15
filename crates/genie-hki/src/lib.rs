@@ -882,10 +882,7 @@ mod tests {
         let info = HotkeyInfo::from(&mut f).expect("failed to read file");
         let group = info.group(HotkeyGroupId::UnitCommands).unwrap();
         let result = group.unbind(99999);
-        match result {
-            Ok(_) => panic!("Index should be out of bounds."),
-            Err(_) => () // test succeeds
-        }
+        assert!(result.is_err());
     }
 
     #[test]
@@ -918,10 +915,7 @@ mod tests {
         let mut f = File::open("test/files/aoc1.hki").unwrap();
         let info = HotkeyInfo::from(&mut f).expect("failed to read file");
         let result = info.unbind_key_index(999999, 0);
-        match result {
-            Ok(_) => panic!("Index should be out of bounds."),
-            Err(_) => () // test succeeds
-        }
+        assert!(result.is_err());
     }
 
     #[test]
@@ -929,9 +923,6 @@ mod tests {
         let mut f = File::open("test/files/aoc1.hki").unwrap();
         let info = HotkeyInfo::from(&mut f).expect("failed to read file");
         let result = info.unbind_key_index(0, 999999);
-        match result {
-            Ok(_) => panic!("Index should be out of bounds."),
-            Err(_) => () // test succeeds
-        }
+        assert!(result.is_err());
     }
 }
