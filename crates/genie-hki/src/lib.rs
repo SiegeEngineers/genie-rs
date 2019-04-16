@@ -5,6 +5,7 @@
 //! for Ctrl/Alt/Shift modifiers. The index of the hotkey in its
 //! group determines the action that will be taken when it is activated.
 
+use std::collections::HashMap;
 use std::error::Error;
 use std::io::{self,Read, Write};
 use std::fmt;
@@ -427,7 +428,7 @@ impl fmt::Display for HotkeyIndexError {
 impl Error for HotkeyIndexError { }
 
 /// The information about a single hotkey.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Hotkey {
     /// Keycode that activates this hotkey.
     ///
@@ -464,9 +465,9 @@ impl fmt::Display for Hotkey {
         write!(
             f, "{}: {}{}{}{}",
             self.string_id,
-            if self.ctrl  { "Ctrl-"  } else { "" } ,
-            if self.alt   { "Alt-"   } else { "" } ,
-            if self.shift { "Shift-" } else { "" } ,
+            if self.ctrl  { "Ctrl-"  } else { "" },
+            if self.alt   { "Alt-"   } else { "" },
+            if self.shift { "Shift-" } else { "" },
             self.key
         )
     }
@@ -775,6 +776,24 @@ impl HotkeyInfo {
         }
         Ok(Self { groups, ..*self })
     }
+
+    /// Returns a map `keycode -> vec[hotkey1, hotkey2, ... hotkeyn]` mapping
+    /// every used keybinding to all of the hotkeys to which it is assigned.
+    ///
+    /// Note hotkeys may have different behavior in different contexts, such
+    /// as `A` producing an archer when an Archery Range is selected and
+    /// a militia when a Barracks is selected.
+    pub fn bindings_per_keycode(&self) -> HashMap<i32, Vec<Hotkey>> {
+        let mut bindings = HashMap::new();
+        for group in self.iter() {
+            for hotkey in group.iter() {
+                bindings.entry(hotkey.key)
+                        .or_insert(vec![])
+                        .push(hotkey.clone());
+            }
+        }
+        bindings
+    }
 }
 
 impl fmt::Display for HotkeyInfo {
@@ -951,5 +970,26 @@ mod tests {
         let info = HotkeyInfo::from(&mut f).expect("failed to read file");
         let result = info.unbind_key_index(0, 999999);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_keycode_to_bindings_map() {
+        let mut f = File::open("test/files/aoc1.hki").unwrap();
+        let info = HotkeyInfo::from(&mut f).expect("failed to read file");
+        let map = info.bindings_per_keycode();
+        // 19270: Ctrl-65
+        let h0 = Hotkey::default().string_id(19270).key(65).ctrl(true);
+        // 19062: 65
+        let h1 = Hotkey::default().string_id(19062).key(65);
+        // 19059: 65
+        let h2 = Hotkey::default().string_id(19059).key(65);
+        // 19038: 65
+        let h3 = Hotkey::default().string_id(19038).key(65);
+        // 19285: 65
+        let h4 = Hotkey::default().string_id(19285).key(65);
+        // 19315: 65
+        let h5 = Hotkey::default().string_id(19315).key(65);
+        let hotkeys = vec![h0, h1, h2, h3, h4, h5];
+        assert_eq!(Some(&hotkeys), map.get(&65));
     }
 }
