@@ -143,6 +143,10 @@ impl From<&str> for StringKey {
     }
 }
 
+impl From<String> for StringKey {
+    fn from(s: String) -> Self { StringKey::from(&s[..]) }
+}
+
 /// Errors that may occur when loading a language file.
 ///
 /// For DLL files, PeError and IoError can occur.
@@ -212,15 +216,19 @@ pub enum LangFileType {
 }
 
 impl LangFileType {
-    pub fn read_from(&self, mut r: impl Read)
+    // TODO specify
+    // TODO `r` might not need to be `mut`?
+    pub fn read_from(&self, r: impl Read)
             -> Result<LanguageFile, LoadError> {
         use LangFileType::{Dll, Ini, KeyValue};
+        let mut lang_file = LanguageFile::default();
         // TODO implement
         match self {
-            Dll      => Ok(LanguageFile::default()),
-            Ini      => Ok(LanguageFile::default()),
-            KeyValue => Ok(LanguageFile::default()),
-        }
+            Dll      => (),
+            Ini      => (),
+            KeyValue => lang_file.from_keyval(r)?,
+        };
+        Ok(lang_file)
     }
 }
 
@@ -247,7 +255,40 @@ impl FromStr for LangFileType {
 pub struct LanguageFile(HashMap<StringKey, String>);
 
 impl LanguageFile {
+    /// Reads a language file from an HD Edition-style key-value file.
+    ///
+    /// This eagerly loads all the strings into memory.
+    // TODO fix specification
+    pub fn from_keyval(&mut self, input: impl Read) -> Result<(), LoadError> {
+        let input = BufReader::new(input);
+        for line in input.lines() { self.load_keyval_line(&line?)?; }
+        Ok(())
+    }
 
+    /// Parses an HD Edition string line.
+    ///
+    /// The key value pair stored in the line is added to the map, if parsed
+    /// successfully.
+    /// A `LoadError` is returned if an error occurs while parsing.
+    ///
+    /// This is incomplete, unquoting and un-escaping is not yet done.
+    fn load_keyval_line(&mut self, line: &str) -> Result<(), LoadError> {
+        let line = line.trim();
+        if line.starts_with("//") || line.is_empty() { return Ok(()); }
+
+        let mut iter = line.chars();
+        let id: String = iter.by_ref()
+            .take_while(|&c| !char::is_whitespace(c)).collect();
+        let string_key = StringKey::from(id);
+
+        // TODO unquoting and un-escaping
+        let mut iter = iter.skip_while(|&c| char::is_whitespace(c));
+        let value =
+            if let Some('"') = iter.next() { unescape(iter, true) }
+            else { return Ok(()); };
+        self.0.insert(string_key, value);
+        Ok(())
+    }
 }
 
 impl fmt::Display for LanguageFile {
@@ -299,7 +340,7 @@ impl LangFile {
         Ok(lang_file)
     }
 
-    /// Read a language file from an HD Edition-style key-value file.
+    /// Reads a language file from an HD Edition-style key-value file.
     ///
     /// This eagerly loads all the strings into memory.
     pub fn from_keyval(input: impl Read) -> Result<Self, LoadError> {
@@ -392,7 +433,7 @@ impl LangFile {
         Ok(())
     }
 
-    /// Parse an HD Edition string line.
+    /// Parses an HD Edition string line.
     ///
     /// This is incomplete, unquoting and un-escaping is not yet done.
     fn load_keyval_line(&mut self, line: &str) -> Result<(), LoadError> {
