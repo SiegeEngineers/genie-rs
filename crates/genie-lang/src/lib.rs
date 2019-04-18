@@ -89,10 +89,12 @@
 //! "#);
 //! ```
 
+use std::collections::HashMap;
+use std::error::Error;
 use std::fmt;
 use std::io::{Read, Write, BufRead, BufReader, Error as IoError};
-use std::collections::HashMap;
 use std::num::ParseIntError;
+use std::str::FromStr;
 use byteorder::{ReadBytesExt, LE};
 use encoding_rs::{WINDOWS_1252, UTF_16LE};
 use encoding_rs_io::DecodeReaderBytesBuilder;
@@ -108,7 +110,7 @@ use pelite::{
 /// The original game supports only nonnegative integers.
 /// The HD Edition allows for integers as well as Strings to serve as keys in a
 /// key value file.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub enum StringKey {
 
     /// An integer string key.
@@ -158,6 +160,17 @@ pub enum LoadError {
     ParseIntError(ParseIntError),
 }
 
+impl fmt::Display for LoadError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use LoadError::{IoError, ParseIntError, PeError};
+        match self {
+            IoError(e)       => e.fmt(f),
+            ParseIntError(e) => e.fmt(f),
+            PeError(e)       => e.fmt(f),
+        }
+    }
+}
+
 impl From<pelite::Error> for LoadError {
     fn from(error: pelite::Error) -> Self {
         LoadError::PeError(error)
@@ -176,6 +189,75 @@ impl From<ParseIntError> for LoadError {
     }
 }
 
+impl Error for LoadError { }
+
+/// An error when parsing a string to a language file.
+///
+/// The field contains the string that could not be parsed.
+#[derive(Debug)]
+pub struct ParseLangFileTypeError(String);
+
+impl fmt::Display for ParseLangFileTypeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl Error for ParseLangFileTypeError { }
+
+/// Aoe2 supports three types of language files
+#[derive(Debug)]
+pub enum LangFileType {
+    Dll, Ini, KeyValue,
+}
+
+impl LangFileType {
+    pub fn read_from(&self, mut r: impl Read)
+            -> Result<LanguageFile, LoadError> {
+        use LangFileType::{Dll, Ini, KeyValue};
+        // TODO implement
+        match self {
+            Dll      => Ok(LanguageFile::default()),
+            Ini      => Ok(LanguageFile::default()),
+            KeyValue => Ok(LanguageFile::default()),
+        }
+    }
+}
+
+impl FromStr for LangFileType {
+    type Err = ParseLangFileTypeError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use LangFileType::{Dll, Ini, KeyValue};
+        match &s.to_lowercase()[..] {
+            "dll"       => Ok(Dll),
+            "ini"       => Ok(Ini),
+            "key-value" => Ok(KeyValue),
+            _           => Err(ParseLangFileTypeError(String::from(s))),
+        }
+    }
+}
+
+/// A mapping of `StringKey` key to `String` values.
+///
+/// May be read from or written to one of the three file formats for Aoe2
+/// language files.
+// TODO rename to LangFile after refactoring
+// TODO should a default use a capacity that fits all standard strings?
+#[derive(Debug, Default)]
+pub struct LanguageFile(HashMap<StringKey, String>);
+
+impl LanguageFile {
+
+}
+
+impl fmt::Display for LanguageFile {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let strs: Vec<String> = self.0.iter()
+            .map(|(k, v)| format!("{}: {}", k, v)).collect();
+        write!(f, "{}", strs.join("\n"))
+    }
+}
+
 /// A file containing language strings.
 #[derive(Debug, Default)]
 pub struct LangFile {
@@ -184,9 +266,9 @@ pub struct LangFile {
 }
 
 impl LangFile {
-    /// Read a language file from a .DLL.
+    /// Reads a language file from a .DLL.
     ///
-    /// This eagerly loads all the strings into memory.
+    /// This function eagerly loads all the strings into memory.
     pub fn from_dll(mut input: impl Read) -> Result<Self, LoadError> {
         let mut bytes = vec![];
         input.read_to_end(&mut bytes)?;
@@ -196,10 +278,10 @@ impl LangFile {
         LangFile::default().load_pe_file(pe)
     }
 
-    /// Read a language file from a .INI file, like the ones used by Voobly and
+    /// Reads a language file from a .INI file, like the ones used by Voobly and
     /// the aoc-language-ini mod.
     ///
-    /// This eagerly loads all the strings into memory.
+    /// This function eagerly loads all the strings into memory.
     /// At this time, the encoding of the language.ini file is assumed to be
     /// Windows codepage 1252.
     pub fn from_ini(input: impl Read) -> Result<Self, LoadError> {
