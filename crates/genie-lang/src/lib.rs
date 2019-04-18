@@ -1,9 +1,10 @@
-//! genie-lang reads language files into a map of UTF-8 strings. All three major language file
-//! types used by Age of Empires versions are supported: DLLs, INI files, and HD Edition's
-//! key-value format.
+//! genie-lang reads language files into a map of UTF-8 strings.
+//! All three major language file types used by Age of Empires versions are
+//! supported: DLLs, INI files, and HD Edition's key-value format.
 //!
-//! DLLs are used by the original games. INI files are used for Voobly mods, and can be used
-//! with a standard AoC installation through the aoc-language-ini mod.
+//! DLLs are used by the original games.
+//! INI files are used for Voobly mods, and can be used with a standard
+//! AoC installation through the aoc-language-ini mod.
 //!
 //! ## DLLs
 //! ```rust
@@ -88,6 +89,7 @@
 //! "#);
 //! ```
 
+use std::fmt;
 use std::io::{Read, Write, BufRead, BufReader, Error as IoError};
 use std::collections::HashMap;
 use std::num::ParseIntError;
@@ -99,19 +101,60 @@ use pelite::{
     resources::Name,
 };
 
+/// A key in a language file.
+///
+/// A key may be either a nonnegative integer or an arbitrary string.
+///
+/// The original game supports only nonnegative integers.
+/// The HD Edition allows for integers as well as Strings to serve as keys in a
+/// key value file.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum StringKey {
+
+    /// An integer string key.
+    Num(u32),
+
+    /// A named string key.
+    /// The string must not represent a `u32` value (such keys must be `Num`).
+    Name(String),
+}
+
+impl fmt::Display for StringKey {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use StringKey::{Name, Num};
+        match self {
+            Num(n)  => write!(f, "{}", n),
+            Name(s) => write!(f, "{}", s),
+        }
+    }
+}
+
+impl From<u32> for StringKey {
+    fn from(n: u32) -> Self { StringKey::Num(n) }
+}
+
+impl From<&str> for StringKey {
+    fn from(s: &str) -> Self {
+        use StringKey::{Name, Num};
+        if let Ok(n) = s.parse() { Num(n) }
+        else { Name(String::from(s)) }
+    }
+}
+
 /// Errors that may occur when loading a language file.
 ///
 /// For DLL files, PeError and IoError can occur.
-/// For INI and HD Edition files, ParseIntError and IoError can occur. Both the INI and HD Edition
-/// parsers silently ignore invalid lines.
+/// For INI and HD Edition files, ParseIntError and IoError can occur.
+/// Both the INI and HD Edition parsers silently ignore invalid lines.
 #[derive(Debug)]
 pub enum LoadError {
-    /// An error occurred while reading strings from the DLL—it probably does not contain any or
-    /// is malformed.
+    /// An error occurred while reading strings from the DLL.
+    /// It probably does not contain any or is malformed.
     PeError(pelite::Error),
     /// An error occurred while reading data from the file.
     IoError(IoError),
-    /// An error occurred while parsing a numeric string ID into an integer value.
+    /// An error occurred while parsing a numeric string ID into an integer
+    /// value.
     ParseIntError(ParseIntError),
 }
 
@@ -153,11 +196,12 @@ impl LangFile {
         LangFile::default().load_pe_file(pe)
     }
 
-    /// Read a language file from a .INI file, like the ones used by Voobly and the
-    /// aoc-language-ini mod.
+    /// Read a language file from a .INI file, like the ones used by Voobly and
+    /// the aoc-language-ini mod.
     ///
     /// This eagerly loads all the strings into memory.
-    /// At this time, the encoding of the language.ini file is assumed to be Windows codepage 1252.
+    /// At this time, the encoding of the language.ini file is assumed to be
+    /// Windows codepage 1252.
     pub fn from_ini(input: impl Read) -> Result<Self, LoadError> {
         let mut lang_file = LangFile::default();
 
@@ -188,6 +232,7 @@ impl LangFile {
         Ok(lang_file)
     }
 
+    /// TODO specify
     fn load_pe_file(mut self, pe: PeFile) -> Result<Self, LoadError> {
         for root_dir_entry in pe.resources()?.root()?.entries() {
             if let Ok(Name::Id(6)) = root_dir_entry.name() {
@@ -200,7 +245,9 @@ impl LangFile {
         Ok(self)
     }
 
-    fn load_pe_directory(&mut self, directory: pelite::resources::Directory) -> Result<(), LoadError> {
+    /// TODO specify
+    fn load_pe_directory(&mut self, directory: pelite::resources::Directory)
+            -> Result<(), LoadError> {
         for entry in directory.entries() {
             let base_index = if let Name::Id(n) = entry.name()? {
                 (n - 1) * 16
@@ -219,7 +266,9 @@ impl LangFile {
         Ok(())
     }
 
-    fn load_pe_data(&mut self, mut index: u32, data: &[u8]) -> Result<(), LoadError> {
+    /// TODO specify
+    fn load_pe_data(&mut self, mut index: u32, data: &[u8])
+            -> Result<(), LoadError> {
         use std::io::{Cursor, Seek, SeekFrom};
         let mut cursor = Cursor::new(data);
         while (cursor.position() as usize) < data.len() {
@@ -239,6 +288,7 @@ impl LangFile {
         Ok(())
     }
 
+    /// TODO specify
     fn load_ini_line(&mut self, line: &str) -> Result<(), LoadError> {
         if line.starts_with(';') {
             return Ok(());
@@ -262,15 +312,19 @@ impl LangFile {
 
     /// Parse an HD Edition string line.
     ///
-    /// This is incomplete, unquoting and unescaping is not yet done.
+    /// This is incomplete, unquoting and un-escaping is not yet done.
     fn load_keyval_line(&mut self, line: &str) -> Result<(), LoadError> {
         let line = line.trim();
         if line.starts_with("//") || line.is_empty() {
             return Ok(());
         }
 
+        // TODO first whitespace skip redundant?
+        // Is there an API method that does this instead?
+        // what characters are allowed in a named string id?
         let mut iter = line.chars().skip_while(|&c| char::is_whitespace(c));
-        let id = iter.by_ref().take_while(|&c| !char::is_whitespace(c)).collect::<String>();
+        let id = iter.by_ref()
+            .take_while(|&c| !char::is_whitespace(c)).collect::<String>();
         let mut iter = iter.skip_while(|&c| char::is_whitespace(c));
         let value = if let Some('"') = iter.next() {
             unescape(iter, true)
@@ -333,6 +387,7 @@ impl LangFile {
             .map(|(name, string)| (&**name, &**string))
     }
 
+    // TODO specify
     pub fn write_to_ini<W: Write>(&self, output: &mut W) -> std::io::Result<()> {
         for (id, string) in self.iter() {
             output.write_all(format!("{}={}\n", id, escape(string, false)).as_bytes())?;
@@ -340,6 +395,7 @@ impl LangFile {
         Ok(())
     }
 
+    // TODO specify
     pub fn write_to_keyval<W: Write>(&self, output: &mut W) -> std::io::Result<()> {
         for (id, string) in self.iter() {
             output.write_all(format!("{} \"{}\"\n", id, escape(string, true)).as_bytes())?;
@@ -352,6 +408,7 @@ impl LangFile {
     }
 }
 
+// TODO specify
 fn unescape(escaped: impl Iterator<Item = char>, quoted: bool) -> String {
     let mut unescaped = String::new();
     let mut prev = 'x'; // Innocuous character
@@ -379,6 +436,7 @@ fn unescape(escaped: impl Iterator<Item = char>, quoted: bool) -> String {
     unescaped
 }
 
+// TODO specify
 fn escape(source: &str, quoted: bool) -> String {
     let mut escaped = String::new();
     for c in source.chars() {
@@ -392,4 +450,32 @@ fn escape(source: &str, quoted: bool) -> String {
         }
     }
     escaped
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Tests converting from an int to a string key.
+    #[test]
+    fn string_key_from_int() {
+        if let StringKey::Num(n) = StringKey::from(0) { assert_eq!(0, n); }
+        else { panic!(); }
+    }
+
+    /// Tests converting from a string representing an int to a string key.
+    #[test]
+    fn string_key_from_str_to_int() {
+        let s = "57329";
+        if let StringKey::Num(n) = StringKey::from(s) { assert_eq!(57329, n); }
+        else { panic!(); }
+    }
+
+    /// Tests converting from a string not representing an int to a string key.
+    #[test]
+    fn string_key_from_str_to_str() {
+        let s = "grassDaut";
+        if let StringKey::Name(n) = StringKey::from(s) { assert_eq!(s, n); }
+        else { panic!(); }
+    }
 }
