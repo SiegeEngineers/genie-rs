@@ -5,6 +5,8 @@
 //! for Ctrl/Alt/Shift modifiers. The index of the hotkey in its
 //! group determines the action that will be taken when it is activated.
 
+use genie_lang;
+
 use std::collections::HashMap;
 use std::error::Error;
 use std::io::{self,Read, Write};
