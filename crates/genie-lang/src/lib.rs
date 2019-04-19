@@ -92,7 +92,7 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
-use std::io::{Read, Write, BufRead, BufReader, Error as IoError};
+use std::io::{self, Read, Write, BufRead, BufReader, Error as IoError};
 use std::num::ParseIntError;
 use std::str::FromStr;
 use byteorder::{ReadBytesExt, LE};
@@ -222,12 +222,12 @@ impl LangFileType {
             -> Result<LanguageFile, LoadError> {
         use LangFileType::{Dll, Ini, KeyValue};
         let mut lang_file = LanguageFile::default();
-        // TODO implement
-        match self {
-            Dll      => (),
-            Ini      => (),
-            KeyValue => lang_file.from_keyval(r)?,
+        let from_method = match self {
+            Dll      => LanguageFile::from_dll,
+            Ini      => LanguageFile::from_ini,
+            KeyValue => LanguageFile::from_keyval,
         };
+        from_method(&mut lang_file, r)?;
         Ok(lang_file)
     }
 }
@@ -255,11 +255,112 @@ impl FromStr for LangFileType {
 pub struct LanguageFile(HashMap<StringKey, String>);
 
 impl LanguageFile {
+
+    /// Reads a language file from a .DLL.
+    ///
+    /// This function eagerly loads all the strings into memory.
+    // TODO update specification
+    pub fn from_dll(&mut self, mut input: impl Read) -> Result<(), LoadError> {
+        let mut bytes = vec![];
+        input.read_to_end(&mut bytes)?;
+        let pe = PeFile::from_bytes(&bytes)?;
+        self.load_pe_file(pe)
+    }
+
+    /// TODO specify
+    fn load_pe_file(&mut self, pe: PeFile) -> Result<(), LoadError> {
+        for root_dir_entry in pe.resources()?.root()?.entries() {
+            if let Ok(Name::Id(6)) = root_dir_entry.name() {
+                if let Some(directory) = root_dir_entry.entry()?.dir() {
+                    self.load_pe_directory(directory)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// TODO specify
+    fn load_pe_directory(&mut self, directory: pelite::resources::Directory)
+            -> Result<(), LoadError> {
+        for entry in directory.entries() {
+            let base_index =
+                if let Name::Id(n) = entry.name()? { (n - 1) * 16 }
+                else { continue; };
+            if let Some(subdir) = entry.entry()?.dir() {
+                for data_entry in subdir.entries() {
+                    if let Some(data) = data_entry.entry()?.data() {
+                        self.load_pe_data(base_index, data.bytes()?)?;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// TODO specify
+    fn load_pe_data(&mut self, mut index: u32, data: &[u8])
+            -> Result<(), LoadError> {
+        use std::io::{Cursor, Seek, SeekFrom};
+        let mut cursor = Cursor::new(data);
+        while (cursor.position() as usize) < data.len() {
+            let len = (cursor.read_u16::<LE>()? as usize) * 2;
+            if len == 0 {
+                index += 1;
+                continue;
+            }
+            let start = cursor.position() as usize;
+            let (string, _enc, failed)
+                = UTF_16LE.decode(&data[start..start + len]);
+            if !failed {
+                self.0.insert(StringKey::from(index), string.to_string());
+            }
+            cursor.seek(SeekFrom::Current(len as i64))?;
+            index += 1;
+        }
+        Ok(())
+    }
+
+    /// Reads a language file from a .INI file, like the ones used by Voobly and
+    /// the aoc-language-ini mod.
+    ///
+    /// This function eagerly loads all the strings into memory.
+    /// At this time, the encoding of the language.ini file is assumed to be
+    /// Windows codepage 1252.
+    // TODO update specification
+    fn from_ini(&mut self, input: impl Read) -> Result<(), LoadError> {
+        let input = DecodeReaderBytesBuilder::new()
+            .encoding(Some(WINDOWS_1252))
+            .build(input);
+        let input = BufReader::new(input);
+        for line in input.lines() { self.load_ini_line(&line?)?; }
+        Ok(())
+    }
+
+    /// TODO specify
+    fn load_ini_line(&mut self, line: &str) -> Result<(), LoadError> {
+        if line.starts_with(';') { return Ok(()); }
+
+        let mut split = line.splitn(2, '=');
+        let id = match split.next() {
+            Some(id) => id,
+            None => return Ok(()),
+        };
+        let value = match split.next() {
+            Some(value) => value,
+            None => return Ok(()),
+        };
+
+        let id: u32 = id.parse()?;
+        let value = unescape(value.chars(), false);
+        self.0.insert(StringKey::from(id), value);
+        Ok(())
+    }
+
     /// Reads a language file from an HD Edition-style key-value file.
     ///
     /// This eagerly loads all the strings into memory.
     // TODO fix specification
-    pub fn from_keyval(&mut self, input: impl Read) -> Result<(), LoadError> {
+    fn from_keyval(&mut self, input: impl Read) -> Result<(), LoadError> {
         let input = BufReader::new(input);
         for line in input.lines() { self.load_keyval_line(&line?)?; }
         Ok(())
@@ -401,7 +502,8 @@ impl LangFile {
                 continue;
             }
             let start = cursor.position() as usize;
-            let (string, _enc, failed) = UTF_16LE.decode(&data[start..start + len]);
+            let (string, _enc, failed)
+                = UTF_16LE.decode(&data[start..start + len]);
             if !failed {
                 self.strings.insert(index, string.to_string());
             }
@@ -511,21 +613,24 @@ impl LangFile {
     }
 
     // TODO specify
-    pub fn write_to_ini<W: Write>(&self, output: &mut W) -> std::io::Result<()> {
+    pub fn write_to_ini<W: Write>(&self, output: &mut W) -> io::Result<()> {
         for (id, string) in self.iter() {
-            output.write_all(format!("{}={}\n", id, escape(string, false)).as_bytes())?;
+            output.write_all(format!("{}={}\n", id, escape(string, false))
+                  .as_bytes())?;
         }
         Ok(())
     }
 
     // TODO specify
-    pub fn write_to_keyval<W: Write>(&self, output: &mut W) -> std::io::Result<()> {
+    pub fn write_to_keyval<W: Write>(&self, output: &mut W) -> io::Result<()> {
         for (id, string) in self.iter() {
-            output.write_all(format!("{} \"{}\"\n", id, escape(string, true)).as_bytes())?;
+            output.write_all(format!("{} \"{}\"\n", id, escape(string, true))
+                  .as_bytes())?;
         }
         output.write_all(b"\n")?;
         for (name, string) in self.iter_named() {
-            output.write_all(format!("{} \"{}\"\n", name, escape(string, true)).as_bytes())?;
+            output.write_all(format!("{} \"{}\"\n", name, escape(string, true))
+                  .as_bytes())?;
         }
         Ok(())
     }
@@ -536,8 +641,8 @@ fn unescape(escaped: impl Iterator<Item = char>, quoted: bool) -> String {
     let mut unescaped = String::new();
     let mut prev = 'x'; // Innocuous character
     for c in escaped {
-        // NOTE this does not support escapes like "\\n", which should print out "\n"
-        // literally, instead we get "\" followed by a newline.
+        // NOTE this does not support escapes like "\\n", which should
+        // print out "\n" literally, instead we get "\" followed by a newline.
         // Could be solved by making `prev` an Option
         match (prev, c) {
             ('\\', '\\') => unescaped.push('\\'),
@@ -548,7 +653,8 @@ fn unescape(escaped: impl Iterator<Item = char>, quoted: bool) -> String {
             (_, '"') if quoted => break,
             (_, '\\') => {}, // Might be escape, wait for one more
             ('\\', c) => {
-                // Previous character was escape, but this is not part of a sequence
+                // Previous character was escape,
+                // but this is not part of a sequence
                 unescaped.push('\\');
                 unescaped.push(c);
             },
