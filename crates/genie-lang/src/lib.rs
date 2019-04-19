@@ -90,6 +90,7 @@
 //! ```
 
 use std::collections::HashMap;
+use std::collections::hash_map::{Drain, Iter, Keys, Values};
 use std::error::Error;
 use std::fmt;
 use std::io::{self, Read, Write, BufRead, BufReader, Error as IoError};
@@ -390,6 +391,69 @@ impl LanguageFile {
         self.0.insert(string_key, value);
         Ok(())
     }
+
+    // TODO write examples for documentation.
+    // TODO reference `HashMap` methods in documentation.
+
+    /// Returns `true` if this language file contains no key-value pairs,
+    /// `false` otherwise.
+    pub fn is_empty(&self) -> bool { self.0.is_empty() }
+
+    /// Returns the number of key-value pairs in this language file.
+    pub fn len(&self) -> usize { self.0.len() }
+
+    /// Removes all key-value pairs from this Language file.
+    pub fn clear(&mut self) { self.0.clear() }
+
+    /// Clears this Language file, returning all key-value pairs as an iterator.
+    pub fn drain(&mut self) -> Drain<StringKey, String> { self.0.drain() }
+
+    /// Returns `true` if the map contains a value for key `k`, `false` if not.
+    pub fn contains_key(&self, k: &StringKey) -> bool { self.0.contains_key(k) }
+
+    /// Returns a reference to the value corresponding to the key.
+    pub fn get(&self, k: &StringKey) -> Option<&String> { self.0.get(k) }
+
+    /// Inserts a key-value pair into this language file.
+    ///
+    /// Returns `None`. if the language file did not have the key present.
+    ///
+    /// If the key was present, the value is updated, and the old value is
+    /// returned.
+    pub fn insert(&mut self, k: StringKey, v: String) -> Option<String> {
+        self.0.insert(k, v)
+    }
+
+    /// Removes a key-value pair from the map, returning the value at the key
+    /// if the key was previously in the map.
+    /// Returns `None` if the key was not in the map.
+    pub fn remove(&mut self, k: &StringKey) -> Option<String> {
+        self.0.remove(k)
+    }
+
+    /// Retains only the elements specified by the predicate.
+    ///
+    /// In other words, removes all pairs `(k, v)` such that `f(&k, &mut v)`
+    /// returns `false`.
+    pub fn retain<F: FnMut(&StringKey, &mut String) -> bool>(&mut self, f: F) {
+        self.0.retain(f)
+    }
+
+    /// An iterator visiting all key-value pairs in an arbitrary order.
+    /// The iterator element type is `(&'a StringKey, &'a String)`.
+    pub fn iter(&self) -> Iter<StringKey, String> { self.0.iter() }
+
+    /// Returns an iterator that visits all keys in arbitrary order.
+    /// The iterator element type is `&'a StringKey`.
+    pub fn keys(&self) -> Keys<StringKey, String> { self.0.keys() }
+
+    /// Returns an iterator that visits all values in arbitrary order.
+    /// The iterator element type is `&'a String`.
+    pub fn values(&self) -> Values<StringKey, String> { self.0.values() }
+
+    // TODO iterate over numeric/named strings only
+
+    // TODO `write` methods
 }
 
 impl fmt::Display for LanguageFile {
