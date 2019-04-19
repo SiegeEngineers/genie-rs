@@ -216,7 +216,8 @@ pub enum LangFileType {
 }
 
 impl LangFileType {
-    // TODO specify
+    /// Reads a language file from an input reader.
+    /// Returns a `LoadError` if an error occurs while reading.
     pub fn read_from(&self, r: impl Read) -> Result<LangFile, LoadError> {
         use LangFileType::{Dll, Ini, KeyValue};
         let mut lang_file = LangFile::new();
@@ -247,17 +248,16 @@ impl FromStr for LangFileType {
 ///
 /// May be read from or written to one of the three file formats for Aoe2
 /// language files.
-// TODO rename to LangFile after refactoring
-// TODO should a default use a capacity that fits all standard strings?
 #[derive(Debug, Default)]
 pub struct LangFile(HashMap<StringKey, String>);
 
 impl LangFile {
 
     /// Reads a language file from a .DLL.
-    ///
     /// This function eagerly loads all the strings into memory.
-    // TODO update specification
+    ///
+    /// Returns `Err(e)` where `e` is a `LoadError` if an error occurs while
+    /// loading the file.
     pub fn from_dll(&mut self, mut input: impl Read) -> Result<(), LoadError> {
         let mut bytes = vec![];
         input.read_to_end(&mut bytes)?;
