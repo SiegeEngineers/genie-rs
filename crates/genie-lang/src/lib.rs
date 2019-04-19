@@ -67,9 +67,9 @@
 //!
 //! ## Creating a file from scratch
 //! ```rust
-//! use genie_lang::{LanguageFile, StringKey};
+//! use genie_lang::{LangFile, StringKey};
 //! use std::str;
-//! let mut lang_file = LanguageFile::new();
+//! let mut lang_file = LangFile::new();
 //! lang_file.insert(StringKey::from(46604), String::from("Kill the traitor, Kushluk.\n\n\
 //!                       Prevent the tent of Genghis Khan (Wonder) from being destroyed."));
 //! let mut out = vec![];
@@ -217,13 +217,13 @@ pub enum LangFileType {
 
 impl LangFileType {
     // TODO specify
-    pub fn read_from(&self, r: impl Read) -> Result<LanguageFile, LoadError> {
+    pub fn read_from(&self, r: impl Read) -> Result<LangFile, LoadError> {
         use LangFileType::{Dll, Ini, KeyValue};
-        let mut lang_file = LanguageFile::new();
+        let mut lang_file = LangFile::new();
         let from_method = match self {
-            Dll      => LanguageFile::from_dll,
-            Ini      => LanguageFile::from_ini,
-            KeyValue => LanguageFile::from_keyval,
+            Dll      => LangFile::from_dll,
+            Ini      => LangFile::from_ini,
+            KeyValue => LangFile::from_keyval,
         };
         from_method(&mut lang_file, r)?;
         Ok(lang_file)
@@ -250,9 +250,9 @@ impl FromStr for LangFileType {
 // TODO rename to LangFile after refactoring
 // TODO should a default use a capacity that fits all standard strings?
 #[derive(Debug, Default)]
-pub struct LanguageFile(HashMap<StringKey, String>);
+pub struct LangFile(HashMap<StringKey, String>);
 
-impl LanguageFile {
+impl LangFile {
 
     /// Reads a language file from a .DLL.
     ///
@@ -415,11 +415,11 @@ impl LanguageFile {
     /// # Examples
     ///
     /// ```
-    /// use genie_lang::LanguageFile;
+    /// use genie_lang::LangFile;
     ///
-    /// let lang_file = LanguageFile::new();
+    /// let lang_file = LangFile::new();
     /// ```
-    pub fn new() -> Self { LanguageFile(HashMap::new()) }
+    pub fn new() -> Self { LangFile(HashMap::new()) }
 
     /// Returns `true` if this language file contains no key-value pairs,
     /// `false` otherwise.
@@ -427,9 +427,9 @@ impl LanguageFile {
     /// # Examples
     ///
     /// ```
-    /// use genie_lang::{LanguageFile, StringKey};
+    /// use genie_lang::{LangFile, StringKey};
     ///
-    /// let mut lang_file = LanguageFile::new();
+    /// let mut lang_file = LangFile::new();
     /// assert!(lang_file.is_empty());
     /// lang_file.insert(StringKey::from(0), String::from(""));
     /// assert!(!lang_file.is_empty());
@@ -441,9 +441,9 @@ impl LanguageFile {
     /// # Examples
     ///
     /// ```
-    /// use genie_lang::{LanguageFile, StringKey};
+    /// use genie_lang::{LangFile, StringKey};
     ///
-    /// let mut lang_file = LanguageFile::new();
+    /// let mut lang_file = LangFile::new();
     /// assert_eq!(0, lang_file.len());
     /// lang_file.insert(StringKey::from(0), String::from(""));
     /// assert_eq!(1, lang_file.len());
@@ -455,9 +455,9 @@ impl LanguageFile {
     /// # Examples
     ///
     /// ```
-    /// use genie_lang::{LanguageFile, StringKey};
+    /// use genie_lang::{LangFile, StringKey};
     ///
-    /// let mut lang_file = LanguageFile::new();
+    /// let mut lang_file = LangFile::new();
     /// lang_file.insert(StringKey::from(0), String::from(""));
     /// lang_file.clear();
     /// assert!(lang_file.is_empty());
@@ -469,9 +469,9 @@ impl LanguageFile {
     /// # Examples
     ///
     /// ```
-    /// use genie_lang::{LanguageFile, StringKey};
+    /// use genie_lang::{LangFile, StringKey};
     ///
-    /// let mut lang_file = LanguageFile::new();
+    /// let mut lang_file = LangFile::new();
     /// lang_file.insert(StringKey::from(0), String::from("a"));
     /// lang_file.insert(StringKey::from(1), String::from("b"));
     ///
@@ -488,9 +488,9 @@ impl LanguageFile {
     /// # Examples
     ///
     /// ```
-    /// use genie_lang::{LanguageFile, StringKey};
+    /// use genie_lang::{LangFile, StringKey};
     ///
-    /// let mut lang_file = LanguageFile::new();
+    /// let mut lang_file = LangFile::new();
     /// lang_file.insert(StringKey::from(0), String::from(""));
     /// assert!(lang_file.contains_key(&StringKey::from(0)));
     /// assert!(!lang_file.contains_key(&StringKey::from(1)));
@@ -502,9 +502,9 @@ impl LanguageFile {
     /// # Examples
     ///
     /// ```
-    /// use genie_lang::{LanguageFile, StringKey};
+    /// use genie_lang::{LangFile, StringKey};
     ///
-    /// let mut lang_file = LanguageFile::new();
+    /// let mut lang_file = LangFile::new();
     /// lang_file.insert(StringKey::from(0), String::from(""));
     /// assert_eq!(Some(&String::from("")), lang_file.get(&StringKey::from(0)));
     /// assert_eq!(None, lang_file.get(&StringKey::from(1)));
@@ -521,9 +521,9 @@ impl LanguageFile {
     /// # Examples
     ///
     /// ```
-    /// use genie_lang::{LanguageFile, StringKey};
+    /// use genie_lang::{LangFile, StringKey};
     ///
-    /// let mut lang_file = LanguageFile::new();
+    /// let mut lang_file = LangFile::new();
     /// lang_file.insert(StringKey::from(0), String::from("a"));
     /// assert!(!lang_file.is_empty());
     ///
@@ -542,9 +542,9 @@ impl LanguageFile {
     /// # Examples
     ///
     /// ```
-    /// use genie_lang::{LanguageFile, StringKey};
+    /// use genie_lang::{LangFile, StringKey};
     ///
-    /// let mut lang_file = LanguageFile::new();
+    /// let mut lang_file = LangFile::new();
     /// lang_file.insert(StringKey::from(0), String::from(""));
     /// assert_eq!(Some(String::from("")),
     ///            lang_file.remove(&StringKey::from(0)));
@@ -562,9 +562,9 @@ impl LanguageFile {
     /// # Examples
     ///
     /// ```
-    /// use genie_lang::{LanguageFile, StringKey};
+    /// use genie_lang::{LangFile, StringKey};
     ///
-    /// let mut lang_file = LanguageFile::new();
+    /// let mut lang_file = LangFile::new();
     /// lang_file.insert(StringKey::from(0), String::from("zero"));
     /// lang_file.insert(StringKey::from("a"), String::from("a"));
     /// lang_file.insert(StringKey::from(1), String::from("one"));
@@ -585,9 +585,9 @@ impl LanguageFile {
     /// # Examples
     ///
     /// ```no_run
-    /// use genie_lang::{LanguageFile, StringKey};
+    /// use genie_lang::{LangFile, StringKey};
     ///
-    /// let mut lang_file = LanguageFile::new();
+    /// let mut lang_file = LangFile::new();
     /// lang_file.insert(StringKey::from(0), String::from("zero"));
     /// lang_file.insert(StringKey::from("a"), String::from("a"));
     /// lang_file.insert(StringKey::from(1), String::from("one"));
@@ -603,9 +603,9 @@ impl LanguageFile {
     /// # Examples
     ///
     /// ```no_run
-    /// use genie_lang::{LanguageFile, StringKey};
+    /// use genie_lang::{LangFile, StringKey};
     ///
-    /// let mut lang_file = LanguageFile::new();
+    /// let mut lang_file = LangFile::new();
     /// lang_file.insert(StringKey::from(0), String::from("zero"));
     /// lang_file.insert(StringKey::from("a"), String::from("a"));
     /// lang_file.insert(StringKey::from(1), String::from("one"));
@@ -621,9 +621,9 @@ impl LanguageFile {
     /// # Examples
     ///
     /// ```no_run
-    /// use genie_lang::{LanguageFile, StringKey};
+    /// use genie_lang::{LangFile, StringKey};
     ///
-    /// let mut lang_file = LanguageFile::new();
+    /// let mut lang_file = LangFile::new();
     /// lang_file.insert(StringKey::from(0), String::from("zero"));
     /// lang_file.insert(StringKey::from("a"), String::from("a"));
     /// lang_file.insert(StringKey::from(1), String::from("one"));
@@ -634,13 +634,13 @@ impl LanguageFile {
     pub fn values(&self) -> Values<StringKey, String> { self.0.values() }
 }
 
-impl IntoIterator for LanguageFile {
+impl IntoIterator for LangFile {
     type Item = (StringKey, String);
     type IntoIter = IntoIter<StringKey, String>;
     fn into_iter(self) -> Self::IntoIter { self.0.into_iter() }
 }
 
-impl fmt::Display for LanguageFile {
+impl fmt::Display for LangFile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let strs: Vec<String> = self.0.iter()
             .map(|(k, v)| format!("{}: {}", k, v)).collect();
