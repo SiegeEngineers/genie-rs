@@ -90,7 +90,7 @@
 //! ```
 
 use std::collections::HashMap;
-use std::collections::hash_map::{Drain, Iter, Keys, Values};
+use std::collections::hash_map::{Drain, IntoIter, Iter, Keys, Values};
 use std::error::Error;
 use std::fmt;
 use std::io::{self, Read, Write, BufRead, BufReader, Error as IoError};
@@ -222,7 +222,7 @@ impl LangFileType {
     pub fn read_from(&self, r: impl Read)
             -> Result<LanguageFile, LoadError> {
         use LangFileType::{Dll, Ini, KeyValue};
-        let mut lang_file = LanguageFile::default();
+        let mut lang_file = LanguageFile::new();
         let from_method = match self {
             Dll      => LanguageFile::from_dll,
             Ini      => LanguageFile::from_ini,
@@ -393,25 +393,106 @@ impl LanguageFile {
     }
 
     // TODO write examples for documentation.
-    // TODO reference `HashMap` methods in documentation.
+
+    /// Creates an empty language file.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use genie_lang::LanguageFile;
+    ///
+    /// let lang_file = LanguageFile::new();
+    /// ```
+    pub fn new() -> Self { LanguageFile(HashMap::new()) }
 
     /// Returns `true` if this language file contains no key-value pairs,
     /// `false` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use genie_lang::{LanguageFile, StringKey};
+    ///
+    /// let mut lang_file = LanguageFile::new();
+    /// assert!(lang_file.is_empty());
+    /// lang_file.insert(StringKey::from(0), String::from(""));
+    /// assert!(!lang_file.is_empty());
+    /// ```
     pub fn is_empty(&self) -> bool { self.0.is_empty() }
 
     /// Returns the number of key-value pairs in this language file.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use genie_lang::{LanguageFile, StringKey};
+    ///
+    /// let mut lang_file = LanguageFile::new();
+    /// assert_eq!(0, lang_file.len());
+    /// lang_file.insert(StringKey::from(0), String::from(""));
+    /// assert_eq!(1, lang_file.len());
+    /// ```
     pub fn len(&self) -> usize { self.0.len() }
 
     /// Removes all key-value pairs from this Language file.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use genie_lang::{LanguageFile, StringKey};
+    ///
+    /// let mut lang_file = LanguageFile::new();
+    /// lang_file.insert(StringKey::from(0), String::from(""));
+    /// lang_file.clear();
+    /// assert!(lang_file.is_empty());
+    /// ```
     pub fn clear(&mut self) { self.0.clear() }
 
     /// Clears this Language file, returning all key-value pairs as an iterator.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use genie_lang::{LanguageFile, StringKey};
+    ///
+    /// let mut lang_file = LanguageFile::new();
+    /// lang_file.insert(StringKey::from(0), String::from("a"));
+    /// lang_file.insert(StringKey::from(1), String::from("b"));
+    ///
+    /// for (k, v) in lang_file.drain().take(1) {
+    ///     assert!(k == StringKey::from(0) || k == StringKey::from(1));
+    ///     assert!(v == "a" || v == "b");
+    /// }
+    /// assert!(lang_file.is_empty());
+    /// ```
     pub fn drain(&mut self) -> Drain<StringKey, String> { self.0.drain() }
 
     /// Returns `true` if the map contains a value for key `k`, `false` if not.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use genie_lang::{LanguageFile, StringKey};
+    ///
+    /// let mut lang_file = LanguageFile::new();
+    /// lang_file.insert(StringKey::from(0), String::from(""));
+    /// assert!(lang_file.contains_key(&StringKey::from(0)));
+    /// assert!(!lang_file.contains_key(&StringKey::from(1)));
+    /// ```
     pub fn contains_key(&self, k: &StringKey) -> bool { self.0.contains_key(k) }
 
     /// Returns a reference to the value corresponding to the key.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use genie_lang::{LanguageFile, StringKey};
+    ///
+    /// let mut lang_file = LanguageFile::new();
+    /// lang_file.insert(StringKey::from(0), String::from(""));
+    /// assert_eq!(Some(&String::from("")), lang_file.get(&StringKey::from(0)));
+    /// assert_eq!(None, lang_file.get(&StringKey::from(1)));
+    /// ```
     pub fn get(&self, k: &StringKey) -> Option<&String> { self.0.get(k) }
 
     /// Inserts a key-value pair into this language file.
@@ -420,6 +501,20 @@ impl LanguageFile {
     ///
     /// If the key was present, the value is updated, and the old value is
     /// returned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use genie_lang::{LanguageFile, StringKey};
+    ///
+    /// let mut lang_file = LanguageFile::new();
+    /// lang_file.insert(StringKey::from(0), String::from("a"));
+    /// assert!(!lang_file.is_empty());
+    ///
+    /// lang_file.insert(StringKey::from(0), String::from("b"));
+    /// assert_eq!(Some(String::from("b")),
+    ///            lang_file.insert(StringKey::from(0), String::from("c")));
+    /// ```
     pub fn insert(&mut self, k: StringKey, v: String) -> Option<String> {
         self.0.insert(k, v)
     }
@@ -427,6 +522,18 @@ impl LanguageFile {
     /// Removes a key-value pair from the map, returning the value at the key
     /// if the key was previously in the map.
     /// Returns `None` if the key was not in the map.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use genie_lang::{LanguageFile, StringKey};
+    ///
+    /// let mut lang_file = LanguageFile::new();
+    /// lang_file.insert(StringKey::from(0), String::from(""));
+    /// assert_eq!(Some(String::from("")),
+    ///            lang_file.remove(&StringKey::from(0)));
+    /// assert_eq!(None, lang_file.remove(&StringKey::from(0)));
+    /// ```
     pub fn remove(&mut self, k: &StringKey) -> Option<String> {
         self.0.remove(k)
     }
@@ -435,25 +542,88 @@ impl LanguageFile {
     ///
     /// In other words, removes all pairs `(k, v)` such that `f(&k, &mut v)`
     /// returns `false`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use genie_lang::{LanguageFile, StringKey};
+    ///
+    /// let mut lang_file = LanguageFile::new();
+    /// lang_file.insert(StringKey::from(0), String::from("zero"));
+    /// lang_file.insert(StringKey::from("a"), String::from("a"));
+    /// lang_file.insert(StringKey::from(1), String::from("one"));
+    /// lang_file.insert(StringKey::from("2"), String::from("two"));
+    /// lang_file.retain(|k, _| match k {
+    ///     StringKey::Num(_) => true,
+    ///     StringKey::Name(_) => false,
+    /// });
+    /// assert_eq!(3, lang_file.len());
+    /// ```
     pub fn retain<F: FnMut(&StringKey, &mut String) -> bool>(&mut self, f: F) {
         self.0.retain(f)
     }
 
     /// An iterator visiting all key-value pairs in an arbitrary order.
     /// The iterator element type is `(&'a StringKey, &'a String)`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use genie_lang::{LanguageFile, StringKey};
+    ///
+    /// let mut lang_file = LanguageFile::new();
+    /// lang_file.insert(StringKey::from(0), String::from("zero"));
+    /// lang_file.insert(StringKey::from("a"), String::from("a"));
+    /// lang_file.insert(StringKey::from(1), String::from("one"));
+    /// lang_file.insert(StringKey::from("2"), String::from("two"));
+    ///
+    /// for (k, v) in lang_file.iter() { println!("key: {}, val: {}", k, v); }
+    /// ```
     pub fn iter(&self) -> Iter<StringKey, String> { self.0.iter() }
 
     /// Returns an iterator that visits all keys in arbitrary order.
     /// The iterator element type is `&'a StringKey`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use genie_lang::{LanguageFile, StringKey};
+    ///
+    /// let mut lang_file = LanguageFile::new();
+    /// lang_file.insert(StringKey::from(0), String::from("zero"));
+    /// lang_file.insert(StringKey::from("a"), String::from("a"));
+    /// lang_file.insert(StringKey::from(1), String::from("one"));
+    /// lang_file.insert(StringKey::from("2"), String::from("two"));
+    ///
+    /// for k in lang_file.keys() { println!("key: {}", k); }
+    /// ```
     pub fn keys(&self) -> Keys<StringKey, String> { self.0.keys() }
 
     /// Returns an iterator that visits all values in arbitrary order.
     /// The iterator element type is `&'a String`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use genie_lang::{LanguageFile, StringKey};
+    ///
+    /// let mut lang_file = LanguageFile::new();
+    /// lang_file.insert(StringKey::from(0), String::from("zero"));
+    /// lang_file.insert(StringKey::from("a"), String::from("a"));
+    /// lang_file.insert(StringKey::from(1), String::from("one"));
+    /// lang_file.insert(StringKey::from("2"), String::from("two"));
+    ///
+    /// for v in lang_file.values() { println!("value: {}", v); }
+    /// ```
     pub fn values(&self) -> Values<StringKey, String> { self.0.values() }
 
-    // TODO iterate over numeric/named strings only
-
     // TODO `write` methods
+}
+
+impl IntoIterator for LanguageFile {
+    type Item = (StringKey, String);
+    type IntoIter = IntoIter<StringKey, String>;
+    fn into_iter(self) -> Self::IntoIter { self.0.into_iter() }
 }
 
 impl fmt::Display for LanguageFile {
