@@ -110,7 +110,7 @@ use pelite::{
 /// The original game supports only nonnegative integers.
 /// The HD Edition allows for integers as well as Strings to serve as keys in a
 /// key value file.
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum StringKey {
 
     /// An integer string key.
