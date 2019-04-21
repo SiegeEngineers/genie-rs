@@ -15,12 +15,12 @@ use structopt::StructOpt;
 /// Displays an individual hotkey from a hotkey file.
 #[derive(Debug, StructOpt)]
 #[structopt(name="Set Hotkey")]
-struct SetHotkey {
+struct DisplayHotkey {
     /// The name of the hotkey file.
     #[structopt(name="file-name")]
     file_name: PathBuf,
 
-    /// The group index of the hotkey to set.
+    /// The group index of the hotkey to display.
     #[structopt(name="group-index")]
     group_index: usize,
 
@@ -31,7 +31,7 @@ struct SetHotkey {
 
 /// Executes the CLI.
 fn main() -> Result<(), Box<dyn Error>> {
-    let cli_input = SetHotkey::from_args();
+    let cli_input = DisplayHotkey::from_args();
     let mut f = File::open(&cli_input.file_name)?;
     let info = HotkeyInfo::from(&mut f)?;
     let group = info.group_raw(cli_input.group_index).unwrap();
