@@ -57,7 +57,7 @@ pub fn keycode_id(keycode: i32) -> Option<i32> {
 /// Each `StringKey` in the list is the key of the string that names the group.
 /// The key is stored at the group's offset index in the hotkey file.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct HotkeyInfoMetadata(Vec<HotkeyGroupMetadata>);
+pub struct HotkeyInfoMetadata(Vec<StringKey>);
 
 impl HotkeyInfoMetadata {
     /// Returns an empty `HotkeyInfoMetadata` struct.
@@ -76,27 +76,25 @@ impl HotkeyInfoMetadata {
     /// # Examples
     ///
     /// ```
-    /// use genie_hki::{HotkeyGroupMetadata, HotkeyInfoMetadata};
+    /// use genie_hki::HotkeyInfoMetadata;
     /// use genie_lang::StringKey;
     ///
     /// let mut him = HotkeyInfoMetadata::new();
-    /// let hgm = HotkeyGroupMetadata::new(StringKey::from(0), 5);
-    /// him.add(hgm);
+    /// him.add(StringKey::from(0));
     /// ```
-    pub fn add(&mut self, group: HotkeyGroupMetadata) { self.0.push(group) }
+    pub fn add(&mut self, sk: StringKey) { self.0.push(sk) }
 
     /// Returns the number of groups described by this metadata.
     ///
     /// # Examples
     ///
     /// ```
-    /// use genie_hki::{HotkeyGroupMetadata, HotkeyInfoMetadata};
+    /// use genie_hki::HotkeyInfoMetadata;
     /// use genie_lang::StringKey;
     ///
     /// let mut him = HotkeyInfoMetadata::new();
     /// assert_eq!(0, him.len());
-    /// let hgm = HotkeyGroupMetadata::new(StringKey::from(0), 5);
-    /// him.add(hgm);
+    /// him.add(StringKey::from(0));
     /// assert_eq!(1, him.len());
     /// ```
     pub fn len(&self) -> usize { self.0.len() }
@@ -109,19 +107,15 @@ impl HotkeyInfoMetadata {
     /// # Examples
     ///
     /// ```
-    /// use genie_hki::{HotkeyGroupMetadata, HotkeyInfoMetadata};
+    /// use genie_hki::HotkeyInfoMetadata;
     /// use genie_lang::StringKey;
     ///
     /// let mut him = HotkeyInfoMetadata::new();
     /// assert_eq!(None, him.get(0));
-    /// let hgm = HotkeyGroupMetadata::new(StringKey::from(0), 5);
-    /// him.add(hgm);
-    /// assert_eq!(Some(&HotkeyGroupMetadata::new(StringKey::from(0), 5)),
-    ///            him.get(0));
+    /// him.add(StringKey::from(0));
+    /// assert_eq!(Some(&StringKey::from(0)), him.get(0));
     /// ```
-    pub fn get(&self, index: usize) -> Option<&HotkeyGroupMetadata> {
-        self.0.get(index)
-    }
+    pub fn get(&self, index: usize) -> Option<&StringKey> { self.0.get(index) }
 
     /// Returns an iterator over the hotkey group metadata contained in this
     /// hotkey file's data.
@@ -129,101 +123,28 @@ impl HotkeyInfoMetadata {
     /// # Examples
     ///
     /// ```
-    /// use genie_hki::{HotkeyGroupMetadata, HotkeyInfoMetadata};
+    /// use genie_hki::HotkeyInfoMetadata;
     /// use genie_lang::StringKey;
     ///
     /// let mut him = HotkeyInfoMetadata::new();
-    /// let hgm0 = HotkeyGroupMetadata::new(StringKey::from(0), 5);
-    /// him.add(hgm0);
-    /// let hgm1 = HotkeyGroupMetadata::new(StringKey::from(1), 7);
-    /// him.add(hgm1);
+    /// him.add(StringKey::from(0));
+    /// him.add(StringKey::from(1));
     /// let mut iter = him.iter();
-    /// assert_eq!(Some(&HotkeyGroupMetadata::new(StringKey::from(0), 5)),
-    ///            iter.next());
-    /// assert_eq!(Some(&HotkeyGroupMetadata::new(StringKey::from(1), 7)),
-    ///            iter.next());
+    /// assert_eq!(Some(&StringKey::from(0)), iter.next());
+    /// assert_eq!(Some(&StringKey::from(1)), iter.next());
     /// assert_eq!(None, iter.next());
     /// ```
-    pub fn iter(&self) -> Iter<HotkeyGroupMetadata> { self.0.iter() }
+    pub fn iter(&self) -> Iter<StringKey> { self.0.iter() }
+}
+
+impl From<Vec<StringKey>> for HotkeyInfoMetadata {
+    fn from(sks: Vec<StringKey>) -> Self { Self(sks) }
 }
 
 impl IntoIterator for HotkeyInfoMetadata {
-    type Item = HotkeyGroupMetadata;
-    type IntoIter = std::vec::IntoIter<HotkeyGroupMetadata>;
+    type Item = StringKey;
+    type IntoIter = std::vec::IntoIter<StringKey>;
     fn into_iter(self) -> Self::IntoIter { self.0.into_iter() }
-}
-
-/// Represents metadata for a hotkey group.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct HotkeyGroupMetadata {
-    string_key: StringKey,
-    num_hotkeys: usize,
-}
-
-impl HotkeyGroupMetadata {
-    /// Returns a new `HotkeyGroupMetadata` struct with the given
-    /// `string_key` and `num_hotkeys`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use genie_hki::HotkeyGroupMetadata;
-    /// use genie_lang::StringKey;
-    ///
-    /// let hgm = HotkeyGroupMetadata::new(StringKey::from(0), 5);
-    /// ```
-    pub fn new(string_key: StringKey, num_hotkeys: usize) -> Self {
-        Self { string_key, num_hotkeys }
-    }
-
-    /// Returns the number of hotkeys in the group.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use genie_hki::HotkeyGroupMetadata;
-    /// use genie_lang::StringKey;
-    ///
-    /// let hgm = HotkeyGroupMetadata::new(StringKey::from(0), 5);
-    /// assert_eq!(5, hgm.num_hotkeys());
-    /// ```
-    pub fn num_hotkeys(&self) -> usize { self.num_hotkeys }
-
-    /// Returns a reference to the language file key of the group's string name.
-    /// Returns the number of hotkeys in the group.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use genie_hki::HotkeyGroupMetadata;
-    /// use genie_lang::StringKey;
-    ///
-    /// let hgm = HotkeyGroupMetadata::new(StringKey::from(0), 5);
-    /// assert_eq!(&StringKey::from(0), hgm.string_key());
-    /// ```
-    pub fn string_key(&self) -> &StringKey { &self.string_key }
-
-    /// Returns `Some(&s)` where `s` is the string name of this group
-    /// in `lang_file`.
-    /// Returns `None` is this group's key is not the key of any string
-    /// in `lang_file`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use genie_hki::HotkeyGroupMetadata;
-    /// use genie_lang::{LangFile, StringKey};
-    ///
-    /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from("name"));
-    ///
-    /// let hgm = HotkeyGroupMetadata::new(StringKey::from(0), 5);
-    /// assert_eq!(Some(&String::from("name")), hgm.get_name(&lang_file));
-    /// ```
-    pub fn get_name<'c, 'a: 'c, 'b: 'c>(&'a self, lang_file: &'b LangFile)
-            -> Option<&'c String> {
-        lang_file.get(&self.string_key)
-    }
 }
 
 // TODO Would like to move this to some kind of configuration file format
@@ -231,44 +152,26 @@ impl HotkeyGroupMetadata {
 // groups should use
 // and the group names can be overwritten in the string files
 /// Returns a `HotkeyInfoMetadata` struct that represents the info metadata for
-/// the default Aoe2 hotkeys.
+/// the default Aoe2 hotkeys (both UserPatch and HD).
 pub fn default_him() -> HotkeyInfoMetadata {
     let mut hgm = HotkeyInfoMetadata::new();
-    // UnitCommands
-    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20000), 15));
-    // GameCommands
-    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20001), 66));
-    // Scroll
-    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20002), 16));
-    // Villager
-    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20003), 30));
-    // TownCenter
-    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20004), 8));
-    // Dock
-    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20007), 10));
-    // Barracks
-    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20008), 4));
-    // ArcheryRange
-    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20009), 5));
-    // Stable
-    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20010), 3)); // 3 in WK, 4 in HD
-    // SiegeWorkshop
-    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20011), 5));
-    // Monastery
-    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20012), 2));
-    // Market
-    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20013), 1));
-    // MilitaryUnits
-    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20014), 12)); // Note HD has 13 for attack move
-    // Castle
-    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20015), 3));
-    // Mill
-    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20017), 1));
+    hgm.add(StringKey::from(20000)); // UnitCommands
+    hgm.add(StringKey::from(20001)); // GameCommands
+    hgm.add(StringKey::from(20002)); // Scroll
+    hgm.add(StringKey::from(20003)); // Villager
+    hgm.add(StringKey::from(20004)); // TownCenter
+    hgm.add(StringKey::from(20007)); // Dock
+    hgm.add(StringKey::from(20008)); // Barracks
+    hgm.add(StringKey::from(20009)); // ArcheryRange
+    hgm.add(StringKey::from(20010)); // Stable
+    hgm.add(StringKey::from(20011)); // SiegeWorkshop
+    hgm.add(StringKey::from(20012)); // Monastery
+    hgm.add(StringKey::from(20013)); // Market
+    hgm.add(StringKey::from(20014)); // MilitaryUnits
+    hgm.add(StringKey::from(20015)); // Castle
+    hgm.add(StringKey::from(20017)); // Mill
     hgm
 }
-
-// TODO add this documentation to a readme file or to some other documentation
-// instead of providing enums?
 
 /// Available hotkey groups.
 pub enum HotkeyGroupId {
@@ -585,6 +488,7 @@ impl From<HotkeyIndexError> for IndexError {
 pub struct GroupIndexError {
     /// The index of the group, must be greater than or equal to `num_groups`.
     index: usize,
+
     /// The number of groups, must be less than or equal to `index`.
     num_groups: usize,
 }
@@ -619,6 +523,7 @@ impl Error for GroupIndexError { }
 pub struct HotkeyIndexError {
     /// The index of the hotkey, must be greater than or equal to `num_hotkeys`.
     index: usize,
+
     /// The number of hotkeys, must be less than or equal to `index`.
     num_hotkeys: usize,
 }
@@ -651,19 +556,27 @@ impl Error for HotkeyIndexError { }
 /// The information about a single hotkey.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Hotkey {
+
     /// Keycode that activates this hotkey.
     ///
     /// You can use a crate like [keycodes](https://docs.rs/keycodes/0.1.0/)
     /// to compare this to named virtual keys like `keycodes::KEY_RETURN`.
+    ///
+    /// If `string_id` is `-1`, this `key` must be `0`.
     pub key: i32,
+
     /// The string ID for this hotkey's label. -1 if this hotkey is unused.
     pub string_id: i32,
+
     /// Whether the Ctrl key needs to be held to activate this hotkey.
     pub ctrl: bool,
+
     /// Whether the Alt key needs to be held to activate this hotkey.
     pub alt: bool,
+
     /// Whether the Shift key needs to be held to activate this hotkey.
     pub shift: bool,
+
     /// Not sure what this does yet? Actually may be unused…
     mouse: i8,
 }
@@ -695,29 +608,98 @@ impl fmt::Display for Hotkey {
 }
 
 impl Hotkey {
-    // TODO specify these methods
-
+    /// Returns a hotkey equivalent to this one but with the key set to `key`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use genie_hki::Hotkey;
+    ///
+    /// let hki = Hotkey::default();
+    /// let hki2 = hki.key(5);
+    /// assert_eq!(0, hki.key);
+    /// assert_eq!(5, hki2.key);
+    /// ```
     pub fn key(self, key: i32) -> Self {
         Self { key, ..self }
     }
 
+    /// Returns a hotkey equivalent to this one but with the string key set
+    /// to `string_id`.
+    /// If the id is `-1`, the returned key also has a `key` field set to `0`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use genie_hki::Hotkey;
+    ///
+    /// let hki = Hotkey::default();
+    /// let hki2 = hki.string_id(5);
+    /// assert_eq!(-1, hki.string_id);
+    /// assert_eq!(5, hki2.string_id);
+    ///
+    /// let hki3 = hki2.key(5);
+    /// let hki4 = hki3.string_id(-1);
+    /// assert_eq!(5, hki3.key);
+    /// assert_eq!(0, hki4.key);
+    /// ```
     pub fn string_id(self, string_id: i32) -> Self {
-        Self { string_id, ..self }
+        if string_id == -1 { Self { string_id, key: 0, ..self } }
+        else               { Self { string_id, ..self         } }
     }
 
+    /// Returns a hotkey equivalent to this one but with `ctrl` determining
+    /// whether control must be held when pressing the key.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use genie_hki::Hotkey;
+    ///
+    /// let hki = Hotkey::default();
+    /// let hki2 = hki.ctrl(true);
+    /// assert!(!hki.ctrl);
+    /// assert!(hki2.ctrl);
+    /// ```
     pub fn ctrl(self, ctrl: bool) -> Self {
         Self { ctrl, ..self }
     }
 
+    /// Returns a hotkey equivalent to this one but with `alt` determining
+    /// whether alt must be held when pressing the key.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use genie_hki::Hotkey;
+    ///
+    /// let hki = Hotkey::default();
+    /// let hki2 = hki.alt(true);
+    /// assert!(!hki.alt);
+    /// assert!(hki2.alt);
+    /// ```
     pub fn alt(self, alt: bool) -> Self {
         Self { alt, ..self }
     }
 
+    /// Returns a hotkey equivalent to this one but with `shift` determining
+    /// whether shift must be held when pressing the key.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use genie_hki::Hotkey;
+    ///
+    /// let hki = Hotkey::default();
+    /// let hki2 = hki.shift(true);
+    /// assert!(!hki.shift);
+    /// assert!(hki2.shift);
+    /// ```
     pub fn shift(self, shift: bool) -> Self {
         Self { shift, ..self }
     }
 
-    /// Read a hotkey from an input stream.
+    /// Reads a hotkey from an input stream.
     pub(crate) fn from<R: Read>(input: &mut R) -> io::Result<Self> {
         let key = input.read_i32::<LE>()?;
         let string_id = input.read_i32::<LE>()?;
@@ -729,7 +711,7 @@ impl Hotkey {
         Ok(Self { key, string_id, ctrl, alt, shift, mouse })
     }
 
-    /// Write a hotkey to an output stream.
+    /// Writes a hotkey to an output stream.
     pub(crate) fn write_to<W: Write>(&self, output: &mut W) -> io::Result<()> {
         output.write_i32::<LE>(self.key)?;
         output.write_i32::<LE>(self.string_id)?;
@@ -762,8 +744,7 @@ impl Hotkey {
         let alt   = if self.alt   { "ctrl-" } else { "" };
         let shift = if self.shift { "ctrl-" } else { "" };
 
-        if let Some(s)
-                = lang_file.get(&StringKey::from(self.string_id as u32)) {
+        if let Some(s) = lang_file.get(&StringKey::from(self.string_id)) {
             format!("{} ({}): {}{}{}{}", s, self.string_id,
                          ctrl, alt, shift, self.key)
         } else {
@@ -784,7 +765,7 @@ pub struct HotkeyGroup {
 }
 
 impl HotkeyGroup {
-    /// Read a hotkey group from an input stream.
+    /// Reads a hotkey group from an input stream.
     pub(crate) fn from<R: Read>(input: &mut R) -> io::Result<Self> {
         let num_hotkeys = input.read_u32::<LE>()?;
         let mut hotkeys = Vec::with_capacity(num_hotkeys as usize);
@@ -795,7 +776,7 @@ impl HotkeyGroup {
         Ok(Self { hotkeys })
     }
 
-    /// Write a hotkey group to an output stream.
+    /// Writes a hotkey group to an output stream.
     pub(crate) fn write_to<W: Write>(&self, output: &mut W) -> io::Result<()> {
         output.write_u32::<LE>(self.hotkeys.len() as u32)?;
         for hotkey in &self.hotkeys {
@@ -841,10 +822,10 @@ impl HotkeyGroup {
     /// Returns the number of hotkeys in this `HotkeyGroup`.
     /// ```rust
     /// use std::fs::File;
-    /// use genie_hki::{HotkeyInfo, HotkeyGroupId};
+    /// use genie_hki::HotkeyInfo;
     /// let mut f = File::open("test/files/aoc1.hki").unwrap();
     /// let info = HotkeyInfo::from(&mut f).expect("failed to read file");
-    /// let group = info.group(HotkeyGroupId::Villager).unwrap();
+    /// let group = info.group(3).unwrap(); // Villager hotkeys
     /// assert_eq!(28, group.num_hotkeys());
     /// ```
     pub fn num_hotkeys(&self) -> usize { self.hotkeys.len() }
@@ -853,18 +834,11 @@ impl HotkeyGroup {
     pub fn iter(&self) -> Iter<Hotkey> { self.hotkeys.iter() }
 
     /// Returns a string representation of this hotkey group, using the strings
-    /// from `lang_file` and the group name string key from `hgi`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the number of hotkeys in this group is different than the
-    /// number of hotkeys in the given metadata.
-    /// That is, if `self.num_hotkeys() != hgi.num_hotkeys()`.
-    pub fn to_string_lang(&self, lang_file: &LangFile,
-            hgi: &HotkeyGroupMetadata) -> String {
-        assert!(self.num_hotkeys() == hgi.num_hotkeys());
-        let group_name = if let Some(name) = lang_file.get(&hgi.string_key()) {
-            format!("{} ({}):\n  ", name, hgi.string_key())
+    /// from `lang_file` and the group name string key `sk`.
+    pub fn to_string_lang(&self, lang_file: &LangFile, sk: &StringKey)
+            -> String {
+        let group_name = if let Some(name) = lang_file.get(sk) {
+            format!("{} ({}):\n  ", name, sk)
         } else {
             String::from("")
         };
@@ -899,6 +873,7 @@ impl IntoIterator for HotkeyGroup {
 pub struct HotkeyInfo {
     /// The file version.
     version: f32,
+
     /// The hotkey groups.
     groups: Vec<HotkeyGroup>,
 }
@@ -916,13 +891,13 @@ impl HotkeyInfo {
         Ok(Self { version, groups })
     }
 
-    /// Read a hotkey info file.
+    /// Reads a hotkey info file.
     pub fn from<R: Read>(input: &mut R) -> io::Result<Self> {
         let mut input = DeflateDecoder::new(input);
         Self::from_uncompressed(&mut input)
     }
 
-    /// Write a hotkey info structure to an uncompressed stream.
+    /// Writes a hotkey info structure to an uncompressed stream.
     fn write_to_uncompressed<W: Write>(&self, output: &mut W)
             -> io::Result<()> {
         output.write_f32::<LE>(self.version)?;
@@ -933,13 +908,13 @@ impl HotkeyInfo {
         Ok(())
     }
 
-    /// Write a hotkey info file.
+    /// Writes a hotkey info file.
     pub fn write_to<W: Write>(&self, output: &mut W) -> io::Result<()> {
         let mut output = DeflateEncoder::new(output, Compression::default());
         self.write_to_uncompressed(&mut output)
     }
 
-    /// Get the file version.
+    /// Gets the file version.
     ///
     /// ```rust
     /// use std::fs::File;
@@ -956,40 +931,29 @@ impl HotkeyInfo {
         self.version
     }
 
-    /// Get a hotkey group. Groups may not exist in every file.
+    /// Returns an immutable reference to a hotkey group, if that group exists.
     ///
     /// ```rust
     /// use std::fs::File;
     /// use genie_hki::{HotkeyInfo, HotkeyGroupId};
     /// let mut f = File::open("test/files/aoc1.hki").unwrap();
     /// let info = HotkeyInfo::from(&mut f).expect("failed to read file");
-    /// assert!(info.group(HotkeyGroupId::Villager).is_some());
-    /// assert!(info.group(HotkeyGroupId::Mill).is_none());
+    /// assert!(info.group(HotkeyGroupId::Villager as usize).is_some());
+    /// assert!(info.group(HotkeyGroupId::Mill as usize).is_none());
     /// ```
-    pub fn group(&self, group_id: HotkeyGroupId) -> Option<&HotkeyGroup> {
-        self.group_raw(group_id as usize)
-    }
-
-    /// Returns an immutable reference to a hotkey group, if that group exists.
-    pub fn group_raw(&self, group_id: usize) -> Option<&HotkeyGroup> {
+    pub fn group(&self, group_id: usize) -> Option<&HotkeyGroup> {
         self.groups.get(group_id)
     }
 
     /// Returns a mutable reference to a hotkey group, if that group exists.
-    pub fn group_mut(&mut self, group_id: HotkeyGroupId)
-            -> Option<&mut HotkeyGroup> {
-        self.group_mut_raw(group_id as usize)
-    }
-
-    /// Returns a mutable reference to a hotkey group, if that group exists.
-    fn group_mut_raw(&mut self, group_id: usize) -> Option<&mut HotkeyGroup> {
+    pub fn group_mut(&mut self, group_id: usize) -> Option<&mut HotkeyGroup> {
         self.groups.get_mut(group_id)
     }
 
     /// Returns the number of hotkey groups in this info's hotkey file.
     /// ```rust
     /// use std::fs::File;
-    /// use genie_hki::{HotkeyInfo, HotkeyGroupId};
+    /// use genie_hki::HotkeyInfo;
     ///
     /// let mut f = File::open("test/files/aoc1.hki").unwrap();
     /// let info = HotkeyInfo::from(&mut f).expect("failed to read file");
@@ -1008,35 +972,16 @@ impl HotkeyInfo {
     /// Returns a `HotkeyInfo` struct equivalent to this `HotkeyInfo`, but with
     /// the key at index `key_index` of the group given by `group_index`
     /// unbound. Returns an error if either index does not exist.
-    pub fn unbind_key(&self, group_index: HotkeyGroupId, key_index: usize)
+    pub fn unbind_key(&self, group_index: usize, key_index: usize)
             -> Result<Self, IndexError> {
         self.bind_key(group_index, key_index, 0, false, false, false)
     }
 
     /// Returns a `HotkeyInfo` struct equivalent to this `HotkeyInfo`, but with
     /// the key at index `key_index` of the group given by `group_index`
-    /// unbound. Returns an error if either index does not exist.
-    pub fn unbind_key_index(&self, group_index: usize, key_index: usize)
-            -> Result<Self, IndexError> {
-        self.bind_key_index(group_index, key_index, 0, false, false, false)
-    }
-
-    /// Returns a `HotkeyInfo` struct equivalent to this `HotkeyInfo`, but with
-    /// the key at index `key_index` of the group given by `group_index`
     /// bound with the given key and key modifiers. Returns an error if either
     /// index does not exist.
-    pub fn bind_key(&self, group_index: HotkeyGroupId, key_index: usize,
-            key: i32, ctrl: bool, alt: bool, shift: bool)
-            -> Result<Self, IndexError> {
-        self.bind_key_index(group_index as usize, key_index, key,
-                            ctrl, alt, shift)
-    }
-
-    /// Returns a `HotkeyInfo` struct equivalent to this `HotkeyInfo`, but with
-    /// the key at index `key_index` of the group given by `group_index`
-    /// bound with the given key and key modifiers. Returns an error if either
-    /// index does not exist.
-    pub fn bind_key_index(&self, group_index: usize, key_index: usize, key: i32,
+    pub fn bind_key(&self, group_index: usize, key_index: usize, key: i32,
             ctrl: bool, alt: bool, shift: bool) -> Result<Self, IndexError> {
         if group_index >= self.num_groups() {
             return Err(IndexError::GroupIndex(GroupIndexError::new(
@@ -1072,13 +1017,19 @@ impl HotkeyInfo {
         bindings
     }
 
-    // TODO specify
+    /// Returns a string representation of this `HotkeyInfo` struct using the
+    /// strings from `lang_file` and the group name sting keys given in `him`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the number of hotkeys in any group of this file differs from
+    /// the number of hotkeys given to that group in `him`.
     pub fn to_string_lang(&self, lang_file: &LangFile, him: &HotkeyInfoMetadata)
             -> String {
         let groups: Vec<String> = self.groups.iter().zip(him.iter())
-            .map(|(grp, hgm)| grp.to_string_lang(&lang_file, &hgm))
+            .map(|(grp, sk)| grp.to_string_lang(&lang_file, sk))
             .collect();
-        format!("{}", groups.join("\n"))
+        format!("Version: {}\n{}", self.version, groups.join("\n"))
     }
 }
 
@@ -1144,7 +1095,7 @@ mod tests {
     fn hk_group_iter() {
         let mut f = File::open("test/files/aoc1.hki").unwrap();
         let info = HotkeyInfo::from(&mut f).expect("failed to read file");
-        let group = info.group(HotkeyGroupId::UnitCommands).unwrap();
+        let group = info.group(HotkeyGroupId::UnitCommands as usize).unwrap();
         let mut hotkey_iter = group.iter();
         assert_eq!(19214, hotkey_iter.next().unwrap().string_id);
         assert_eq!(19215, hotkey_iter.next().unwrap().string_id);
@@ -1169,20 +1120,25 @@ mod tests {
         let mut f = File::open("test/files/aoc1.hki").unwrap();
         let info = HotkeyInfo::from(&mut f).expect("failed to read file");
         let mut iter = info.iter();
-        assert_eq!(info.group(HotkeyGroupId::UnitCommands), iter.next());
-        assert_eq!(info.group(HotkeyGroupId::GameCommands), iter.next());
-        assert_eq!(info.group(HotkeyGroupId::Scroll), iter.next());
-        assert_eq!(info.group(HotkeyGroupId::Villager), iter.next());
-        assert_eq!(info.group(HotkeyGroupId::TownCenter), iter.next());
-        assert_eq!(info.group(HotkeyGroupId::Dock), iter.next());
-        assert_eq!(info.group(HotkeyGroupId::Barracks), iter.next());
-        assert_eq!(info.group(HotkeyGroupId::ArcheryRange), iter.next());
-        assert_eq!(info.group(HotkeyGroupId::Stable), iter.next());
-        assert_eq!(info.group(HotkeyGroupId::SiegeWorkshop), iter.next());
-        assert_eq!(info.group(HotkeyGroupId::Monastery), iter.next());
-        assert_eq!(info.group(HotkeyGroupId::Market), iter.next());
-        assert_eq!(info.group(HotkeyGroupId::MilitaryUnits), iter.next());
-        assert_eq!(info.group(HotkeyGroupId::Castle), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::UnitCommands as usize),
+                              iter.next());
+        assert_eq!(info.group(HotkeyGroupId::GameCommands as usize),
+                              iter.next());
+        assert_eq!(info.group(HotkeyGroupId::Scroll as usize), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::Villager as usize), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::TownCenter as usize), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::Dock as usize), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::Barracks as usize), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::ArcheryRange as usize),
+                              iter.next());
+        assert_eq!(info.group(HotkeyGroupId::Stable as usize), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::SiegeWorkshop as usize),
+                              iter.next());
+        assert_eq!(info.group(HotkeyGroupId::Monastery as usize), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::Market as usize), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::MilitaryUnits as usize),
+                              iter.next());
+        assert_eq!(info.group(HotkeyGroupId::Castle as usize), iter.next());
         assert_eq!(None, iter.next());
     }
 
@@ -1190,7 +1146,7 @@ mod tests {
     fn hk_group_unbind() {
         let mut f = File::open("test/files/aoc1.hki").unwrap();
         let info = HotkeyInfo::from(&mut f).expect("failed to read file");
-        let group0 = info.group(HotkeyGroupId::UnitCommands).unwrap();
+        let group0 = info.group(HotkeyGroupId::UnitCommands as usize).unwrap();
         let group1 = group0.unbind(UnitCommandHotkeys::BuildEconomic as usize)
                            .unwrap();
         assert_eq!(66, group0.hotkey(0).unwrap().key);
@@ -1201,9 +1157,9 @@ mod tests {
     fn hk_group_bind() {
         let mut f = File::open("test/files/aoc1.hki").unwrap();
         let info = HotkeyInfo::from(&mut f).expect("failed to read file");
-        let group0 = info.group(HotkeyGroupId::UnitCommands).unwrap();
+        let group0 = info.group(HotkeyGroupId::UnitCommands as usize).unwrap();
         let group1 = group0.bind(UnitCommandHotkeys::BuildEconomic as usize, 65,
-                               false, false, false).unwrap();
+                                 false, false, false).unwrap();
         assert_eq!(66, group0.hotkey(0).unwrap().key);
         assert_eq!(65, group1.hotkey(0).unwrap().key);
     }
@@ -1212,7 +1168,7 @@ mod tests {
     fn hk_group_bad_index() {
         let mut f = File::open("test/files/aoc1.hki").unwrap();
         let info = HotkeyInfo::from(&mut f).expect("failed to read file");
-        let group = info.group(HotkeyGroupId::UnitCommands).unwrap();
+        let group = info.group(HotkeyGroupId::UnitCommands as usize).unwrap();
         let result = group.unbind(99999);
         assert!(result.is_err());
     }
@@ -1221,32 +1177,29 @@ mod tests {
     fn hk_info_unbind() {
         let mut f = File::open("test/files/aoc1.hki").unwrap();
         let info0 = HotkeyInfo::from(&mut f).expect("failed to read file");
-        let info1 = info0.unbind_key(HotkeyGroupId::UnitCommands,
-            UnitCommandHotkeys::BuildEconomic as usize).unwrap();
-        assert_eq!(66, info0.group(HotkeyGroupId::UnitCommands).unwrap()
-                            .hotkey(0).unwrap().key);
-        assert_eq!(0,  info1.group(HotkeyGroupId::UnitCommands).unwrap()
-                            .hotkey(0).unwrap().key);
+        let info1 = info0.unbind_key(0, 0).unwrap();
+        assert_eq!(66, info0.group(HotkeyGroupId::UnitCommands as usize)
+                            .unwrap().hotkey(0).unwrap().key);
+        assert_eq!(0,  info1.group(HotkeyGroupId::UnitCommands as usize)
+                            .unwrap().hotkey(0).unwrap().key);
     }
 
     #[test]
     fn hk_info_bind() {
         let mut f = File::open("test/files/aoc1.hki").unwrap();
         let info0 = HotkeyInfo::from(&mut f).expect("failed to read file");
-        let info1 = info0.bind_key(HotkeyGroupId::UnitCommands,
-            UnitCommandHotkeys::BuildEconomic as usize, 65, false, false, false)
-            .unwrap();
-        assert_eq!(66, info0.group(HotkeyGroupId::UnitCommands).unwrap()
-                            .hotkey(0).unwrap().key);
-        assert_eq!(65, info1.group(HotkeyGroupId::UnitCommands).unwrap()
-                            .hotkey(0).unwrap().key);
+        let info1 = info0.bind_key(0, 0, 65, false, false, false).unwrap();
+        assert_eq!(66, info0.group(HotkeyGroupId::UnitCommands as usize)
+                            .unwrap().hotkey(0).unwrap().key);
+        assert_eq!(65, info1.group(HotkeyGroupId::UnitCommands as usize)
+                            .unwrap().hotkey(0).unwrap().key);
     }
 
     #[test]
     fn hk_info_bad_index_group() {
         let mut f = File::open("test/files/aoc1.hki").unwrap();
         let info = HotkeyInfo::from(&mut f).expect("failed to read file");
-        let result = info.unbind_key_index(999999, 0);
+        let result = info.unbind_key(999999, 0);
         assert!(result.is_err());
     }
 
@@ -1254,7 +1207,7 @@ mod tests {
     fn hk_info_bad_index_hk() {
         let mut f = File::open("test/files/aoc1.hki").unwrap();
         let info = HotkeyInfo::from(&mut f).expect("failed to read file");
-        let result = info.unbind_key_index(0, 999999);
+        let result = info.unbind_key(0, 999999);
         assert!(result.is_err());
     }
 

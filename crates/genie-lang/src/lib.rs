@@ -135,6 +135,10 @@ impl From<u32> for StringKey {
     fn from(n: u32) -> Self { StringKey::Num(n) }
 }
 
+impl From<i32> for StringKey {
+    fn from(n: i32) -> Self { StringKey::from(n as u32) }
+}
+
 impl From<&str> for StringKey {
     fn from(s: &str) -> Self {
         use StringKey::{Name, Num};

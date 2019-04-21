@@ -50,7 +50,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let cli_input = SetHotkey::from_args();
     let mut f = File::open(&cli_input.file_name)?;
     let info = HotkeyInfo::from(&mut f)?;
-    let info = info.bind_key_index(
+    let info = info.bind_key(
         cli_input.group_index as usize,
         cli_input.hotkey_index as usize,
         cli_input.keycode, cli_input.ctrl, cli_input.alt, cli_input.shift)?;
