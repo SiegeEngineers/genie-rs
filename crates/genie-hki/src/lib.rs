@@ -5,7 +5,7 @@
 //! for Ctrl/Alt/Shift modifiers. The index of the hotkey in its
 //! group determines the action that will be taken when it is activated.
 
-use genie_lang;
+use genie_lang::{LangFile, StringKey};
 
 use std::collections::HashMap;
 use std::error::Error;
@@ -14,6 +14,7 @@ use std::fmt;
 use std::slice::Iter;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
+
 
 /// Returns `Ok(id)`, where `id` is the id number of the string giving the text
 /// representation of `keycode` in a language file.
@@ -50,6 +51,224 @@ pub fn keycode_id(keycode: i32) -> Option<i32> {
         _ => None,
     }
 }
+
+/// A list of information about hotkey groups in a hotkey file.
+/// The length is the number of groups in the file.
+/// Each `StringKey` in the list is the key of the string that names the group.
+/// The key is stored at the group's offset index in the hotkey file.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HotkeyInfoMetadata(Vec<HotkeyGroupMetadata>);
+
+impl HotkeyInfoMetadata {
+    /// Returns an empty `HotkeyInfoMetadata` struct.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use genie_hki::HotkeyInfoMetadata;
+    ///
+    /// let him = HotkeyInfoMetadata::new();
+    /// ```
+    pub fn new() -> Self { Self(Vec::new()) }
+
+    /// Adds a group to the metadata.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use genie_hki::{HotkeyGroupMetadata, HotkeyInfoMetadata};
+    /// use genie_lang::StringKey;
+    ///
+    /// let mut him = HotkeyInfoMetadata::new();
+    /// let hgm = HotkeyGroupMetadata::new(StringKey::from(0), 5);
+    /// him.add(hgm);
+    /// ```
+    pub fn add(&mut self, group: HotkeyGroupMetadata) { self.0.push(group) }
+
+    /// Returns the number of groups described by this metadata.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use genie_hki::{HotkeyGroupMetadata, HotkeyInfoMetadata};
+    /// use genie_lang::StringKey;
+    ///
+    /// let mut him = HotkeyInfoMetadata::new();
+    /// assert_eq!(0, him.len());
+    /// let hgm = HotkeyGroupMetadata::new(StringKey::from(0), 5);
+    /// him.add(hgm);
+    /// assert_eq!(1, him.len());
+    /// ```
+    pub fn len(&self) -> usize { self.0.len() }
+
+    /// Returns `Some(sk)`, where `sk` is the string key of the group at the
+    /// given `index`.
+    /// Returns `None` if no group is located at `index`, that is,
+    /// if `index >= self.len()`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use genie_hki::{HotkeyGroupMetadata, HotkeyInfoMetadata};
+    /// use genie_lang::StringKey;
+    ///
+    /// let mut him = HotkeyInfoMetadata::new();
+    /// assert_eq!(None, him.get(0));
+    /// let hgm = HotkeyGroupMetadata::new(StringKey::from(0), 5);
+    /// him.add(hgm);
+    /// assert_eq!(Some(&HotkeyGroupMetadata::new(StringKey::from(0), 5)),
+    ///            him.get(0));
+    /// ```
+    pub fn get(&self, index: usize) -> Option<&HotkeyGroupMetadata> {
+        self.0.get(index)
+    }
+
+    /// Returns an iterator over the hotkey group metadata contained in this
+    /// hotkey file's data.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use genie_hki::{HotkeyGroupMetadata, HotkeyInfoMetadata};
+    /// use genie_lang::StringKey;
+    ///
+    /// let mut him = HotkeyInfoMetadata::new();
+    /// let hgm0 = HotkeyGroupMetadata::new(StringKey::from(0), 5);
+    /// him.add(hgm0);
+    /// let hgm1 = HotkeyGroupMetadata::new(StringKey::from(1), 7);
+    /// him.add(hgm1);
+    /// let mut iter = him.iter();
+    /// assert_eq!(Some(&HotkeyGroupMetadata::new(StringKey::from(0), 5)),
+    ///            iter.next());
+    /// assert_eq!(Some(&HotkeyGroupMetadata::new(StringKey::from(1), 7)),
+    ///            iter.next());
+    /// assert_eq!(None, iter.next());
+    /// ```
+    pub fn iter(&self) -> Iter<HotkeyGroupMetadata> { self.0.iter() }
+}
+
+impl IntoIterator for HotkeyInfoMetadata {
+    type Item = HotkeyGroupMetadata;
+    type IntoIter = std::vec::IntoIter<HotkeyGroupMetadata>;
+    fn into_iter(self) -> Self::IntoIter { self.0.into_iter() }
+}
+
+/// Represents metadata for a hotkey group.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HotkeyGroupMetadata {
+    string_key: StringKey,
+    num_hotkeys: usize,
+}
+
+impl HotkeyGroupMetadata {
+    /// Returns a new `HotkeyGroupMetadata` struct with the given
+    /// `string_key` and `num_hotkeys`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use genie_hki::HotkeyGroupMetadata;
+    /// use genie_lang::StringKey;
+    ///
+    /// let hgm = HotkeyGroupMetadata::new(StringKey::from(0), 5);
+    /// ```
+    pub fn new(string_key: StringKey, num_hotkeys: usize) -> Self {
+        Self { string_key, num_hotkeys }
+    }
+
+    /// Returns the number of hotkeys in the group.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use genie_hki::HotkeyGroupMetadata;
+    /// use genie_lang::StringKey;
+    ///
+    /// let hgm = HotkeyGroupMetadata::new(StringKey::from(0), 5);
+    /// assert_eq!(5, hgm.num_hotkeys());
+    /// ```
+    pub fn num_hotkeys(&self) -> usize { self.num_hotkeys }
+
+    /// Returns a reference to the language file key of the group's string name.
+    /// Returns the number of hotkeys in the group.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use genie_hki::HotkeyGroupMetadata;
+    /// use genie_lang::StringKey;
+    ///
+    /// let hgm = HotkeyGroupMetadata::new(StringKey::from(0), 5);
+    /// assert_eq!(&StringKey::from(0), hgm.string_key());
+    /// ```
+    pub fn string_key(&self) -> &StringKey { &self.string_key }
+
+    /// Returns `Some(&s)` where `s` is the string name of this group
+    /// in `lang_file`.
+    /// Returns `None` is this group's key is not the key of any string
+    /// in `lang_file`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use genie_hki::HotkeyGroupMetadata;
+    /// use genie_lang::{LangFile, StringKey};
+    ///
+    /// let mut lang_file = LangFile::new();
+    /// lang_file.insert(StringKey::from(0), String::from("name"));
+    ///
+    /// let hgm = HotkeyGroupMetadata::new(StringKey::from(0), 5);
+    /// assert_eq!(Some(&String::from("name")), hgm.get_name(&lang_file));
+    /// ```
+    pub fn get_name<'c, 'a: 'c, 'b: 'c>(&'a self, lang_file: &'b LangFile)
+            -> Option<&'c String> {
+        lang_file.get(&self.string_key)
+    }
+}
+
+// TODO Would like to move this to some kind of configuration file format
+// then other mods can specify which hotkeys they use and what strings their
+// groups should use
+// and the group names can be overwritten in the string files
+/// Returns a `HotkeyInfoMetadata` struct that represents the info metadata for
+/// the default Aoe2 hotkeys.
+pub fn default_him() -> HotkeyInfoMetadata {
+    let mut hgm = HotkeyInfoMetadata::new();
+    // UnitCommands
+    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20000), 15));
+    // GameCommands
+    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20001), 66));
+    // Scroll
+    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20002), 16));
+    // Villager
+    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20003), 30));
+    // TownCenter
+    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20004), 8));
+    // Dock
+    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20007), 10));
+    // Barracks
+    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20008), 4));
+    // ArcheryRange
+    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20009), 5));
+    // Stable
+    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20010), 3)); // 3 in WK, 4 in HD
+    // SiegeWorkshop
+    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20011), 5));
+    // Monastery
+    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20012), 2));
+    // Market
+    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20013), 1));
+    // MilitaryUnits
+    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20014), 12)); // Note HD has 13 for attack move
+    // Castle
+    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20015), 3));
+    // Mill
+    hgm.add(HotkeyGroupMetadata::new(StringKey::from(20017), 1));
+    hgm
+}
+
+// TODO add this documentation to a readme file or to some other documentation
+// instead of providing enums?
 
 /// Available hotkey groups.
 pub enum HotkeyGroupId {
@@ -476,6 +695,8 @@ impl fmt::Display for Hotkey {
 }
 
 impl Hotkey {
+    // TODO specify these methods
+
     pub fn key(self, key: i32) -> Self {
         Self { key, ..self }
     }
@@ -517,6 +738,38 @@ impl Hotkey {
         output.write_u8(if self.shift { 1 } else { 0 })?;
         output.write_i8(self.mouse)?;
         Ok(())
+    }
+
+    /// Returns a string representation of this hotkey, using the strings from
+    /// `lang_file`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use genie_hki::Hotkey;
+    /// use genie_lang::{LangFile, StringKey};
+    ///
+    /// let mut lang_file = LangFile::new();
+    /// lang_file.insert(StringKey::from(5), String::from("A"));
+    /// let hotkey = Hotkey::default().key(65).string_id(5).ctrl(true);
+    /// assert_eq!("A (5): ctrl-65", hotkey.to_string_lang(&lang_file));
+    ///
+    /// let default = Hotkey::default();
+    /// assert_eq!("-1: 0", default.to_string_lang(&lang_file));
+    /// ```
+    pub fn to_string_lang(&self, lang_file: &genie_lang::LangFile) -> String {
+        let ctrl  = if self.ctrl  { "ctrl-" } else { "" };
+        let alt   = if self.alt   { "ctrl-" } else { "" };
+        let shift = if self.shift { "ctrl-" } else { "" };
+
+        if let Some(s)
+                = lang_file.get(&StringKey::from(self.string_id as u32)) {
+            format!("{} ({}): {}{}{}{}", s, self.string_id,
+                         ctrl, alt, shift, self.key)
+        } else {
+            format!("{}: {}{}{}{}", self.string_id,
+                         ctrl, alt, shift, self.key)
+        }
     }
 }
 
@@ -598,6 +851,28 @@ impl HotkeyGroup {
 
     /// Returns an iterator over this group's hotkeys.
     pub fn iter(&self) -> Iter<Hotkey> { self.hotkeys.iter() }
+
+    /// Returns a string representation of this hotkey group, using the strings
+    /// from `lang_file` and the group name string key from `hgi`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the number of hotkeys in this group is different than the
+    /// number of hotkeys in the given metadata.
+    /// That is, if `self.num_hotkeys() != hgi.num_hotkeys()`.
+    pub fn to_string_lang(&self, lang_file: &LangFile,
+            hgi: &HotkeyGroupMetadata) -> String {
+        assert!(self.num_hotkeys() == hgi.num_hotkeys());
+        let group_name = if let Some(name) = lang_file.get(&hgi.string_key()) {
+            format!("{} ({}):\n  ", name, hgi.string_key())
+        } else {
+            String::from("")
+        };
+        let hotkeys: Vec<String> = self.hotkeys.iter()
+            .map(|hki| hki.to_string_lang(&lang_file))
+            .collect();
+        format!("{}{}", group_name, hotkeys.join("\n  "))
+    }
 }
 
 impl fmt::Display for HotkeyGroup {
@@ -795,6 +1070,15 @@ impl HotkeyInfo {
             }
         }
         bindings
+    }
+
+    // TODO specify
+    pub fn to_string_lang(&self, lang_file: &LangFile, him: &HotkeyInfoMetadata)
+            -> String {
+        let groups: Vec<String> = self.groups.iter().zip(him.iter())
+            .map(|(grp, hgm)| grp.to_string_lang(&lang_file, &hgm))
+            .collect();
+        format!("{}", groups.join("\n"))
     }
 }
 
