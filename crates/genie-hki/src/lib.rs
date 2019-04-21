@@ -173,6 +173,9 @@ pub fn default_him() -> HotkeyInfoMetadata {
     hgm
 }
 
+// TODO PCM III uses lots of hard coded changes for 2nd page hotkeys
+// Test with that for resolving hotkey conflicts
+
 /// Available hotkey groups.
 pub enum HotkeyGroupId {
     UnitCommands = 0x0,
