@@ -92,7 +92,6 @@
 //! 46604 "Kill the traitor, Kushluk.\n\nPrevent the tent of Genghis Khan (Wonder) from being destroyed."
 //! "#);
 //! ```
-// Ok, the failed test is based simply on the order in which they are inserted into the map
 
 use std::collections::HashMap;
 use std::collections::hash_map::{Drain, IntoIter, Iter, Keys, Values};
@@ -346,7 +345,13 @@ impl LangFile {
         Ok(())
     }
 
-    /// TODO specify
+    /// Parses a single line from an ini language file.
+    ///
+    /// The key value pair stored in the line is inserted to `self`, if parsed
+    /// successfully.
+    /// A `LoadError` is returned if an error occurs while parsing.
+    ///
+    /// Returns a `LoadError` if an error occurs while reading the line.
     fn load_ini_line(&mut self, line: &str) -> Result<(), LoadError> {
         if line.starts_with(';') { return Ok(()); }
 
@@ -368,8 +373,7 @@ impl LangFile {
 
     /// Reads a language file from an HD Edition-style key-value file.
     ///
-    /// This eagerly loads all the strings into memory.
-    // TODO fix specification
+    /// This function loads eagerly all the strings into memory.
     fn from_keyval(&mut self, input: impl Read) -> Result<(), LoadError> {
         let input = BufReader::new(input);
         for line in input.lines() { self.load_keyval_line(&line?)?; }
@@ -378,7 +382,7 @@ impl LangFile {
 
     /// Parses an HD Edition string line.
     ///
-    /// The key value pair stored in the line is added to the map, if parsed
+    /// The key value pair stored in the line is inserted to `self`, if parsed
     /// successfully.
     /// A `LoadError` is returned if an error occurs while parsing.
     ///
