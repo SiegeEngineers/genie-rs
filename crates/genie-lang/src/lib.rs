@@ -81,12 +81,18 @@
 //! lang_file.insert(StringKey::from("LOBBYBROWSER_DATMOD_TITLE_FORMAT"), String::from(r#"DatMod: "%s""#));
 //! let mut out = vec![];
 //! lang_file.write_to_keyval(&mut out).unwrap();
-//! assert_eq!(
-//!     str::from_utf8(&out).unwrap(),
-//!     r#"46604 "Kill the traitor, Kushluk.\n\nPrevent the tent of Genghis Khan (Wonder) from being destroyed."
+//! let result_string = str::from_utf8(&out).unwrap();
+//! println!("{}", result_string);
+//! assert!(
+//!     result_string == r#"46604 "Kill the traitor, Kushluk.\n\nPrevent the tent of Genghis Khan (Wonder) from being destroyed."
 //! LOBBYBROWSER_DATMOD_TITLE_FORMAT "DatMod: \"%s\""
+//! "#
+//!     ||
+//!     result_string == r#"LOBBYBROWSER_DATMOD_TITLE_FORMAT "DatMod: \"%s\""
+//! 46604 "Kill the traitor, Kushluk.\n\nPrevent the tent of Genghis Khan (Wonder) from being destroyed."
 //! "#);
 //! ```
+// Ok, the failed test is based simply on the order in which they are inserted into the map
 
 use std::collections::HashMap;
 use std::collections::hash_map::{Drain, IntoIter, Iter, Keys, Values};
