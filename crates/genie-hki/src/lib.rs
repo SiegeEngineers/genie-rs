@@ -9,9 +9,10 @@ use genie_lang::{LangFile, StringKey};
 
 use std::collections::HashMap;
 use std::error::Error;
-use std::io::{self,Read, Write};
 use std::fmt;
-use std::slice::Iter;
+use std::io::{self,Read, Write};
+use std::slice;
+use std::vec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 
@@ -134,7 +135,7 @@ impl HotkeyInfoMetadata {
     /// assert_eq!(Some(&StringKey::from(1)), iter.next());
     /// assert_eq!(None, iter.next());
     /// ```
-    pub fn iter(&self) -> Iter<StringKey> { self.0.iter() }
+    pub fn iter(&self) -> slice::Iter<StringKey> { self.0.iter() }
 }
 
 impl From<Vec<StringKey>> for HotkeyInfoMetadata {
@@ -143,8 +144,14 @@ impl From<Vec<StringKey>> for HotkeyInfoMetadata {
 
 impl IntoIterator for HotkeyInfoMetadata {
     type Item = StringKey;
-    type IntoIter = std::vec::IntoIter<StringKey>;
+    type IntoIter = vec::IntoIter<StringKey>;
     fn into_iter(self) -> Self::IntoIter { self.0.into_iter() }
+}
+
+impl<'a> IntoIterator for &'a HotkeyInfoMetadata {
+    type Item = &'a StringKey;
+    type IntoIter = slice::Iter<'a, StringKey>;
+    fn into_iter(self) -> Self::IntoIter { self.0.iter() }
 }
 
 // TODO Would like to move this to some kind of configuration file format
@@ -834,7 +841,7 @@ impl HotkeyGroup {
     pub fn num_hotkeys(&self) -> usize { self.hotkeys.len() }
 
     /// Returns an iterator over this group's hotkeys.
-    pub fn iter(&self) -> Iter<Hotkey> { self.hotkeys.iter() }
+    pub fn iter(&self) -> slice::Iter<Hotkey> { self.hotkeys.iter() }
 
     /// Returns a string representation of this hotkey group, using the strings
     /// from `lang_file` and the group name string key `sk`.
@@ -867,8 +874,20 @@ impl fmt::Display for HotkeyGroup {
 
 impl IntoIterator for HotkeyGroup {
     type Item = Hotkey;
-    type IntoIter = std::vec::IntoIter<Hotkey>;
+    type IntoIter = vec::IntoIter<Hotkey>;
     fn into_iter(self) -> Self::IntoIter { self.hotkeys.into_iter() }
+}
+
+impl<'a> IntoIterator for &'a HotkeyGroup {
+    type Item = &'a Hotkey;
+    type IntoIter = slice::Iter<'a, Hotkey>;
+    fn into_iter(self) -> Self::IntoIter { self.hotkeys.iter() }
+}
+
+impl <'a> IntoIterator for &'a mut HotkeyGroup {
+    type Item = &'a mut Hotkey;
+    type IntoIter = slice::IterMut<'a, Hotkey>;
+    fn into_iter(self) -> Self::IntoIter { self.hotkeys.iter_mut() }
 }
 
 /// Represents a HKI file containing hotkey settings.
@@ -970,7 +989,7 @@ impl HotkeyInfo {
 
     /// Returns an iterator over the hotkey groups present in this info's hotkey
     /// file.
-    pub fn iter(&self) -> Iter<HotkeyGroup> { self.groups.iter() }
+    pub fn iter(&self) -> slice::Iter<HotkeyGroup> { self.groups.iter() }
 
     /// Returns a `HotkeyInfo` struct equivalent to this `HotkeyInfo`, but with
     /// the key at index `key_index` of the group given by `group_index`
@@ -1049,8 +1068,20 @@ impl fmt::Display for HotkeyInfo {
 
 impl IntoIterator for HotkeyInfo {
     type Item = HotkeyGroup;
-    type IntoIter = std::vec::IntoIter<HotkeyGroup>;
+    type IntoIter = vec::IntoIter<HotkeyGroup>;
     fn into_iter(self) -> Self::IntoIter { self.groups.into_iter() }
+}
+
+impl<'a> IntoIterator for &'a HotkeyInfo {
+    type Item = &'a HotkeyGroup;
+    type IntoIter = slice::Iter<'a, HotkeyGroup>;
+    fn into_iter(self) -> Self::IntoIter { self.groups.iter() }
+}
+
+impl<'a> IntoIterator for &'a mut HotkeyInfo {
+    type Item = &'a mut HotkeyGroup;
+    type IntoIter = slice::IterMut<'a, HotkeyGroup>;
+    fn into_iter(self) -> Self::IntoIter { self.groups.iter_mut() }
 }
 
 #[cfg(test)]
