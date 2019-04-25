@@ -126,6 +126,43 @@ pub enum StringKey {
     Name(String),
 }
 
+impl StringKey {
+
+    /// Returns `true` if and only if this `StringKey` is a number.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use genie_lang::StringKey;
+    /// assert!(StringKey::from(0).is_numeric());
+    /// assert!(!StringKey::from("").is_numeric());
+    /// ```
+    pub fn is_numeric(&self) -> bool {
+        use StringKey::{Name, Num};
+        match self {
+            Num(_)  => true,
+            Name(_) => false,
+        }
+    }
+
+    /// Returns `true` if and only if this `StringKey` is a string name.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use genie_lang::StringKey;
+    /// assert!(!StringKey::from(0).is_named());
+    /// assert!(StringKey::from("").is_named());
+    /// ```
+    pub fn is_named(&self) -> bool {
+        use StringKey::{Name, Num};
+        match self {
+            Num(_)  => false,
+            Name(_) => true,
+        }
+    }
+}
+
 impl fmt::Display for StringKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use StringKey::{Name, Num};
@@ -407,7 +444,8 @@ impl LangFile {
 
     /// Writes this language file to an output writer using the ini format.
     pub fn write_to_ini<W: Write>(&self, output: &mut W) -> io::Result<()> {
-        for (id, string) in self.iter() {
+        // TODO warning if there are string ids
+        for (id, string) in self.iter().filter(|(id, _)| id.is_numeric()) {
             output.write_all(format!("{}={}\n", id, escape(string, false))
                   .as_bytes())?;
         }
