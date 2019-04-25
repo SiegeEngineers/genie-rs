@@ -100,7 +100,9 @@ use std::collections::hash_map::{
 use std::error::Error;
 use std::fmt;
 use std::io::{self, Read, Write, BufRead, BufReader, Error as IoError};
+use std::iter::FromIterator;
 use std::num::ParseIntError;
+use std::ops::Index;
 use std::str::FromStr;
 use byteorder::{ReadBytesExt, LE};
 use encoding_rs::{WINDOWS_1252, UTF_16LE};
@@ -296,7 +298,7 @@ impl FromStr for LangFileType {
 ///
 /// May be read from or written to one of the three file formats for Aoe2
 /// language files.
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct LangFile(HashMap<StringKey, String>);
 
 impl LangFile {
@@ -793,6 +795,26 @@ impl fmt::Display for LangFile {
             .map(|(k, v)| format!("{}: {}", k, v)).collect();
         write!(f, "{}", strs.join("\n"))
     }
+}
+
+impl Extend<(StringKey, String)> for LangFile {
+    fn extend<T: IntoIterator<Item=(StringKey, String)>>(&mut self, iter: T) {
+        self.0.extend(iter);
+    }
+}
+
+impl FromIterator<(StringKey, String)> for LangFile {
+    fn from_iter<T: IntoIterator<Item=(StringKey, String)>>(iter: T)
+            -> LangFile {
+        let mut lang_file = LangFile::default();
+        lang_file.extend(iter);
+        lang_file
+    }
+}
+
+impl Index<&StringKey> for LangFile {
+    type Output = String;
+    fn index(&self, key: &StringKey) -> &String { self.0.index(key) }
 }
 
 // TODO specify
