@@ -95,7 +95,7 @@
 
 use std::collections::HashMap;
 use std::collections::hash_map::{
-    Drain, Entry, IntoIter, Iter, IterMut, Keys, Values
+    Drain, Entry, IntoIter, Iter, IterMut, Keys, Values, ValuesMut
 };
 use std::error::Error;
 use std::fmt;
@@ -689,17 +689,27 @@ impl LangFile {
     /// ```
     pub fn iter(&self) -> Iter<StringKey, String> { self.0.iter() }
 
-    // TODO iter_mut
-
-    // TODO iter_numeric
-
-    // TODO iter_mut_numeric
-
-    // TODO iter_names
-
-    // TODO iter_mut_names
-
-    // TODO numeric and named iterators for keys and values too
+    /// Returns an iterator that visits all key-values pairs in an arbitrary
+    /// order, with mutable references to the values.
+    /// The iterator element type is `(&'a StringKey, &'a mut String)`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use genie_lang::{LangFile, StringKey};
+    ///
+    /// let mut lang_file = LangFile::new();
+    /// lang_file.insert(StringKey::from(0), String::from("zero"));
+    /// lang_file.insert(StringKey::from("a"), String::from("a"));
+    /// lang_file.insert(StringKey::from(1), String::from("one"));
+    /// lang_file.insert(StringKey::from("2"), String::from("two"));
+    ///
+    /// for (_, v) in lang_file.iter_mut() { v.push('A'); }
+    /// for (k, v) in &lang_file { println!("key: {}, val: {}", k, v); }
+    /// ```
+    pub fn iter_mut(&mut self) -> IterMut<StringKey, String> {
+        self.0.iter_mut()
+    }
 
     /// Returns an iterator that visits all keys in arbitrary order.
     /// The iterator element type is `&'a StringKey`.
@@ -737,7 +747,26 @@ impl LangFile {
     /// ```
     pub fn values(&self) -> Values<StringKey, String> { self.0.values() }
 
-    // TODO values_mut
+    /// Returns an iterator visiting all values mutable in arbitrary order.
+    /// The iterator element type is `&'a mut String`.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use genie_lang::{LangFile, StringKey};
+    ///
+    /// let mut lang_file = LangFile::new();
+    /// lang_file.insert(StringKey::from(0), String::from("zero"));
+    /// lang_file.insert(StringKey::from("a"), String::from("a"));
+    /// lang_file.insert(StringKey::from(1), String::from("one"));
+    /// lang_file.insert(StringKey::from("2"), String::from("two"));
+    ///
+    /// for v in lang_file.values_mut() { v.push('A'); }
+    /// for v in lang_file.values() { println!("{}", v); }
+    /// ```
+    pub fn values_mut(&mut self) -> ValuesMut<StringKey, String> {
+        self.0.values_mut()
+    }
 }
 
 impl IntoIterator for LangFile {
