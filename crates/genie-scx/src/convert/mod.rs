@@ -21,8 +21,7 @@ impl std::fmt::Display for ConvertError {
 
 impl std::error::Error for ConvertError {}
 
-pub struct AutoToWK {
-}
+pub struct AutoToWK {}
 
 impl Default for AutoToWK {
     fn default() -> Self {

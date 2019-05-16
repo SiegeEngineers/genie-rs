@@ -4,6 +4,7 @@
 //! of Empires 1 or Age of Empires 2 version does not work, please upload it and file an issue!
 mod ai;
 mod bitmap;
+pub mod convert;
 mod format;
 mod header;
 mod map;
@@ -12,21 +13,15 @@ mod triggers;
 mod types;
 mod util;
 mod victory;
-pub mod convert;
 
-use std::io::{Result, Read, Write};
-use format::{SCXFormat};
+use format::SCXFormat;
+use std::io::{Read, Result, Write};
 
-pub use types::*;
-pub use format::{ScenarioObject};
+pub use format::ScenarioObject;
 pub use header::{DLCOptions, SCXHeader};
-pub use map::{Tile, Map};
-pub use triggers::{
-    TriggerSystem,
-    Trigger,
-    TriggerCondition,
-    TriggerEffect,
-};
+pub use map::{Map, Tile};
+pub use triggers::{Trigger, TriggerCondition, TriggerEffect, TriggerSystem};
+pub use types::*;
 
 /// A Scenario file.
 pub struct Scenario {
@@ -47,7 +42,11 @@ impl Scenario {
         self.format.write_to(output, self.version())
     }
 
-    pub fn write_to_version<W: Write>(&self, output: &mut W, version: &VersionBundle) -> Result<()> {
+    pub fn write_to_version<W: Write>(
+        &self,
+        output: &mut W,
+        version: &VersionBundle,
+    ) -> Result<()> {
         self.format.write_to(output, version)
     }
 
@@ -93,13 +92,17 @@ impl Scenario {
     }
 
     pub fn objects(&self) -> impl Iterator<Item = &ScenarioObject> {
-        self.format.player_objects.iter()
+        self.format
+            .player_objects
+            .iter()
             .map(|list| list.iter())
             .flatten()
     }
 
     pub fn objects_mut(&mut self) -> impl Iterator<Item = &mut ScenarioObject> {
-        self.format.player_objects.iter_mut()
+        self.format
+            .player_objects
+            .iter_mut()
             .map(|list| list.iter_mut())
             .flatten()
     }

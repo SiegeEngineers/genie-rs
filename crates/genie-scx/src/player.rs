@@ -1,7 +1,7 @@
-use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::io::{Read, Write, Result};
-use crate::victory::VictoryConditions;
 use crate::util::*;
+use crate::victory::VictoryConditions;
+use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use std::io::{Read, Result, Write};
 
 #[derive(Debug)]
 pub struct PlayerBaseProperties {
@@ -41,13 +41,19 @@ impl PlayerStartResources {
             stone: input.read_i32::<LE>()?,
             ore: if version >= 1.17 {
                 input.read_i32::<LE>()?
-            } else { 100 },
+            } else {
+                100
+            },
             goods: if version >= 1.17 {
                 input.read_i32::<LE>()?
-            } else { 0 },
+            } else {
+                0
+            },
             player_color: if version >= 1.24 {
                 Some(input.read_i32::<LE>()?)
-            } else { None },
+            } else {
+                None
+            },
         })
     }
 
@@ -84,15 +90,9 @@ impl ScenarioPlayerData {
         let len = input.read_u16::<LE>()?;
         let name = read_str(input, len as usize)?;
 
-        let view = (
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-        );
+        let view = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
 
-        let location = (
-            input.read_i16::<LE>()?,
-            input.read_i16::<LE>()?,
-        );
+        let location = (input.read_i16::<LE>()?, input.read_i16::<LE>()?);
 
         let allied_victory = if version > 1.0 {
             input.read_u8()? != 0
@@ -142,7 +142,12 @@ impl ScenarioPlayerData {
         })
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W, version: f32, victory_version: f32) -> Result<()> {
+    pub fn write_to<W: Write>(
+        &self,
+        output: &mut W,
+        version: f32,
+        victory_version: f32,
+    ) -> Result<()> {
         write_opt_str(output, &self.name)?;
 
         output.write_f32::<LE>(self.view.0)?;
@@ -176,11 +181,14 @@ impl ScenarioPlayerData {
             output.write_i32::<LE>(self.color.unwrap_or(-1))?;
         }
 
-        self.victory.write_to(output, if version >= 1.09 {
-            Some(victory_version)
-        } else {
-            None
-        })?;
+        self.victory.write_to(
+            output,
+            if version >= 1.09 {
+                Some(victory_version)
+            } else {
+                None
+            },
+        )?;
 
         Ok(())
     }
@@ -208,13 +216,41 @@ pub struct WorldPlayerData {
 impl WorldPlayerData {
     pub fn from<R: Read>(input: &mut R, version: f32) -> Result<Self> {
         Ok(Self {
-            wood: if version > 1.06 { input.read_f32::<LE>()? } else { 200.0 },
-            food: if version > 1.06 { input.read_f32::<LE>()? } else { 200.0 },
-            gold: if version > 1.06 { input.read_f32::<LE>()? } else { 50.0 },
-            stone: if version > 1.06 { input.read_f32::<LE>()? } else { 100.0 },
-            ore: if version > 1.12 { input.read_f32::<LE>()? } else { 100.0 },
-            goods: if version > 1.12 { input.read_f32::<LE>()? } else { 0.0 },
-            population: if version >= 1.14 { input.read_f32::<LE>()? } else { 75.0 },
+            wood: if version > 1.06 {
+                input.read_f32::<LE>()?
+            } else {
+                200.0
+            },
+            food: if version > 1.06 {
+                input.read_f32::<LE>()?
+            } else {
+                200.0
+            },
+            gold: if version > 1.06 {
+                input.read_f32::<LE>()?
+            } else {
+                50.0
+            },
+            stone: if version > 1.06 {
+                input.read_f32::<LE>()?
+            } else {
+                100.0
+            },
+            ore: if version > 1.12 {
+                input.read_f32::<LE>()?
+            } else {
+                100.0
+            },
+            goods: if version > 1.12 {
+                input.read_f32::<LE>()?
+            } else {
+                0.0
+            },
+            population: if version >= 1.14 {
+                input.read_f32::<LE>()?
+            } else {
+                75.0
+            },
         })
     }
 

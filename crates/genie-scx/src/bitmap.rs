@@ -1,7 +1,7 @@
 //! Handles bitmap files embedded in the scenario file.
 
-use std::io::{Result, Read, Write};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use std::io::{Read, Result, Write};
 
 /// A colour in the bitmap palette.
 ///

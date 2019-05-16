@@ -1,5 +1,5 @@
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::io::{Read, Write, Result};
+use std::io::{Read, Result, Write};
 
 /// AoE1's victory info.
 ///

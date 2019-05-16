@@ -1,11 +1,6 @@
-use std::collections::HashMap;
-use crate::{
-    Scenario,
-    ScenarioObject,
-    Trigger,
-    Tile,
-};
 use super::ConvertError;
+use crate::{Scenario, ScenarioObject, Tile, Trigger};
+use std::collections::HashMap;
 
 pub struct AoCToWK {
     object_ids_map: HashMap<i32, i32>,
@@ -20,13 +15,19 @@ impl Default for AoCToWK {
             (529, 1103), // Fire Ship, Fire Galley
             (1104, 527), // Demolition Raft, Demolition Ship
             (527, 1104), // Demolition Ship, Demolition Raft
-        ].iter().map(|(a, b)| (*a, *b)).collect();
+        ]
+        .iter()
+        .map(|(a, b)| (*a, *b))
+        .collect();
 
         let terrain_ids_map = [
-            (11, 3), // Dirt 2, Dirt 3
-            (16, 0), // Grass-ish, Grass
+            (11, 3),  // Dirt 2, Dirt 3
+            (16, 0),  // Grass-ish, Grass
             (20, 19), // Oak Forest, Pine Forest
-        ].iter().map(|(a, b)| (*a, *b)).collect();
+        ]
+        .iter()
+        .map(|(a, b)| (*a, *b))
+        .collect();
 
         Self {
             object_ids_map,

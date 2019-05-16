@@ -2,16 +2,6 @@
 
 #![allow(clippy::cyclomatic_complexity)]
 
-use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
-use std::cmp::Ordering;
-use std::io::{
-    Read,
-    Write,
-    Result,
-    Error,
-    ErrorKind,
-};
 use crate::ai::AIInfo;
 use crate::bitmap::Bitmap;
 use crate::header::SCXHeader;
@@ -22,6 +12,10 @@ use crate::types::*;
 use crate::util::*;
 use crate::victory::*;
 use crate::VersionBundle;
+use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
+use std::cmp::Ordering;
+use std::io::{Error, ErrorKind, Read, Result, Write};
 
 /// Compare floats with some error.
 macro_rules! cmp_float {
@@ -35,11 +29,11 @@ macro_rules! cmp_float {
 
 fn cmp_scx_version(a: SCXVersion, b: SCXVersion) -> Ordering {
     match a[0].cmp(&b[0]) {
-        Ordering::Equal => {},
+        Ordering::Equal => {}
         ord => return ord,
     }
     match a[2].cmp(&b[2]) {
-        Ordering::Equal => {},
+        Ordering::Equal => {}
         ord => return ord,
     }
     a[3].cmp(&b[3])
@@ -91,7 +85,8 @@ impl ScenarioObject {
             None
         } else {
             Some(input.read_i32::<LE>()?)
-        }.and_then(|id| match id {
+        }
+        .and_then(|id| match id {
             -1 => None,
             id => Some(id),
         })
@@ -608,8 +603,7 @@ impl TribeScen {
         for _ in 0..16 {
             let mut player_diplomacy = vec![];
             for _ in 0..16 {
-                player_diplomacy.push(DiplomaticStance::try_from(
-                        input.read_i32::<LE>()?)?);
+                player_diplomacy.push(DiplomaticStance::try_from(input.read_i32::<LE>()?)?);
             }
             diplomacy.push(player_diplomacy);
         }
@@ -631,12 +625,8 @@ impl TribeScen {
             allied_victory.push(input.read_i32::<LE>()?);
         }
 
-        let (
-            teams_locked,
-            can_change_teams,
-            random_start_locations,
-            max_teams,
-        ) = if version >= 1.24 {
+        let (teams_locked, can_change_teams, random_start_locations, max_teams) = if version >= 1.24
+        {
             (
                 input.read_i8()? != 0,
                 input.read_i8()? != 0,
@@ -644,12 +634,7 @@ impl TribeScen {
                 input.read_u8()?,
             )
         } else if cmp_float!(version == 1.23) {
-            (
-                input.read_i32::<LE>()? != 0,
-                true,
-                true,
-                4,
-            )
+            (input.read_i32::<LE>()? != 0, true, true, 4)
         } else {
             (false, true, true, 4)
         };
@@ -697,7 +682,8 @@ impl TribeScen {
                     player_disabled_techs.push(input.read_i32::<LE>()?);
                 }
                 // The number of disabled techs wasn't stored either, so we need to guess it!
-                num_disabled_techs[i] = player_disabled_techs.iter()
+                num_disabled_techs[i] = player_disabled_techs
+                    .iter()
                     .position(|val| *val <= 0)
                     .map(|index| (index as i32) + 1)
                     .unwrap_or(0);
@@ -712,10 +698,7 @@ impl TribeScen {
             0
         };
         let (unknown_scenario_option_2, all_techs) = if version >= 1.12 {
-            (
-                input.read_i32::<LE>()?,
-                input.read_i32::<LE>()? != 0,
-            )
+            (input.read_i32::<LE>()?, input.read_i32::<LE>()? != 0)
         } else {
             (0, false)
         };
@@ -733,22 +716,13 @@ impl TribeScen {
         }
 
         let view = if version >= 1.19 {
-            (
-                input.read_i32::<LE>()?,
-                input.read_i32::<LE>()?,
-            )
+            (input.read_i32::<LE>()?, input.read_i32::<LE>()?)
         } else {
             (-1, -1)
         };
 
         let map_type = if version >= 1.21 {
-            Some(input.read_i32::<LE>()?).and_then(|v| {
-                if v != -1 {
-                    Some(v)
-                } else {
-                    None
-                }
-            })
+            Some(input.read_i32::<LE>()?).and_then(|v| if v != -1 { Some(v) } else { None })
         } else {
             None
         };
@@ -906,16 +880,25 @@ impl TribeScen {
         } else if version > 1.03 {
             let most = *self.num_disabled_techs.iter().max().unwrap_or(&0);
             if most > 20 {
-                return Err(Error::new(ErrorKind::Other,
-                      format!("too many disabled techs: got {}, but requested version supports up to 20", most)));
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    format!(
+                        "too many disabled techs: got {}, but requested version supports up to 20",
+                        most
+                    ),
+                ));
             }
             if self.num_disabled_units.iter().any(|&n| n > 0) {
-                return Err(Error::new(ErrorKind::Other,
-                      "requested version does not support disabling units".to_string()));
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    "requested version does not support disabling units".to_string(),
+                ));
             }
             if self.num_disabled_buildings.iter().any(|&n| n > 0) {
-                return Err(Error::new(ErrorKind::Other,
-                      "requested version does not support disabling buildings".to_string()));
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    "requested version does not support disabling buildings".to_string(),
+                ));
             }
 
             // Old scenarios only allowed disabling up to 20 techs per player.
@@ -927,16 +910,22 @@ impl TribeScen {
         } else {
             // <= 1.03 did not support disabling anything
             if self.num_disabled_techs.iter().any(|&n| n > 0) {
-                return Err(Error::new(ErrorKind::Other,
-                      "requested version does not support disabling techs".to_string()));
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    "requested version does not support disabling techs".to_string(),
+                ));
             }
             if self.num_disabled_units.iter().any(|&n| n > 0) {
-                return Err(Error::new(ErrorKind::Other,
-                      "requested version does not support disabling units".to_string()));
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    "requested version does not support disabling units".to_string(),
+                ));
             }
             if self.num_disabled_buildings.iter().any(|&n| n > 0) {
-                return Err(Error::new(ErrorKind::Other,
-                      "requested version does not support disabling buildings".to_string()));
+                return Err(Error::new(
+                    ErrorKind::Other,
+                    "requested version does not support disabling buildings".to_string(),
+                ));
             }
         }
 
@@ -983,8 +972,7 @@ impl TribeScen {
 
     pub fn description(&self) -> Option<&str> {
         // Convert String to &str: https://stackoverflow.com/a/31234028
-        self.base.description.as_ref()
-            .map(|s| &**s)
+        self.base.description.as_ref().map(|s| &**s)
     }
 }
 
@@ -1061,7 +1049,9 @@ impl SCXFormat {
             Some(TriggerSystem::from(&mut input)?)
         };
 
-        let ai_info = if cmp_scx_version(version, *b"1.17") == Ordering::Greater && cmp_scx_version(version, *b"2.00") == Ordering::Less {
+        let ai_info = if cmp_scx_version(version, *b"1.17") == Ordering::Greater
+            && cmp_scx_version(version, *b"2.00") == Ordering::Less
+        {
             AIInfo::from(&mut input)?
         } else {
             None
@@ -1094,13 +1084,18 @@ impl SCXFormat {
             b"1.07" => Self::load_121(format_version, 1.07, input),
             b"1.08" => unimplemented!(),
             b"1.09" | b"1.10" | b"1.11" => Self::load_121(format_version, 1.11, input),
-            b"1.12" | b"1.13" | b"1.14" | b"1.15" | b"1.16" => Self::load_121(format_version, 1.12, input),
+            b"1.12" | b"1.13" | b"1.14" | b"1.15" | b"1.16" => {
+                Self::load_121(format_version, 1.12, input)
+            }
             b"1.17" => Self::load_121(format_version, 1.14, input),
             b"1.18" | b"1.19" => Self::load_121(format_version, 1.13, input),
             b"1.20" | b"1.21" => Self::load_121(format_version, 1.14, input),
             // Definitive Edition
             b"3.13" => Self::load_121(format_version, 1.14, input),
-            _ => Err(Error::new(ErrorKind::Other, format!("Unsupported format version {:?}", format_version))),
+            _ => Err(Error::new(
+                ErrorKind::Other,
+                format!("Unsupported format version {:?}", format_version),
+            )),
         }
     }
 
@@ -1111,11 +1106,15 @@ impl SCXFormat {
             b"1.12" | b"1.13" | b"1.14" | b"1.15" | b"1.16" => 1.12,
             b"1.18" | b"1.19" => 1.13,
             b"1.14" | b"1.20" | b"1.21" => 1.14,
-            _ => panic!("writing version {} is not supported", String::from_utf8_lossy(&version.format)),
+            _ => panic!(
+                "writing version {} is not supported",
+                String::from_utf8_lossy(&version.format)
+            ),
         };
 
         output.write_all(&version.format)?;
-        self.header.write_to(output, version.format, version.header)?;
+        self.header
+            .write_to(output, version.format, version.header)?;
 
         let mut output = DeflateEncoder::new(output, Compression::default());
         output.write_i32::<LE>(self.next_object_id)?;
@@ -1149,7 +1148,9 @@ impl SCXFormat {
             triggers.write_to(&mut output, version.triggers)?;
         }
 
-        if cmp_scx_version(version.format, *b"1.17") == Ordering::Greater && cmp_scx_version(version.format, *b"2.00") == Ordering::Less {
+        if cmp_scx_version(version.format, *b"1.17") == Ordering::Greater
+            && cmp_scx_version(version.format, *b"2.00") == Ordering::Less
+        {
             let def = AIInfo::default();
             let ai_info = match self.ai_info {
                 Some(ref ai) => ai,
@@ -1176,7 +1177,9 @@ mod tests {
         let mut f = File::open("test/scenarios/ The Destruction of Rome.scn").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
-        format.write_to(&mut out, &format.version()).expect("failed to write");
+        format
+            .write_to(&mut out, &format.version())
+            .expect("failed to write");
     }
 
     #[test]
@@ -1184,11 +1187,17 @@ mod tests {
         let mut f = File::open("test/scenarios/Dawn of a New Age.scn").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
-        format.write_to(&mut out, &format.version()).expect("failed to write");
+        format
+            .write_to(&mut out, &format.version())
+            .expect("failed to write");
 
         let mut f = std::io::Cursor::new(out);
         let format2 = SCXFormat::load_scenario(&mut f).expect("failed to read");
-        assert_eq!(format!("{:#?}", format), format!("{:#?}", format2), "should produce exactly the same scenario");
+        assert_eq!(
+            format!("{:#?}", format),
+            format!("{:#?}", format2),
+            "should produce exactly the same scenario"
+        );
     }
 
     #[test]
@@ -1196,11 +1205,17 @@ mod tests {
         let mut f = File::open("test/scenarios/Dawn of a New Age.scn").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
-        format.write_to(&mut out, &VersionBundle::aoc()).expect("failed to write");
+        format
+            .write_to(&mut out, &VersionBundle::aoc())
+            .expect("failed to write");
 
         let mut f = std::io::Cursor::new(out);
         let format2 = SCXFormat::load_scenario(&mut f).expect("failed to read");
-        assert_eq!(format2.version(), VersionBundle::aoc(), "should have converted to AoC versions");
+        assert_eq!(
+            format2.version(),
+            VersionBundle::aoc(),
+            "should have converted to AoC versions"
+        );
     }
 
     /// Source: http://aoe.heavengames.com/dl-php/showfile.php?fileid=1678
@@ -1209,7 +1224,9 @@ mod tests {
         let mut f = File::open("test/scenarios/Bronze Age Art of War.scn").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
-        format.write_to(&mut out, &format.version()).expect("failed to write");
+        format
+            .write_to(&mut out, &format.version())
+            .expect("failed to write");
     }
 
     /// Source: http://aoe.heavengames.com/dl-php/showfile.php?fileid=2409
@@ -1218,7 +1235,9 @@ mod tests {
         let mut f = File::open("test/scenarios/CEASAR.scn").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
-        format.write_to(&mut out, &format.version()).expect("failed to write");
+        format
+            .write_to(&mut out, &format.version())
+            .expect("failed to write");
     }
 
     /// Source: http://aoe.heavengames.com/dl-php/showfile.php?fileid=1651
@@ -1227,7 +1246,9 @@ mod tests {
         let mut f = File::open("test/scenarios/A New Emporer.scn").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
-        format.write_to(&mut out, &format.version()).expect("failed to write");
+        format
+            .write_to(&mut out, &format.version())
+            .expect("failed to write");
     }
 
     /// Source: http://aoe.heavengames.com/dl-php/showfile.php?fileid=880
@@ -1236,7 +1257,9 @@ mod tests {
         let mut f = File::open("test/scenarios/Jeremiah Johnson (Update).scx").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
-        format.write_to(&mut out, &format.version()).expect("failed to write");
+        format
+            .write_to(&mut out, &format.version())
+            .expect("failed to write");
     }
 
     /// Source: http://aok.heavengames.com/blacksmith/showfile.php?fileid=1271
@@ -1245,7 +1268,9 @@ mod tests {
         let mut f = File::open("test/scenarios/CAMELOT.SCN").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
-        format.write_to(&mut out, &format.version()).expect("failed to write");
+        format
+            .write_to(&mut out, &format.version())
+            .expect("failed to write");
     }
 
     #[test]
@@ -1253,7 +1278,9 @@ mod tests {
         let mut f = File::open("test/scenarios/Age of Heroes b1-3-5.scx").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
-        format.write_to(&mut out, &format.version()).expect("failed to write");
+        format
+            .write_to(&mut out, &format.version())
+            .expect("failed to write");
     }
 
     #[test]
@@ -1261,7 +1288,9 @@ mod tests {
         let mut f = File::open("test/scenarios/Year_of_the_Pig.aoe2scenario").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
-        format.write_to(&mut out, &format.version()).expect("failed to write");
+        format
+            .write_to(&mut out, &format.version())
+            .expect("failed to write");
     }
 
     #[test]
@@ -1269,7 +1298,9 @@ mod tests {
         let mut f = File::open("test/scenarios/real_world_amazon.scx").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
-        format.write_to(&mut out, &format.version()).expect("failed to write");
+        format
+            .write_to(&mut out, &format.version())
+            .expect("failed to write");
     }
 
     /// A Definitive Edition scenario.
@@ -1282,6 +1313,8 @@ mod tests {
         let mut f = File::open("test/scenarios/Corlis.aoescn").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let mut out = vec![];
-        format.write_to(&mut out, &format.version()).expect("failed to write");
+        format
+            .write_to(&mut out, &format.version())
+            .expect("failed to write");
     }
 }

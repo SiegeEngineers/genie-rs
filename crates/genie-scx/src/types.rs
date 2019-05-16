@@ -1,7 +1,7 @@
 //! Contains pure types, no IO.
 //!
 //! Most of these are more descriptive wrappers around integers.
-use std::io::{Result, Error, ErrorKind};
+use std::io::{Error, ErrorKind, Result};
 
 /// SCX Format version.
 pub type SCXVersion = [u8; 4];
@@ -19,7 +19,10 @@ impl DiplomaticStance {
             0 => Ok(DiplomaticStance::Ally),
             1 => Ok(DiplomaticStance::Neutral),
             3 => Ok(DiplomaticStance::Enemy),
-            _ => Err(Error::new(ErrorKind::Other, format!("invalid diplomatic stance {} (must be 0/1/3)", n))),
+            _ => Err(Error::new(
+                ErrorKind::Other,
+                format!("invalid diplomatic stance {} (must be 0/1/3)", n),
+            )),
         }
     }
 }
@@ -123,7 +126,10 @@ impl StartingAge {
                 2 => Ok(StartingAge::CastleAge),
                 3 => Ok(StartingAge::ImperialAge),
                 4 => Ok(StartingAge::PostImperialAge),
-                _ => Err(Error::new(ErrorKind::Other, format!("invalid starting age {} (must be -1-4)", n))),
+                _ => Err(Error::new(
+                    ErrorKind::Other,
+                    format!("invalid starting age {} (must be -1-4)", n),
+                )),
             }
         } else {
             match n {
@@ -134,7 +140,10 @@ impl StartingAge {
                 4 => Ok(StartingAge::CastleAge),
                 5 => Ok(StartingAge::ImperialAge),
                 6 => Ok(StartingAge::PostImperialAge),
-                _ => Err(Error::new(ErrorKind::Other, format!("invalid starting age {} (must be -1-6)", n))),
+                _ => Err(Error::new(
+                    ErrorKind::Other,
+                    format!("invalid starting age {} (must be -1-6)", n),
+                )),
             }
         }
     }
@@ -143,8 +152,7 @@ impl StartingAge {
         if version < 1.25 {
             match self {
                 StartingAge::Default => -1,
-                StartingAge::Nomad |
-                StartingAge::DarkAge => 0,
+                StartingAge::Nomad | StartingAge::DarkAge => 0,
                 StartingAge::FeudalAge => 1,
                 StartingAge::CastleAge => 2,
                 StartingAge::ImperialAge => 3,

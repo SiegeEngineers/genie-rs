@@ -1,5 +1,5 @@
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::io::{Read, Write, Result};
+use std::io::{Read, Result, Write};
 
 #[derive(Debug)]
 pub struct Tile {
@@ -39,7 +39,11 @@ impl Map {
             tiles.push(row);
         }
 
-        Ok(Self { width, height, tiles })
+        Ok(Self {
+            width,
+            height,
+            tiles,
+        })
     }
 
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
@@ -71,24 +75,22 @@ impl Map {
     }
 
     pub fn tile(&self, x: u32, y: u32) -> Option<&Tile> {
-        self.tiles.get(y as usize)
+        self.tiles
+            .get(y as usize)
             .and_then(|row| row.get(x as usize))
     }
 
     pub fn tile_mut(&mut self, x: u32, y: u32) -> Option<&mut Tile> {
-        self.tiles.get_mut(y as usize)
+        self.tiles
+            .get_mut(y as usize)
             .and_then(|row| row.get_mut(x as usize))
     }
 
     pub fn tiles(&self) -> impl Iterator<Item = &Tile> {
-        self.tiles.iter()
-            .map(|row| row.iter())
-            .flatten()
+        self.tiles.iter().map(|row| row.iter()).flatten()
     }
 
     pub fn tiles_mut(&mut self) -> impl Iterator<Item = &mut Tile> {
-        self.tiles.iter_mut()
-            .map(|row| row.iter_mut())
-            .flatten()
+        self.tiles.iter_mut().map(|row| row.iter_mut()).flatten()
     }
 }

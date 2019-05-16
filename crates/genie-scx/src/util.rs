@@ -1,12 +1,6 @@
-use std::io::{
-    Read,
-    Write,
-    Result,
-    Error,
-    ErrorKind,
-};
 use byteorder::{WriteBytesExt, LE};
 use encoding_rs::WINDOWS_1252;
+use std::io::{Error, ErrorKind, Read, Result, Write};
 
 pub fn read_str<R: Read>(input: &mut R, length: usize) -> Result<Option<String>> {
     if length > 0 {
@@ -33,7 +27,7 @@ pub fn read_str<R: Read>(input: &mut R, length: usize) -> Result<Option<String>>
 pub fn write_str<W: Write>(output: &mut W, string: &str) -> Result<()> {
     let (bytes, _enc, failed) = WINDOWS_1252.encode(string);
     if failed {
-        return Err(Error::new(ErrorKind::Other, "invalid string"))
+        return Err(Error::new(ErrorKind::Other, "invalid string"));
     }
     assert!(bytes.len() < std::i16::MAX as usize);
     output.write_i16::<LE>(bytes.len() as i16 + 1)?;
@@ -45,7 +39,7 @@ pub fn write_str<W: Write>(output: &mut W, string: &str) -> Result<()> {
 pub fn write_i32_str<W: Write>(output: &mut W, string: &str) -> Result<()> {
     let (bytes, _enc, failed) = WINDOWS_1252.encode(string);
     if failed {
-        return Err(Error::new(ErrorKind::Other, "invalid string"))
+        return Err(Error::new(ErrorKind::Other, "invalid string"));
     }
     assert!(bytes.len() < std::i32::MAX as usize);
     output.write_i32::<LE>(bytes.len() as i32 + 1)?;
