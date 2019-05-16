@@ -1,7 +1,7 @@
-use std::io::{Write, Result};
+use crate::{CampaignHeader, ScenarioMeta};
 use byteorder::{WriteBytesExt, LE};
 use genie_scx::Scenario;
-use crate::{CampaignHeader, ScenarioMeta};
+use std::io::{Result, Write};
 
 fn write_campaign_header<W: Write>(header: &CampaignHeader, output: &mut W) -> Result<()> {
     assert!(header.num_scenarios < std::i32::MAX as usize);

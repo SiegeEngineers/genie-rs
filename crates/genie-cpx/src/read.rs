@@ -1,7 +1,7 @@
-use std::io::{Seek, SeekFrom, Read, Result, Error, ErrorKind};
+use crate::{CPXVersion, CampaignHeader, ScenarioMeta};
 use byteorder::{ReadBytesExt, LE};
 use genie_scx::Scenario;
-use crate::{CPXVersion, CampaignHeader, ScenarioMeta};
+use std::io::{Error, ErrorKind, Read, Result, Seek, SeekFrom};
 
 pub fn read_fixed_str<R: Read>(input: &mut R, len: usize) -> Result<Option<String>> {
     let mut bytes = vec![0; len];
@@ -51,7 +51,8 @@ fn read_scenario_meta<R: Read>(input: &mut R) -> Result<ScenarioMeta> {
 /// A campaign file containing scenario files.
 #[derive(Debug, Clone)]
 pub struct Campaign<R>
-    where R: Read + Seek
+where
+    R: Read + Seek,
 {
     reader: R,
     header: CampaignHeader,
@@ -59,7 +60,8 @@ pub struct Campaign<R>
 }
 
 impl<R> Campaign<R>
-    where R: Read + Seek
+where
+    R: Read + Seek,
 {
     /// Create a campaign instance from a readable input.
     ///
@@ -116,7 +118,9 @@ impl<R> Campaign<R>
     }
 
     fn get_id(&self, filename: &str) -> Option<usize> {
-        self.entries.iter().position(|entry| entry.filename == filename)
+        self.entries
+            .iter()
+            .position(|entry| entry.filename == filename)
     }
 
     /// Get a scenario by its file name.
@@ -136,7 +140,12 @@ impl<R> Campaign<R>
     /// Get a scenario file buffer by its file name.
     pub fn by_name_raw(&mut self, filename: &str) -> Result<Vec<u8>> {
         self.get_id(filename)
-            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "scenario not found in campaign"))
+            .ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "scenario not found in campaign",
+                )
+            })
             .and_then(|index| self.by_index_raw(index))
     }
 
@@ -144,13 +153,19 @@ impl<R> Campaign<R>
     pub fn by_index_raw(&mut self, index: usize) -> Result<Vec<u8>> {
         let entry = match self.entries.get(index) {
             Some(entry) => entry,
-            None => return Err(std::io::Error::new(std::io::ErrorKind::NotFound, "scenario not found in campaign")),
+            None => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "scenario not found in campaign",
+                ))
+            }
         };
 
         let mut result = vec![];
 
         self.reader.seek(SeekFrom::Start(entry.offset as u64))?;
-        self.reader.by_ref()
+        self.reader
+            .by_ref()
             .take(entry.size as u64)
             .read_to_end(&mut result)?;
 
@@ -172,17 +187,14 @@ mod tests {
         assert_eq!(c.version(), *b"1.00");
         assert_eq!(c.name(), "Armies at War, A Combat Showcase");
         assert_eq!(c.len(), 1);
-        let names: Vec<&String> = c.entries()
-            .map(|e| &e.name)
-            .collect();
+        let names: Vec<&String> = c.entries().map(|e| &e.name).collect();
         assert_eq!(names, vec!["Bronze Age Art of War"]);
-        let filenames: Vec<&String> = c.entries()
-            .map(|e| &e.filename)
-            .collect();
+        let filenames: Vec<&String> = c.entries().map(|e| &e.filename).collect();
         assert_eq!(filenames, vec!["Bronze Age Art of War.scn"]);
 
         c.by_index_raw(0).expect("could not read raw file");
-        c.by_name_raw("Bronze Age Art of War.scn").expect("could not read raw file");
+        c.by_name_raw("Bronze Age Art of War.scn")
+            .expect("could not read raw file");
     }
 
     #[test]
@@ -193,22 +205,23 @@ mod tests {
         assert_eq!(c.version(), *b"1.00");
         assert_eq!(c.name(), "Rise of Egypt Learning Campaign");
         assert_eq!(c.len(), 12);
-        let filenames: Vec<&String> = c.entries()
-            .map(|e| &e.filename)
-            .collect();
-        assert_eq!(filenames, vec![
-            "HUNTING.scn",
-            "FORAGING.scn",
-            "Discoveries.scn",
-            "Dawn of a New Age.scn",
-            "SKIRMISH.scn",
-            "Lands Unknown.scn",
-            "FARMING.scn",
-            "TRADE.scn",
-            "CRUSADE.scn",
-            "Establish a Second Colony.scn",
-            "Naval Battle.scn",
-            "Siege Battle.scn",
-        ]);
+        let filenames: Vec<&String> = c.entries().map(|e| &e.filename).collect();
+        assert_eq!(
+            filenames,
+            vec![
+                "HUNTING.scn",
+                "FORAGING.scn",
+                "Discoveries.scn",
+                "Dawn of a New Age.scn",
+                "SKIRMISH.scn",
+                "Lands Unknown.scn",
+                "FARMING.scn",
+                "TRADE.scn",
+                "CRUSADE.scn",
+                "Establish a Second Colony.scn",
+                "Naval Battle.scn",
+                "Siege Battle.scn",
+            ]
+        );
     }
 }
