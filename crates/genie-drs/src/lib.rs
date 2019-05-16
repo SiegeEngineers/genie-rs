@@ -19,10 +19,10 @@
 //! }
 //! ```
 
-use std::io::{Read, Seek, SeekFrom, Error, ErrorKind};
+use byteorder::{ReadBytesExt, LE};
+use std::io::{Error, ErrorKind, Read, Seek, SeekFrom};
 use std::slice;
 use std::str;
-use byteorder::{ReadBytesExt, LE};
 
 /// A DRS version string.
 type DRSVersion = [u8; 4];
@@ -130,7 +130,7 @@ impl DRSTable {
 
     /// Find a resource by ID.
     pub fn get_resource(&self, id: u32) -> Option<&DRSResource> {
-        self.resources().find(|resource| { resource.id == id })
+        self.resources().find(|resource| resource.id == id)
     }
 
     pub fn resource_ext(&self) -> String {
@@ -146,8 +146,9 @@ impl std::fmt::Debug for DRSTable {
         let mut resource_type = [0 as u8; 4];
         resource_type.clone_from_slice(&self.resource_type);
         resource_type.reverse();
-        write!(f,
-           "DRSTable {{ resource_type: '{}', offset: {}, num_resources: {} }}",
+        write!(
+            f,
+            "DRSTable {{ resource_type: '{}', offset: {}, num_resources: {} }}",
             str::from_utf8(&resource_type).unwrap(),
             self.offset,
             self.num_resources
@@ -172,11 +173,7 @@ impl DRSResource {
         let id = source.read_u32::<LE>()?;
         let offset = source.read_u32::<LE>()?;
         let size = source.read_u32::<LE>()?;
-        Ok(DRSResource {
-            id,
-            offset,
-            size,
-        })
+        Ok(DRSResource { id, offset, size })
     }
 }
 
@@ -194,7 +191,8 @@ impl DRSReader {
     /// Create a new DRS archive reader for the given handle.
     /// The handle must be `Read`able and `Seek`able.
     pub fn new<R>(handle: &mut R) -> Result<DRSReader, Error>
-        where R: Read + Seek
+    where
+        R: Read + Seek,
     {
         let mut drs = DRSReader {
             header: None,
@@ -220,7 +218,7 @@ impl DRSReader {
                     let table = DRSTable::from(handle)?;
                     self.tables.push(table);
                 }
-            },
+            }
             None => panic!("must read header first"),
         };
         Ok(())
@@ -236,25 +234,35 @@ impl DRSReader {
 
     /// Get the table for the given resource type.
     pub fn get_table(&self, resource_type: ResourceType) -> Option<&DRSTable> {
-        self.tables.iter().find(|table| { table.resource_type == resource_type })
+        self.tables
+            .iter()
+            .find(|table| table.resource_type == resource_type)
     }
 
     /// Get a resource of a given type and ID.
     pub fn get_resource(&self, resource_type: ResourceType, id: u32) -> Option<&DRSResource> {
-        self.get_table(resource_type).and_then(|table| table.get_resource(id))
+        self.get_table(resource_type)
+            .and_then(|table| table.get_resource(id))
     }
 
     /// Get the type of a resource with the given ID.
     pub fn get_resource_type(&self, id: u32) -> Option<ResourceType> {
-        self.tables.iter().find(|table| table.get_resource(id).is_some())
+        self.tables
+            .iter()
+            .find(|table| table.get_resource(id).is_some())
             .map(|table| table.resource_type)
     }
 
     /// Read a file from the DRS archive.
-    pub fn read_resource<R: Read + Seek>(&self, handle: &mut R, resource_type: ResourceType, id: u32) -> Result<Box<[u8]>, Error> {
-        let &DRSResource { size, offset, .. } = self.get_resource(resource_type, id)
-            .ok_or_else(|| Error::new(ErrorKind::NotFound, "Resource not found in this archive"))
-            ?;
+    pub fn read_resource<R: Read + Seek>(
+        &self,
+        handle: &mut R,
+        resource_type: ResourceType,
+        id: u32,
+    ) -> Result<Box<[u8]>, Error> {
+        let &DRSResource { size, offset, .. } = self
+            .get_resource(resource_type, id)
+            .ok_or_else(|| Error::new(ErrorKind::NotFound, "Resource not found in this archive"))?;
 
         handle.seek(SeekFrom::Start(u64::from(offset)))?;
 
@@ -289,12 +297,13 @@ mod tests {
 
         for table in drs.tables() {
             for resource in table.resources() {
-                let content = drs.read_resource(&mut file, table.resource_type, resource.id).unwrap();
-                assert_eq!(expected.remove(0), (
-                    &table.resource_type,
-                    resource.id,
-                    content.len()
-                ));
+                let content = drs
+                    .read_resource(&mut file, table.resource_type, resource.id)
+                    .unwrap();
+                assert_eq!(
+                    expected.remove(0),
+                    (&table.resource_type, resource.id, content.len())
+                );
             }
         }
     }
