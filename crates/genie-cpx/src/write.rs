@@ -1,6 +1,6 @@
 use crate::{CampaignHeader, ScenarioMeta};
 use byteorder::{WriteBytesExt, LE};
-use genie_scx::Scenario;
+use genie_scx::{Result as SCXResult, Scenario};
 use std::io::{Result, Write};
 
 fn write_campaign_header<W: Write>(header: &CampaignHeader, output: &mut W) -> Result<()> {
@@ -82,7 +82,7 @@ impl<W: Write> CampaignWriter<W> {
         });
     }
 
-    pub fn add(&mut self, name: &str, scx: &Scenario) -> Result<()> {
+    pub fn add(&mut self, name: &str, scx: &Scenario) -> SCXResult<()> {
         let mut bytes = vec![];
         scx.write_to(&mut bytes)?;
         self.scenarios.push(CampaignEntry {

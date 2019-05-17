@@ -1,5 +1,6 @@
+use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::io::{Read, Result, Write};
+use std::io::{Read, Write};
 
 /// AoE1's victory info.
 ///

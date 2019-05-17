@@ -45,7 +45,7 @@ pub struct ScenarioMeta {
     pub filename: String,
 }
 
-pub use read::Campaign;
+pub use read::{Campaign, ReadCampaignError};
 pub use write::CampaignWriter;
 
 impl<R> Campaign<R>
@@ -57,7 +57,9 @@ where
         let mut writer = CampaignWriter::new(self.name(), output);
 
         for i in 0..self.len() {
-            let bytes = self.by_index_raw(i)?;
+            let bytes = self
+                .by_index_raw(i)
+                .map_err(|_| Error::new(ErrorKind::Other, "missing data for scenario"))?;
             match (self.get_name(i), self.get_filename(i)) {
                 (Some(name), Some(filename)) => {
                     writer.add_raw(name, filename, bytes);
