@@ -58,6 +58,7 @@
 #![warn(rust_2018_idioms)]
 
 pub use genie_cpx as cpx;
+pub use genie_dat as dat;
 pub use genie_drs as drs;
 pub use genie_hki as hki;
 pub use genie_lang as lang;
