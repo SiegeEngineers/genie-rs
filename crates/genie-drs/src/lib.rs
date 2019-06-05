@@ -19,10 +19,16 @@
 //! }
 //! ```
 
-use byteorder::{ReadBytesExt, LE};
-use std::io::{Error, ErrorKind, Read, Seek, SeekFrom};
+use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use std::io::{Error, Read, Write};
 use std::slice;
 use std::str;
+
+mod read;
+mod write;
+
+pub use read::DRSReader;
+pub use write::{DRSWriter, Strategy as WriteStrategy};
 
 /// A DRS version string.
 type DRSVersion = [u8; 4];
@@ -62,6 +68,15 @@ impl DRSHeader {
             num_resource_types,
             directory_size,
         })
+    }
+
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<(), Error> {
+        output.write_all(&self.banner_msg)?;
+        output.write_all(&self.version)?;
+        output.write_all(&self.password)?;
+        output.write_u32::<LE>(self.num_resource_types)?;
+        output.write_u32::<LE>(self.directory_size)?;
+        Ok(())
     }
 }
 
@@ -105,6 +120,13 @@ impl DRSTable {
         })
     }
 
+    fn write_to<W: Write>(&self, output: &mut W) -> Result<(), Error> {
+        output.write_all(&self.resource_type)?;
+        output.write_u32::<LE>(self.offset)?;
+        output.write_u32::<LE>(self.num_resources)?;
+        Ok(())
+    }
+
     /// Read the table itself.
     fn read_resources<R: Read>(&mut self, source: &mut R) -> Result<(), Error> {
         for _ in 0..self.num_resources {
@@ -138,6 +160,12 @@ impl DRSTable {
         resource_type.clone_from_slice(&self.resource_type);
         resource_type.reverse();
         str::from_utf8(&resource_type).unwrap().trim().to_string()
+    }
+
+    pub(crate) fn add(&mut self, res: DRSResource) -> &mut DRSResource {
+        self.resources.push(res);
+        self.num_resources += 1;
+        self.resources.last_mut().unwrap()
     }
 }
 
@@ -175,108 +203,17 @@ impl DRSResource {
         let size = source.read_u32::<LE>()?;
         Ok(DRSResource { id, offset, size })
     }
+
+    fn write_to<W: Write>(&self, output: &mut W) -> Result<(), Error> {
+        output.write_u32::<LE>(self.id)?;
+        output.write_u32::<LE>(self.offset)?;
+        output.write_u32::<LE>(self.size)?;
+        Ok(())
+    }
 }
 
 pub type DRSTableIterator<'a> = slice::Iter<'a, DRSTable>;
 pub type DRSResourceIterator<'a> = slice::Iter<'a, DRSResource>;
-
-/// A DRS archive reader.
-#[derive(Debug)]
-pub struct DRSReader {
-    header: Option<DRSHeader>,
-    tables: Vec<DRSTable>,
-}
-
-impl DRSReader {
-    /// Create a new DRS archive reader for the given handle.
-    /// The handle must be `Read`able and `Seek`able.
-    pub fn new<R>(handle: &mut R) -> Result<DRSReader, Error>
-    where
-        R: Read + Seek,
-    {
-        let mut drs = DRSReader {
-            header: None,
-            tables: vec![],
-        };
-        drs.read_header(handle)?;
-        drs.read_tables(handle)?;
-        drs.read_dictionary(handle)?;
-        Ok(drs)
-    }
-
-    /// Read the DRS archive header.
-    fn read_header<R: Read + Seek>(&mut self, handle: &mut R) -> Result<(), Error> {
-        self.header = Some(DRSHeader::from(handle)?);
-        Ok(())
-    }
-
-    /// Read the list of tables.
-    fn read_tables<R: Read + Seek>(&mut self, handle: &mut R) -> Result<(), Error> {
-        match self.header {
-            Some(ref header) => {
-                for _ in 0..header.num_resource_types {
-                    let table = DRSTable::from(handle)?;
-                    self.tables.push(table);
-                }
-            }
-            None => panic!("must read header first"),
-        };
-        Ok(())
-    }
-
-    /// Read the list of resources.
-    fn read_dictionary<R: Read + Seek>(&mut self, handle: &mut R) -> Result<(), Error> {
-        for table in &mut self.tables {
-            table.read_resources(handle)?;
-        }
-        Ok(())
-    }
-
-    /// Get the table for the given resource type.
-    pub fn get_table(&self, resource_type: ResourceType) -> Option<&DRSTable> {
-        self.tables
-            .iter()
-            .find(|table| table.resource_type == resource_type)
-    }
-
-    /// Get a resource of a given type and ID.
-    pub fn get_resource(&self, resource_type: ResourceType, id: u32) -> Option<&DRSResource> {
-        self.get_table(resource_type)
-            .and_then(|table| table.get_resource(id))
-    }
-
-    /// Get the type of a resource with the given ID.
-    pub fn get_resource_type(&self, id: u32) -> Option<ResourceType> {
-        self.tables
-            .iter()
-            .find(|table| table.get_resource(id).is_some())
-            .map(|table| table.resource_type)
-    }
-
-    /// Read a file from the DRS archive.
-    pub fn read_resource<R: Read + Seek>(
-        &self,
-        handle: &mut R,
-        resource_type: ResourceType,
-        id: u32,
-    ) -> Result<Box<[u8]>, Error> {
-        let &DRSResource { size, offset, .. } = self
-            .get_resource(resource_type, id)
-            .ok_or_else(|| Error::new(ErrorKind::NotFound, "Resource not found in this archive"))?;
-
-        handle.seek(SeekFrom::Start(u64::from(offset)))?;
-
-        let mut buf = vec![0 as u8; size as usize];
-        handle.read_exact(&mut buf)?;
-
-        Ok(buf.into_boxed_slice())
-    }
-
-    /// Iterate over the tables in this DRS archive.
-    pub fn tables(&self) -> DRSTableIterator {
-        self.tables.iter()
-    }
-}
 
 #[cfg(test)]
 mod tests {
