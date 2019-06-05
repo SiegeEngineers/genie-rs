@@ -54,6 +54,9 @@
 //!
 //! Support for palette files is implemented by [chariot_palette](https://github.com/ChariotEngine/Palette/).
 //! chariot_palette only supports _reading_ palette files at the moment.
+
+#![warn(rust_2018_idioms)]
+
 pub use genie_cpx as cpx;
 pub use genie_drs as drs;
 pub use genie_hki as hki;
@@ -62,7 +65,7 @@ pub use genie_scx as scx;
 pub use chariot_palette as pal;
 
 pub use genie_cpx::Campaign;
-pub use genie_drs::DRSReader;
+pub use genie_drs::{DRSReader, DRSWriter};
 pub use genie_hki::HotkeyInfo;
 pub use genie_lang::LangFile;
 pub use genie_scx::Scenario;
