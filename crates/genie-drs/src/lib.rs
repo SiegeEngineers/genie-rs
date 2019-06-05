@@ -34,7 +34,70 @@ pub use write::{DRSWriter, Strategy as WriteStrategy};
 type DRSVersion = [u8; 4];
 
 /// A resource type name.
-pub type ResourceType = [u8; 4];
+///
+/// In a .drs archive, type names are represented as 4 bytes. They are laid out in reverse order and
+/// padded with ASCII space characters (`' '`). For example, the "slp" resource type is stored as `" pls"`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ResourceType([u8; 4]);
+impl ResourceType {
+    fn write_to<W: Write>(self, output: &mut W) -> Result<(), Error> {
+        output.write_all(&self.0)?;
+        Ok(())
+    }
+}
+
+impl ToString for ResourceType {
+    fn to_string(&self) -> String {
+        let mut bytes = [0 as u8; 4];
+        bytes.clone_from_slice(&self.0);
+        bytes.reverse();
+        str::from_utf8(&bytes).unwrap().trim().to_string()
+    }
+}
+
+/// An error occurred while parsing a resource type.
+///
+/// This may be caused by:
+///   - The input string not being 4 characters long
+#[derive(Debug)]
+pub struct ParseResourceTypeError;
+
+/// Parse a resource type from a string, with error handling.
+impl core::str::FromStr for ResourceType {
+    type Err = ParseResourceTypeError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let bytes = s.as_bytes();
+        if bytes.len() > 4 {
+            Err(ParseResourceTypeError)
+        } else {
+            Ok(bytes.into())
+        }
+    }
+}
+
+impl From<[u8; 4]> for ResourceType {
+    fn from(u: [u8; 4]) -> Self {
+        Self(u)
+    }
+}
+
+/// Parse a resource type from a byte slice, panics if the slice is too long to fit.
+impl From<&[u8]> for ResourceType {
+    fn from(u: &[u8]) -> Self {
+        assert!(u.len() <= 4);
+        let mut bytes = [b' '; 4];
+        (&mut bytes[0..u.len()]).copy_from_slice(u);
+        bytes.reverse();
+        Self(bytes)
+    }
+}
+
+/// Parse a resource type from a string, panics if the string is too long to fit (>4 bytes).
+impl From<&str> for ResourceType {
+    fn from(s: &str) -> Self {
+        s.as_bytes().into()
+    }
+}
 
 /// The DRS archive header.
 pub struct DRSHeader {
@@ -70,7 +133,7 @@ impl DRSHeader {
         })
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<(), Error> {
+    fn write_to<W: Write>(&self, output: &mut W) -> Result<(), Error> {
         output.write_all(&self.banner_msg)?;
         output.write_all(&self.version)?;
         output.write_all(&self.password)?;
@@ -113,7 +176,7 @@ impl DRSTable {
         let offset = source.read_u32::<LE>()?;
         let num_resources = source.read_u32::<LE>()?;
         Ok(DRSTable {
-            resource_type,
+            resource_type: resource_type.into(),
             offset,
             num_resources,
             resources: vec![],
@@ -121,7 +184,7 @@ impl DRSTable {
     }
 
     fn write_to<W: Write>(&self, output: &mut W) -> Result<(), Error> {
-        output.write_all(&self.resource_type)?;
+        self.resource_type.write_to(output)?;
         output.write_u32::<LE>(self.offset)?;
         output.write_u32::<LE>(self.num_resources)?;
         Ok(())
@@ -156,10 +219,7 @@ impl DRSTable {
     }
 
     pub fn resource_ext(&self) -> String {
-        let mut resource_type = [0 as u8; 4];
-        resource_type.clone_from_slice(&self.resource_type);
-        resource_type.reverse();
-        str::from_utf8(&resource_type).unwrap().trim().to_string()
+        self.resource_type.to_string()
     }
 
     pub(crate) fn add(&mut self, res: DRSResource) -> &mut DRSResource {
@@ -171,13 +231,10 @@ impl DRSTable {
 
 impl std::fmt::Debug for DRSTable {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let mut resource_type = [0 as u8; 4];
-        resource_type.clone_from_slice(&self.resource_type);
-        resource_type.reverse();
         write!(
             f,
             "DRSTable {{ resource_type: '{}', offset: {}, num_resources: {} }}",
-            str::from_utf8(&resource_type).unwrap(),
+            self.resource_type.to_string(),
             self.offset,
             self.num_resources
         )
@@ -226,10 +283,10 @@ mod tests {
         let drs = DRSReader::new(&mut file).unwrap();
         let mut expected = vec![
             // (reversed_type, id, size)
-            (b"  sj", 1, 632),
-            (b"  sj", 2, 452),
-            (b"  sj", 3, 38),
-            (b"nosj", 4, 710),
+            ("js".parse().unwrap(), 1, 632),
+            ("js".parse().unwrap(), 2, 452),
+            ("js".parse().unwrap(), 3, 38),
+            ("json".parse().unwrap(), 4, 710),
         ];
 
         for table in drs.tables() {
@@ -239,7 +296,7 @@ mod tests {
                     .unwrap();
                 assert_eq!(
                     expected.remove(0),
-                    (&table.resource_type, resource.id, content.len())
+                    (table.resource_type, resource.id, content.len())
                 );
             }
         }

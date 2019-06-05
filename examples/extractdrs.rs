@@ -65,6 +65,9 @@ struct Add {
     /// Path to the .drs archive.
     #[structopt(parse(from_os_str))]
     archive: PathBuf,
+    /// Path to place the edited .drs archive. If not given, updates the archive in place.
+    #[structopt(long, short = "o", parse(from_os_str))]
+    output: Option<PathBuf>,
     /// Table to add the file to.
     #[structopt(long, short = "t", number_of_values = 1)]
     table: Vec<String>,
@@ -132,21 +135,28 @@ fn extract(args: Extract) -> CliResult {
 }
 
 fn add(args: Add) -> CliResult {
-    assert_eq!(args.file.len(), args.table.len());
-    assert_eq!(args.file.len(), args.id.len());
-    let mut output_file = args.archive.clone();
-    output_file.set_file_name(format!("{}.{}", args.archive.file_name().unwrap().to_str().unwrap(), "temp"));
-    let mut input = File::open(args.archive)?;
-    let output = File::create(output_file)?;
-    let drs_read = DRSReader::new(&mut input)?;
-    let (tables, files) = drs_read.tables().fold((0, 0), |(tables, files), table| (tables + 1, files + table.len() as u32));
+    assert_eq!(args.file.len(), args.table.len(), "Must set a --table for every file");
+    assert_eq!(args.file.len(), args.id.len(), "Must set an --id for every file");
 
+    let mut input = File::open(&args.archive)?;
+    let drs_read = DRSReader::new(&mut input)?;
+
+    let (tables, files) = drs_read.tables().fold((0, 0), |(tables, files), table| (tables + 1, files + table.len() as u32));
     let new_tables = args.table.iter().fold(HashSet::new(), |mut uniq, table| {
         uniq.insert(table);
         uniq
     }).len() as u32;
     let new_files = args.id.len() as u32;
 
+    use std::time::SystemTime;
+    let suffix = match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
+        Ok(d) => format!("{}", d.as_secs()),
+        _ => "temp".to_string(),
+    };
+    let mut temp_out = args.output.as_ref().unwrap_or(&args.archive).clone();
+    temp_out.set_file_name(format!("{}.{}", temp_out.file_name().unwrap().to_str().unwrap(), suffix));
+
+    let output = File::create(&temp_out)?;
     let mut drs_write = DRSWriter::new(output,
         WriteStrategy::ReserveDirectory(tables + new_tables, files + new_files))?;
 
@@ -166,6 +176,12 @@ fn add(args: Add) -> CliResult {
     }
 
     drs_write.flush()?;
+
+    std::fs::rename(temp_out, if let Some(outfile) = args.output {
+        outfile
+    } else {
+        args.archive
+    })?;
 
     Ok(())
 }
