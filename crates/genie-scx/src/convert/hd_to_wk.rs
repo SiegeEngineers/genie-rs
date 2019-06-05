@@ -2,6 +2,9 @@ use super::ConvertError;
 use crate::{Scenario, ScenarioObject, Tile, Trigger};
 use std::collections::HashMap;
 
+/// Convert an HD Edition scenario to a WololoKingdoms-compatible one.
+///
+/// Maps HD unit IDs and terrain IDs to their WK equivalents.
 pub struct HDToWK {
     object_ids_map: HashMap<i32, i32>,
     terrain_ids_map: HashMap<i8, i8>,

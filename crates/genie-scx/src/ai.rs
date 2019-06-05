@@ -1,8 +1,8 @@
-use crate::util::*;
+use crate::{util::*, Result};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
-use std::io::{Error, ErrorKind, Read, Result, Write};
+use std::io::{Read, Write};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, FromPrimitive)]
 pub enum AIErrorCode {
@@ -43,7 +43,7 @@ pub struct AIErrorInfo {
     error_code: AIErrorCode,
 }
 
-fn parse_bytes(bytes: &[u8]) -> Result<String> {
+fn parse_bytes(bytes: &[u8]) -> std::result::Result<String, ReadStringError> {
     let mut bytes = bytes.to_vec();
     if let Some(end) = bytes.iter().position(|&byte| byte == 0) {
         bytes.truncate(end);
@@ -51,7 +51,7 @@ fn parse_bytes(bytes: &[u8]) -> Result<String> {
     if bytes.is_empty() {
         Ok("<empty>".to_string())
     } else {
-        String::from_utf8(bytes).map_err(|_| Error::new(ErrorKind::Other, "invalid string"))
+        String::from_utf8(bytes).map_err(|_| ReadStringError::DecodeStringError(DecodeStringError))
     }
 }
 
