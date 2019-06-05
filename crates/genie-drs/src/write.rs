@@ -1,5 +1,5 @@
-use byteorder::{WriteBytesExt, LE};
 use crate::{DRSHeader, DRSResource, DRSTable, ResourceType};
+use byteorder::{WriteBytesExt, LE};
 use std::io::{Read, Result, Seek, SeekFrom, Write};
 
 /// Strategy to use when writing files to the archive.
@@ -118,7 +118,12 @@ where
                 };
                 table.add(res);
                 self.tables.push(table);
-                self.tables.last_mut().unwrap().resources.last_mut().unwrap()
+                self.tables
+                    .last_mut()
+                    .unwrap()
+                    .resources
+                    .last_mut()
+                    .unwrap()
             }
         };
 
@@ -176,7 +181,8 @@ mod test {
     fn basic() {
         let f = File::create("/tmp/x.drs").unwrap();
         let mut drs = DRSWriter::new(f, Strategy::ReserveDirectory(1, 1)).unwrap();
-        drs.add(*b" txt", 1, "example test file".as_bytes()).unwrap();
+        drs.add(*b" txt", 1, "example test file".as_bytes())
+            .unwrap();
         drs.flush().unwrap();
     }
 }
