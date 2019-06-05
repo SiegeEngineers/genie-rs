@@ -6,6 +6,7 @@ use std::result::Result;
 /// SCX Format version.
 pub type SCXVersion = [u8; 4];
 
+/// Could not parse a diplomatic stance because given number is an unknown stance ID.
 #[derive(Debug, Clone, Copy)]
 pub struct ParseDiplomaticStanceError(i32);
 
@@ -45,6 +46,7 @@ impl From<DiplomaticStance> for i32 {
     }
 }
 
+/// Could not parse a data set because given number is an unknown data set ID.
 #[derive(Debug, Clone, Copy)]
 pub struct ParseDataSetError(i32);
 
@@ -81,6 +83,7 @@ impl From<DataSet> for i32 {
     }
 }
 
+/// Could not parse a DLC package identifier because given number is an unknown DLC ID.
 #[derive(Debug, Clone, Copy)]
 pub struct ParseDLCPackageError(i32);
 
@@ -92,6 +95,7 @@ impl std::fmt::Display for ParseDLCPackageError {
 
 impl std::error::Error for ParseDLCPackageError {}
 
+/// An HD Edition DLC identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DLCPackage {
     AgeOfKings,
@@ -126,6 +130,7 @@ impl From<DLCPackage> for i32 {
     }
 }
 
+/// Could not parse a starting age because given number refers to an unknown age.
 #[derive(Debug, Clone, Copy)]
 pub struct ParseStartingAgeError {
     version: f32,

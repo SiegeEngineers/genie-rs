@@ -2,6 +2,7 @@ use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::io::{Read, Write};
 
+/// A map tile.
 #[derive(Debug)]
 pub struct Tile {
     /// The terrain.
@@ -12,6 +13,7 @@ pub struct Tile {
     pub zone: i8,
 }
 
+/// Describes the terrain in a map.
 #[derive(Debug)]
 pub struct Map {
     /// Width of this map in tiles.
@@ -67,30 +69,42 @@ impl Map {
         Ok(())
     }
 
+    /// Get the width of the map.
     pub fn width(&self) -> u32 {
         self.width
     }
 
+    /// Get the height of the map.
     pub fn height(&self) -> u32 {
         self.height
     }
 
+    /// Get a tile at the given coordinates.
+    ///
+    /// If the coordinates are out of bounds, returns None.
     pub fn tile(&self, x: u32, y: u32) -> Option<&Tile> {
         self.tiles
             .get(y as usize)
             .and_then(|row| row.get(x as usize))
     }
 
+    /// Get a mutable reference to the tile at the given coordinates.
+    ///
+    /// If the coordinates are out of bounds, returns None.
     pub fn tile_mut(&mut self, x: u32, y: u32) -> Option<&mut Tile> {
         self.tiles
             .get_mut(y as usize)
             .and_then(|row| row.get_mut(x as usize))
     }
 
+    /// Iterate over all the tiles.
     pub fn tiles(&self) -> impl Iterator<Item = &Tile> {
         self.tiles.iter().map(|row| row.iter()).flatten()
     }
 
+    /// Iterate over all the tiles, with mutable references.
+    ///
+    /// This is handy if you want to replace terrains throughout the entire map, for example.
     pub fn tiles_mut(&mut self) -> impl Iterator<Item = &mut Tile> {
         self.tiles.iter_mut().map(|row| row.iter_mut()).flatten()
     }

@@ -2,6 +2,10 @@ use byteorder::{WriteBytesExt, LE};
 use encoding_rs::WINDOWS_1252;
 use std::io::{self, Read, Write};
 
+/// Failed to decode a string as WINDOWS-1252.
+///
+/// This means that the scenario file contained a string that could not be decoded using the
+/// WINDOWS-1252 code page. In the future, genie-scx will support other encodings.
 #[derive(Debug, Clone, Copy)]
 pub struct DecodeStringError;
 
@@ -13,6 +17,9 @@ impl std::fmt::Display for DecodeStringError {
 
 impl std::error::Error for DecodeStringError {}
 
+/// Failed to encode a string as WINDOWS-1252.
+///
+/// This means that a string could not be encoded using the WINDOWS-1252 code page. In the future, genie-scx will support other encodings.
 #[derive(Debug, Clone, Copy)]
 pub struct EncodeStringError;
 
@@ -24,9 +31,12 @@ impl std::fmt::Display for EncodeStringError {
 
 impl std::error::Error for EncodeStringError {}
 
+/// Failed to read a string.
 #[derive(Debug)]
 pub enum ReadStringError {
+    /// Failed to read a string because the bytes could not be decoded.
     DecodeStringError(DecodeStringError),
+    /// Failed to read a string because the underlying I/O failed.
     IoError(io::Error),
 }
 impl From<io::Error> for ReadStringError {
@@ -35,9 +45,12 @@ impl From<io::Error> for ReadStringError {
     }
 }
 
+/// Failed to write a string.
 #[derive(Debug)]
 pub enum WriteStringError {
+    /// Failed to read a string because it could not be encoded.
     EncodeStringError(EncodeStringError),
+    /// Failed to write a string because the underlying I/O failed.
     IoError(std::io::Error),
 }
 impl From<io::Error> for WriteStringError {
