@@ -87,6 +87,15 @@ where
         // Write out all the table data
         drs.write_tables()?;
 
+        for table in &drs.tables {
+            let mut data = self.resources.iter()
+                .filter_map(|(t, bytes)| if table.resource_type == *t { Some(bytes) } else { None });
+            for _ in &table.resources {
+                let bytes = data.next().expect("genie-drs bug: mismatch between InMemoryStrategy resources and DRSWriter table data");
+                drs.output.write_all(&bytes)?;
+            }
+        }
+
         Ok(())
     }
 }
@@ -318,13 +327,34 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::fs::File;
+    use std::io::Cursor;
+
+    /// A drs archive with a single text file containing the ASCII text "example test file".
+    ///
+    /// Copyright
+    /// Version 1.00
+    /// Password tribe
+    /// Resource types 1
+    /// First file offset 88
+    /// Table "txt", offset 76, resources 1
+    /// File 1, offset 88, size 17
+    static ONE_FILE: &[u8] = b"Copyright (c) 1997 Ensemble Studios.\x1a\x00\x00\x001.00tribe\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x58\x00\x00\x00 txt\x4C\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x58\x00\x00\x00\x11\x00\x00\x00example test file";
 
     #[test]
-    fn basic() {
-        let f = File::create("/tmp/x.drs").unwrap();
-        let mut drs = DRSWriter::new(f, ReserveDirectoryStrategy::new(1, 1)).unwrap();
+    fn one_file_reserve() {
+        let output = Cursor::new(vec![]);
+        let mut drs = DRSWriter::new(output, ReserveDirectoryStrategy::new(1, 1)).unwrap();
         drs.add("txt", 1, "example test file".as_bytes()).unwrap();
-        drs.flush().unwrap();
+        let output = drs.flush().unwrap().into_inner();
+        assert_eq!(output, ONE_FILE.to_vec());
+    }
+
+    #[test]
+    fn one_file_memory() {
+        let output = Cursor::new(vec![]);
+        let mut drs = DRSWriter::new(output, InMemoryStrategy::default()).unwrap();
+        drs.add("txt", 1, "example test file".as_bytes()).unwrap();
+        let output = drs.flush().unwrap().into_inner();
+        assert_eq!(output, ONE_FILE.to_vec());
     }
 }
