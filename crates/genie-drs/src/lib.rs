@@ -23,6 +23,7 @@
 //! ```
 
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use sorted_vec::SortedVec;
 use std::io::{Error, Read, Write};
 use std::slice;
 use std::str;
@@ -184,9 +185,21 @@ pub struct DRSTable {
     num_resources: u32,
     /// Resources.
     resources: Vec<DRSResource>,
+    /// Resource IDs.
+    resource_ids: SortedVec<u32>,
 }
 
 impl DRSTable {
+    fn new(resource_type: ResourceType, offset: u32, num_resources: u32) -> Self {
+        Self {
+            resource_type,
+            offset,
+            num_resources,
+            resources: Default::default(),
+            resource_ids: Default::default(),
+        }
+    }
+
     /// Read a DRS table header from a `Read`able handle.
     #[inline]
     fn from<R: Read>(source: &mut R) -> Result<DRSTable, Error> {
@@ -194,12 +207,7 @@ impl DRSTable {
         source.read_exact(&mut resource_type)?;
         let offset = source.read_u32::<LE>()?;
         let num_resources = source.read_u32::<LE>()?;
-        Ok(DRSTable {
-            resource_type: resource_type.into(),
-            offset,
-            num_resources,
-            resources: vec![],
-        })
+        Ok(DRSTable::new(resource_type.into(), offset, num_resources))
     }
 
     #[inline]
@@ -214,7 +222,9 @@ impl DRSTable {
     #[inline]
     fn read_resources<R: Read>(&mut self, source: &mut R) -> Result<(), Error> {
         for _ in 0..self.num_resources {
-            self.resources.push(DRSResource::from(source)?);
+            let resource = DRSResource::from(source)?;
+            let _discard = self.resource_ids.insert(resource.id);
+            self.resources.push(resource);
         }
         Ok(())
     }
@@ -240,7 +250,9 @@ impl DRSTable {
     /// Find a resource by ID.
     #[inline]
     pub fn get_resource(&self, id: u32) -> Option<&DRSResource> {
-        self.resources().find(|resource| resource.id == id)
+        self.resource_ids.binary_search(&id)
+            .ok()
+            .map(|index| &self.resources[index])
     }
 
     #[inline]
