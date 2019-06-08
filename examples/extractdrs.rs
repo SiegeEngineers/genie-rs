@@ -163,7 +163,7 @@ fn add(args: Add) -> CliResult {
     for t in drs_read.tables() {
         for r in t.resources() {
             let b = drs_read.get_resource_reader(&mut input, t.resource_type, r.id)?;
-            drs_write.add(t.resource_type, r.id, b.as_ref())?;
+            drs_write.add(t.resource_type, r.id, b)?;
         }
     }
 
