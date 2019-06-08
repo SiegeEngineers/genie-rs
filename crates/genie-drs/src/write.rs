@@ -301,12 +301,7 @@ where
                 table.add(res);
             }
             None => {
-                let mut table = DRSTable {
-                    resource_type: t,
-                    offset: 0, // TBD
-                    num_resources: 0,
-                    resources: vec![],
-                };
+                let mut table = DRSTable::new(t, 0, 0);
                 table.add(res);
                 self.inner.tables.push(table);
             }
