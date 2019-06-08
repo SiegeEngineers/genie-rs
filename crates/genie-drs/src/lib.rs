@@ -22,16 +22,86 @@
 //! # }
 //! ```
 
-use byteorder::{ReadBytesExt, LE};
-use std::io::{Error, ErrorKind, Read, Seek, SeekFrom};
+use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use std::io::{Error, Read, Write};
 use std::slice;
 use std::str;
+
+mod read;
+mod write;
+
+pub use read::DRSReader;
+pub use write::{DRSWriter, InMemoryStrategy, ReserveDirectoryStrategy};
 
 /// A DRS version string.
 type DRSVersion = [u8; 4];
 
 /// A resource type name.
-pub type ResourceType = [u8; 4];
+///
+/// In a .drs archive, type names are represented as 4 bytes. They are laid out in reverse order and
+/// padded with ASCII space characters (`' '`). For example, the "slp" resource type is stored as `" pls"`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ResourceType([u8; 4]);
+impl ResourceType {
+    #[inline]
+    fn write_to<W: Write>(self, output: &mut W) -> Result<(), Error> {
+        output.write_all(&self.0)?;
+        Ok(())
+    }
+}
+
+impl ToString for ResourceType {
+    fn to_string(&self) -> String {
+        let mut bytes = [0 as u8; 4];
+        bytes.clone_from_slice(&self.0);
+        bytes.reverse();
+        str::from_utf8(&bytes).unwrap().trim().to_string()
+    }
+}
+
+/// An error occurred while parsing a resource type.
+///
+/// This may be caused by:
+///   - The input string not being 4 characters long
+#[derive(Debug)]
+pub struct ParseResourceTypeError;
+
+/// Parse a resource type from a string, with error handling.
+impl core::str::FromStr for ResourceType {
+    type Err = ParseResourceTypeError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let bytes = s.as_bytes();
+        if bytes.len() > 4 {
+            Err(ParseResourceTypeError)
+        } else {
+            Ok(bytes.into())
+        }
+    }
+}
+
+impl From<[u8; 4]> for ResourceType {
+    fn from(u: [u8; 4]) -> Self {
+        Self(u)
+    }
+}
+
+/// Parse a resource type from a byte slice, panics if the slice is too long to fit.
+impl From<&[u8]> for ResourceType {
+    fn from(u: &[u8]) -> Self {
+        assert!(u.len() <= 4);
+        let mut bytes = [b' '; 4];
+        (&mut bytes[0..u.len()]).copy_from_slice(u);
+        bytes.reverse();
+        Self(bytes)
+    }
+}
+
+/// Parse a resource type from a string, panics if the string is too long to fit (>4 bytes).
+impl From<&str> for ResourceType {
+    fn from(s: &str) -> Self {
+        s.as_bytes().into()
+    }
+}
 
 /// The DRS archive header.
 pub struct DRSHeader {
@@ -47,7 +117,20 @@ pub struct DRSHeader {
     directory_size: u32,
 }
 
+impl Default for DRSHeader {
+    fn default() -> Self {
+        Self {
+            banner_msg: *b"Copyright (c) 1997 Ensemble Studios.\x1a\x00\x00\x00",
+            version: *b"1.00",
+            password: *b"tribe\x00\x00\x00\x00\x00\x00\x00",
+            num_resource_types: 0,
+            directory_size: 0,
+        }
+    }
+}
+
 impl DRSHeader {
+    #[inline]
     /// Read a DRS archive header from a `Read`able handle.
     fn from<R: Read>(source: &mut R) -> Result<DRSHeader, Error> {
         let mut banner_msg = [0 as u8; 40];
@@ -65,6 +148,16 @@ impl DRSHeader {
             num_resource_types,
             directory_size,
         })
+    }
+
+    #[inline]
+    fn write_to<W: Write>(&self, output: &mut W) -> Result<(), Error> {
+        output.write_all(&self.banner_msg)?;
+        output.write_all(&self.version)?;
+        output.write_all(&self.password)?;
+        output.write_u32::<LE>(self.num_resource_types)?;
+        output.write_u32::<LE>(self.directory_size)?;
+        Ok(())
     }
 }
 
@@ -95,20 +188,30 @@ pub struct DRSTable {
 
 impl DRSTable {
     /// Read a DRS table header from a `Read`able handle.
+    #[inline]
     fn from<R: Read>(source: &mut R) -> Result<DRSTable, Error> {
         let mut resource_type = [0 as u8; 4];
         source.read_exact(&mut resource_type)?;
         let offset = source.read_u32::<LE>()?;
         let num_resources = source.read_u32::<LE>()?;
         Ok(DRSTable {
-            resource_type,
+            resource_type: resource_type.into(),
             offset,
             num_resources,
             resources: vec![],
         })
     }
 
+    #[inline]
+    fn write_to<W: Write>(&self, output: &mut W) -> Result<(), Error> {
+        self.resource_type.write_to(output)?;
+        output.write_u32::<LE>(self.offset)?;
+        output.write_u32::<LE>(self.num_resources)?;
+        Ok(())
+    }
+
     /// Read the table itself.
+    #[inline]
     fn read_resources<R: Read>(&mut self, source: &mut R) -> Result<(), Error> {
         for _ in 0..self.num_resources {
             self.resources.push(DRSResource::from(source)?);
@@ -117,42 +220,48 @@ impl DRSTable {
     }
 
     /// Get the number of resources in this table.
+    #[inline]
     pub fn len(&self) -> usize {
         self.num_resources as usize
     }
 
     /// Check if the table contains no resources.
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.num_resources == 0
     }
 
     /// Iterate over the resources in this table.
+    #[inline]
     pub fn resources(&self) -> DRSResourceIterator {
         self.resources.iter()
     }
 
     /// Find a resource by ID.
+    #[inline]
     pub fn get_resource(&self, id: u32) -> Option<&DRSResource> {
         self.resources().find(|resource| resource.id == id)
     }
 
+    #[inline]
     pub fn resource_ext(&self) -> String {
-        let mut resource_type = [0 as u8; 4];
-        resource_type.clone_from_slice(&self.resource_type);
-        resource_type.reverse();
-        str::from_utf8(&resource_type).unwrap().trim().to_string()
+        self.resource_type.to_string()
+    }
+
+    #[inline]
+    pub(crate) fn add(&mut self, res: DRSResource) -> &mut DRSResource {
+        self.resources.push(res);
+        self.num_resources += 1;
+        self.resources.last_mut().unwrap()
     }
 }
 
 impl std::fmt::Debug for DRSTable {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let mut resource_type = [0 as u8; 4];
-        resource_type.clone_from_slice(&self.resource_type);
-        resource_type.reverse();
         write!(
             f,
             "DRSTable {{ resource_type: '{}', offset: {}, num_resources: {} }}",
-            str::from_utf8(&resource_type).unwrap(),
+            self.resource_type.to_string(),
             self.offset,
             self.num_resources
         )
@@ -172,114 +281,25 @@ pub struct DRSResource {
 
 impl DRSResource {
     /// Read DRS resource metadata from a `Read`able handle.
+    #[inline]
     fn from<R: Read>(source: &mut R) -> Result<DRSResource, Error> {
         let id = source.read_u32::<LE>()?;
         let offset = source.read_u32::<LE>()?;
         let size = source.read_u32::<LE>()?;
         Ok(DRSResource { id, offset, size })
     }
+
+    #[inline]
+    fn write_to<W: Write>(&self, output: &mut W) -> Result<(), Error> {
+        output.write_u32::<LE>(self.id)?;
+        output.write_u32::<LE>(self.offset)?;
+        output.write_u32::<LE>(self.size)?;
+        Ok(())
+    }
 }
 
 pub type DRSTableIterator<'a> = slice::Iter<'a, DRSTable>;
 pub type DRSResourceIterator<'a> = slice::Iter<'a, DRSResource>;
-
-/// A DRS archive reader.
-#[derive(Debug)]
-pub struct DRSReader {
-    header: Option<DRSHeader>,
-    tables: Vec<DRSTable>,
-}
-
-impl DRSReader {
-    /// Create a new DRS archive reader for the given handle.
-    /// The handle must be `Read`able and `Seek`able.
-    pub fn new<R>(handle: &mut R) -> Result<DRSReader, Error>
-    where
-        R: Read + Seek,
-    {
-        let mut drs = DRSReader {
-            header: None,
-            tables: vec![],
-        };
-        drs.read_header(handle)?;
-        drs.read_tables(handle)?;
-        drs.read_dictionary(handle)?;
-        Ok(drs)
-    }
-
-    /// Read the DRS archive header.
-    fn read_header<R: Read + Seek>(&mut self, handle: &mut R) -> Result<(), Error> {
-        self.header = Some(DRSHeader::from(handle)?);
-        Ok(())
-    }
-
-    /// Read the list of tables.
-    fn read_tables<R: Read + Seek>(&mut self, handle: &mut R) -> Result<(), Error> {
-        match self.header {
-            Some(ref header) => {
-                for _ in 0..header.num_resource_types {
-                    let table = DRSTable::from(handle)?;
-                    self.tables.push(table);
-                }
-            }
-            None => panic!("must read header first"),
-        };
-        Ok(())
-    }
-
-    /// Read the list of resources.
-    fn read_dictionary<R: Read + Seek>(&mut self, handle: &mut R) -> Result<(), Error> {
-        for table in &mut self.tables {
-            table.read_resources(handle)?;
-        }
-        Ok(())
-    }
-
-    /// Get the table for the given resource type.
-    pub fn get_table(&self, resource_type: ResourceType) -> Option<&DRSTable> {
-        self.tables
-            .iter()
-            .find(|table| table.resource_type == resource_type)
-    }
-
-    /// Get a resource of a given type and ID.
-    pub fn get_resource(&self, resource_type: ResourceType, id: u32) -> Option<&DRSResource> {
-        self.get_table(resource_type)
-            .and_then(|table| table.get_resource(id))
-    }
-
-    /// Get the type of a resource with the given ID.
-    pub fn get_resource_type(&self, id: u32) -> Option<ResourceType> {
-        self.tables
-            .iter()
-            .find(|table| table.get_resource(id).is_some())
-            .map(|table| table.resource_type)
-    }
-
-    /// Read a file from the DRS archive.
-    pub fn read_resource<R: Read + Seek>(
-        &self,
-        handle: &mut R,
-        resource_type: ResourceType,
-        id: u32,
-    ) -> Result<Box<[u8]>, Error> {
-        let &DRSResource { size, offset, .. } = self
-            .get_resource(resource_type, id)
-            .ok_or_else(|| Error::new(ErrorKind::NotFound, "Resource not found in this archive"))?;
-
-        handle.seek(SeekFrom::Start(u64::from(offset)))?;
-
-        let mut buf = vec![0 as u8; size as usize];
-        handle.read_exact(&mut buf)?;
-
-        Ok(buf.into_boxed_slice())
-    }
-
-    /// Iterate over the tables in this DRS archive.
-    pub fn tables(&self) -> DRSTableIterator {
-        self.tables.iter()
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -292,10 +312,10 @@ mod tests {
         let drs = DRSReader::new(&mut file).unwrap();
         let mut expected = vec![
             // (reversed_type, id, size)
-            (b"  sj", 1, 632),
-            (b"  sj", 2, 452),
-            (b"  sj", 3, 38),
-            (b"nosj", 4, 710),
+            ("js".parse().unwrap(), 1, 632),
+            ("js".parse().unwrap(), 2, 452),
+            ("js".parse().unwrap(), 3, 38),
+            ("json".parse().unwrap(), 4, 710),
         ];
 
         for table in drs.tables() {
@@ -305,7 +325,7 @@ mod tests {
                     .unwrap();
                 assert_eq!(
                     expected.remove(0),
-                    (&table.resource_type, resource.id, content.len())
+                    (table.resource_type, resource.id, content.len())
                 );
             }
         }
