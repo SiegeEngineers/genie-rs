@@ -88,8 +88,13 @@ where
         drs.write_tables()?;
 
         for table in &drs.tables {
-            let mut data = self.resources.iter()
-                .filter_map(|(t, bytes)| if table.resource_type == *t { Some(bytes) } else { None });
+            let mut data = self.resources.iter().filter_map(|(t, bytes)| {
+                if table.resource_type == *t {
+                    Some(bytes)
+                } else {
+                    None
+                }
+            });
             for _ in &table.resources {
                 let bytes = data.next().expect("genie-drs bug: mismatch between InMemoryStrategy resources and DRSWriter table data");
                 drs.output.write_all(&bytes)?;
