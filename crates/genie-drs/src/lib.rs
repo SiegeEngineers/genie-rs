@@ -28,7 +28,7 @@ mod read;
 mod write;
 
 pub use read::DRSReader;
-pub use write::{DRSWriter, Strategy as WriteStrategy};
+pub use write::{DRSWriter, InMemoryStrategy, ReserveDirectoryStrategy};
 
 /// A DRS version string.
 type DRSVersion = [u8; 4];
@@ -40,6 +40,7 @@ type DRSVersion = [u8; 4];
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ResourceType([u8; 4]);
 impl ResourceType {
+    #[inline]
     fn write_to<W: Write>(self, output: &mut W) -> Result<(), Error> {
         output.write_all(&self.0)?;
         Ok(())
@@ -113,7 +114,20 @@ pub struct DRSHeader {
     directory_size: u32,
 }
 
+impl Default for DRSHeader {
+    fn default() -> Self {
+        Self {
+            banner_msg: *b"Copyright (c) 1997 Ensemble Studios.\x1a\x00\x00\x00",
+            version: *b"1.00",
+            password: *b"tribe\x00\x00\x00\x00\x00\x00\x00",
+            num_resource_types: 0,
+            directory_size: 0,
+        }
+    }
+}
+
 impl DRSHeader {
+    #[inline]
     /// Read a DRS archive header from a `Read`able handle.
     fn from<R: Read>(source: &mut R) -> Result<DRSHeader, Error> {
         let mut banner_msg = [0 as u8; 40];
@@ -133,6 +147,7 @@ impl DRSHeader {
         })
     }
 
+    #[inline]
     fn write_to<W: Write>(&self, output: &mut W) -> Result<(), Error> {
         output.write_all(&self.banner_msg)?;
         output.write_all(&self.version)?;
@@ -170,6 +185,7 @@ pub struct DRSTable {
 
 impl DRSTable {
     /// Read a DRS table header from a `Read`able handle.
+    #[inline]
     fn from<R: Read>(source: &mut R) -> Result<DRSTable, Error> {
         let mut resource_type = [0 as u8; 4];
         source.read_exact(&mut resource_type)?;
@@ -183,6 +199,7 @@ impl DRSTable {
         })
     }
 
+    #[inline]
     fn write_to<W: Write>(&self, output: &mut W) -> Result<(), Error> {
         self.resource_type.write_to(output)?;
         output.write_u32::<LE>(self.offset)?;
@@ -191,6 +208,7 @@ impl DRSTable {
     }
 
     /// Read the table itself.
+    #[inline]
     fn read_resources<R: Read>(&mut self, source: &mut R) -> Result<(), Error> {
         for _ in 0..self.num_resources {
             self.resources.push(DRSResource::from(source)?);
@@ -199,29 +217,35 @@ impl DRSTable {
     }
 
     /// Get the number of resources in this table.
+    #[inline]
     pub fn len(&self) -> usize {
         self.num_resources as usize
     }
 
     /// Check if the table contains no resources.
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.num_resources == 0
     }
 
     /// Iterate over the resources in this table.
+    #[inline]
     pub fn resources(&self) -> DRSResourceIterator {
         self.resources.iter()
     }
 
     /// Find a resource by ID.
+    #[inline]
     pub fn get_resource(&self, id: u32) -> Option<&DRSResource> {
         self.resources().find(|resource| resource.id == id)
     }
 
+    #[inline]
     pub fn resource_ext(&self) -> String {
         self.resource_type.to_string()
     }
 
+    #[inline]
     pub(crate) fn add(&mut self, res: DRSResource) -> &mut DRSResource {
         self.resources.push(res);
         self.num_resources += 1;
@@ -254,6 +278,7 @@ pub struct DRSResource {
 
 impl DRSResource {
     /// Read DRS resource metadata from a `Read`able handle.
+    #[inline]
     fn from<R: Read>(source: &mut R) -> Result<DRSResource, Error> {
         let id = source.read_u32::<LE>()?;
         let offset = source.read_u32::<LE>()?;
@@ -261,6 +286,7 @@ impl DRSResource {
         Ok(DRSResource { id, offset, size })
     }
 
+    #[inline]
     fn write_to<W: Write>(&self, output: &mut W) -> Result<(), Error> {
         output.write_u32::<LE>(self.id)?;
         output.write_u32::<LE>(self.offset)?;

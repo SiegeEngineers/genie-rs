@@ -4,7 +4,7 @@ use std::{
     path::PathBuf,
     collections::HashSet,
 };
-use genie_drs::{DRSReader, DRSWriter, WriteStrategy};
+use genie_drs::{DRSReader, DRSWriter, ReserveDirectoryStrategy};
 use quicli::prelude::*;
 use structopt::StructOpt;
 
@@ -158,7 +158,7 @@ fn add(args: Add) -> CliResult {
 
     let output = File::create(&temp_out)?;
     let mut drs_write = DRSWriter::new(output,
-        WriteStrategy::ReserveDirectory(tables + new_tables, files + new_files))?;
+        ReserveDirectoryStrategy::new(tables + new_tables, files + new_files))?;
 
     for t in drs_read.tables() {
         for r in t.resources() {

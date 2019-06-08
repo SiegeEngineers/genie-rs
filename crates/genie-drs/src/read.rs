@@ -94,6 +94,7 @@ impl DRSReader {
     }
 
     /// Iterate over the tables in this DRS archive.
+    #[inline]
     pub fn tables(&self) -> DRSTableIterator {
         self.tables.iter()
     }
