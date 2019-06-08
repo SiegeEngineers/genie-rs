@@ -74,6 +74,20 @@ impl DRSReader {
             .map(|table| table.resource_type)
     }
 
+    /// Get a `Read`er for the given resource.
+    ///
+    /// It shares the file handle that is given, so make sure to use the return value before
+    /// calling this method again.
+    pub fn get_resource_reader<R: Read + Seek>(&self, mut handle: R, resource_type: ResourceType, id: u32) -> Result<impl Read, Error> {
+        let &DRSResource { size, offset, .. } = self
+            .get_resource(resource_type, id)
+            .ok_or_else(|| Error::new(ErrorKind::NotFound, "Resource not found in this archive"))?;
+
+        handle.seek(SeekFrom::Start(u64::from(offset)))?;
+
+        Ok(handle.take(u64::from(size)))
+    }
+
     /// Read a file from the DRS archive.
     pub fn read_resource<R: Read + Seek>(
         &self,
@@ -81,14 +95,10 @@ impl DRSReader {
         resource_type: ResourceType,
         id: u32,
     ) -> Result<Box<[u8]>, Error> {
-        let &DRSResource { size, offset, .. } = self
-            .get_resource(resource_type, id)
-            .ok_or_else(|| Error::new(ErrorKind::NotFound, "Resource not found in this archive"))?;
+        let mut buf = vec![];
 
-        handle.seek(SeekFrom::Start(u64::from(offset)))?;
-
-        let mut buf = vec![0 as u8; size as usize];
-        handle.read_exact(&mut buf)?;
+        self.get_resource_reader(handle, resource_type, id)?
+            .read_to_end(&mut buf)?;
 
         Ok(buf.into_boxed_slice())
     }
