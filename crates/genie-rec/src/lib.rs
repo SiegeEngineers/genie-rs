@@ -82,26 +82,51 @@ pub struct HDGameOptions {
     scenario_player_indices: Vec<i32>,
 }
 
-pub struct RecordedGame;
+pub struct RecordedGame<R>
+where
+    R: Read + Seek,
+{
+    inner: R,
+    header_len: u32,
+    next_header: Option<u32>,
+}
 
-impl RecordedGame {
-    pub fn skip_header<R>(input: &mut R) -> Result<()>
-    where
-        R: Read + Seek,
-    {
+impl<R> RecordedGame<R>
+where
+    R: Read + Seek,
+{
+    pub fn new(mut input: R) -> Result<Self> {
         let header_len = input.read_u32::<LE>()?;
-        let _next_header = input.read_u32::<LE>()?;
+        let next_header = input.read_u32::<LE>()?;
 
-        input.seek(SeekFrom::Current(header_len as i64))?;
+        Ok(Self {
+            inner: input,
+            header_len,
+            next_header: if next_header == 0 {
+                None
+            } else {
+                Some(next_header)
+            },
+        })
+    }
+
+    pub fn skip_header(&mut self) -> Result<()> {
+        self.inner.seek(SeekFrom::Current(self.header_len as i64))?;
 
         Ok(())
     }
 
-    pub fn actions<'r, R>(input: &'r mut R) -> BodyActions<'r, R>
+    pub fn actions(&mut self) -> BodyActions<R>
     where
         R: Read,
     {
-        BodyActions { input }
+        BodyActions {
+            input: &mut self.inner,
+        }
+    }
+
+    pub fn into_inner(self) -> R {
+        self.inner
     }
 }
 
@@ -112,9 +137,10 @@ mod tests {
 
     #[test]
     fn it_works() {
-        let mut f = File::open("test/rec.20181208-195117.mgz").unwrap();
-        RecordedGame::skip_header(&mut f).unwrap();
-        for act in RecordedGame::actions(&mut f) {
+        let f = File::open("test/rec.20181208-195117.mgz").unwrap();
+        let mut r = RecordedGame::new(f).unwrap();
+        r.skip_header();
+        for act in r.actions() {
             dbg!(act);
         }
     }
