@@ -1,13 +1,18 @@
+pub mod actions;
+pub mod header;
+pub mod string_table;
+
 use crate::actions::Action;
 use byteorder::{ReadBytesExt, LE};
+use flate2::read::DeflateDecoder;
 use genie_scx::DLCOptions;
+use header::Header;
 use std::io::{Read, Result, Seek, SeekFrom};
 
 pub type PlayerID = i8;
 pub type ObjectID = i32;
 
-pub mod actions;
-
+/// Iterator over body actions.
 pub struct BodyActions<'r, R>
 where
     R: Read,
@@ -21,14 +26,9 @@ where
 {
     type Item = Action;
     fn next(&mut self) -> Option<Self::Item> {
-        Action::read(self.input).map(Some).unwrap_or(None)
+        // TODO return Option<Result> instead
+        Action::read(self.input).ok()
     }
-}
-
-pub type GameVersion = [u8; 8];
-pub struct Header {
-    game_version: GameVersion,
-    save_version: f32,
 }
 
 enum Difficulty {}
@@ -110,16 +110,23 @@ where
         })
     }
 
-    pub fn skip_header(&mut self) -> Result<()> {
-        self.inner.seek(SeekFrom::Current(self.header_len as i64))?;
+    fn seek_to_body(&mut self) -> Result<()> {
+        self.inner
+            .seek(SeekFrom::Start(self.header_len as u64 + 8))?;
 
         Ok(())
+    }
+
+    pub fn header(&mut self) -> Result<Header> {
+        let deflate = DeflateDecoder::new(&mut self.inner);
+        Header::from(deflate)
     }
 
     pub fn actions(&mut self) -> BodyActions<R>
     where
         R: Read,
     {
+        self.seek_to_body();
         BodyActions {
             input: &mut self.inner,
         }
@@ -139,7 +146,7 @@ mod tests {
     fn it_works() {
         let f = File::open("test/rec.20181208-195117.mgz").unwrap();
         let mut r = RecordedGame::new(f).unwrap();
-        r.skip_header();
+        r.header().unwrap();
         for act in r.actions() {
             dbg!(act);
         }

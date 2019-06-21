@@ -1,7 +1,7 @@
 use crate::{ObjectID, PlayerID};
 use auto_serializer::auto_serialize;
-use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::io::{Error, ErrorKind, Read, Result, Write};
+use byteorder::{ReadBytesExt, LE};
+use std::io::{Read, Result};
 
 #[derive(Debug)]
 pub struct ViewLock {

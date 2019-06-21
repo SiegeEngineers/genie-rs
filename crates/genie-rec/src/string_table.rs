@@ -1,6 +1,7 @@
-use std::io::{Read, Write, Error};
 use byteorder::{LittleEndian as LE, ReadBytesExt, WriteBytesExt};
+use std::io::{Error, Read, Write};
 
+#[derive(Debug, Clone)]
 pub struct StringTable {
     max_strings: u16,
     strings: Vec<String>,
@@ -8,7 +9,10 @@ pub struct StringTable {
 
 impl StringTable {
     pub fn new(max_strings: u16) -> Self {
-        StringTable { max_strings, strings: vec![] }
+        StringTable {
+            max_strings,
+            strings: vec![],
+        }
     }
 
     pub fn from<R: Read>(handle: &mut R) -> Result<Self, Error> {
@@ -21,13 +25,17 @@ impl StringTable {
             let length = handle.read_u32::<LE>()?;
             let mut string = String::with_capacity(length as usize);
             unsafe {
-                handle.take(length as u64)
+                handle
+                    .take(length as u64)
                     .read_to_end(&mut string.as_mut_vec())?;
             }
             strings.push(string);
         }
 
-        Ok(StringTable { max_strings, strings })
+        Ok(StringTable {
+            max_strings,
+            strings,
+        })
     }
 
     pub fn write_to<W: Write>(&self, handle: &mut W) -> Result<(), Error> {
