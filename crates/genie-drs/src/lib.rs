@@ -32,7 +32,12 @@ mod read;
 mod write;
 
 pub use read::DRSReader;
-pub use write::{DRSWriter, InMemoryStrategy, ReserveDirectoryStrategy};
+pub use write::{
+    DRSWriter,
+    InMemoryStrategy,
+    ReserveDirectoryStrategy,
+    Strategy as WriteStrategy,
+};
 
 /// A DRS version string.
 type DRSVersion = [u8; 4];
