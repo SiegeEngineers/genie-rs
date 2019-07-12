@@ -1,10 +1,22 @@
 //! Contains pure types, no IO.
 //!
 //! Most of these are more descriptive wrappers around integers.
-use std::io::{Result, Error, ErrorKind};
+use std::result::Result;
 
 /// SCX Format version.
 pub type SCXVersion = [u8; 4];
+
+/// Could not parse a diplomatic stance because given number is an unknown stance ID.
+#[derive(Debug, Clone, Copy)]
+pub struct ParseDiplomaticStanceError(i32);
+
+impl std::fmt::Display for ParseDiplomaticStanceError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "invalid diplomatic stance {} (must be 0/1/3)", self.0)
+    }
+}
+
+impl std::error::Error for ParseDiplomaticStanceError {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DiplomaticStance {
@@ -14,12 +26,12 @@ pub enum DiplomaticStance {
 }
 
 impl DiplomaticStance {
-    pub fn try_from(n: i32) -> Result<Self> {
+    pub fn try_from(n: i32) -> Result<Self, ParseDiplomaticStanceError> {
         match n {
             0 => Ok(DiplomaticStance::Ally),
             1 => Ok(DiplomaticStance::Neutral),
             3 => Ok(DiplomaticStance::Enemy),
-            _ => Err(Error::new(ErrorKind::Other, format!("invalid diplomatic stance {} (must be 0/1/3)", n))),
+            n => Err(ParseDiplomaticStanceError(n)),
         }
     }
 }
@@ -34,6 +46,18 @@ impl From<DiplomaticStance> for i32 {
     }
 }
 
+/// Could not parse a data set because given number is an unknown data set ID.
+#[derive(Debug, Clone, Copy)]
+pub struct ParseDataSetError(i32);
+
+impl std::fmt::Display for ParseDataSetError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "invalid data set {} (must be 0/1)", self.0)
+    }
+}
+
+impl std::error::Error for ParseDataSetError {}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DataSet {
     BaseGame,
@@ -41,11 +65,11 @@ pub enum DataSet {
 }
 
 impl DataSet {
-    pub fn try_from(n: i32) -> Result<Self> {
+    pub fn try_from(n: i32) -> Result<Self, ParseDataSetError> {
         match n {
             0 => Ok(DataSet::BaseGame),
             1 => Ok(DataSet::Expansions),
-            _ => Err(Error::new(ErrorKind::Other, "unknown data set")),
+            n => Err(ParseDataSetError(n)),
         }
     }
 }
@@ -59,6 +83,19 @@ impl From<DataSet> for i32 {
     }
 }
 
+/// Could not parse a DLC package identifier because given number is an unknown DLC ID.
+#[derive(Debug, Clone, Copy)]
+pub struct ParseDLCPackageError(i32);
+
+impl std::fmt::Display for ParseDLCPackageError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "unknown dlc package {}", self.0)
+    }
+}
+
+impl std::error::Error for ParseDLCPackageError {}
+
+/// An HD Edition DLC identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DLCPackage {
     AgeOfKings,
@@ -69,14 +106,14 @@ pub enum DLCPackage {
 }
 
 impl DLCPackage {
-    pub fn try_from(n: i32) -> Result<Self> {
+    pub fn try_from(n: i32) -> Result<Self, ParseDLCPackageError> {
         match n {
             2 => Ok(DLCPackage::AgeOfKings),
             3 => Ok(DLCPackage::AgeOfConquerors),
             4 => Ok(DLCPackage::TheForgotten),
             5 => Ok(DLCPackage::AfricanKingdoms),
             6 => Ok(DLCPackage::RiseOfTheRajas),
-            _ => Err(Error::new(ErrorKind::Other, "unknown dlc package")),
+            n => Err(ParseDLCPackageError(n)),
         }
     }
 }
@@ -92,6 +129,26 @@ impl From<DLCPackage> for i32 {
         }
     }
 }
+
+/// Could not parse a starting age because given number refers to an unknown age.
+#[derive(Debug, Clone, Copy)]
+pub struct ParseStartingAgeError {
+    version: f32,
+    found: i32,
+}
+
+impl std::fmt::Display for ParseStartingAgeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let expected = if self.version < 1.25 { "-1-4" } else { "-1-6" };
+        write!(
+            f,
+            "invalid starting age {} (must be {})",
+            self.found, expected
+        )
+    }
+}
+
+impl std::error::Error for ParseStartingAgeError {}
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum StartingAge {
@@ -114,7 +171,7 @@ pub enum StartingAge {
 impl StartingAge {
     /// Convert a starting age number to the appropriate enum for a particular
     /// data version.
-    pub fn try_from(n: i32, version: f32) -> Result<Self> {
+    pub fn try_from(n: i32, version: f32) -> Result<Self, ParseStartingAgeError> {
         if version < 1.25 {
             match n {
                 -1 => Ok(StartingAge::Default),
@@ -123,7 +180,7 @@ impl StartingAge {
                 2 => Ok(StartingAge::CastleAge),
                 3 => Ok(StartingAge::ImperialAge),
                 4 => Ok(StartingAge::PostImperialAge),
-                _ => Err(Error::new(ErrorKind::Other, format!("invalid starting age {} (must be -1-4)", n))),
+                _ => Err(ParseStartingAgeError { version, found: n }),
             }
         } else {
             match n {
@@ -134,7 +191,7 @@ impl StartingAge {
                 4 => Ok(StartingAge::CastleAge),
                 5 => Ok(StartingAge::ImperialAge),
                 6 => Ok(StartingAge::PostImperialAge),
-                _ => Err(Error::new(ErrorKind::Other, format!("invalid starting age {} (must be -1-6)", n))),
+                _ => Err(ParseStartingAgeError { version, found: n }),
             }
         }
     }
@@ -143,8 +200,7 @@ impl StartingAge {
         if version < 1.25 {
             match self {
                 StartingAge::Default => -1,
-                StartingAge::Nomad |
-                StartingAge::DarkAge => 0,
+                StartingAge::Nomad | StartingAge::DarkAge => 0,
                 StartingAge::FeudalAge => 1,
                 StartingAge::CastleAge => 2,
                 StartingAge::ImperialAge => 3,

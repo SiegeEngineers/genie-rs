@@ -2,10 +2,13 @@
 //!
 //! genie-cpx can read and write campaign files using the Campaign and CampaignWriter structs,
 //! respectively.
-use std::io::{Read, Seek, Write, Error, ErrorKind, Result};
+use std::io::{Read, Seek, Write};
 
 mod read;
 mod write;
+
+pub use read::{Campaign, ReadCampaignError};
+pub use write::{CampaignWriter, WriteCampaignError};
 
 /// Version identifier for the campaign file format.
 ///
@@ -45,23 +48,23 @@ pub struct ScenarioMeta {
     pub filename: String,
 }
 
-pub use read::Campaign;
-pub use write::CampaignWriter;
-
 impl<R> Campaign<R>
-    where R: Read + Seek
+where
+    R: Read + Seek,
 {
     /// Write the scenario file to an output stream.
-    pub fn write_to<W: Write>(&mut self, output: &mut W) -> Result<()> {
+    pub fn write_to<W: Write>(&mut self, output: &mut W) -> Result<(), WriteCampaignError> {
         let mut writer = CampaignWriter::new(self.name(), output);
 
         for i in 0..self.len() {
-            let bytes = self.by_index_raw(i)?;
+            let bytes = self
+                .by_index_raw(i)
+                .map_err(|_| WriteCampaignError::NotFoundError(i))?;
             match (self.get_name(i), self.get_filename(i)) {
                 (Some(name), Some(filename)) => {
                     writer.add_raw(name, filename, bytes);
-                },
-                _ => return Err(Error::new(ErrorKind::Other, "missing data for scenario"))
+                }
+                _ => return Err(WriteCampaignError::NotFoundError(i)),
             }
         }
 
@@ -87,6 +90,9 @@ mod tests {
         let mut written_cpx = Campaign::from(Cursor::new(outstream)).unwrap();
         assert_eq!(written_cpx.name(), incpx.name());
         assert_eq!(written_cpx.len(), incpx.len());
-        assert_eq!(written_cpx.by_index_raw(0).unwrap(), incpx.by_index_raw(0).unwrap());
+        assert_eq!(
+            written_cpx.by_index_raw(0).unwrap(),
+            incpx.by_index_raw(0).unwrap()
+        );
     }
 }

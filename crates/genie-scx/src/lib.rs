@@ -4,6 +4,7 @@
 //! of Empires 1 or Age of Empires 2 version does not work, please upload it and file an issue!
 mod ai;
 mod bitmap;
+pub mod convert;
 mod format;
 mod header;
 mod map;
@@ -12,21 +13,136 @@ mod triggers;
 mod types;
 mod util;
 mod victory;
-pub mod convert;
 
-use std::io::{Result, Read, Write};
-use format::{SCXFormat};
+use format::SCXFormat;
+use std::io::{self, Read, Write};
 
-pub use types::*;
-pub use format::{ScenarioObject};
+pub use format::ScenarioObject;
 pub use header::{DLCOptions, SCXHeader};
-pub use map::{Tile, Map};
-pub use triggers::{
-    TriggerSystem,
-    Trigger,
-    TriggerCondition,
-    TriggerEffect,
-};
+pub use map::{Map, Tile};
+pub use triggers::{Trigger, TriggerCondition, TriggerEffect, TriggerSystem};
+pub use types::*;
+pub use util::{DecodeStringError, EncodeStringError};
+
+/// Error type for SCX methods, containing all types of errors that may occur while reading or
+/// writing scenario files.
+#[derive(Debug)]
+pub enum Error {
+    /// The scenario that's attempted to be read does not contain a file name.
+    MissingFileNameError,
+    /// Attempted to read a scenario with an unsupported format version identifier.
+    UnsupportedFormatVersionError(SCXVersion),
+    /// Attempted to write a scenario with disabled technologies, to a version that doesn't support
+    /// this many disabled technologies.
+    TooManyDisabledTechsError(i32),
+    /// Attempted to write a scenario with disabled technologies, to a version that doesn't support
+    /// disabling technologies.
+    CannotDisableTechsError,
+    /// Attempted to write a scenario with disabled units, to a version that doesn't support
+    /// disabling units.
+    CannotDisableUnitsError,
+    /// Attempted to write a scenario with disabled buildings, to a version that doesn't support
+    /// this many disabled buildings.
+    TooManyDisabledBuildingsError(i32, i32),
+    /// Attempted to write a scenario with disabled buildings, to a version that doesn't support
+    /// disabling buildings.
+    CannotDisableBuildingsError,
+    /// Failed to decode a string from the scenario file, probably because of a wrong encoding.
+    DecodeStringError(DecodeStringError),
+    /// Failed to encode a string into the scenario file, probably because of a wrong encoding.
+    EncodeStringError(EncodeStringError),
+    /// The given ID is not a known diplomatic stance.
+    ParseDiplomaticStanceError(ParseDiplomaticStanceError),
+    /// The given ID is not a known data set.
+    ParseDataSetError(ParseDataSetError),
+    /// The given ID is not a known HD Edition DLC.
+    ParseDLCPackageError(ParseDLCPackageError),
+    /// The given ID is not a known starting age in AoE1 or AoE2.
+    ParseStartingAgeError(ParseStartingAgeError),
+    /// An error occurred while reading or writing.
+    IoError(io::Error),
+}
+
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Error {
+        Error::IoError(err)
+    }
+}
+
+impl From<util::ReadStringError> for Error {
+    fn from(err: util::ReadStringError) -> Error {
+        match err {
+            util::ReadStringError::IoError(err) => Error::IoError(err),
+            util::ReadStringError::DecodeStringError(err) => Error::DecodeStringError(err),
+        }
+    }
+}
+
+impl From<util::WriteStringError> for Error {
+    fn from(err: util::WriteStringError) -> Error {
+        match err {
+            util::WriteStringError::IoError(err) => Error::IoError(err),
+            util::WriteStringError::EncodeStringError(err) => Error::EncodeStringError(err),
+        }
+    }
+}
+
+macro_rules! error_impl_from {
+    ($from:ident) => {
+        impl From<$from> for Error {
+            fn from(err: $from) -> Error {
+                Error::$from(err)
+            }
+        }
+    };
+}
+
+error_impl_from!(ParseDiplomaticStanceError);
+error_impl_from!(ParseDataSetError);
+error_impl_from!(ParseDLCPackageError);
+error_impl_from!(ParseStartingAgeError);
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Error::MissingFileNameError => write!(f, "must have a file name"),
+            Error::UnsupportedFormatVersionError(version) => {
+                write!(f, "unsupported format version {:?}", version)
+            }
+            Error::TooManyDisabledTechsError(n) => write!(
+                f,
+                "too many disabled techs: got {}, but requested version supports up to 20",
+                n
+            ),
+            Error::TooManyDisabledBuildingsError(n, max) => write!(
+                f,
+                "too many disabled buildings: got {}, but requested version supports up to {}",
+                n, max
+            ),
+            Error::CannotDisableTechsError => {
+                write!(f, "requested version does not support disabling techs")
+            }
+            Error::CannotDisableUnitsError => {
+                write!(f, "requested version does not support disabling units")
+            }
+            Error::CannotDisableBuildingsError => {
+                write!(f, "requested version does not support disabling buildings")
+            }
+            Error::IoError(err) => write!(f, "{}", err),
+            Error::DecodeStringError(err) => write!(f, "{}", err),
+            Error::EncodeStringError(err) => write!(f, "{}", err),
+            Error::ParseDiplomaticStanceError(err) => write!(f, "{}", err),
+            Error::ParseDataSetError(err) => write!(f, "{}", err),
+            Error::ParseDLCPackageError(err) => write!(f, "{}", err),
+            Error::ParseStartingAgeError(err) => write!(f, "{}", err),
+        }
+    }
+}
+
+impl std::error::Error for Error {}
+
+/// Result type for SCX methods.
+pub type Result<T> = std::result::Result<T, Error>;
 
 /// A Scenario file.
 pub struct Scenario {
@@ -47,7 +163,11 @@ impl Scenario {
         self.format.write_to(output, self.version())
     }
 
-    pub fn write_to_version<W: Write>(&self, output: &mut W, version: &VersionBundle) -> Result<()> {
+    pub fn write_to_version<W: Write>(
+        &self,
+        output: &mut W,
+        version: &VersionBundle,
+    ) -> Result<()> {
         self.format.write_to(output, version)
     }
 
@@ -93,13 +213,17 @@ impl Scenario {
     }
 
     pub fn objects(&self) -> impl Iterator<Item = &ScenarioObject> {
-        self.format.player_objects.iter()
+        self.format
+            .player_objects
+            .iter()
             .map(|list| list.iter())
             .flatten()
     }
 
     pub fn objects_mut(&mut self) -> impl Iterator<Item = &mut ScenarioObject> {
-        self.format.player_objects.iter_mut()
+        self.format
+            .player_objects
+            .iter_mut()
             .map(|list| list.iter_mut())
             .flatten()
     }

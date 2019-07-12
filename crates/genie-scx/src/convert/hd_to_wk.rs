@@ -1,12 +1,10 @@
-use std::collections::HashMap;
-use crate::{
-    Scenario,
-    ScenarioObject,
-    Trigger,
-    Tile,
-};
 use super::ConvertError;
+use crate::{Scenario, ScenarioObject, Tile, Trigger};
+use std::collections::HashMap;
 
+/// Convert an HD Edition scenario to a WololoKingdoms-compatible one.
+///
+/// Maps HD unit IDs and terrain IDs to their WK equivalents.
 pub struct HDToWK {
     object_ids_map: HashMap<i32, i32>,
     terrain_ids_map: HashMap<i8, i8>,
@@ -20,7 +18,6 @@ impl Default for HDToWK {
             (529, 1103), // Fire Ship, Fire Galley
             (1104, 527), // Demolition Raft, Demolition Ship
             (527, 1104), // Demolition Ship, Demolition Raft
-
             (1001, 106), // Organ Gun, INFIL_D
             (1003, 114), // Elite Organ Gun, LNGBT_D
             (1006, 183), // Elite Caravel, TMISB
@@ -35,8 +32,8 @@ impl Default for HDToWK {
             (1103, 467), // Fire Ship, Nonexistent
             (1105, 494), // Siege Tower, CVLRY_D
             (1104, 653), // Demolition Ship, HFALS_D
-            (947, 699), // Cutting Mangonel, HSUBO_D
-            (948, 701), // Cutting Onager, HWOLF_D
+            (947, 699),  // Cutting Mangonel, HSUBO_D
+            (948, 701),  // Cutting Onager, HWOLF_D
             (1079, 732), // Genitour placeholder, HKHAN_D
             (1021, 734), // Feitoria, Nonexistent
             (1120, 760), // Ballista Elephant, BHUSK_D
@@ -49,10 +46,13 @@ impl Default for HDToWK {
             (1126, 823), // Arambai, BOARJ_D
             (1125, 830), // Elite Karambit, UWAGO_D
             (1123, 836), // Karambit, HORSW_D
-            (946, 848), // Noncut Ballista Elephant, TDONK_D
+            (946, 848),  // Noncut Ballista Elephant, TDONK_D
             (1004, 861), // Caravel, mkyby_D
             (1122, 891), // Elite Ballista Ele, SGTWR_D
-        ].iter().map(|(a, b)| (*a, *b)).collect();
+        ]
+        .iter()
+        .map(|(a, b)| (*a, *b))
+        .collect();
 
         let terrain_ids_map = [
             (38, 33), // Snow Road, Snow Dirt
@@ -61,11 +61,13 @@ impl Default for HDToWK {
             (55, 20), // Mangrove Forest
             (50, 41), // Acacia Forest
             (49, 16), // Baobab Forest
-
-            (11, 3), // Dirt 2, Dirt 3
-            (16, 0), // Grass-ish, Grass
+            (11, 3),  // Dirt 2, Dirt 3
+            (16, 0),  // Grass-ish, Grass
             (20, 19), // Oak Forest, Pine Forest
-        ].iter().map(|(a, b)| (*a, *b)).collect();
+        ]
+        .iter()
+        .map(|(a, b)| (*a, *b))
+        .collect();
 
         Self {
             object_ids_map,

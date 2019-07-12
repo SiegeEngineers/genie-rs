@@ -1,13 +1,14 @@
-use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::io::{Read, Write, Result};
+use crate::types::{DLCPackage, DataSet, SCXVersion};
 use crate::util::*;
-use crate::types::{DataSet, DLCPackage, SCXVersion};
+use crate::Result;
+use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use std::io::{Read, Write};
 
 #[derive(Debug)]
 pub struct DLCOptions {
-     pub version: i32,
-     pub game_data_set: DataSet,
-     pub dependencies: Vec<DLCPackage>,
+    pub version: i32,
+    pub game_data_set: DataSet,
+    pub dependencies: Vec<DLCPackage>,
 }
 
 impl Default for DLCOptions {
@@ -15,45 +16,41 @@ impl Default for DLCOptions {
         Self {
             version: 1000,
             game_data_set: DataSet::BaseGame,
-            dependencies: vec![
-                DLCPackage::AgeOfKings,
-                DLCPackage::AgeOfConquerors,
-            ],
+            dependencies: vec![DLCPackage::AgeOfKings, DLCPackage::AgeOfConquerors],
         }
     }
 }
 
 impl DLCOptions {
     pub fn from<R: Read>(input: &mut R) -> Result<Self> {
-         // If version is 0 or 1, it's actually the dataset identifier from
-         // before DLCOptions was versioned.
-         let version_or_data_set = input.read_i32::<LE>()?;
-         let game_data_set = DataSet::try_from(
-             if version_or_data_set == 0 || version_or_data_set == 1 {
-                 version_or_data_set
-             } else {
-                 input.read_i32::<LE>()?
-             })?;
+        // If version is 0 or 1, it's actually the dataset identifier from
+        // before DLCOptions was versioned.
+        let version_or_data_set = input.read_i32::<LE>()?;
+        let game_data_set =
+            DataSet::try_from(if version_or_data_set == 0 || version_or_data_set == 1 {
+                version_or_data_set
+            } else {
+                input.read_i32::<LE>()?
+            })?;
 
-         // Set version to 0 for old DLCOptions.
-         let version = if version_or_data_set == 1 {
-             0
-         } else {
-             version_or_data_set
-         };
+        // Set version to 0 for old DLCOptions.
+        let version = if version_or_data_set == 1 {
+            0
+        } else {
+            version_or_data_set
+        };
 
-         let num_dependencies = input.read_u32::<LE>()?;
-         let mut dependencies = vec![];
-         for _ in 0..num_dependencies {
-             dependencies.push(DLCPackage::try_from(
-                     input.read_i32::<LE>()?)?);
-         }
+        let num_dependencies = input.read_u32::<LE>()?;
+        let mut dependencies = vec![];
+        for _ in 0..num_dependencies {
+            dependencies.push(DLCPackage::try_from(input.read_i32::<LE>()?)?);
+        }
 
-         Ok(DLCOptions {
-             version,
-             game_data_set,
-             dependencies
-         })
+        Ok(DLCOptions {
+            version,
+            game_data_set,
+            dependencies,
+        })
     }
 
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
@@ -125,7 +122,12 @@ impl SCXHeader {
     }
 
     /// Serialize an SCX header to a byte stream.
-    pub fn write_to<W: Write>(&self, output: &mut W, format_version: SCXVersion, version: u32) -> Result<()> {
+    pub fn write_to<W: Write>(
+        &self,
+        output: &mut W,
+        format_version: SCXVersion,
+        version: u32,
+    ) -> Result<()> {
         let mut intermediate = vec![];
 
         intermediate.write_u32::<LE>(version)?;
@@ -142,10 +144,16 @@ impl SCXHeader {
         }
         description_bytes.push(0);
         if format_version == *b"3.13" {
-            assert!(description_bytes.len() <= std::u16::MAX as usize, "description length must fit in u16");
+            assert!(
+                description_bytes.len() <= std::u16::MAX as usize,
+                "description length must fit in u16"
+            );
             intermediate.write_u16::<LE>(description_bytes.len() as u16)?;
         } else {
-            assert!(description_bytes.len() <= std::u32::MAX as usize, "description length must fit in u32");
+            assert!(
+                description_bytes.len() <= std::u32::MAX as usize,
+                "description length must fit in u32"
+            );
             intermediate.write_u32::<LE>(description_bytes.len() as u32)?;
         }
         intermediate.write_all(&description_bytes)?;

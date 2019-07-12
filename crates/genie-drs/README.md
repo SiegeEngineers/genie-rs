@@ -12,13 +12,12 @@ Add to Cargo.toml:
 
 ```toml
 [dependencies]
-genie-drs = { git = "https://github.com/goto-bus-stop/genie-drs-rs.git", branch = "default" }
+genie-drs = "^0.1.1"
 ```
 
 ## Example
 
 ```rust
-extern crate genie_drs;
 use std::fs::File;
 use genie_drs::DRSReader;
 
@@ -36,7 +35,6 @@ for table in drs.tables() {
 ## Wishlist
 
 - An API that doesn't require passing in the file handle manually
-- A writer
 - A [file mapping](https://en.wikipedia.org/wiki/Memory-mapped_file) counterpart for the `read_resource` API, using [memmap](https://crates.io/crates/memmap) probably.
 
 ## License

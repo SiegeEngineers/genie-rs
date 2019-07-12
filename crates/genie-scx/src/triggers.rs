@@ -1,6 +1,7 @@
-use std::io::{Read, Write, Result};
-use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use crate::util::*;
+use crate::Result;
+use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use std::io::{Read, Write};
 
 #[derive(Debug)]
 pub struct TriggerCondition {
@@ -13,7 +14,9 @@ impl TriggerCondition {
         let condition_type = input.read_i32::<LE>()?;
         let num_properties = if version > 1.0 {
             input.read_i32::<LE>()?
-        } else { 13 };
+        } else {
+            13
+        };
         let mut properties = Vec::with_capacity(num_properties as usize);
         for _ in 0..num_properties {
             properties.push(input.read_i32::<LE>()?);
@@ -180,7 +183,9 @@ impl TriggerEffect {
         let effect_type = input.read_i32::<LE>()?;
         let num_properties = if version > 1.0 {
             input.read_i32::<LE>()?
-        } else { 16 };
+        } else {
+            16
+        };
         let mut properties = Vec::with_capacity(num_properties as usize);
         for _ in 0..num_properties {
             properties.push(input.read_i32::<LE>()?);
@@ -337,10 +342,7 @@ impl TriggerEffect {
     }
 
     pub fn location(&self) -> (i32, i32) {
-        (
-            self.properties[14],
-            self.properties[15],
-        )
+        (self.properties[14], self.properties[15])
     }
 
     pub fn set_location(&mut self, location: (i32, i32)) {
@@ -465,7 +467,8 @@ impl Trigger {
     }
 
     pub fn conditions(&self) -> impl Iterator<Item = &TriggerCondition> {
-        self.condition_order.iter()
+        self.condition_order
+            .iter()
             .map(move |index| &self.conditions[*index as usize])
     }
 
@@ -474,7 +477,8 @@ impl Trigger {
     }
 
     pub fn effects(&self) -> impl Iterator<Item = &TriggerEffect> {
-        self.effect_order.iter()
+        self.effect_order
+            .iter()
             .map(move |index| &self.effects[*index as usize])
     }
 
@@ -505,11 +509,7 @@ impl Default for TriggerSystem {
 impl TriggerSystem {
     pub fn from<R: Read>(input: &mut R) -> Result<Self> {
         let version = input.read_f64::<LE>()?;
-        let objectives_state = if version >= 1.5 {
-            input.read_i8()?
-        } else {
-            0
-        };
+        let objectives_state = if version >= 1.5 { input.read_i8()? } else { 0 };
 
         let num_triggers = input.read_i32::<LE>()?;
 
@@ -547,7 +547,8 @@ impl TriggerSystem {
     }
 
     pub fn triggers(&self) -> impl Iterator<Item = &Trigger> {
-        self.trigger_order.iter()
+        self.trigger_order
+            .iter()
             .map(move |index| &self.triggers[*index as usize])
     }
 
