@@ -14,18 +14,18 @@ use structopt::StructOpt;
 
 /// Displays an individual hotkey from a hotkey file.
 #[derive(Debug, StructOpt)]
-#[structopt(name="Set Hotkey")]
+#[structopt(name = "Set Hotkey")]
 struct DisplayHotkey {
     /// The name of the hotkey file.
-    #[structopt(name="file-name")]
+    #[structopt(name = "file-name")]
     file_name: PathBuf,
 
     /// The group index of the hotkey to display.
-    #[structopt(name="group-index")]
+    #[structopt(name = "group-index")]
     group_index: usize,
 
     /// The index of the hotkey within the group.
-    #[structopt(name="hotkey-index")]
+    #[structopt(name = "hotkey-index")]
     hotkey_index: usize,
 }
 

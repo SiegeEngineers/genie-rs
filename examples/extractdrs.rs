@@ -1,11 +1,11 @@
-use std::{
-    io::{self, stdout, Write},
-    fs::{File, create_dir_all},
-    path::PathBuf,
-    collections::HashSet,
-};
 use genie_drs::{DRSReader, DRSWriter, ReserveDirectoryStrategy};
 use quicli::prelude::*;
+use std::{
+    collections::HashSet,
+    fs::{create_dir_all, File},
+    io::{self, stdout, Write},
+    path::PathBuf,
+};
 use structopt::StructOpt;
 
 #[derive(StructOpt)]
@@ -101,13 +101,17 @@ fn get(args: Get) -> CliResult {
             Some(ref resource) => {
                 let buf = drs.read_resource(&mut file, table.resource_type, resource.id)?;
                 stdout().write_all(&buf)?;
-                return Ok(())
-            },
+                return Ok(());
+            }
             None => (),
         }
     }
 
-    Err(io::Error::new(io::ErrorKind::NotFound, "Archive does not contain that resource").into())
+    Err(io::Error::new(
+        io::ErrorKind::NotFound,
+        "Archive does not contain that resource",
+    )
+    .into())
 }
 
 fn extract(args: Extract) -> CliResult {
@@ -126,7 +130,8 @@ fn extract(args: Extract) -> CliResult {
 
         for resource in table.resources() {
             let buf = drs.read_resource(&mut file, table.resource_type, resource.id)?;
-            let mut outfile = File::create(args.out.join(format!("{}.{}", resource.id, table_ext)))?;
+            let mut outfile =
+                File::create(args.out.join(format!("{}.{}", resource.id, table_ext)))?;
             outfile.write_all(&buf)?;
         }
     }
@@ -135,17 +140,31 @@ fn extract(args: Extract) -> CliResult {
 }
 
 fn add(args: Add) -> CliResult {
-    assert_eq!(args.file.len(), args.table.len(), "Must set a --table for every file");
-    assert_eq!(args.file.len(), args.id.len(), "Must set an --id for every file");
+    assert_eq!(
+        args.file.len(),
+        args.table.len(),
+        "Must set a --table for every file"
+    );
+    assert_eq!(
+        args.file.len(),
+        args.id.len(),
+        "Must set an --id for every file"
+    );
 
     let mut input = File::open(&args.archive)?;
     let drs_read = DRSReader::new(&mut input)?;
 
-    let (tables, files) = drs_read.tables().fold((0, 0), |(tables, files), table| (tables + 1, files + table.len() as u32));
-    let new_tables = args.table.iter().fold(HashSet::new(), |mut uniq, table| {
-        uniq.insert(table);
-        uniq
-    }).len() as u32;
+    let (tables, files) = drs_read.tables().fold((0, 0), |(tables, files), table| {
+        (tables + 1, files + table.len() as u32)
+    });
+    let new_tables = args
+        .table
+        .iter()
+        .fold(HashSet::new(), |mut uniq, table| {
+            uniq.insert(table);
+            uniq
+        })
+        .len() as u32;
     let new_files = args.id.len() as u32;
 
     use std::time::SystemTime;
@@ -154,11 +173,17 @@ fn add(args: Add) -> CliResult {
         _ => "temp".to_string(),
     };
     let mut temp_out = args.output.as_ref().unwrap_or(&args.archive).clone();
-    temp_out.set_file_name(format!("{}.{}", temp_out.file_name().unwrap().to_str().unwrap(), suffix));
+    temp_out.set_file_name(format!(
+        "{}.{}",
+        temp_out.file_name().unwrap().to_str().unwrap(),
+        suffix
+    ));
 
     let output = File::create(&temp_out)?;
-    let mut drs_write = DRSWriter::new(output,
-        ReserveDirectoryStrategy::new(tables + new_tables, files + new_files))?;
+    let mut drs_write = DRSWriter::new(
+        output,
+        ReserveDirectoryStrategy::new(tables + new_tables, files + new_files),
+    )?;
 
     for t in drs_read.tables() {
         for r in t.resources() {
@@ -177,11 +202,14 @@ fn add(args: Add) -> CliResult {
 
     drs_write.flush()?;
 
-    std::fs::rename(temp_out, if let Some(outfile) = args.output {
-        outfile
-    } else {
-        args.archive
-    })?;
+    std::fs::rename(
+        temp_out,
+        if let Some(outfile) = args.output {
+            outfile
+        } else {
+            args.archive
+        },
+    )?;
 
     Ok(())
 }

@@ -8,16 +8,16 @@ use structopt::StructOpt;
 
 /// Displays the strings from a language file.
 #[derive(Debug, StructOpt)]
-#[structopt(name="Display Language File")]
+#[structopt(name = "Display Language File")]
 struct DisplayLang {
     /// The name of the language file.
-    #[structopt(name="file-name")]
+    #[structopt(name = "file-name")]
     file_name: PathBuf,
 
     /// The type of the language file.
     ///
     /// One of "dll", "ini", or "key-value".
-    #[structopt(name="file-type")]
+    #[structopt(name = "file-type")]
     file_type: LangFileType,
 }
 

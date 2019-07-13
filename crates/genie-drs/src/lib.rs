@@ -32,12 +32,7 @@ mod read;
 mod write;
 
 pub use read::DRSReader;
-pub use write::{
-    DRSWriter,
-    InMemoryStrategy,
-    ReserveDirectoryStrategy,
-    Strategy as WriteStrategy,
-};
+pub use write::{DRSWriter, InMemoryStrategy, ReserveDirectoryStrategy, Strategy as WriteStrategy};
 
 /// A DRS version string.
 type DRSVersion = [u8; 4];
@@ -255,7 +250,8 @@ impl DRSTable {
     /// Find a resource by ID.
     #[inline]
     pub fn get_resource(&self, id: u32) -> Option<&DRSResource> {
-        self.resource_ids.binary_search(&id)
+        self.resource_ids
+            .binary_search(&id)
             .ok()
             .map(|index| &self.resources[index])
     }

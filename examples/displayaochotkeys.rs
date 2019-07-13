@@ -15,20 +15,20 @@ use structopt::StructOpt;
 
 /// Displays hotkeys using a language file.
 #[derive(Debug, StructOpt)]
-#[structopt(name="Display Language File")]
+#[structopt(name = "Display Language File")]
 struct DisplayLang {
     /// The name of the language file.
-    #[structopt(name="lang-file-name")]
+    #[structopt(name = "lang-file-name")]
     lang_file_name: PathBuf,
 
     /// The type of the language file.
     ///
     /// One of "dll", "ini", or "key-value".
-    #[structopt(name="file-type")]
+    #[structopt(name = "file-type")]
     file_type: LangFileType,
 
     /// The name of the hotkey file.
-    #[structopt(name="hki-file-name")]
+    #[structopt(name = "hki-file-name")]
     hki_file_name: PathBuf,
 }
 

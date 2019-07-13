@@ -93,24 +93,22 @@
 //! "#);
 //! ```
 
-use std::collections::HashMap;
-use std::collections::hash_map::{
-    Drain, Entry, IntoIter, Iter, IterMut, Keys, Values, ValuesMut
-};
-use std::error::Error;
-use std::fmt;
-use std::io::{self, Read, Write, BufRead, BufReader, Error as IoError};
-use std::iter::FromIterator;
-use std::num::ParseIntError;
-use std::ops::Index;
-use std::str::FromStr;
 use byteorder::{ReadBytesExt, LE};
-use encoding_rs::{WINDOWS_1252, UTF_16LE};
+use encoding_rs::{UTF_16LE, WINDOWS_1252};
 use encoding_rs_io::DecodeReaderBytesBuilder;
 use pelite::{
     pe32::{Pe, PeFile},
     resources::Name,
 };
+use std::collections::hash_map::{Drain, Entry, IntoIter, Iter, IterMut, Keys, Values, ValuesMut};
+use std::collections::HashMap;
+use std::error::Error;
+use std::fmt;
+use std::io::{self, BufRead, BufReader, Error as IoError, Read, Write};
+use std::iter::FromIterator;
+use std::num::ParseIntError;
+use std::ops::Index;
+use std::str::FromStr;
 
 /// A key in a language file.
 ///
@@ -121,7 +119,6 @@ use pelite::{
 /// key value file.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum StringKey {
-
     /// An integer string key.
     Num(u32),
 
@@ -131,7 +128,6 @@ pub enum StringKey {
 }
 
 impl StringKey {
-
     /// Returns `true` if and only if this `StringKey` is a number.
     ///
     /// # Examples
@@ -144,7 +140,7 @@ impl StringKey {
     pub fn is_numeric(&self) -> bool {
         use StringKey::{Name, Num};
         match self {
-            Num(_)  => true,
+            Num(_) => true,
             Name(_) => false,
         }
     }
@@ -161,7 +157,7 @@ impl StringKey {
     pub fn is_named(&self) -> bool {
         use StringKey::{Name, Num};
         match self {
-            Num(_)  => false,
+            Num(_) => false,
             Name(_) => true,
         }
     }
@@ -171,30 +167,39 @@ impl fmt::Display for StringKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use StringKey::{Name, Num};
         match self {
-            Num(n)  => write!(f, "{}", n),
+            Num(n) => write!(f, "{}", n),
             Name(s) => write!(f, "{}", s),
         }
     }
 }
 
 impl From<u32> for StringKey {
-    fn from(n: u32) -> Self { StringKey::Num(n) }
+    fn from(n: u32) -> Self {
+        StringKey::Num(n)
+    }
 }
 
 impl From<i32> for StringKey {
-    fn from(n: i32) -> Self { StringKey::from(n as u32) }
+    fn from(n: i32) -> Self {
+        StringKey::from(n as u32)
+    }
 }
 
 impl From<&str> for StringKey {
     fn from(s: &str) -> Self {
         use StringKey::{Name, Num};
-        if let Ok(n) = s.parse() { Num(n) }
-        else { Name(String::from(s)) }
+        if let Ok(n) = s.parse() {
+            Num(n)
+        } else {
+            Name(String::from(s))
+        }
     }
 }
 
 impl From<String> for StringKey {
-    fn from(s: String) -> Self { StringKey::from(&s[..]) }
+    fn from(s: String) -> Self {
+        StringKey::from(&s[..])
+    }
 }
 
 /// Errors that may occur when loading a language file.
@@ -218,9 +223,9 @@ impl fmt::Display for LoadError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use LoadError::{IoError, ParseIntError, PeError};
         match self {
-            IoError(e)       => e.fmt(f),
+            IoError(e) => e.fmt(f),
             ParseIntError(e) => e.fmt(f),
-            PeError(e)       => e.fmt(f),
+            PeError(e) => e.fmt(f),
         }
     }
 }
@@ -243,7 +248,7 @@ impl From<ParseIntError> for LoadError {
     }
 }
 
-impl Error for LoadError { }
+impl Error for LoadError {}
 
 /// An error when parsing a string to a language file.
 ///
@@ -257,12 +262,14 @@ impl fmt::Display for ParseLangFileTypeError {
     }
 }
 
-impl Error for ParseLangFileTypeError { }
+impl Error for ParseLangFileTypeError {}
 
 /// Aoe2 supports three types of language files
 #[derive(Debug)]
 pub enum LangFileType {
-    Dll, Ini, KeyValue,
+    Dll,
+    Ini,
+    KeyValue,
 }
 
 impl LangFileType {
@@ -272,8 +279,8 @@ impl LangFileType {
         use LangFileType::{Dll, Ini, KeyValue};
         let mut lang_file = LangFile::new();
         let from_method = match self {
-            Dll      => LangFile::from_dll,
-            Ini      => LangFile::from_ini,
+            Dll => LangFile::from_dll,
+            Ini => LangFile::from_ini,
             KeyValue => LangFile::from_keyval,
         };
         from_method(&mut lang_file, r)?;
@@ -286,10 +293,10 @@ impl FromStr for LangFileType {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use LangFileType::{Dll, Ini, KeyValue};
         match &s.to_lowercase()[..] {
-            "dll"       => Ok(Dll),
-            "ini"       => Ok(Ini),
+            "dll" => Ok(Dll),
+            "ini" => Ok(Ini),
             "key-value" => Ok(KeyValue),
-            _           => Err(ParseLangFileTypeError(String::from(s))),
+            _ => Err(ParseLangFileTypeError(String::from(s))),
         }
     }
 }
@@ -302,7 +309,6 @@ impl FromStr for LangFileType {
 pub struct LangFile(HashMap<StringKey, String>);
 
 impl LangFile {
-
     /// Reads a language file from a .DLL.
     /// This function eagerly loads all the strings into memory.
     ///
@@ -328,12 +334,16 @@ impl LangFile {
     }
 
     /// TODO specify
-    fn load_pe_directory(&mut self, directory: pelite::resources::Directory)
-            -> Result<(), LoadError> {
+    fn load_pe_directory(
+        &mut self,
+        directory: pelite::resources::Directory,
+    ) -> Result<(), LoadError> {
         for entry in directory.entries() {
-            let base_index =
-                if let Name::Id(n) = entry.name()? { (n - 1) * 16 }
-                else { continue; };
+            let base_index = if let Name::Id(n) = entry.name()? {
+                (n - 1) * 16
+            } else {
+                continue;
+            };
             if let Some(subdir) = entry.entry()?.dir() {
                 for data_entry in subdir.entries() {
                     if let Some(data) = data_entry.entry()?.data() {
@@ -346,8 +356,7 @@ impl LangFile {
     }
 
     /// TODO specify
-    fn load_pe_data(&mut self, mut index: u32, data: &[u8])
-            -> Result<(), LoadError> {
+    fn load_pe_data(&mut self, mut index: u32, data: &[u8]) -> Result<(), LoadError> {
         use std::io::{Cursor, Seek, SeekFrom};
         let mut cursor = Cursor::new(data);
         while (cursor.position() as usize) < data.len() {
@@ -357,8 +366,7 @@ impl LangFile {
                 continue;
             }
             let start = cursor.position() as usize;
-            let (string, _enc, failed)
-                = UTF_16LE.decode(&data[start..start + len]);
+            let (string, _enc, failed) = UTF_16LE.decode(&data[start..start + len]);
             if !failed {
                 self.0.insert(StringKey::from(index), string.to_string());
             }
@@ -382,7 +390,9 @@ impl LangFile {
             .encoding(Some(WINDOWS_1252))
             .build(input);
         let input = BufReader::new(input);
-        for line in input.lines() { self.load_ini_line(&line?)?; }
+        for line in input.lines() {
+            self.load_ini_line(&line?)?;
+        }
         Ok(())
     }
 
@@ -394,7 +404,9 @@ impl LangFile {
     ///
     /// Returns a `LoadError` if an error occurs while reading the line.
     fn load_ini_line(&mut self, line: &str) -> Result<(), LoadError> {
-        if line.starts_with(';') { return Ok(()); }
+        if line.starts_with(';') {
+            return Ok(());
+        }
 
         let mut split = line.splitn(2, '=');
         let id = match split.next() {
@@ -417,7 +429,9 @@ impl LangFile {
     /// This function loads eagerly all the strings into memory.
     fn from_keyval(&mut self, input: impl Read) -> Result<(), LoadError> {
         let input = BufReader::new(input);
-        for line in input.lines() { self.load_keyval_line(&line?)?; }
+        for line in input.lines() {
+            self.load_keyval_line(&line?)?;
+        }
         Ok(())
     }
 
@@ -430,18 +444,24 @@ impl LangFile {
     /// This is incomplete, unquoting and un-escaping is not yet done.
     fn load_keyval_line(&mut self, line: &str) -> Result<(), LoadError> {
         let line = line.trim();
-        if line.starts_with("//") || line.is_empty() { return Ok(()); }
+        if line.starts_with("//") || line.is_empty() {
+            return Ok(());
+        }
 
         let mut iter = line.chars();
-        let id: String = iter.by_ref()
-            .take_while(|&c| !char::is_whitespace(c)).collect();
+        let id: String = iter
+            .by_ref()
+            .take_while(|&c| !char::is_whitespace(c))
+            .collect();
         let string_key = StringKey::from(id);
 
         // TODO unquoting and un-escaping
         let mut iter = iter.skip_while(|&c| char::is_whitespace(c));
-        let value =
-            if let Some('"') = iter.next() { unescape(iter, true) }
-            else { return Ok(()); };
+        let value = if let Some('"') = iter.next() {
+            unescape(iter, true)
+        } else {
+            return Ok(());
+        };
         self.0.insert(string_key, value);
         Ok(())
     }
@@ -450,8 +470,7 @@ impl LangFile {
     pub fn write_to_ini<W: Write>(&self, output: &mut W) -> io::Result<()> {
         // TODO warning if there are string ids
         for (id, string) in self.iter().filter(|(id, _)| id.is_numeric()) {
-            output.write_all(format!("{}={}\n", id, escape(string, false))
-                  .as_bytes())?;
+            output.write_all(format!("{}={}\n", id, escape(string, false)).as_bytes())?;
         }
         Ok(())
     }
@@ -460,8 +479,7 @@ impl LangFile {
     /// format.
     pub fn write_to_keyval<W: Write>(&self, output: &mut W) -> io::Result<()> {
         for (id, string) in self.iter() {
-            output.write_all(format!("{} \"{}\"\n", id, escape(string, true))
-                  .as_bytes())?;
+            output.write_all(format!("{} \"{}\"\n", id, escape(string, true)).as_bytes())?;
         }
         Ok(())
     }
@@ -475,7 +493,9 @@ impl LangFile {
     ///
     /// let lang_file = LangFile::new();
     /// ```
-    pub fn new() -> Self { LangFile(HashMap::new()) }
+    pub fn new() -> Self {
+        LangFile(HashMap::new())
+    }
 
     /// Returns `true` if this language file contains no key-value pairs,
     /// `false` otherwise.
@@ -490,7 +510,9 @@ impl LangFile {
     /// lang_file.insert(StringKey::from(0), String::from(""));
     /// assert!(!lang_file.is_empty());
     /// ```
-    pub fn is_empty(&self) -> bool { self.0.is_empty() }
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 
     /// Returns the number of key-value pairs in this language file.
     ///
@@ -504,7 +526,9 @@ impl LangFile {
     /// lang_file.insert(StringKey::from(0), String::from(""));
     /// assert_eq!(1, lang_file.len());
     /// ```
-    pub fn len(&self) -> usize { self.0.len() }
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 
     /// Removes all key-value pairs from this Language file.
     ///
@@ -518,7 +542,9 @@ impl LangFile {
     /// lang_file.clear();
     /// assert!(lang_file.is_empty());
     /// ```
-    pub fn clear(&mut self) { self.0.clear() }
+    pub fn clear(&mut self) {
+        self.0.clear()
+    }
 
     /// Clears this Language file, returning all key-value pairs as an iterator.
     ///
@@ -537,7 +563,9 @@ impl LangFile {
     /// }
     /// assert!(lang_file.is_empty());
     /// ```
-    pub fn drain(&mut self) -> Drain<StringKey, String> { self.0.drain() }
+    pub fn drain(&mut self) -> Drain<StringKey, String> {
+        self.0.drain()
+    }
 
     /// Returns `true` if the map contains a value for key `k`, `false` if not.
     ///
@@ -551,7 +579,9 @@ impl LangFile {
     /// assert!(lang_file.contains_key(&StringKey::from(0)));
     /// assert!(!lang_file.contains_key(&StringKey::from(1)));
     /// ```
-    pub fn contains_key(&self, k: &StringKey) -> bool { self.0.contains_key(k) }
+    pub fn contains_key(&self, k: &StringKey) -> bool {
+        self.0.contains_key(k)
+    }
 
     /// Returns a reference to the value corresponding to the key.
     ///
@@ -565,7 +595,9 @@ impl LangFile {
     /// assert_eq!(Some(&String::from("")), lang_file.get(&StringKey::from(0)));
     /// assert_eq!(None, lang_file.get(&StringKey::from(1)));
     /// ```
-    pub fn get(&self, k: &StringKey) -> Option<&String> { self.0.get(k) }
+    pub fn get(&self, k: &StringKey) -> Option<&String> {
+        self.0.get(k)
+    }
 
     /// Returns a mutable reference to the value corresponding to the key.
     ///
@@ -689,7 +721,9 @@ impl LangFile {
     ///
     /// for (k, v) in lang_file.iter() { println!("key: {}, val: {}", k, v); }
     /// ```
-    pub fn iter(&self) -> Iter<StringKey, String> { self.0.iter() }
+    pub fn iter(&self) -> Iter<StringKey, String> {
+        self.0.iter()
+    }
 
     /// Returns an iterator that visits all key-values pairs in an arbitrary
     /// order, with mutable references to the values.
@@ -729,7 +763,9 @@ impl LangFile {
     ///
     /// for k in lang_file.keys() { println!("key: {}", k); }
     /// ```
-    pub fn keys(&self) -> Keys<StringKey, String> { self.0.keys() }
+    pub fn keys(&self) -> Keys<StringKey, String> {
+        self.0.keys()
+    }
 
     /// Returns an iterator that visits all values in arbitrary order.
     /// The iterator element type is `&'a String`.
@@ -747,7 +783,9 @@ impl LangFile {
     ///
     /// for v in lang_file.values() { println!("value: {}", v); }
     /// ```
-    pub fn values(&self) -> Values<StringKey, String> { self.0.values() }
+    pub fn values(&self) -> Values<StringKey, String> {
+        self.0.values()
+    }
 
     /// Returns an iterator visiting all values mutable in arbitrary order.
     /// The iterator element type is `&'a mut String`.
@@ -774,38 +812,46 @@ impl LangFile {
 impl IntoIterator for LangFile {
     type Item = (StringKey, String);
     type IntoIter = IntoIter<StringKey, String>;
-    fn into_iter(self) -> Self::IntoIter { self.0.into_iter() }
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
 }
 
 impl<'a> IntoIterator for &'a LangFile {
     type Item = (&'a StringKey, &'a String);
     type IntoIter = Iter<'a, StringKey, String>;
-    fn into_iter(self) -> Self::IntoIter { self.0.iter() }
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
 }
 
 impl<'a> IntoIterator for &'a mut LangFile {
     type Item = (&'a StringKey, &'a mut String);
     type IntoIter = IterMut<'a, StringKey, String>;
-    fn into_iter(self) -> Self::IntoIter { self.0.iter_mut() }
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter_mut()
+    }
 }
 
 impl fmt::Display for LangFile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let strs: Vec<String> = self.0.iter()
-            .map(|(k, v)| format!("{}: {}", k, v)).collect();
+        let strs: Vec<String> = self
+            .0
+            .iter()
+            .map(|(k, v)| format!("{}: {}", k, v))
+            .collect();
         write!(f, "{}", strs.join("\n"))
     }
 }
 
 impl Extend<(StringKey, String)> for LangFile {
-    fn extend<T: IntoIterator<Item=(StringKey, String)>>(&mut self, iter: T) {
+    fn extend<T: IntoIterator<Item = (StringKey, String)>>(&mut self, iter: T) {
         self.0.extend(iter);
     }
 }
 
 impl FromIterator<(StringKey, String)> for LangFile {
-    fn from_iter<T: IntoIterator<Item=(StringKey, String)>>(iter: T)
-            -> LangFile {
+    fn from_iter<T: IntoIterator<Item = (StringKey, String)>>(iter: T) -> LangFile {
         let mut lang_file = LangFile::default();
         lang_file.extend(iter);
         lang_file
@@ -814,7 +860,9 @@ impl FromIterator<(StringKey, String)> for LangFile {
 
 impl Index<&StringKey> for LangFile {
     type Output = String;
-    fn index(&self, key: &StringKey) -> &String { self.0.index(key) }
+    fn index(&self, key: &StringKey) -> &String {
+        self.0.index(key)
+    }
 }
 
 // TODO specify
@@ -832,13 +880,13 @@ fn unescape(escaped: impl Iterator<Item = char>, quoted: bool) -> String {
             ('\\', 't') => unescaped.push('\t'),
             ('\\', '"') if quoted => unescaped.push('"'),
             (_, '"') if quoted => break,
-            (_, '\\') => {}, // Might be escape, wait for one more
+            (_, '\\') => {} // Might be escape, wait for one more
             ('\\', c) => {
                 // Previous character was escape,
                 // but this is not part of a sequence
                 unescaped.push('\\');
                 unescaped.push(c);
-            },
+            }
             (_, c) => unescaped.push(c),
         }
         prev = c;
@@ -869,23 +917,32 @@ mod tests {
     /// Tests converting from an int to a string key.
     #[test]
     fn string_key_from_int() {
-        if let StringKey::Num(n) = StringKey::from(0) { assert_eq!(0, n); }
-        else { panic!(); }
+        if let StringKey::Num(n) = StringKey::from(0) {
+            assert_eq!(0, n);
+        } else {
+            panic!();
+        }
     }
 
     /// Tests converting from a string representing an int to a string key.
     #[test]
     fn string_key_from_str_to_int() {
         let s = "57329";
-        if let StringKey::Num(n) = StringKey::from(s) { assert_eq!(57329, n); }
-        else { panic!(); }
+        if let StringKey::Num(n) = StringKey::from(s) {
+            assert_eq!(57329, n);
+        } else {
+            panic!();
+        }
     }
 
     /// Tests converting from a string not representing an int to a string key.
     #[test]
     fn string_key_from_str_to_str() {
         let s = "grassDaut";
-        if let StringKey::Name(n) = StringKey::from(s) { assert_eq!(s, n); }
-        else { panic!(); }
+        if let StringKey::Name(n) = StringKey::from(s) {
+            assert_eq!(s, n);
+        } else {
+            panic!();
+        }
     }
 }

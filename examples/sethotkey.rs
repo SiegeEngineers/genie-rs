@@ -14,34 +14,34 @@ use structopt::StructOpt;
 
 /// Sets an individual key binding in a hotkey file.
 #[derive(Debug, StructOpt)]
-#[structopt(name="Set Hotkey")]
+#[structopt(name = "Set Hotkey")]
 struct SetHotkey {
     /// The name of the hotkey file.
-    #[structopt(name="file-name")]
+    #[structopt(name = "file-name")]
     file_name: PathBuf,
 
     /// The group index of the hotkey to set.
-    #[structopt(name="group-index")]
+    #[structopt(name = "group-index")]
     group_index: u32,
 
     /// The index of the hotkey within the group.
-    #[structopt(name="hotkey-index")]
+    #[structopt(name = "hotkey-index")]
     hotkey_index: u32,
 
     /// The new value of the key binding.
-    #[structopt(name="keycode")]
+    #[structopt(name = "keycode")]
     keycode: i32,
 
     /// Whether control is held while pressing the hotkey.
-    #[structopt(long="ctrl", short="c")]
+    #[structopt(long = "ctrl", short = "c")]
     ctrl: bool,
 
     /// Whether alt is held while pressing the hotkey.
-    #[structopt(long="alt", short="a")]
+    #[structopt(long = "alt", short = "a")]
     alt: bool,
 
     /// Whether shift is held while pressing the hotkey.
-    #[structopt(long="shift", short="s")]
+    #[structopt(long = "shift", short = "s")]
     shift: bool,
 }
 
@@ -53,7 +53,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let info = info.bind_key(
         cli_input.group_index as usize,
         cli_input.hotkey_index as usize,
-        cli_input.keycode, cli_input.ctrl, cli_input.alt, cli_input.shift)?;
+        cli_input.keycode,
+        cli_input.ctrl,
+        cli_input.alt,
+        cli_input.shift,
+    )?;
     let mut f = File::create(&cli_input.file_name)?;
     info.write_to(&mut f)?;
     Ok(())

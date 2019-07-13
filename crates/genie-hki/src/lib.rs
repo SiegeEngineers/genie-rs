@@ -7,15 +7,14 @@
 
 use genie_lang::{LangFile, StringKey};
 
+use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
-use std::io::{self,Read, Write};
+use std::io::{self, Read, Write};
 use std::slice;
 use std::vec;
-use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
-
 
 /// Returns `Ok(id)`, where `id` is the id number of the string giving the text
 /// representation of `keycode` in a language file.
@@ -70,7 +69,9 @@ impl HotkeyInfoMetadata {
     ///
     /// let him = HotkeyInfoMetadata::new();
     /// ```
-    pub fn new() -> Self { Self(Vec::new()) }
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
 
     /// Adds a group to the metadata.
     ///
@@ -83,7 +84,9 @@ impl HotkeyInfoMetadata {
     /// let mut him = HotkeyInfoMetadata::new();
     /// him.add(StringKey::from(0));
     /// ```
-    pub fn add(&mut self, sk: StringKey) { self.0.push(sk) }
+    pub fn add(&mut self, sk: StringKey) {
+        self.0.push(sk)
+    }
 
     /// Returns the number of groups described by this metadata.
     ///
@@ -98,7 +101,9 @@ impl HotkeyInfoMetadata {
     /// him.add(StringKey::from(0));
     /// assert_eq!(1, him.len());
     /// ```
-    pub fn len(&self) -> usize { self.0.len() }
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 
     /// Returns `Some(sk)`, where `sk` is the string key of the group at the
     /// given `index`.
@@ -116,7 +121,9 @@ impl HotkeyInfoMetadata {
     /// him.add(StringKey::from(0));
     /// assert_eq!(Some(&StringKey::from(0)), him.get(0));
     /// ```
-    pub fn get(&self, index: usize) -> Option<&StringKey> { self.0.get(index) }
+    pub fn get(&self, index: usize) -> Option<&StringKey> {
+        self.0.get(index)
+    }
 
     /// Returns an iterator over the hotkey group metadata contained in this
     /// hotkey file's data.
@@ -135,23 +142,31 @@ impl HotkeyInfoMetadata {
     /// assert_eq!(Some(&StringKey::from(1)), iter.next());
     /// assert_eq!(None, iter.next());
     /// ```
-    pub fn iter(&self) -> slice::Iter<StringKey> { self.0.iter() }
+    pub fn iter(&self) -> slice::Iter<StringKey> {
+        self.0.iter()
+    }
 }
 
 impl From<Vec<StringKey>> for HotkeyInfoMetadata {
-    fn from(sks: Vec<StringKey>) -> Self { Self(sks) }
+    fn from(sks: Vec<StringKey>) -> Self {
+        Self(sks)
+    }
 }
 
 impl IntoIterator for HotkeyInfoMetadata {
     type Item = StringKey;
     type IntoIter = vec::IntoIter<StringKey>;
-    fn into_iter(self) -> Self::IntoIter { self.0.into_iter() }
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
 }
 
 impl<'a> IntoIterator for &'a HotkeyInfoMetadata {
     type Item = &'a StringKey;
     type IntoIter = slice::Iter<'a, StringKey>;
-    fn into_iter(self) -> Self::IntoIter { self.0.iter() }
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
 }
 
 // TODO Would like to move this to some kind of configuration file format
@@ -456,8 +471,7 @@ pub enum MarketHotkeys {
 }
 
 /// Hotkeys for the blacksmith.
-pub enum BlacksmithHotkeys {
-}
+pub enum BlacksmithHotkeys {}
 
 /// Represents an error when binding or unbinding a hotkey that doesn't exist.
 #[derive(Debug)]
@@ -479,14 +493,18 @@ impl fmt::Display for IndexError {
     }
 }
 
-impl Error for IndexError { }
+impl Error for IndexError {}
 
 impl From<GroupIndexError> for IndexError {
-    fn from(err: GroupIndexError) -> Self { IndexError::GroupIndex(err) }
+    fn from(err: GroupIndexError) -> Self {
+        IndexError::GroupIndex(err)
+    }
 }
 
 impl From<HotkeyIndexError> for IndexError {
-    fn from(err: HotkeyIndexError) -> Self { IndexError::HotkeyIndex(err) }
+    fn from(err: HotkeyIndexError) -> Self {
+        IndexError::HotkeyIndex(err)
+    }
 }
 
 /// Represents an error when accessing a hotkey group that does not exist.
@@ -513,20 +531,27 @@ impl GroupIndexError {
     }
 
     /// Returns the index of the group that was accessed.
-    pub fn index(&self) -> usize { self.index }
+    pub fn index(&self) -> usize {
+        self.index
+    }
 
     /// Returns the number of valid groups.
-    pub fn num_groups(&self) -> usize { self.num_groups }
+    pub fn num_groups(&self) -> usize {
+        self.num_groups
+    }
 }
 
 impl fmt::Display for GroupIndexError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Group id {} must be less than the number of groups {}.",
-            self.index, self.num_groups)
+        write!(
+            f,
+            "Group id {} must be less than the number of groups {}.",
+            self.index, self.num_groups
+        )
     }
 }
 
-impl Error for GroupIndexError { }
+impl Error for GroupIndexError {}
 
 /// Represents an error when accessing a hotkey that does not exist.
 #[derive(Debug)]
@@ -548,25 +573,31 @@ impl HotkeyIndexError {
     }
 
     /// Returns the index of the hotkey that was accessed.
-    pub fn index(&self) -> usize { self.index }
+    pub fn index(&self) -> usize {
+        self.index
+    }
 
     /// Returns the number of valid hotkeys.
-    pub fn num_hotkeys(&self) -> usize { self.num_hotkeys }
+    pub fn num_hotkeys(&self) -> usize {
+        self.num_hotkeys
+    }
 }
 
 impl fmt::Display for HotkeyIndexError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Hotkey id {} must be less than the number of hotkeys {}.",
-            self.index, self.num_hotkeys)
+        write!(
+            f,
+            "Hotkey id {} must be less than the number of hotkeys {}.",
+            self.index, self.num_hotkeys
+        )
     }
 }
 
-impl Error for HotkeyIndexError { }
+impl Error for HotkeyIndexError {}
 
 /// The information about a single hotkey.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Hotkey {
-
     /// Keycode that activates this hotkey.
     ///
     /// You can use a crate like [keycodes](https://docs.rs/keycodes/0.1.0/)
@@ -607,10 +638,11 @@ impl Default for Hotkey {
 impl fmt::Display for Hotkey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
-            f, "{}: {}{}{}{}",
+            f,
+            "{}: {}{}{}{}",
             self.string_id,
-            if self.ctrl  { "Ctrl-"  } else { "" },
-            if self.alt   { "Alt-"   } else { "" },
+            if self.ctrl { "Ctrl-" } else { "" },
+            if self.alt { "Alt-" } else { "" },
             if self.shift { "Shift-" } else { "" },
             self.key
         )
@@ -654,8 +686,15 @@ impl Hotkey {
     /// assert_eq!(0, hki4.key);
     /// ```
     pub fn string_id(self, string_id: i32) -> Self {
-        if string_id == -1 { Self { string_id, key: 0, ..self } }
-        else               { Self { string_id, ..self         } }
+        if string_id == -1 {
+            Self {
+                string_id,
+                key: 0,
+                ..self
+            }
+        } else {
+            Self { string_id, ..self }
+        }
     }
 
     /// Returns a hotkey equivalent to this one but with `ctrl` determining
@@ -718,7 +757,14 @@ impl Hotkey {
         let shift = input.read_u8()? != 0;
         let mouse = input.read_i8()?;
 
-        Ok(Self { key, string_id, ctrl, alt, shift, mouse })
+        Ok(Self {
+            key,
+            string_id,
+            ctrl,
+            alt,
+            shift,
+            mouse,
+        })
     }
 
     /// Writes a hotkey to an output stream.
@@ -750,16 +796,17 @@ impl Hotkey {
     /// assert_eq!("-1: 0", default.to_string_lang(&lang_file));
     /// ```
     pub fn to_string_lang(&self, lang_file: &genie_lang::LangFile) -> String {
-        let ctrl  = if self.ctrl  { "ctrl-" } else { "" };
-        let alt   = if self.alt   { "ctrl-" } else { "" };
+        let ctrl = if self.ctrl { "ctrl-" } else { "" };
+        let alt = if self.alt { "ctrl-" } else { "" };
         let shift = if self.shift { "ctrl-" } else { "" };
 
         if let Some(s) = lang_file.get(&StringKey::from(self.string_id)) {
-            format!("{} ({}): {}{}{}{}", s, self.string_id,
-                         ctrl, alt, shift, self.key)
+            format!(
+                "{} ({}): {}{}{}{}",
+                s, self.string_id, ctrl, alt, shift, self.key
+            )
         } else {
-            format!("{}: {}{}{}{}", self.string_id,
-                         ctrl, alt, shift, self.key)
+            format!("{}: {}{}{}{}", self.string_id, ctrl, alt, shift, self.key)
         }
     }
 }
@@ -817,15 +864,29 @@ impl HotkeyGroup {
     /// Returns a hotkey group equivalent to this group but with the hotkey
     /// at `index` bound with the given key and modifier keys.
     /// Returns an error if the index does not exist.
-    pub fn bind(&self, index: usize, key: i32, ctrl: bool, alt: bool,
-            shift: bool) -> Result<Self, HotkeyIndexError> {
+    pub fn bind(
+        &self,
+        index: usize,
+        key: i32,
+        ctrl: bool,
+        alt: bool,
+        shift: bool,
+    ) -> Result<Self, HotkeyIndexError> {
         if index >= self.num_hotkeys() {
             return Err(HotkeyIndexError::new(index, self.num_hotkeys()));
         }
-        let hotkeys = self.hotkeys.iter().enumerate().map(|(i, &hk)|
-            if i == index { hk.key(key).ctrl(ctrl).alt(alt).shift(shift) }
-            else { hk }
-        ).collect();
+        let hotkeys = self
+            .hotkeys
+            .iter()
+            .enumerate()
+            .map(|(i, &hk)| {
+                if i == index {
+                    hk.key(key).ctrl(ctrl).alt(alt).shift(shift)
+                } else {
+                    hk
+                }
+            })
+            .collect();
         Ok(Self { hotkeys })
     }
 
@@ -838,21 +899,26 @@ impl HotkeyGroup {
     /// let group = info.group(3).unwrap(); // Villager hotkeys
     /// assert_eq!(28, group.num_hotkeys());
     /// ```
-    pub fn num_hotkeys(&self) -> usize { self.hotkeys.len() }
+    pub fn num_hotkeys(&self) -> usize {
+        self.hotkeys.len()
+    }
 
     /// Returns an iterator over this group's hotkeys.
-    pub fn iter(&self) -> slice::Iter<Hotkey> { self.hotkeys.iter() }
+    pub fn iter(&self) -> slice::Iter<Hotkey> {
+        self.hotkeys.iter()
+    }
 
     /// Returns a string representation of this hotkey group, using the strings
     /// from `lang_file` and the group name string key `sk`.
-    pub fn to_string_lang(&self, lang_file: &LangFile, sk: &StringKey)
-            -> String {
+    pub fn to_string_lang(&self, lang_file: &LangFile, sk: &StringKey) -> String {
         let group_name = if let Some(name) = lang_file.get(sk) {
             format!("{} ({}):\n  ", name, sk)
         } else {
             String::from("")
         };
-        let hotkeys: Vec<String> = self.hotkeys.iter()
+        let hotkeys: Vec<String> = self
+            .hotkeys
+            .iter()
             .map(|hki| hki.to_string_lang(&lang_file))
             .collect();
         format!("{}{}", group_name, hotkeys.join("\n  "))
@@ -864,8 +930,7 @@ impl fmt::Display for HotkeyGroup {
         let group_string = if self.hotkeys.is_empty() {
             String::from(" no hotkeys")
         } else {
-            let hotkeys: Vec<String> = self.hotkeys.iter()
-                .map(|hk| hk.to_string()).collect();
+            let hotkeys: Vec<String> = self.hotkeys.iter().map(|hk| hk.to_string()).collect();
             format!("\n  {}", hotkeys.join("\n  "))
         };
         write!(f, "Group:{}", group_string)
@@ -875,19 +940,25 @@ impl fmt::Display for HotkeyGroup {
 impl IntoIterator for HotkeyGroup {
     type Item = Hotkey;
     type IntoIter = vec::IntoIter<Hotkey>;
-    fn into_iter(self) -> Self::IntoIter { self.hotkeys.into_iter() }
+    fn into_iter(self) -> Self::IntoIter {
+        self.hotkeys.into_iter()
+    }
 }
 
 impl<'a> IntoIterator for &'a HotkeyGroup {
     type Item = &'a Hotkey;
     type IntoIter = slice::Iter<'a, Hotkey>;
-    fn into_iter(self) -> Self::IntoIter { self.hotkeys.iter() }
+    fn into_iter(self) -> Self::IntoIter {
+        self.hotkeys.iter()
+    }
 }
 
-impl <'a> IntoIterator for &'a mut HotkeyGroup {
+impl<'a> IntoIterator for &'a mut HotkeyGroup {
     type Item = &'a mut Hotkey;
     type IntoIter = slice::IterMut<'a, Hotkey>;
-    fn into_iter(self) -> Self::IntoIter { self.hotkeys.iter_mut() }
+    fn into_iter(self) -> Self::IntoIter {
+        self.hotkeys.iter_mut()
+    }
 }
 
 /// Represents a HKI file containing hotkey settings.
@@ -920,8 +991,7 @@ impl HotkeyInfo {
     }
 
     /// Writes a hotkey info structure to an uncompressed stream.
-    fn write_to_uncompressed<W: Write>(&self, output: &mut W)
-            -> io::Result<()> {
+    fn write_to_uncompressed<W: Write>(&self, output: &mut W) -> io::Result<()> {
         output.write_f32::<LE>(self.version)?;
         output.write_u32::<LE>(self.groups.len() as u32)?;
         for group in &self.groups {
@@ -985,17 +1055,20 @@ impl HotkeyInfo {
     /// let info = HotkeyInfo::from(&mut f).expect("failed to read file");
     /// assert_eq!(15, info.num_groups());
     /// ```
-    pub fn num_groups(&self) -> usize { self.groups.len() }
+    pub fn num_groups(&self) -> usize {
+        self.groups.len()
+    }
 
     /// Returns an iterator over the hotkey groups present in this info's hotkey
     /// file.
-    pub fn iter(&self) -> slice::Iter<HotkeyGroup> { self.groups.iter() }
+    pub fn iter(&self) -> slice::Iter<HotkeyGroup> {
+        self.groups.iter()
+    }
 
     /// Returns a `HotkeyInfo` struct equivalent to this `HotkeyInfo`, but with
     /// the key at index `key_index` of the group given by `group_index`
     /// unbound. Returns an error if either index does not exist.
-    pub fn unbind_key(&self, group_index: usize, key_index: usize)
-            -> Result<Self, IndexError> {
+    pub fn unbind_key(&self, group_index: usize, key_index: usize) -> Result<Self, IndexError> {
         self.bind_key(group_index, key_index, 0, false, false, false)
     }
 
@@ -1003,11 +1076,20 @@ impl HotkeyInfo {
     /// the key at index `key_index` of the group given by `group_index`
     /// bound with the given key and key modifiers. Returns an error if either
     /// index does not exist.
-    pub fn bind_key(&self, group_index: usize, key_index: usize, key: i32,
-            ctrl: bool, alt: bool, shift: bool) -> Result<Self, IndexError> {
+    pub fn bind_key(
+        &self,
+        group_index: usize,
+        key_index: usize,
+        key: i32,
+        ctrl: bool,
+        alt: bool,
+        shift: bool,
+    ) -> Result<Self, IndexError> {
         if group_index >= self.num_groups() {
             return Err(IndexError::GroupIndex(GroupIndexError::new(
-                group_index, self.num_groups())));
+                group_index,
+                self.num_groups(),
+            )));
         }
         let mut groups = Vec::with_capacity(self.num_groups());
         for (i, grp) in self.groups.iter().enumerate() {
@@ -1031,9 +1113,10 @@ impl HotkeyInfo {
         let mut bindings = HashMap::new();
         for group in self.iter() {
             for hotkey in group.iter() {
-                bindings.entry(hotkey.key)
-                        .or_insert(vec![])
-                        .push(hotkey.clone());
+                bindings
+                    .entry(hotkey.key)
+                    .or_insert(vec![])
+                    .push(hotkey.clone());
             }
         }
         bindings
@@ -1046,9 +1129,11 @@ impl HotkeyInfo {
     ///
     /// Panics if the number of hotkeys in any group of this file differs from
     /// the number of hotkeys given to that group in `him`.
-    pub fn to_string_lang(&self, lang_file: &LangFile, him: &HotkeyInfoMetadata)
-            -> String {
-        let groups: Vec<String> = self.groups.iter().zip(him.iter())
+    pub fn to_string_lang(&self, lang_file: &LangFile, him: &HotkeyInfoMetadata) -> String {
+        let groups: Vec<String> = self
+            .groups
+            .iter()
+            .zip(him.iter())
             .map(|(grp, sk)| grp.to_string_lang(&lang_file, sk))
             .collect();
         format!("Version: {}\n{}", self.version, groups.join("\n"))
@@ -1057,9 +1142,10 @@ impl HotkeyInfo {
 
 impl fmt::Display for HotkeyInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let group_string = if self.groups.is_empty() { String::from("") } else {
-            let groups: Vec<String> = self.groups.iter()
-                .map(|grp| grp.to_string()).collect();
+        let group_string = if self.groups.is_empty() {
+            String::from("")
+        } else {
+            let groups: Vec<String> = self.groups.iter().map(|grp| grp.to_string()).collect();
             format!("\n{}", groups.join("\n"))
         };
         write!(f, "Version: {}{}", self.version, group_string)
@@ -1069,19 +1155,25 @@ impl fmt::Display for HotkeyInfo {
 impl IntoIterator for HotkeyInfo {
     type Item = HotkeyGroup;
     type IntoIter = vec::IntoIter<HotkeyGroup>;
-    fn into_iter(self) -> Self::IntoIter { self.groups.into_iter() }
+    fn into_iter(self) -> Self::IntoIter {
+        self.groups.into_iter()
+    }
 }
 
 impl<'a> IntoIterator for &'a HotkeyInfo {
     type Item = &'a HotkeyGroup;
     type IntoIter = slice::Iter<'a, HotkeyGroup>;
-    fn into_iter(self) -> Self::IntoIter { self.groups.iter() }
+    fn into_iter(self) -> Self::IntoIter {
+        self.groups.iter()
+    }
 }
 
 impl<'a> IntoIterator for &'a mut HotkeyInfo {
     type Item = &'a mut HotkeyGroup;
     type IntoIter = slice::IterMut<'a, HotkeyGroup>;
-    fn into_iter(self) -> Self::IntoIter { self.groups.iter_mut() }
+    fn into_iter(self) -> Self::IntoIter {
+        self.groups.iter_mut()
+    }
 }
 
 #[cfg(test)]
@@ -1154,24 +1246,34 @@ mod tests {
         let mut f = File::open("test/files/aoc1.hki").unwrap();
         let info = HotkeyInfo::from(&mut f).expect("failed to read file");
         let mut iter = info.iter();
-        assert_eq!(info.group(HotkeyGroupId::UnitCommands as usize),
-                              iter.next());
-        assert_eq!(info.group(HotkeyGroupId::GameCommands as usize),
-                              iter.next());
+        assert_eq!(
+            info.group(HotkeyGroupId::UnitCommands as usize),
+            iter.next()
+        );
+        assert_eq!(
+            info.group(HotkeyGroupId::GameCommands as usize),
+            iter.next()
+        );
         assert_eq!(info.group(HotkeyGroupId::Scroll as usize), iter.next());
         assert_eq!(info.group(HotkeyGroupId::Villager as usize), iter.next());
         assert_eq!(info.group(HotkeyGroupId::TownCenter as usize), iter.next());
         assert_eq!(info.group(HotkeyGroupId::Dock as usize), iter.next());
         assert_eq!(info.group(HotkeyGroupId::Barracks as usize), iter.next());
-        assert_eq!(info.group(HotkeyGroupId::ArcheryRange as usize),
-                              iter.next());
+        assert_eq!(
+            info.group(HotkeyGroupId::ArcheryRange as usize),
+            iter.next()
+        );
         assert_eq!(info.group(HotkeyGroupId::Stable as usize), iter.next());
-        assert_eq!(info.group(HotkeyGroupId::SiegeWorkshop as usize),
-                              iter.next());
+        assert_eq!(
+            info.group(HotkeyGroupId::SiegeWorkshop as usize),
+            iter.next()
+        );
         assert_eq!(info.group(HotkeyGroupId::Monastery as usize), iter.next());
         assert_eq!(info.group(HotkeyGroupId::Market as usize), iter.next());
-        assert_eq!(info.group(HotkeyGroupId::MilitaryUnits as usize),
-                              iter.next());
+        assert_eq!(
+            info.group(HotkeyGroupId::MilitaryUnits as usize),
+            iter.next()
+        );
         assert_eq!(info.group(HotkeyGroupId::Castle as usize), iter.next());
         assert_eq!(None, iter.next());
     }
@@ -1181,8 +1283,9 @@ mod tests {
         let mut f = File::open("test/files/aoc1.hki").unwrap();
         let info = HotkeyInfo::from(&mut f).expect("failed to read file");
         let group0 = info.group(HotkeyGroupId::UnitCommands as usize).unwrap();
-        let group1 = group0.unbind(UnitCommandHotkeys::BuildEconomic as usize)
-                           .unwrap();
+        let group1 = group0
+            .unbind(UnitCommandHotkeys::BuildEconomic as usize)
+            .unwrap();
         assert_eq!(66, group0.hotkey(0).unwrap().key);
         assert_eq!(0, group1.hotkey(0).unwrap().key);
     }
@@ -1192,8 +1295,15 @@ mod tests {
         let mut f = File::open("test/files/aoc1.hki").unwrap();
         let info = HotkeyInfo::from(&mut f).expect("failed to read file");
         let group0 = info.group(HotkeyGroupId::UnitCommands as usize).unwrap();
-        let group1 = group0.bind(UnitCommandHotkeys::BuildEconomic as usize, 65,
-                                 false, false, false).unwrap();
+        let group1 = group0
+            .bind(
+                UnitCommandHotkeys::BuildEconomic as usize,
+                65,
+                false,
+                false,
+                false,
+            )
+            .unwrap();
         assert_eq!(66, group0.hotkey(0).unwrap().key);
         assert_eq!(65, group1.hotkey(0).unwrap().key);
     }
@@ -1212,10 +1322,24 @@ mod tests {
         let mut f = File::open("test/files/aoc1.hki").unwrap();
         let info0 = HotkeyInfo::from(&mut f).expect("failed to read file");
         let info1 = info0.unbind_key(0, 0).unwrap();
-        assert_eq!(66, info0.group(HotkeyGroupId::UnitCommands as usize)
-                            .unwrap().hotkey(0).unwrap().key);
-        assert_eq!(0,  info1.group(HotkeyGroupId::UnitCommands as usize)
-                            .unwrap().hotkey(0).unwrap().key);
+        assert_eq!(
+            66,
+            info0
+                .group(HotkeyGroupId::UnitCommands as usize)
+                .unwrap()
+                .hotkey(0)
+                .unwrap()
+                .key
+        );
+        assert_eq!(
+            0,
+            info1
+                .group(HotkeyGroupId::UnitCommands as usize)
+                .unwrap()
+                .hotkey(0)
+                .unwrap()
+                .key
+        );
     }
 
     #[test]
@@ -1223,10 +1347,24 @@ mod tests {
         let mut f = File::open("test/files/aoc1.hki").unwrap();
         let info0 = HotkeyInfo::from(&mut f).expect("failed to read file");
         let info1 = info0.bind_key(0, 0, 65, false, false, false).unwrap();
-        assert_eq!(66, info0.group(HotkeyGroupId::UnitCommands as usize)
-                            .unwrap().hotkey(0).unwrap().key);
-        assert_eq!(65, info1.group(HotkeyGroupId::UnitCommands as usize)
-                            .unwrap().hotkey(0).unwrap().key);
+        assert_eq!(
+            66,
+            info0
+                .group(HotkeyGroupId::UnitCommands as usize)
+                .unwrap()
+                .hotkey(0)
+                .unwrap()
+                .key
+        );
+        assert_eq!(
+            65,
+            info1
+                .group(HotkeyGroupId::UnitCommands as usize)
+                .unwrap()
+                .hotkey(0)
+                .unwrap()
+                .key
+        );
     }
 
     #[test]

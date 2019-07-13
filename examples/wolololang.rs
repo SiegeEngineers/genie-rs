@@ -12,16 +12,16 @@ use structopt::StructOpt;
 
 /// Struct to collect input and output file paths from the command line.
 #[derive(Debug, StructOpt)]
-#[structopt(name="Wololo Language File")]
+#[structopt(name = "Wololo Language File")]
 struct WololoLang {
     /// The path of the input language key-value file.
-    #[structopt(name="path-in")]
+    #[structopt(name = "path-in")]
     path_in: PathBuf,
 
     /// The path of the output language ini file.
     ///
     /// Overwrites this file if it already exists.
-    #[structopt(name="path-out")]
+    #[structopt(name = "path-out")]
     path_out: PathBuf,
 }
 
