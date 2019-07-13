@@ -152,7 +152,7 @@ where
         self.file_space_left -= 1;
 
         let len = std::io::copy(&mut data, &mut drs.output)?;
-        assert!(len < u32::max_value() as u64, "file too large");
+        assert!(len < u64::from(u32::max_value()), "file too large");
         resource.offset = self.write_offset;
         resource.size = len as u32;
         self.write_offset += resource.size;

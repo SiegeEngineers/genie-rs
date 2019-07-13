@@ -56,7 +56,7 @@ pub fn keycode_id(keycode: i32) -> Option<i32> {
 /// The length is the number of groups in the file.
 /// Each `StringKey` in the list is the key of the string that names the group.
 /// The key is stored at the group's offset index in the hotkey file.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct HotkeyInfoMetadata(Vec<StringKey>);
 
 impl HotkeyInfoMetadata {
@@ -70,7 +70,7 @@ impl HotkeyInfoMetadata {
     /// let him = HotkeyInfoMetadata::new();
     /// ```
     pub fn new() -> Self {
-        Self(Vec::new())
+        Default::default()
     }
 
     /// Adds a group to the metadata.
@@ -103,6 +103,23 @@ impl HotkeyInfoMetadata {
     /// ```
     pub fn len(&self) -> usize {
         self.0.len()
+    }
+
+    /// Returns true if this metadata does not contain any groups.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use genie_hki::HotkeyInfoMetadata;
+    /// use genie_lang::StringKey;
+    ///
+    /// let mut him = HotkeyInfoMetadata::new();
+    /// assert!(him.is_empty());
+    /// him.add(StringKey::from(0));
+    /// assert!(!him.is_empty());
+    /// ```
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 
     /// Returns `Some(sk)`, where `sk` is the string key of the group at the
@@ -1115,7 +1132,7 @@ impl HotkeyInfo {
             for hotkey in group.iter() {
                 bindings
                     .entry(hotkey.key)
-                    .or_insert(vec![])
+                    .or_insert_with(|| vec![])
                     .push(hotkey.clone());
             }
         }

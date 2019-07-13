@@ -267,8 +267,11 @@ impl Error for ParseLangFileTypeError {}
 /// Aoe2 supports three types of language files
 #[derive(Debug)]
 pub enum LangFileType {
+    /// An AoK/AoC-style DLL file with language resource strings.
     Dll,
+    /// A Voobly-style .ini language file.
     Ini,
+    /// An HD Edition key-value language file.
     KeyValue,
 }
 
@@ -279,9 +282,9 @@ impl LangFileType {
         use LangFileType::{Dll, Ini, KeyValue};
         let mut lang_file = LangFile::new();
         let from_method = match self {
-            Dll => LangFile::from_dll,
-            Ini => LangFile::from_ini,
-            KeyValue => LangFile::from_keyval,
+            Dll => LangFile::read_dll,
+            Ini => LangFile::read_ini,
+            KeyValue => LangFile::read_keyval,
         };
         from_method(&mut lang_file, r)?;
         Ok(lang_file)
@@ -314,7 +317,7 @@ impl LangFile {
     ///
     /// Returns `Err(e)` where `e` is a `LoadError` if an error occurs while
     /// loading the file.
-    pub fn from_dll(&mut self, mut input: impl Read) -> Result<(), LoadError> {
+    pub fn read_dll(&mut self, mut input: impl Read) -> Result<(), LoadError> {
         let mut bytes = vec![];
         input.read_to_end(&mut bytes)?;
         let pe = PeFile::from_bytes(&bytes)?;
@@ -385,7 +388,7 @@ impl LangFile {
     ///
     /// Returns `Err(e)` where `e` is a `LoadError` if an error occurs while
     /// loading the file.
-    fn from_ini(&mut self, input: impl Read) -> Result<(), LoadError> {
+    fn read_ini(&mut self, input: impl Read) -> Result<(), LoadError> {
         let input = DecodeReaderBytesBuilder::new()
             .encoding(Some(WINDOWS_1252))
             .build(input);
@@ -427,7 +430,7 @@ impl LangFile {
     /// Reads a language file from an HD Edition-style key-value file.
     ///
     /// This function loads eagerly all the strings into memory.
-    fn from_keyval(&mut self, input: impl Read) -> Result<(), LoadError> {
+    fn read_keyval(&mut self, input: impl Read) -> Result<(), LoadError> {
         let input = BufReader::new(input);
         for line in input.lines() {
             self.load_keyval_line(&line?)?;

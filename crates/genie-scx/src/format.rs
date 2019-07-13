@@ -1,6 +1,6 @@
 //! This module contains the data format reading/writing.
 
-#![allow(clippy::cyclomatic_complexity)]
+#![allow(clippy::cognitive_complexity)]
 
 use crate::{
     ai::AIInfo, bitmap::Bitmap, header::SCXHeader, map::Map, player::*, triggers::TriggerSystem,
