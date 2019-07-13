@@ -20,6 +20,14 @@ cargo run --example extractcpx ~/path/to/campaign.cpx -l
 
 # Convert an HD Edition (+expansions) scenario to WololoKingdoms.
 cargo run --example convertscx ~/path/to/input.aoe2scenario ~/path/to/output.scx wk
+
+# Display contents of a language file.
+cargo run --example displaylang ~/path/to/input/language.dll dll
+cargo run --example displaylang ~/path/to/input/language.ini ini
+cargo run --example displaylang ~/path/to/input/key-value-strings.txt key-value
+
+# Convert HD Edition key-value.txt language files to language.ini files for Voobly or aoc-language-ini
+cargo run --example wolololang ~/path/to/input/key-value-strings.txt ~/path/to/output/language.ini
 ```
 
 ## License
