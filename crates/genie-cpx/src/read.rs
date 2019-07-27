@@ -25,7 +25,7 @@ impl From<scx::Error> for ReadCampaignError {
 }
 
 impl std::fmt::Display for ReadCampaignError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ReadCampaignError::DecodeStringError => write!(f, "invalid string"),
             ReadCampaignError::IoError(err) => write!(f, "{}", err),

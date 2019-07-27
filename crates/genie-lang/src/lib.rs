@@ -93,6 +93,13 @@
 //! "#);
 //! ```
 
+#![deny(future_incompatible)]
+#![deny(nonstandard_style)]
+#![deny(rust_2018_idioms)]
+#![deny(unsafe_code)]
+#![warn(missing_docs)]
+#![warn(unused)]
+
 use byteorder::{ReadBytesExt, LE};
 use encoding_rs::{UTF_16LE, WINDOWS_1252};
 use encoding_rs_io::DecodeReaderBytesBuilder;
@@ -164,7 +171,7 @@ impl StringKey {
 }
 
 impl fmt::Display for StringKey {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use StringKey::{Name, Num};
         match self {
             Num(n) => write!(f, "{}", n),
@@ -220,7 +227,7 @@ pub enum LoadError {
 }
 
 impl fmt::Display for LoadError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use LoadError::{IoError, ParseIntError, PeError};
         match self {
             IoError(e) => e.fmt(f),
@@ -257,7 +264,7 @@ impl Error for LoadError {}
 pub struct ParseLangFileTypeError(String);
 
 impl fmt::Display for ParseLangFileTypeError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
     }
 }
@@ -325,7 +332,7 @@ impl LangFile {
     }
 
     /// TODO specify
-    fn load_pe_file(&mut self, pe: PeFile) -> Result<(), LoadError> {
+    fn load_pe_file(&mut self, pe: PeFile<'_>) -> Result<(), LoadError> {
         for root_dir_entry in pe.resources()?.root()?.entries() {
             if let Ok(Name::Id(6)) = root_dir_entry.name() {
                 if let Some(directory) = root_dir_entry.entry()?.dir() {
@@ -339,7 +346,7 @@ impl LangFile {
     /// TODO specify
     fn load_pe_directory(
         &mut self,
-        directory: pelite::resources::Directory,
+        directory: pelite::resources::Directory<'_>,
     ) -> Result<(), LoadError> {
         for entry in directory.entries() {
             let base_index = if let Name::Id(n) = entry.name()? {
@@ -566,7 +573,7 @@ impl LangFile {
     /// }
     /// assert!(lang_file.is_empty());
     /// ```
-    pub fn drain(&mut self) -> Drain<StringKey, String> {
+    pub fn drain(&mut self) -> Drain<'_, StringKey, String> {
         self.0.drain()
     }
 
@@ -636,7 +643,7 @@ impl LangFile {
     /// assert_eq!("aA", lang_file.get(&StringKey::from(0)).unwrap());
     /// assert_eq!("HelloA", lang_file.get(&StringKey::from(1)).unwrap());
     /// ```
-    pub fn entry(&mut self, key: StringKey) -> Entry<StringKey, String> {
+    pub fn entry(&mut self, key: StringKey) -> Entry<'_, StringKey, String> {
         self.0.entry(key)
     }
 
@@ -724,7 +731,7 @@ impl LangFile {
     ///
     /// for (k, v) in lang_file.iter() { println!("key: {}, val: {}", k, v); }
     /// ```
-    pub fn iter(&self) -> Iter<StringKey, String> {
+    pub fn iter(&self) -> Iter<'_, StringKey, String> {
         self.0.iter()
     }
 
@@ -746,7 +753,7 @@ impl LangFile {
     /// for (_, v) in lang_file.iter_mut() { v.push('A'); }
     /// for (k, v) in &lang_file { println!("key: {}, val: {}", k, v); }
     /// ```
-    pub fn iter_mut(&mut self) -> IterMut<StringKey, String> {
+    pub fn iter_mut(&mut self) -> IterMut<'_, StringKey, String> {
         self.0.iter_mut()
     }
 
@@ -766,7 +773,7 @@ impl LangFile {
     ///
     /// for k in lang_file.keys() { println!("key: {}", k); }
     /// ```
-    pub fn keys(&self) -> Keys<StringKey, String> {
+    pub fn keys(&self) -> Keys<'_, StringKey, String> {
         self.0.keys()
     }
 
@@ -786,7 +793,7 @@ impl LangFile {
     ///
     /// for v in lang_file.values() { println!("value: {}", v); }
     /// ```
-    pub fn values(&self) -> Values<StringKey, String> {
+    pub fn values(&self) -> Values<'_, StringKey, String> {
         self.0.values()
     }
 
@@ -807,7 +814,7 @@ impl LangFile {
     /// for v in lang_file.values_mut() { v.push('A'); }
     /// for v in lang_file.values() { println!("{}", v); }
     /// ```
-    pub fn values_mut(&mut self) -> ValuesMut<StringKey, String> {
+    pub fn values_mut(&mut self) -> ValuesMut<'_, StringKey, String> {
         self.0.values_mut()
     }
 }
@@ -837,7 +844,7 @@ impl<'a> IntoIterator for &'a mut LangFile {
 }
 
 impl fmt::Display for LangFile {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let strs: Vec<String> = self
             .0
             .iter()

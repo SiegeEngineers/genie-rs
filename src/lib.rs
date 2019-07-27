@@ -55,7 +55,12 @@
 //! Support for palette files is implemented by [chariot_palette](https://github.com/ChariotEngine/Palette/).
 //! chariot_palette only supports _reading_ palette files at the moment.
 
-#![warn(rust_2018_idioms)]
+#![deny(future_incompatible)]
+#![deny(nonstandard_style)]
+#![deny(rust_2018_idioms)]
+#![deny(unsafe_code)]
+#![warn(missing_docs)]
+#![warn(unused)]
 
 pub use chariot_palette as pal;
 pub use genie_cpx as cpx;

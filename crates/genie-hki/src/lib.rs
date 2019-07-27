@@ -5,6 +5,13 @@
 //! for Ctrl/Alt/Shift modifiers. The index of the hotkey in its
 //! group determines the action that will be taken when it is activated.
 
+#![deny(future_incompatible)]
+#![deny(nonstandard_style)]
+#![deny(rust_2018_idioms)]
+#![deny(unsafe_code)]
+#![warn(missing_docs)]
+#![warn(unused)]
+
 use genie_lang::{LangFile, StringKey};
 
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
@@ -159,7 +166,7 @@ impl HotkeyInfoMetadata {
     /// assert_eq!(Some(&StringKey::from(1)), iter.next());
     /// assert_eq!(None, iter.next());
     /// ```
-    pub fn iter(&self) -> slice::Iter<StringKey> {
+    pub fn iter(&self) -> impl Iterator<Item = &StringKey> {
         self.0.iter()
     }
 }
@@ -217,27 +224,45 @@ pub fn default_him() -> HotkeyInfoMetadata {
 
 /// Available hotkey groups.
 pub enum HotkeyGroupId {
+    /// Hotkey commands when a unit is selected.
     UnitCommands = 0x0,
+    /// Commands to control the game (speed, pause, UI toggles, etc).
     GameCommands = 0x1,
+    /// Map scrolling commands.
     Scroll = 0x2,
+    /// Villager build commands.
     Villager = 0x3,
+    /// Commands when a Town Center is selected.
     TownCenter = 0x4,
+    /// Commands when a Dock is selected.
     Dock = 0x5,
+    /// Commands when a Barracks is selected.
     Barracks = 0x6,
+    /// Commands when an Archery Range is selected.
     ArcheryRange = 0x7,
+    /// Commands when a Stable is selected.
     Stable = 0x8,
+    /// Commands when a Siege Workshop is selected.
     SiegeWorkshop = 0x9,
+    /// Commands when a Monastery is selected.
     Monastery = 0xA,
+    /// Commands when a Market is selected.
     Market = 0xB,
+    /// Commands when a military unit is selected.
     MilitaryUnits = 0xC,
+    /// Commands when a Castle is selected.
     Castle = 0xD,
+    /// Commands when a Mill is selected.
     Mill = 0xE,
 }
 
 /// Hotkeys for castles.
 pub enum CastleHotkeys {
+    /// Create a Trebuchet.
     Trebuchet = 0x0,
+    /// Create the unique unit.
     UniqueUnit = 0x1,
+    /// Create a Petard.
     Petard = 0x2,
 }
 
@@ -502,7 +527,7 @@ pub enum IndexError {
 }
 
 impl fmt::Display for IndexError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             IndexError::GroupIndex(err) => err.fmt(f),
             IndexError::HotkeyIndex(err) => err.fmt(f),
@@ -559,7 +584,7 @@ impl GroupIndexError {
 }
 
 impl fmt::Display for GroupIndexError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "Group id {} must be less than the number of groups {}.",
@@ -601,7 +626,7 @@ impl HotkeyIndexError {
 }
 
 impl fmt::Display for HotkeyIndexError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "Hotkey id {} must be less than the number of hotkeys {}.",
@@ -653,7 +678,7 @@ impl Default for Hotkey {
 }
 
 impl fmt::Display for Hotkey {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}: {}{}{}{}",
@@ -921,7 +946,7 @@ impl HotkeyGroup {
     }
 
     /// Returns an iterator over this group's hotkeys.
-    pub fn iter(&self) -> slice::Iter<Hotkey> {
+    pub fn iter(&self) -> impl Iterator<Item = &Hotkey> {
         self.hotkeys.iter()
     }
 
@@ -943,7 +968,7 @@ impl HotkeyGroup {
 }
 
 impl fmt::Display for HotkeyGroup {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let group_string = if self.hotkeys.is_empty() {
             String::from(" no hotkeys")
         } else {
@@ -1078,7 +1103,7 @@ impl HotkeyInfo {
 
     /// Returns an iterator over the hotkey groups present in this info's hotkey
     /// file.
-    pub fn iter(&self) -> slice::Iter<HotkeyGroup> {
+    pub fn iter(&self) -> impl Iterator<Item = &HotkeyGroup> {
         self.groups.iter()
     }
 
@@ -1158,7 +1183,7 @@ impl HotkeyInfo {
 }
 
 impl fmt::Display for HotkeyInfo {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let group_string = if self.groups.is_empty() {
             String::from("")
         } else {

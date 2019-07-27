@@ -11,7 +11,7 @@ pub type SCXVersion = [u8; 4];
 pub struct ParseDiplomaticStanceError(i32);
 
 impl std::fmt::Display for ParseDiplomaticStanceError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "invalid diplomatic stance {} (must be 0/1/3)", self.0)
     }
 }
@@ -51,7 +51,7 @@ impl From<DiplomaticStance> for i32 {
 pub struct ParseDataSetError(i32);
 
 impl std::fmt::Display for ParseDataSetError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "invalid data set {} (must be 0/1)", self.0)
     }
 }
@@ -88,7 +88,7 @@ impl From<DataSet> for i32 {
 pub struct ParseDLCPackageError(i32);
 
 impl std::fmt::Display for ParseDLCPackageError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "unknown dlc package {}", self.0)
     }
 }
@@ -138,7 +138,7 @@ pub struct ParseStartingAgeError {
 }
 
 impl std::fmt::Display for ParseStartingAgeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let expected = if self.version < 1.25 { "-1-4" } else { "-1-6" };
         write!(
             f,

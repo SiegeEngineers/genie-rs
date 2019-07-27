@@ -2,6 +2,14 @@
 //!
 //! This crate aims to support every single scenario that exists. If a scenario file from any Age
 //! of Empires 1 or Age of Empires 2 version does not work, please upload it and file an issue!
+
+#![deny(future_incompatible)]
+#![deny(nonstandard_style)]
+#![deny(rust_2018_idioms)]
+#![deny(unsafe_code)]
+#![warn(missing_docs)]
+#![warn(unused)]
+
 mod ai;
 mod bitmap;
 pub mod convert;
@@ -103,7 +111,7 @@ error_impl_from!(ParseDLCPackageError);
 error_impl_from!(ParseStartingAgeError);
 
 impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::MissingFileNameError => write!(f, "must have a file name"),
             Error::UnsupportedFormatVersionError(version) => {

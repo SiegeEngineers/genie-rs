@@ -10,7 +10,7 @@ use std::io::{self, Read, Write};
 pub struct DecodeStringError;
 
 impl std::fmt::Display for DecodeStringError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "could not decode string as WINDOWS-1252")
     }
 }
@@ -24,7 +24,7 @@ impl std::error::Error for DecodeStringError {}
 pub struct EncodeStringError;
 
 impl std::fmt::Display for EncodeStringError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "could not encode string as WINDOWS-1252")
     }
 }

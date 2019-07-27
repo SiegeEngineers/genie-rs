@@ -110,7 +110,7 @@ impl DRSReader {
 
     /// Iterate over the tables in this DRS archive.
     #[inline]
-    pub fn tables(&self) -> DRSTableIterator {
+    pub fn tables(&self) -> DRSTableIterator<'_> {
         self.tables.iter()
     }
 }
