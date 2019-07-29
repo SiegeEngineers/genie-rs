@@ -190,7 +190,7 @@ mod tests {
 
     #[test]
     fn aoe2() {
-        let mut f = File::open("empires2_x1_p1.dat").unwrap();
+        let mut f = File::open("fixtures/aok.dat").unwrap();
         let dat = DatFile::from(&mut f).unwrap();
         dbg!(&dat.techs);
     }

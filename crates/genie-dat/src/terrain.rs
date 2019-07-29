@@ -247,7 +247,6 @@ impl Terrain {
         terrain.terrain_objects = terrain_objects;
 
         let _padding = input.read_u16::<LE>()?;
-        let _padding = input.read_u16::<LE>()?;
 
         Ok(terrain)
     }
