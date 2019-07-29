@@ -22,6 +22,13 @@
 //! # }
 //! ```
 
+#![deny(future_incompatible)]
+#![deny(nonstandard_style)]
+#![deny(rust_2018_idioms)]
+#![deny(unsafe_code)]
+#![warn(missing_docs)]
+#![warn(unused)]
+
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use sorted_vec::SortedVec;
 use std::io::{Error, Read, Write};
@@ -32,7 +39,7 @@ mod read;
 mod write;
 
 pub use read::DRSReader;
-pub use write::{DRSWriter, InMemoryStrategy, ReserveDirectoryStrategy};
+pub use write::{DRSWriter, InMemoryStrategy, ReserveDirectoryStrategy, Strategy as WriteStrategy};
 
 /// A DRS version string.
 type DRSVersion = [u8; 4];
@@ -163,7 +170,7 @@ impl DRSHeader {
 }
 
 impl std::fmt::Debug for DRSHeader {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f,
            "DRSHeader {{ banner_msg: '{}', version: '{}', password: '{}', num_resource_types: {}, directory_size: {} }}",
            str::from_utf8(&self.banner_msg).unwrap(),
@@ -243,14 +250,15 @@ impl DRSTable {
 
     /// Iterate over the resources in this table.
     #[inline]
-    pub fn resources(&self) -> DRSResourceIterator {
+    pub fn resources(&self) -> DRSResourceIterator<'_> {
         self.resources.iter()
     }
 
     /// Find a resource by ID.
     #[inline]
     pub fn get_resource(&self, id: u32) -> Option<&DRSResource> {
-        self.resource_ids.binary_search(&id)
+        self.resource_ids
+            .binary_search(&id)
             .ok()
             .map(|index| &self.resources[index])
     }
@@ -269,7 +277,7 @@ impl DRSTable {
 }
 
 impl std::fmt::Debug for DRSTable {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "DRSTable {{ resource_type: '{}', offset: {}, num_resources: {} }}",
@@ -310,7 +318,9 @@ impl DRSResource {
     }
 }
 
+/// An iterator over DRS table metadata structs.
 pub type DRSTableIterator<'a> = slice::Iter<'a, DRSTable>;
+/// An iterator over DRS resource metadata structs.
 pub type DRSResourceIterator<'a> = slice::Iter<'a, DRSResource>;
 
 #[cfg(test)]

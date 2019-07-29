@@ -78,7 +78,12 @@ impl DRSReader {
     ///
     /// It shares the file handle that is given, so make sure to use the return value before
     /// calling this method again.
-    pub fn get_resource_reader<R: Read + Seek>(&self, mut handle: R, resource_type: ResourceType, id: u32) -> Result<impl Read, Error> {
+    pub fn get_resource_reader<R: Read + Seek>(
+        &self,
+        mut handle: R,
+        resource_type: ResourceType,
+        id: u32,
+    ) -> Result<impl Read, Error> {
         let &DRSResource { size, offset, .. } = self
             .get_resource(resource_type, id)
             .ok_or_else(|| Error::new(ErrorKind::NotFound, "Resource not found in this archive"))?;
@@ -105,7 +110,7 @@ impl DRSReader {
 
     /// Iterate over the tables in this DRS archive.
     #[inline]
-    pub fn tables(&self) -> DRSTableIterator {
+    pub fn tables(&self) -> DRSTableIterator<'_> {
         self.tables.iter()
     }
 }
