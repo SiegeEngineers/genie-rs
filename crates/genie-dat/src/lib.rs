@@ -29,7 +29,7 @@ impl Version {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DatFile {
     version: Version,
     pub terrain_tables: Vec<TerrainRestriction>,

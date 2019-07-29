@@ -1,7 +1,7 @@
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::io::{Read, Result, Write};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ColorTable {
     id: i32,
     base: i32,

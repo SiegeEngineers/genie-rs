@@ -2,7 +2,7 @@ use crate::Version;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::io::{Read, Result, Write};
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct SoundItem {
     pub filename: String,
     pub resource_id: i32,
@@ -37,7 +37,7 @@ impl SoundItem {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Sound {
     pub id: i16,
     pub play_delay: i16,

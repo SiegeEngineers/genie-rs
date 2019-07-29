@@ -15,12 +15,12 @@ pub struct SoundProp {
     pub sound_id: i16,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct SpriteAttackSound {
     pub sound_props: [SoundProp; 3],
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Sprite {
     pub id: u16,
     pub name: String,
