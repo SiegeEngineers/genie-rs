@@ -89,7 +89,7 @@ impl SoundProp {
         })
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    pub fn write_to<W: Write>(self, output: &mut W) -> Result<()> {
         output.write_i16::<LE>(self.sound_delay)?;
         output.write_i16::<LE>(self.sound_id)?;
         Ok(())

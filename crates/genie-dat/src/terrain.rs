@@ -185,7 +185,7 @@ pub struct Terrain {
 }
 
 impl Terrain {
-    pub fn from<R: Read>(input: &mut R, version: Version, num_terrains: u16) -> Result<Self> {
+    pub fn from<R: Read>(input: &mut R, _version: Version, num_terrains: u16) -> Result<Self> {
         let mut terrain = Terrain::default();
         terrain.enabled = input.read_u8()? != 0;
         terrain.random = input.read_u8()?;
