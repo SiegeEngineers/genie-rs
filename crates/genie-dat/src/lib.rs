@@ -10,7 +10,7 @@ use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 pub use sound::{Sound, SoundItem};
 pub use sprite::{SoundProp, Sprite, SpriteAttackSound, SpriteDelta};
 use std::io::{Read, Result, Write};
-pub use tech::{Tech, TechEffect};
+pub use tech::{TechEffect};
 pub use terrain::{
     Terrain, TerrainAnimation, TerrainBorder, TerrainPassGraphic, TerrainRestriction,
     TerrainSpriteFrame, TileSize,
@@ -39,7 +39,7 @@ pub struct DatFile {
     pub color_tables: Vec<ColorTable>,
     pub sounds: Vec<Sound>,
     pub sprites: Vec<Option<Sprite>>,
-    pub techs: Vec<Tech>,
+    pub effects: Vec<TechEffect>,
 }
 
 impl DatFile {
@@ -153,10 +153,10 @@ impl DatFile {
 
         assert!(num_random_maps == 0, "Random map info is not implemented");
 
-        let num_techs = input.read_u32::<LE>()?;
-        let mut techs = vec![];
-        for _ in 0..num_techs {
-            techs.push(Tech::from(&mut input)?);
+        let num_effects = input.read_u32::<LE>()?;
+        let mut effects = vec![];
+        for _ in 0..num_effects {
+            effects.push(TechEffect::from(&mut input)?);
         }
 
         Ok(Self {
@@ -168,7 +168,7 @@ impl DatFile {
             color_tables,
             sounds,
             sprites,
-            techs,
+            effects,
         })
     }
 
@@ -189,9 +189,23 @@ mod tests {
     use std::fs::File;
 
     #[test]
-    fn aoe2() {
+    fn aok() {
         let mut f = File::open("fixtures/aok.dat").unwrap();
         let dat = DatFile::from(&mut f).unwrap();
-        dbg!(&dat.techs);
+        dbg!(&dat.effects);
+    }
+
+    #[test]
+    fn aoc() {
+        let mut f = File::open("fixtures/aoc1.0c.dat").unwrap();
+        let dat = DatFile::from(&mut f).unwrap();
+        dbg!(&dat.effects);
+    }
+
+    #[test]
+    fn hd_edition() {
+        let mut f = File::open("fixtures/hd.dat").unwrap();
+        let dat = DatFile::from(&mut f).unwrap();
+        dbg!(&dat.effects);
     }
 }
