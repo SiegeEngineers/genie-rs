@@ -1,15 +1,21 @@
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::io::{Read, Result, Write};
 
+/// An effect command specifies an attribute change when a tech effect is triggered.
 #[derive(Debug, Default, Clone)]
 pub struct EffectCommand {
+    /// The command.
     pub command_type: u8,
+    /// Command-dependent parameters.
     pub params: (i16, i16, i16, f32),
 }
 
+/// A tech effect is a group of attribute changes that are applied when the effect is triggered.
 #[derive(Debug, Default, Clone)]
 pub struct TechEffect {
+    /// Name for the effect.
     pub name: String,
+    /// Attribute commands to execute when this effect is triggered.
     pub commands: Vec<EffectCommand>,
 }
 

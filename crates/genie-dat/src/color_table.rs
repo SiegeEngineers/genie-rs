@@ -1,13 +1,18 @@
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::io::{Read, Result, Write};
 
+/// Player colour data.
 #[derive(Debug, Clone)]
 pub struct ColorTable {
     id: i32,
+    /// Base palette index for this player colour.
     base: i32,
+    /// The palette index to use for unit outlines when they are obscured by buildings or trees.
     unit_outline_color: i32,
     unit_selection_colors: (i32, i32),
+    /// Palette indices for this colour on the minimap.
     minimap_colors: (i32, i32, i32),
+    /// Palette index to use for this player colour in the in-game statistics in the bottom right.
     statistics_text_color: i32,
 }
 

@@ -3,6 +3,14 @@ use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::io::{Read, Result, Write};
 
 #[derive(Debug, Default, Clone)]
+pub struct Sound {
+    pub id: i16,
+    pub play_delay: i16,
+    pub cache_time: i32,
+    pub items: Vec<SoundItem>,
+}
+
+#[derive(Debug, Default, Clone)]
 pub struct SoundItem {
     pub filename: String,
     pub resource_id: i32,
@@ -35,14 +43,6 @@ impl SoundItem {
         output.write_i16::<LE>(self.icon_set.unwrap())?;
         Ok(())
     }
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct Sound {
-    pub id: i16,
-    pub play_delay: i16,
-    pub cache_time: i32,
-    pub items: Vec<SoundItem>,
 }
 
 impl Sound {

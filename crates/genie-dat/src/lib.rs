@@ -1,6 +1,7 @@
 mod color_table;
 mod sound;
 mod sprite;
+mod task;
 mod tech;
 mod terrain;
 
@@ -10,7 +11,8 @@ use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 pub use sound::{Sound, SoundItem};
 pub use sprite::{SoundProp, Sprite, SpriteAttackSound, SpriteDelta};
 use std::io::{Read, Result, Write};
-pub use tech::{TechEffect};
+pub use task::{Task, TaskList};
+pub use tech::TechEffect;
 pub use terrain::{
     Terrain, TerrainAnimation, TerrainBorder, TerrainPassGraphic, TerrainRestriction,
     TerrainSpriteFrame, TileSize,
@@ -40,6 +42,7 @@ pub struct DatFile {
     pub sounds: Vec<Sound>,
     pub sprites: Vec<Option<Sprite>>,
     pub effects: Vec<TechEffect>,
+    pub task_lists: Vec<Option<TaskList>>,
 }
 
 impl DatFile {
@@ -159,6 +162,16 @@ impl DatFile {
             effects.push(TechEffect::from(&mut input)?);
         }
 
+        let num_task_lists = input.read_u32::<LE>()?;
+        let mut task_lists = vec![];
+        for _ in 0..num_task_lists {
+            task_lists.push(if input.read_u8()? != 0 {
+                Some(TaskList::from(&mut input)?)
+            } else {
+                None
+            });
+        }
+
         Ok(Self {
             version,
             terrain_tables,
@@ -169,6 +182,7 @@ impl DatFile {
             sounds,
             sprites,
             effects,
+            task_lists,
         })
     }
 
@@ -192,20 +206,18 @@ mod tests {
     fn aok() {
         let mut f = File::open("fixtures/aok.dat").unwrap();
         let dat = DatFile::from(&mut f).unwrap();
-        dbg!(&dat.effects);
     }
 
     #[test]
     fn aoc() {
         let mut f = File::open("fixtures/aoc1.0c.dat").unwrap();
         let dat = DatFile::from(&mut f).unwrap();
-        dbg!(&dat.effects);
     }
 
     #[test]
     fn hd_edition() {
         let mut f = File::open("fixtures/hd.dat").unwrap();
         let dat = DatFile::from(&mut f).unwrap();
-        dbg!(&dat.effects);
+        dbg!(&dat.task_lists);
     }
 }
