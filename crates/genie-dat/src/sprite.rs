@@ -154,7 +154,7 @@ impl SpriteDelta {
 impl SoundProp {
     pub fn from<R: Read>(input: &mut R) -> Result<Self> {
         let sound_delay = input.read_i16::<LE>()?;
-        let sound_id = input.read_u16::<LE>()?;
+        let sound_id = input.read_u16::<LE>()?.into();
         Ok(Self {
             sound_delay,
             sound_id,
@@ -163,7 +163,7 @@ impl SoundProp {
 
     pub fn write_to<W: Write>(self, output: &mut W) -> Result<()> {
         output.write_i16::<LE>(self.sound_delay)?;
-        output.write_u16::<LE>(self.sound_id)?;
+        output.write_u16::<LE>(self.sound_id.into())?;
         Ok(())
     }
 }
@@ -218,7 +218,7 @@ impl Sprite {
         let num_deltas = input.read_u16::<LE>()?;
         sprite.sound_id = match input.read_i16::<LE>()? {
             -1 => None,
-            id => Some(id as u16),
+            id => Some((id as u16).into()),
         };
         let attack_sounds_used = input.read_u8()? != 0;
         sprite.num_frames = input.read_u16::<LE>()?;

@@ -274,8 +274,8 @@ impl StaticUnitType {
         unit_type.los = input.read_f32::<LE>()?;
         unit_type.garrison_capacity = input.read_u8()?;
         unit_type.radius = (input.read_f32::<LE>()?, input.read_f32::<LE>()?, input.read_f32::<LE>()?);
-        unit_type.train_sound = read_opt_u16(input)?;
-        unit_type.damage_sound = read_opt_u16(input)?;
+        unit_type.train_sound = read_opt_u16(input)?.map_into();
+        unit_type.damage_sound = read_opt_u16(input)?.map_into();
         unit_type.death_spawn = read_opt_u16(input)?.map_into();
         unit_type.sort_number = input.read_u8()?;
         unit_type.can_be_built_on = input.read_u8()? != 0;
@@ -325,8 +325,8 @@ impl StaticUnitType {
             }
             damage_sprites
         };
-        unit_type.selected_sound = read_opt_u16(input)?;
-        unit_type.death_sound = read_opt_u16(input)?;
+        unit_type.selected_sound = read_opt_u16(input)?.map_into();
+        unit_type.death_sound = read_opt_u16(input)?.map_into();
         unit_type.attack_reaction = input.read_u8()?;
         unit_type.convert_terrain_flag = input.read_u8()?;
         unit_type.name = {

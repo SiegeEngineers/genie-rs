@@ -5,7 +5,33 @@ use std::{
     io::{Read, Result, Write},
 };
 
-pub type SoundID = u16;
+macro_rules! fallible_try_into {
+    ($from:ident, $to:ty) => {
+        impl std::convert::TryFrom<$from> for $to {
+            type Error = std::num::TryFromIntError;
+            fn try_from(n: $from) -> std::result::Result<Self, Self::Error> {
+                n.0.try_into()
+            }
+        }
+    }
+}
+
+/// An ID identifying a sound.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct SoundID(u16);
+impl From<u16> for SoundID {
+    fn from(n: u16) -> Self {
+        SoundID(n)
+    }
+}
+
+impl From<SoundID> for u16 {
+    fn from(n: SoundID) -> Self {
+        n.0
+    }
+}
+
+fallible_try_into!(SoundID, i16);
 
 #[derive(Debug, Default, Clone)]
 pub struct Sound {
@@ -53,7 +79,7 @@ impl SoundItem {
 impl Sound {
     pub fn from<R: Read>(input: &mut R, version: Version) -> Result<Self> {
         let mut sound = Sound::default();
-        sound.id = input.read_u16::<LE>()?;
+        sound.id = input.read_u16::<LE>()?.into();
         sound.play_delay = input.read_i16::<LE>()?;
         let num_items = input.read_u16::<LE>()?;
         sound.cache_time = input.read_i32::<LE>()?;
@@ -64,7 +90,7 @@ impl Sound {
     }
 
     pub fn write_to<W: Write>(&self, output: &mut W, version: Version) -> Result<()> {
-        output.write_u16::<LE>(self.id)?;
+        output.write_u16::<LE>(self.id.into())?;
         output.write_i16::<LE>(self.play_delay)?;
         output.write_u16::<LE>(self.len().try_into().unwrap())?;
         output.write_i32::<LE>(self.cache_time)?;
