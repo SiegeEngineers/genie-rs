@@ -1,5 +1,9 @@
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::io::{Read, Result, Write};
+use crate::sound::SoundID;
+
+pub type GraphicID<T> = T;
+pub type SpriteID = u16;
 
 #[derive(Debug, Default, Clone)]
 pub struct SpriteDelta {
@@ -12,7 +16,7 @@ pub struct SpriteDelta {
 #[derive(Debug, Default, Clone, Copy)]
 pub struct SoundProp {
     pub sound_delay: i16,
-    pub sound_id: i16,
+    pub sound_id: SoundID,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -22,17 +26,17 @@ pub struct SpriteAttackSound {
 
 #[derive(Debug, Default, Clone)]
 pub struct Sprite {
-    pub id: u16,
+    pub id: SpriteID,
     pub name: String,
     pub filename: String,
-    pub slp_id: i32,
+    pub slp_id: GraphicID<i32>,
     pub is_loaded: bool,
     color_flag: bool,
     pub layer: u8,
     pub color_table: u16,
     pub transparent_selection: bool,
     pub bounding_box: (i16, i16, i16, i16),
-    pub sound_id: Option<u16>,
+    pub sound_id: Option<SoundID>,
     pub num_frames: u16,
     num_facets: u16,
     pub base_speed: f32,
@@ -82,7 +86,7 @@ impl SpriteDelta {
 impl SoundProp {
     pub fn from<R: Read>(input: &mut R) -> Result<Self> {
         let sound_delay = input.read_i16::<LE>()?;
-        let sound_id = input.read_i16::<LE>()?;
+        let sound_id = input.read_u16::<LE>()?;
         Ok(Self {
             sound_delay,
             sound_id,
@@ -91,7 +95,7 @@ impl SoundProp {
 
     pub fn write_to<W: Write>(self, output: &mut W) -> Result<()> {
         output.write_i16::<LE>(self.sound_delay)?;
-        output.write_i16::<LE>(self.sound_id)?;
+        output.write_u16::<LE>(self.sound_id)?;
         Ok(())
     }
 }

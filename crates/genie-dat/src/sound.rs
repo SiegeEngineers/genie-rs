@@ -1,10 +1,15 @@
 use crate::Version;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::io::{Read, Result, Write};
+use std::{
+    convert::TryInto,
+    io::{Read, Result, Write},
+};
+
+pub type SoundID = u16;
 
 #[derive(Debug, Default, Clone)]
 pub struct Sound {
-    pub id: i16,
+    pub id: SoundID,
     pub play_delay: i16,
     pub cache_time: i32,
     pub items: Vec<SoundItem>,
@@ -48,7 +53,7 @@ impl SoundItem {
 impl Sound {
     pub fn from<R: Read>(input: &mut R, version: Version) -> Result<Self> {
         let mut sound = Sound::default();
-        sound.id = input.read_i16::<LE>()?;
+        sound.id = input.read_u16::<LE>()?;
         sound.play_delay = input.read_i16::<LE>()?;
         let num_items = input.read_u16::<LE>()?;
         sound.cache_time = input.read_i32::<LE>()?;
@@ -59,9 +64,9 @@ impl Sound {
     }
 
     pub fn write_to<W: Write>(&self, output: &mut W, version: Version) -> Result<()> {
-        output.write_i16::<LE>(self.id)?;
+        output.write_u16::<LE>(self.id)?;
         output.write_i16::<LE>(self.play_delay)?;
-        output.write_u16::<LE>(self.len() as u16)?;
+        output.write_u16::<LE>(self.len().try_into().unwrap())?;
         output.write_i32::<LE>(self.cache_time)?;
         for item in &self.items {
             item.write_to(output, version)?;
