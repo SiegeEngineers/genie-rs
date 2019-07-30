@@ -1,8 +1,7 @@
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::{
-    convert::{TryFrom, TryInto},
+    convert::TryInto,
     io::{self, Read, Result, Write},
-    num::TryFromIntError,
 };
 use crate::{
     task::TaskList,
@@ -12,8 +11,8 @@ use crate::{
 
 macro_rules! fallible_try_into {
     ($from:ident, $to:ty) => {
-        impl TryFrom<$from> for $to {
-            type Error = TryFromIntError;
+        impl std::convert::TryFrom<$from> for $to {
+            type Error = std::num::TryFromIntError;
             fn try_from(n: $from) -> std::result::Result<Self, Self::Error> {
                 n.0.try_into()
             }
@@ -173,13 +172,13 @@ pub struct DamageSprite {
 impl DamageSprite {
     pub fn from<R: Read>(input: &mut R) -> Result<Self> {
         Ok(Self {
-            sprite: input.read_u16::<LE>()?,
+            sprite: input.read_u16::<LE>()?.into(),
             damage_percent: input.read_u16::<LE>()?,
             flag: input.read_u8()?,
         })
     }
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        output.write_u16::<LE>(self.sprite)?;
+        output.write_u16::<LE>(self.sprite.into())?;
         output.write_u16::<LE>(self.damage_percent)?;
         output.write_u8(self.flag)?;
         Ok(())
@@ -207,9 +206,9 @@ pub struct StaticUnitType {
     death_spawn: Option<UnitTypeID>,
     sort_number: u8,
     can_be_built_on: bool,
-    button_picture: Option<GraphicID<u16>>,
+    button_picture: Option<GraphicID>,
     hide_in_scenario_editor: bool,
-    portrait_picture: Option<GraphicID<u16>>,
+    portrait_picture: Option<GraphicID>,
     enabled: bool,
     disabled: bool,
     tile_req: (i16, i16),
@@ -266,10 +265,10 @@ impl StaticUnitType {
         unit_type.string_id = input.read_u16::<LE>()?.into();
         unit_type.string_id2 = read_opt_u16(input)?.map_into();
         unit_type.unit_class = input.read_u16::<LE>()?;
-        unit_type.standing_sprite_1 = read_opt_u16(input)?;
-        unit_type.standing_sprite_2 = read_opt_u16(input)?;
-        unit_type.dying_sprite = read_opt_u16(input)?;
-        unit_type.undead_sprite = read_opt_u16(input)?;
+        unit_type.standing_sprite_1 = read_opt_u16(input)?.map_into();
+        unit_type.standing_sprite_2 = read_opt_u16(input)?.map_into();
+        unit_type.dying_sprite = read_opt_u16(input)?.map_into();
+        unit_type.undead_sprite = read_opt_u16(input)?.map_into();
         unit_type.undead_flag = input.read_u8()?;
         unit_type.hp = input.read_u16::<LE>()?;
         unit_type.los = input.read_f32::<LE>()?;
@@ -280,9 +279,9 @@ impl StaticUnitType {
         unit_type.death_spawn = read_opt_u16(input)?.map_into();
         unit_type.sort_number = input.read_u8()?;
         unit_type.can_be_built_on = input.read_u8()? != 0;
-        unit_type.button_picture = read_opt_u16(input)?;
+        unit_type.button_picture = read_opt_u16(input)?.map_into();
         unit_type.hide_in_scenario_editor = input.read_u8()? != 0;
-        unit_type.portrait_picture = read_opt_u16(input)?;
+        unit_type.portrait_picture = read_opt_u16(input)?.map_into();
         unit_type.enabled = input.read_u8()? != 0;
         unit_type.disabled = input.read_u8()? != 0;
         unit_type.tile_req = (input.read_i16::<LE>()?, input.read_i16::<LE>()?);

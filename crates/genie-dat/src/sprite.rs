@@ -1,13 +1,81 @@
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::io::{Read, Result, Write};
+use std::{
+    convert::{TryFrom, TryInto},
+    io::{Read, Result, Write},
+    num::TryFromIntError,
+};
 use crate::sound::SoundID;
 
-pub type GraphicID<T> = T;
-pub type SpriteID = u16;
+macro_rules! infallible_try_into {
+    ($from:ident, $to:ty) => {
+        impl std::convert::TryFrom<$from> for $to {
+            type Error = std::convert::Infallible;
+            fn try_from(n: $from) -> std::result::Result<Self, Self::Error> {
+                n.0.try_into()
+            }
+        }
+    }
+}
+
+macro_rules! fallible_try_into {
+    ($from:ident, $to:ty) => {
+        impl std::convert::TryFrom<$from> for $to {
+            type Error = std::num::TryFromIntError;
+            fn try_from(n: $from) -> std::result::Result<Self, Self::Error> {
+                n.0.try_into()
+            }
+        }
+    }
+}
+
+/// An ID identifying a sprite.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct SpriteID(u16);
+impl From<u16> for SpriteID {
+    fn from(n: u16) -> Self {
+        SpriteID(n)
+    }
+}
+
+impl From<SpriteID> for u16 {
+    fn from(n: SpriteID) -> Self {
+        n.0
+    }
+}
+
+fallible_try_into!(SpriteID, i16);
+
+/// An ID identifying a string resource.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct GraphicID(u16);
+
+impl From<u16> for GraphicID {
+    fn from(n: u16) -> Self {
+        GraphicID(n.into())
+    }
+}
+
+impl TryFrom<u32> for GraphicID {
+    type Error = TryFromIntError;
+    fn try_from(n: u32) -> std::result::Result<Self, Self::Error> {
+        n.try_into().map(GraphicID)
+    }
+}
+
+impl TryFrom<i32> for GraphicID {
+    type Error = TryFromIntError;
+    fn try_from(n: i32) -> std::result::Result<Self, Self::Error> {
+        n.try_into().and_then(|unsigned: u32| unsigned.try_into())
+    }
+}
+
+fallible_try_into!(GraphicID, i16);
+infallible_try_into!(GraphicID, u32);
+infallible_try_into!(GraphicID, i32);
 
 #[derive(Debug, Default, Clone)]
 pub struct SpriteDelta {
-    pub sprite_id: i16,
+    pub sprite_id: SpriteID,
     pub offset_x: i16,
     pub offset_y: i16,
     pub display_angle: i16,
@@ -29,7 +97,7 @@ pub struct Sprite {
     pub id: SpriteID,
     pub name: String,
     pub filename: String,
-    pub slp_id: GraphicID<i32>,
+    pub slp_id: Option<GraphicID>,
     pub is_loaded: bool,
     color_flag: bool,
     pub layer: u8,
@@ -53,7 +121,7 @@ pub struct Sprite {
 impl SpriteDelta {
     pub fn from<R: Read>(input: &mut R) -> Result<Self> {
         let mut delta = SpriteDelta::default();
-        delta.sprite_id = input.read_i16::<LE>()?;
+        delta.sprite_id = input.read_u16::<LE>()?.into();
         // padding
         input.read_i16::<LE>()?;
         // pointer address to the parent sprite (overridden at load time by the game)
@@ -68,7 +136,7 @@ impl SpriteDelta {
     }
 
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        output.write_i16::<LE>(self.sprite_id)?;
+        output.write_i16::<LE>(self.sprite_id.try_into().unwrap())?;
         // padding
         output.write_i16::<LE>(0)?;
         // pointer address to the parent sprite (overridden at load time by the game)
@@ -128,7 +196,14 @@ impl Sprite {
         input.read_exact(&mut filename)?;
         sprite.filename =
             String::from_utf8(filename.iter().cloned().take_while(|b| *b != 0).collect()).unwrap();
-        sprite.slp_id = input.read_i32::<LE>()?;
+        sprite.slp_id = {
+            let num = input.read_i32::<LE>()?;
+            if num == -1 {
+                None
+            } else {
+                Some(num.try_into().unwrap())
+            }
+        };
         sprite.is_loaded = input.read_u8()? != 0;
         sprite.color_flag = input.read_u8()? != 0;
         sprite.layer = input.read_u8()?;
@@ -152,7 +227,7 @@ impl Sprite {
         sprite.frame_rate = input.read_f32::<LE>()?;
         sprite.replay_delay = input.read_f32::<LE>()?;
         sprite.sequence_type = input.read_i8()?;
-        sprite.id = input.read_u16::<LE>()?;
+        sprite.id = input.read_u16::<LE>()?.into();
         sprite.mirror_flag = input.read_i8()?;
         sprite.other_flag = input.read_i8()?;
 
