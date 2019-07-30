@@ -1,11 +1,14 @@
+mod civ;
 mod color_table;
 mod sound;
 mod sprite;
 mod task;
 mod tech;
 mod terrain;
+mod unit_type;
 
 use byteorder::{ReadBytesExt, LE};
+pub use civ::Civilization;
 pub use color_table::ColorTable;
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 pub use sound::{Sound, SoundItem};
@@ -43,6 +46,7 @@ pub struct DatFile {
     pub sprites: Vec<Option<Sprite>>,
     pub effects: Vec<TechEffect>,
     pub task_lists: Vec<Option<TaskList>>,
+    pub civilizations: Vec<Civilization>,
 }
 
 impl DatFile {
@@ -172,6 +176,15 @@ impl DatFile {
             });
         }
 
+        let num_civilizations = input.read_u16::<LE>()?;
+        let mut civilizations = vec![];
+        for _ in 0..num_civilizations {
+            let player_type = input.read_i8()?;
+            assert_eq!(player_type, 1);
+            civilizations.push(Civilization::from(&mut input, player_type)?);
+            dbg!(civilizations.last().unwrap());
+        }
+
         Ok(Self {
             version,
             terrain_tables,
@@ -183,6 +196,7 @@ impl DatFile {
             sprites,
             effects,
             task_lists,
+            civilizations,
         })
     }
 
@@ -218,6 +232,6 @@ mod tests {
     fn hd_edition() {
         let mut f = File::open("fixtures/hd.dat").unwrap();
         let dat = DatFile::from(&mut f).unwrap();
-        dbg!(&dat.task_lists);
+        dbg!(&dat.civilizations);
     }
 }
