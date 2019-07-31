@@ -1,20 +1,10 @@
 use crate::Version;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use genie_support::fallible_try_into;
 use std::{
     convert::TryInto,
     io::{Read, Result, Write},
 };
-
-macro_rules! fallible_try_into {
-    ($from:ident, $to:ty) => {
-        impl std::convert::TryFrom<$from> for $to {
-            type Error = std::num::TryFromIntError;
-            fn try_from(n: $from) -> std::result::Result<Self, Self::Error> {
-                n.0.try_into()
-            }
-        }
-    }
-}
 
 /// An ID identifying a sound.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]

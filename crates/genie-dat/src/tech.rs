@@ -1,4 +1,4 @@
-use arraystring::{ArrayString, typenum::U30};
+use arraystring::{typenum::U30, ArrayString};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::io::{Read, Result, Write};
 

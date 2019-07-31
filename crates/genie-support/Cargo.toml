@@ -1,0 +1,11 @@
+[package]
+name = "genie-support"
+version = "0.0.0"
+authors = ["Renée Kooi <renee@kooi.me>"]
+edition = "2018"
+license = "GPL-3.0"
+description = "Support library for genie-* crates"
+homepage = "https://github.com/SiegeEngineers/genie-rs"
+repository = "https://github.com/SiegeEngineers/genie-rs"
+
+[dependencies]

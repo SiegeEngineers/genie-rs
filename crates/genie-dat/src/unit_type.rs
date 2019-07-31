@@ -1,34 +1,14 @@
+use crate::{
+    sound::SoundID,
+    sprite::{GraphicID, SpriteID},
+    task::TaskList,
+};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use genie_support::{fallible_try_from, fallible_try_into, MapInto};
 use std::{
     convert::TryInto,
     io::{self, Read, Result, Write},
 };
-use crate::{
-    task::TaskList,
-    sprite::{GraphicID, SpriteID},
-    sound::SoundID,
-};
-
-macro_rules! fallible_try_into {
-    ($from:ident, $to:ty) => {
-        impl std::convert::TryFrom<$from> for $to {
-            type Error = std::num::TryFromIntError;
-            fn try_from(n: $from) -> std::result::Result<Self, Self::Error> {
-                n.0.try_into()
-            }
-        }
-    }
-}
-macro_rules! fallible_try_from {
-    ($to:ty, $from:ident) => {
-        impl std::convert::TryFrom<$from> for $to {
-            type Error = std::num::TryFromIntError;
-            fn try_from(n: $from) -> std::result::Result<Self, Self::Error> {
-                n.try_into().map(Self)
-            }
-        }
-    }
-}
 
 /// An ID identifying a unit type.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -76,25 +56,6 @@ impl From<StringID> for u32 {
 }
 
 pub type UnitClass = u16;
-
-/// Helper trait to map a Result<T> to Result<From<T>>
-trait MapInto<T> {
-    fn map_into(self) -> T;
-}
-impl<Source, Target> MapInto<Result<Target>> for Result<Source>
-    where Target: From<Source>
-{
-    fn map_into(self) -> Result<Target> {
-        self.map(|v| v.into())
-    }
-}
-impl<Source, Target> MapInto<Option<Target>> for Option<Source>
-    where Target: From<Source>
-{
-    fn map_into(self) -> Option<Target> {
-        self.map(|v| v.into())
-    }
-}
 
 #[derive(Debug, Clone)]
 pub enum UnitType {
@@ -154,14 +115,30 @@ impl UnitType {
         match self {
             Static(unit) => unit,
             Tree(TreeUnitType(unit)) => unit,
-            Animated(AnimatedUnitType { superclass: unit, .. }) => unit,
-            Doppleganger(DopplegangerUnitType(AnimatedUnitType { superclass: unit, .. })) => unit,
-            Moving(MovingUnitType { superclass: unit, .. }) => &unit.superclass,
-            Action(ActionUnitType { superclass: unit, .. }) => &unit.superclass.superclass,
-            BaseCombat(BaseCombatUnitType { superclass: unit, .. }) => &unit.superclass.superclass.superclass,
-            Missile(MissileUnitType { superclass: unit, .. }) => &unit.superclass.superclass.superclass.superclass,
-            Combat(CombatUnitType { superclass: unit, .. }) => &unit.superclass.superclass.superclass.superclass,
-            Building(BuildingUnitType { superclass: unit, .. }) => &unit.superclass.superclass.superclass.superclass.superclass,
+            Animated(AnimatedUnitType {
+                superclass: unit, ..
+            }) => unit,
+            Doppleganger(DopplegangerUnitType(AnimatedUnitType {
+                superclass: unit, ..
+            })) => unit,
+            Moving(MovingUnitType {
+                superclass: unit, ..
+            }) => &unit.superclass,
+            Action(ActionUnitType {
+                superclass: unit, ..
+            }) => &unit.superclass.superclass,
+            BaseCombat(BaseCombatUnitType {
+                superclass: unit, ..
+            }) => &unit.superclass.superclass.superclass,
+            Missile(MissileUnitType {
+                superclass: unit, ..
+            }) => &unit.superclass.superclass.superclass.superclass,
+            Combat(CombatUnitType {
+                superclass: unit, ..
+            }) => &unit.superclass.superclass.superclass.superclass,
+            Building(BuildingUnitType {
+                superclass: unit, ..
+            }) => &unit.superclass.superclass.superclass.superclass.superclass,
         }
     }
 }
@@ -188,7 +165,6 @@ impl UnitAttribute {
         Ok(())
     }
 }
-
 
 #[derive(Debug, Default, Clone)]
 pub struct DamageSprite {
@@ -281,8 +257,13 @@ pub struct StaticUnitType {
 
 fn read_opt_u16<R: Read>(input: &mut R) -> Result<Option<u16>> {
     let v = input.read_i16::<LE>()?;
-    if v == -1 { return Ok(None); }
-    Ok(Some(v.try_into().map_err(|e| io::Error::new(io::ErrorKind::Other, e))?))
+    if v == -1 {
+        return Ok(None);
+    }
+    Ok(Some(
+        v.try_into()
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?,
+    ))
 }
 
 impl StaticUnitType {
@@ -301,7 +282,11 @@ impl StaticUnitType {
         unit_type.hp = input.read_u16::<LE>()?;
         unit_type.los = input.read_f32::<LE>()?;
         unit_type.garrison_capacity = input.read_u8()?;
-        unit_type.radius = (input.read_f32::<LE>()?, input.read_f32::<LE>()?, input.read_f32::<LE>()?);
+        unit_type.radius = (
+            input.read_f32::<LE>()?,
+            input.read_f32::<LE>()?,
+            input.read_f32::<LE>()?,
+        );
         unit_type.train_sound = read_opt_u16(input)?.map_into();
         unit_type.damage_sound = read_opt_u16(input)?.map_into();
         unit_type.death_spawn = read_opt_u16(input)?.map_into();
@@ -341,7 +326,11 @@ impl StaticUnitType {
         unit_type.object_flags = input.read_u32::<LE>()?;
         unit_type.civilization = input.read_u8()?;
         unit_type.attribute_piece = input.read_u8()?;
-        unit_type.outline_radius = (input.read_f32::<LE>()?, input.read_f32::<LE>()?, input.read_f32::<LE>()?);
+        unit_type.outline_radius = (
+            input.read_f32::<LE>()?,
+            input.read_f32::<LE>()?,
+            input.read_f32::<LE>()?,
+        );
         for attr in unit_type.attributes.iter_mut() {
             *attr = UnitAttribute::from(input)?;
         }
@@ -370,12 +359,32 @@ impl StaticUnitType {
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u16::<LE>(self.id.into())?;
         output.write_u16::<LE>(self.string_id.try_into().unwrap())?;
-        output.write_i16::<LE>(self.string_id2.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
+        output.write_i16::<LE>(
+            self.string_id2
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
         output.write_u16::<LE>(self.unit_class)?;
-        output.write_i16::<LE>(self.standing_sprite_1.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
-        output.write_i16::<LE>(self.standing_sprite_2.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
-        output.write_i16::<LE>(self.dying_sprite.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
-        output.write_i16::<LE>(self.undead_sprite.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
+        output.write_i16::<LE>(
+            self.standing_sprite_1
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
+        output.write_i16::<LE>(
+            self.standing_sprite_2
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
+        output.write_i16::<LE>(
+            self.dying_sprite
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
+        output.write_i16::<LE>(
+            self.undead_sprite
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
         output.write_u8(self.undead_flag)?;
         output.write_u16::<LE>(self.hp)?;
         output.write_f32::<LE>(self.los)?;
@@ -383,14 +392,34 @@ impl StaticUnitType {
         output.write_f32::<LE>(self.radius.0)?;
         output.write_f32::<LE>(self.radius.1)?;
         output.write_f32::<LE>(self.radius.2)?;
-        output.write_i16::<LE>(self.train_sound.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
-        output.write_i16::<LE>(self.damage_sound.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
-        output.write_i16::<LE>(self.death_spawn.map(|id| id.0.try_into().unwrap()).unwrap_or(-1))?;
+        output.write_i16::<LE>(
+            self.train_sound
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
+        output.write_i16::<LE>(
+            self.damage_sound
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
+        output.write_i16::<LE>(
+            self.death_spawn
+                .map(|id| id.0.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
         output.write_u8(self.sort_number)?;
         output.write_u8(if self.can_be_built_on { 1 } else { 0 })?;
-        output.write_i16::<LE>(self.button_picture.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
+        output.write_i16::<LE>(
+            self.button_picture
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
         output.write_u8(if self.hide_in_scenario_editor { 1 } else { 0 })?;
-        output.write_i16::<LE>(self.portrait_picture.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
+        output.write_i16::<LE>(
+            self.portrait_picture
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
         output.write_u8(if self.enabled { 1 } else { 0 })?;
         output.write_u8(if self.disabled { 1 } else { 0 })?;
         output.write_i16::<LE>(self.tile_req.0)?;
@@ -435,8 +464,16 @@ impl StaticUnitType {
         for sprite in &self.damage_sprites {
             sprite.write_to(output)?;
         }
-        output.write_i16::<LE>(self.selected_sound.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
-        output.write_i16::<LE>(self.death_sound.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
+        output.write_i16::<LE>(
+            self.selected_sound
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
+        output.write_i16::<LE>(
+            self.death_sound
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
         output.write_u8(self.attack_reaction)?;
         output.write_u8(self.convert_terrain_flag)?;
         output.write_u16::<LE>(self.copy_id)?;
@@ -456,7 +493,6 @@ impl TreeUnitType {
         self.0.write_to(output)
     }
 }
-
 
 #[derive(Debug, Default, Clone)]
 pub struct AnimatedUnitType {
@@ -641,7 +677,11 @@ impl BaseCombatUnitType {
         unit_type.base_hit_chance = input.read_i16::<LE>()?;
         unit_type.break_off_combat = input.read_i8()?;
         unit_type.frame_delay = input.read_i16::<LE>()?;
-        unit_type.weapon_offset = (input.read_f32::<LE>()?, input.read_f32::<LE>()?, input.read_f32::<LE>()?);
+        unit_type.weapon_offset = (
+            input.read_f32::<LE>()?,
+            input.read_f32::<LE>()?,
+            input.read_f32::<LE>()?,
+        );
         unit_type.blast_level_offense = input.read_i8()?;
         unit_type.weapon_range_min = input.read_f32::<LE>()?;
         unit_type.missed_missile_spread = input.read_f32::<LE>()?;

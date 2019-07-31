@@ -1,5 +1,5 @@
 use crate::Version;
-use arraystring::{ArrayString, typenum::U12};
+use arraystring::{typenum::U12, ArrayString};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::io::{Read, Result, Write};
 
