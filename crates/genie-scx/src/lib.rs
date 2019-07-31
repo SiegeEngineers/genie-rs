@@ -167,10 +167,14 @@ impl Scenario {
         Ok(Self { format, version })
     }
 
+    /// Write the scenario file to an output stream.
+    ///
+    /// Equivalent to `scen.write_to_version(scen.version())`.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         self.format.write_to(output, self.version())
     }
 
+    /// Write the scenario file to an output stream, targeting specific game versions.
     pub fn write_to_version<W: Write>(
         &self,
         output: &mut W,
@@ -209,10 +213,12 @@ impl Scenario {
         &self.format.tribe_scen.base.name
     }
 
+    /// Get data about the game versions this scenario file was made for.
     pub fn version(&self) -> &VersionBundle {
         &self.version
     }
 
+    /// Check if this scenario requires the given DLC (for HD Edition scenarios only).
     pub fn requires_dlc(&self, dlc: DLCPackage) -> bool {
         match &self.header().dlc_options {
             Some(options) => options.dependencies.iter().any(|dep| *dep == dlc),
@@ -220,6 +226,7 @@ impl Scenario {
         }
     }
 
+    /// Iterate over all the objects placed in the scenario.
     pub fn objects(&self) -> impl Iterator<Item = &ScenarioObject> {
         self.format
             .player_objects
@@ -228,6 +235,7 @@ impl Scenario {
             .flatten()
     }
 
+    /// Iterate mutably over all the objects placed in the scenario.
     pub fn objects_mut(&mut self) -> impl Iterator<Item = &mut ScenarioObject> {
         self.format
             .player_objects
@@ -236,18 +244,22 @@ impl Scenario {
             .flatten()
     }
 
+    /// Get the map/terrain data for this scenario.
     pub fn map(&self) -> &Map {
         &self.format.map
     }
 
+    /// Get the (mutable) map/terrain data for this scenario.
     pub fn map_mut(&mut self) -> &mut Map {
         &mut self.format.map
     }
 
+    /// Get trigger data for this scenario if it exists.
     pub fn triggers(&self) -> Option<&TriggerSystem> {
         self.format.triggers.as_ref()
     }
 
+    /// Get (mutable) trigger data for this scenario if it exists.
     pub fn triggers_mut(&mut self) -> Option<&mut TriggerSystem> {
         self.format.triggers.as_mut()
     }

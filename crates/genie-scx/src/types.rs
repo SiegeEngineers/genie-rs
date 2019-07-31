@@ -18,10 +18,14 @@ impl std::fmt::Display for ParseDiplomaticStanceError {
 
 impl std::error::Error for ParseDiplomaticStanceError {}
 
+/// A player's diplomatic stance toward another player.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DiplomaticStance {
+    /// The other player is an ally.
     Ally = 0,
+    /// This player is neutral toward the other player.
     Neutral = 1,
+    /// The other player is an enemy.
     Enemy = 3,
 }
 
@@ -58,9 +62,12 @@ impl std::fmt::Display for ParseDataSetError {
 
 impl std::error::Error for ParseDataSetError {}
 
+/// The data set used by a scenario, HD Edition only.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DataSet {
+    /// The "base" data set, containing Age of Kings and the Age of Conquerors expansion.
     BaseGame,
+    /// The "expansions" data set, containing the HD Edition expansions.
     Expansions,
 }
 
@@ -98,10 +105,15 @@ impl std::error::Error for ParseDLCPackageError {}
 /// An HD Edition DLC identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DLCPackage {
+    /// The Age of Kings base game.
     AgeOfKings,
+    /// The Age of Conquerors expansion.
     AgeOfConquerors,
+    /// The Forgotten expansion.
     TheForgotten,
+    /// The African Kingdoms expansion.
     AfricanKingdoms,
+    /// The Rise of the Rajas expansion.
     RiseOfTheRajas,
 }
 
@@ -150,6 +162,7 @@ impl std::fmt::Display for ParseStartingAgeError {
 
 impl std::error::Error for ParseStartingAgeError {}
 
+/// The starting age.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum StartingAge {
     /// Use the game default.
@@ -196,6 +209,7 @@ impl StartingAge {
         }
     }
 
+    /// Serialize the age identifier to an integer that is understood by the given game version.
     pub fn to_i32(self, version: f32) -> i32 {
         if version < 1.25 {
             match self {
