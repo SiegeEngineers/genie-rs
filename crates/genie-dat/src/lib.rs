@@ -1,5 +1,6 @@
 mod civ;
 mod color_table;
+mod random_map;
 mod sound;
 mod sprite;
 mod task;
@@ -11,6 +12,7 @@ use byteorder::{ReadBytesExt, LE};
 pub use civ::Civilization;
 pub use color_table::ColorTable;
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
+pub use random_map::*;
 pub use sound::{Sound, SoundID, SoundItem};
 pub use sprite::{SoundProp, Sprite, SpriteAttackSound, SpriteDelta, SpriteID};
 use std::io::{Read, Result, Write};
@@ -163,7 +165,13 @@ impl DatFile {
         let num_random_maps = input.read_u32::<LE>()?;
         let _random_maps_pointer = input.read_u32::<LE>()?;
 
-        assert!(num_random_maps == 0, "Random map info is not implemented");
+        let mut random_maps = vec![];
+        for _ in 0..num_random_maps {
+            random_maps.push(RandomMapInfo::from(&mut input)?);
+        }
+        for map in random_maps.iter_mut() {
+            map.finish(&mut input)?;
+        }
 
         let num_effects = input.read_u32::<LE>()?;
         let mut effects = vec![];
