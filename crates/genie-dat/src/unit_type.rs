@@ -19,6 +19,16 @@ macro_rules! fallible_try_into {
         }
     }
 }
+macro_rules! fallible_try_from {
+    ($to:ty, $from:ident) => {
+        impl std::convert::TryFrom<$from> for $to {
+            type Error = std::num::TryFromIntError;
+            fn try_from(n: $from) -> std::result::Result<Self, Self::Error> {
+                n.try_into().map(Self)
+            }
+        }
+    }
+}
 
 /// An ID identifying a unit type.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -37,6 +47,8 @@ impl From<UnitTypeID> for u16 {
 }
 
 fallible_try_into!(UnitTypeID, i16);
+fallible_try_from!(UnitTypeID, i32);
+fallible_try_from!(UnitTypeID, u32);
 
 /// An ID identifying a string resource.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -134,6 +146,22 @@ impl UnitType {
             70 => CombatUnitType::from(input).map_into(),
             80 => BuildingUnitType::from(input).map_into(),
             _ => panic!("unexpected unit type {}, this is probably a bug", unit_type),
+        }
+    }
+
+    pub fn static_unit(&self) -> &StaticUnitType {
+        use UnitType::*;
+        match self {
+            Static(unit) => unit,
+            Tree(TreeUnitType(unit)) => unit,
+            Animated(AnimatedUnitType { superclass: unit, .. }) => unit,
+            Doppleganger(DopplegangerUnitType(AnimatedUnitType { superclass: unit, .. })) => unit,
+            Moving(MovingUnitType { superclass: unit, .. }) => &unit.superclass,
+            Action(ActionUnitType { superclass: unit, .. }) => &unit.superclass.superclass,
+            BaseCombat(BaseCombatUnitType { superclass: unit, .. }) => &unit.superclass.superclass.superclass,
+            Missile(MissileUnitType { superclass: unit, .. }) => &unit.superclass.superclass.superclass.superclass,
+            Combat(CombatUnitType { superclass: unit, .. }) => &unit.superclass.superclass.superclass.superclass,
+            Building(BuildingUnitType { superclass: unit, .. }) => &unit.superclass.superclass.superclass.superclass.superclass,
         }
     }
 }
@@ -465,11 +493,11 @@ impl DopplegangerUnitType {
 #[derive(Debug, Default, Clone)]
 pub struct MovingUnitType {
     superclass: AnimatedUnitType,
-    move_sprite: SpriteID,
-    run_sprite: SpriteID,
+    move_sprite: Option<SpriteID>,
+    run_sprite: Option<SpriteID>,
     turn_speed: f32,
     size_class: u8,
-    trailing_unit: UnitTypeID,
+    trailing_unit: Option<UnitTypeID>,
     trailing_options: u8,
     trailing_spacing: f32,
     move_algorithm: u8,
@@ -486,6 +514,19 @@ impl MovingUnitType {
             superclass: AnimatedUnitType::from(input)?,
             ..Default::default()
         };
+        unit_type.move_sprite = read_opt_u16(input)?.map_into();
+        unit_type.run_sprite = read_opt_u16(input)?.map_into();
+        unit_type.turn_speed = input.read_f32::<LE>()?;
+        unit_type.size_class = input.read_u8()?;
+        unit_type.trailing_unit = read_opt_u16(input)?.map_into();
+        unit_type.trailing_options = input.read_u8()?;
+        unit_type.trailing_spacing = input.read_f32::<LE>()?;
+        unit_type.move_algorithm = input.read_u8()?;
+        unit_type.turn_radius = input.read_f32::<LE>()?;
+        unit_type.turn_radius_speed = input.read_f32::<LE>()?;
+        unit_type.maximum_yaw_per_second_moving = input.read_f32::<LE>()?;
+        unit_type.stationary_yaw_revolution_time = input.read_f32::<LE>()?;
+        unit_type.maximum_yaw_per_second_stationary = input.read_f32::<LE>()?;
         Ok(unit_type)
     }
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
@@ -496,17 +537,18 @@ impl MovingUnitType {
 #[derive(Debug, Default, Clone)]
 pub struct ActionUnitType {
     superclass: MovingUnitType,
-    default_task: u16,
+    default_task: Option<u16>,
     search_radius: f32,
     work_rate: f32,
-    drop_site: UnitTypeID,
-    backup_drop_site: UnitTypeID,
+    drop_site: Option<UnitTypeID>,
+    backup_drop_site: Option<UnitTypeID>,
     task_by_group: u8,
     command_sound: Option<SoundID>,
     move_sound: Option<SoundID>,
     /// Task list for older versions; newer game versions store the task list at the root of the
     /// dat file, and use `unit_type.copy_id` to refer to one of those task lists.
     tasks: Option<TaskList>,
+    run_pattern: u8,
 }
 
 impl ActionUnitType {
@@ -515,6 +557,15 @@ impl ActionUnitType {
             superclass: MovingUnitType::from(input)?,
             ..Default::default()
         };
+        unit_type.default_task = read_opt_u16(input)?;
+        unit_type.search_radius = input.read_f32::<LE>()?;
+        unit_type.work_rate = input.read_f32::<LE>()?;
+        unit_type.drop_site = read_opt_u16(input)?.map_into();
+        unit_type.backup_drop_site = read_opt_u16(input)?.map_into();
+        unit_type.task_by_group = input.read_u8()?;
+        unit_type.command_sound = read_opt_u16(input)?.map_into();
+        unit_type.move_sound = read_opt_u16(input)?.map_into();
+        unit_type.run_pattern = input.read_u8()?;
         Ok(unit_type)
     }
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
@@ -528,12 +579,43 @@ pub struct WeaponInfo {
     value: i16,
 }
 
+impl WeaponInfo {
+    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+        Ok(Self {
+            weapon_type: input.read_i16::<LE>()?,
+            value: input.read_i16::<LE>()?,
+        })
+    }
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        output.write_i16::<LE>(self.weapon_type)?;
+        output.write_i16::<LE>(self.value)?;
+        Ok(())
+    }
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct BaseCombatUnitType {
     superclass: ActionUnitType,
     base_armor: u16,
     weapons: Vec<WeaponInfo>,
     armors: Vec<WeaponInfo>,
+    defense_terrain_bonus: Option<u16>,
+    weapon_range_max: f32,
+    area_effect_range: f32,
+    attack_speed: f32,
+    missile_id: Option<UnitTypeID>,
+    base_hit_chance: i16,
+    break_off_combat: i8,
+    frame_delay: i16,
+    weapon_offset: (f32, f32, f32),
+    blast_level_offense: i8,
+    weapon_range_min: f32,
+    missed_missile_spread: f32,
+    fight_sprite: Option<SpriteID>,
+    displayed_armor: i16,
+    displayed_attack: i16,
+    displayed_range: f32,
+    displayed_reload_time: f32,
 }
 
 impl BaseCombatUnitType {
@@ -542,6 +624,32 @@ impl BaseCombatUnitType {
             superclass: ActionUnitType::from(input)?,
             ..Default::default()
         };
+        unit_type.base_armor = input.read_u16::<LE>()?;
+        let num_weapons = input.read_u16::<LE>()?;
+        for _ in 0..num_weapons {
+            unit_type.weapons.push(WeaponInfo::from(input)?);
+        }
+        let num_armors = input.read_u16::<LE>()?;
+        for _ in 0..num_armors {
+            unit_type.armors.push(WeaponInfo::from(input)?);
+        }
+        unit_type.defense_terrain_bonus = read_opt_u16(input)?;
+        unit_type.weapon_range_max = input.read_f32::<LE>()?;
+        unit_type.area_effect_range = input.read_f32::<LE>()?;
+        unit_type.attack_speed = input.read_f32::<LE>()?;
+        unit_type.missile_id = read_opt_u16(input)?.map_into();
+        unit_type.base_hit_chance = input.read_i16::<LE>()?;
+        unit_type.break_off_combat = input.read_i8()?;
+        unit_type.frame_delay = input.read_i16::<LE>()?;
+        unit_type.weapon_offset = (input.read_f32::<LE>()?, input.read_f32::<LE>()?, input.read_f32::<LE>()?);
+        unit_type.blast_level_offense = input.read_i8()?;
+        unit_type.weapon_range_min = input.read_f32::<LE>()?;
+        unit_type.missed_missile_spread = input.read_f32::<LE>()?;
+        unit_type.fight_sprite = read_opt_u16(input)?.map_into();
+        unit_type.displayed_armor = input.read_i16::<LE>()?;
+        unit_type.displayed_attack = input.read_i16::<LE>()?;
+        unit_type.displayed_range = input.read_f32::<LE>()?;
+        unit_type.displayed_reload_time = input.read_f32::<LE>()?;
         Ok(unit_type)
     }
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
@@ -566,6 +674,12 @@ impl MissileUnitType {
             superclass: BaseCombatUnitType::from(input)?,
             ..Default::default()
         };
+        unit_type.missile_type = input.read_u8()?;
+        unit_type.targetting_type = input.read_u8()?;
+        unit_type.missile_hit_info = input.read_u8()?;
+        unit_type.missile_die_info = input.read_u8()?;
+        unit_type.area_effect_specials = input.read_u8()?;
+        unit_type.ballistics_ratio = input.read_f32::<LE>()?;
         Ok(unit_type)
     }
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
@@ -573,10 +687,51 @@ impl MissileUnitType {
     }
 }
 
+#[derive(Debug, Default, Clone, Copy)]
+pub struct AttributeCost {
+    attribute_type: i16,
+    amount: i16,
+    flag: u8,
+}
+
+impl AttributeCost {
+    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+        let cost = Self {
+            attribute_type: input.read_i16::<LE>()?,
+            amount: input.read_i16::<LE>()?,
+            flag: input.read_u8()?,
+        };
+        let _padding = input.read_u8()?;
+        Ok(cost)
+    }
+    pub fn write_to<W: Write>(self, output: &mut W) -> Result<()> {
+        output.write_i16::<LE>(self.attribute_type)?;
+        output.write_i16::<LE>(self.amount)?;
+        output.write_u8(self.flag)?;
+        output.write_u8(0)?;
+        Ok(())
+    }
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct CombatUnitType {
     superclass: BaseCombatUnitType,
-    build_pts_required: u16,
+    costs: [AttributeCost; 3],
+    create_time: u16,
+    create_at_building: Option<UnitTypeID>,
+    create_button: i8,
+    rear_attack_modifier: f32,
+    flank_attack_modifier: f32,
+    hero_flag: u8,
+    garrison_sprite: Option<SpriteID>,
+    volley_fire_amount: f32,
+    max_attacks_in_volley: i8,
+    volley_spread: (f32, f32),
+    volley_start_spread_adjustment: f32,
+    volley_missile: Option<UnitTypeID>,
+    special_attack_sprite: Option<SpriteID>,
+    special_attack_flag: i8,
+    displayed_pierce_armor: i16,
 }
 
 impl CombatUnitType {
@@ -585,6 +740,48 @@ impl CombatUnitType {
             superclass: BaseCombatUnitType::from(input)?,
             ..Default::default()
         };
+
+        for attr in unit_type.costs.iter_mut() {
+            *attr = AttributeCost::from(input)?;
+        }
+        unit_type.create_time = input.read_u16::<LE>()?;
+        unit_type.create_at_building = read_opt_u16(input)?.map_into();
+        unit_type.create_button = input.read_i8()?;
+        unit_type.rear_attack_modifier = input.read_f32::<LE>()?;
+        unit_type.flank_attack_modifier = input.read_f32::<LE>()?;
+        let _tribe_unit_type = input.read_u8()?;
+        unit_type.hero_flag = input.read_u8()?;
+        unit_type.garrison_sprite = {
+            let n = input.read_i32::<LE>()?;
+            if n < 0 {
+                None
+            } else {
+                Some(n.try_into().unwrap())
+            }
+        };
+        unit_type.volley_fire_amount = input.read_f32::<LE>()?;
+        unit_type.max_attacks_in_volley = input.read_i8()?;
+        unit_type.volley_spread = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
+        unit_type.volley_start_spread_adjustment = input.read_f32::<LE>()?;
+        unit_type.volley_missile = {
+            let n = input.read_i32::<LE>()?;
+            if n == -1 {
+                None
+            } else {
+                Some(n.try_into().unwrap())
+            }
+        };
+        unit_type.special_attack_sprite = {
+            let n = input.read_i32::<LE>()?;
+            if n == -1 {
+                None
+            } else {
+                Some(n.try_into().unwrap())
+            }
+        };
+        unit_type.special_attack_flag = input.read_i8()?;
+        unit_type.displayed_pierce_armor = input.read_i16::<LE>()?;
+
         Ok(unit_type)
     }
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
@@ -592,9 +789,55 @@ impl CombatUnitType {
     }
 }
 
+pub type TerrainID = u16;
+pub type TechID = u16;
+
+#[derive(Debug, Default, Clone)]
+pub struct LinkedBuilding {
+    unit_id: UnitTypeID,
+    x_offset: f32,
+    y_offset: f32,
+}
+
+impl LinkedBuilding {
+    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+        Ok(Self {
+            unit_id: input.read_u16::<LE>()?.into(),
+            x_offset: input.read_f32::<LE>()?,
+            y_offset: input.read_f32::<LE>()?,
+        })
+    }
+    pub fn write_to<W: Write>(self, output: &mut W) -> Result<()> {
+        output.write_u16::<LE>(self.unit_id.into())?;
+        output.write_f32::<LE>(self.x_offset)?;
+        output.write_f32::<LE>(self.y_offset)?;
+        Ok(())
+    }
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct BuildingUnitType {
     superclass: CombatUnitType,
+    construction_sprite: Option<SpriteID>,
+    snow_sprite: Option<SpriteID>,
+    connect_flag: u8,
+    facet: i16,
+    destroy_on_build: bool,
+    on_build_make_unit: Option<UnitTypeID>,
+    on_build_make_tile: Option<TerrainID>,
+    on_build_make_overlay: i16,
+    on_build_make_tech: Option<TechID>,
+    can_burn: bool,
+    linked_buildings: [LinkedBuilding; 4],
+    construction_unit: Option<UnitTypeID>,
+    transform_unit: Option<UnitTypeID>,
+    transform_sound: Option<SoundID>,
+    construction_sound: Option<SoundID>,
+    garrison_type: i8,
+    garrison_heal_rate: f32,
+    garrison_repair_rate: f32,
+    salvage_unit: Option<UnitTypeID>,
+    salvage_attributes: [i8; 6],
 }
 
 impl BuildingUnitType {
@@ -603,7 +846,31 @@ impl BuildingUnitType {
             superclass: CombatUnitType::from(input)?,
             ..Default::default()
         };
-        dbg!(&unit_type);
+        unit_type.construction_sprite = read_opt_u16(input)?.map_into();
+        unit_type.snow_sprite = read_opt_u16(input)?.map_into();
+        unit_type.connect_flag = input.read_u8()?;
+        unit_type.facet = input.read_i16::<LE>()?;
+        unit_type.destroy_on_build = input.read_u8()? != 0;
+        unit_type.on_build_make_unit = read_opt_u16(input)?.map_into();
+        unit_type.on_build_make_tile = read_opt_u16(input)?.map_into();
+        unit_type.on_build_make_overlay = input.read_i16::<LE>()?;
+        unit_type.on_build_make_tech = read_opt_u16(input)?.map_into();
+        unit_type.can_burn = input.read_u8()? != 0;
+        for link in unit_type.linked_buildings.iter_mut() {
+            *link = LinkedBuilding::from(input)?;
+        }
+
+        unit_type.construction_unit = read_opt_u16(input)?.map_into();
+        unit_type.transform_unit = read_opt_u16(input)?.map_into();
+        unit_type.transform_sound = read_opt_u16(input)?.map_into();
+        unit_type.construction_sound = read_opt_u16(input)?.map_into();
+        unit_type.garrison_type = input.read_i8()?;
+        unit_type.garrison_heal_rate = input.read_f32::<LE>()?;
+        unit_type.garrison_repair_rate = input.read_f32::<LE>()?;
+        unit_type.salvage_unit = read_opt_u16(input)?.map_into();
+        for attr in unit_type.salvage_attributes.iter_mut() {
+            *attr = input.read_i8()?;
+        }
         Ok(unit_type)
     }
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {

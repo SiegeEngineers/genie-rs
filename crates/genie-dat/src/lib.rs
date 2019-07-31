@@ -182,7 +182,6 @@ impl DatFile {
             let player_type = input.read_i8()?;
             assert_eq!(player_type, 1);
             civilizations.push(Civilization::from(&mut input, player_type)?);
-            dbg!(civilizations.last().unwrap());
         }
 
         Ok(Self {
@@ -232,6 +231,6 @@ mod tests {
     fn hd_edition() {
         let mut f = File::open("fixtures/hd.dat").unwrap();
         let dat = DatFile::from(&mut f).unwrap();
-        dbg!(&dat.civilizations);
+        dbg!(&dat.civilizations.len());
     }
 }

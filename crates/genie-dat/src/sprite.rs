@@ -28,6 +28,17 @@ macro_rules! fallible_try_into {
     }
 }
 
+macro_rules! fallible_try_from {
+    ($to:ty, $from:ident) => {
+        impl std::convert::TryFrom<$from> for $to {
+            type Error = std::num::TryFromIntError;
+            fn try_from(n: $from) -> std::result::Result<Self, Self::Error> {
+                n.try_into().map(Self)
+            }
+        }
+    }
+}
+
 /// An ID identifying a sprite.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct SpriteID(u16);
@@ -44,6 +55,8 @@ impl From<SpriteID> for u16 {
 }
 
 fallible_try_into!(SpriteID, i16);
+fallible_try_from!(SpriteID, i32);
+fallible_try_from!(SpriteID, u32);
 
 /// An ID identifying a string resource.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
