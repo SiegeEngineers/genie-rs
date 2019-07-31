@@ -219,18 +219,20 @@ mod tests {
     fn aok() {
         let mut f = File::open("fixtures/aok.dat").unwrap();
         let dat = DatFile::from(&mut f).unwrap();
+        assert_eq!(dat.civilizations.len(), 13);
     }
 
     #[test]
     fn aoc() {
         let mut f = File::open("fixtures/aoc1.0c.dat").unwrap();
         let dat = DatFile::from(&mut f).unwrap();
+        assert_eq!(dat.civilizations.len(), 18);
     }
 
     #[test]
     fn hd_edition() {
         let mut f = File::open("fixtures/hd.dat").unwrap();
         let dat = DatFile::from(&mut f).unwrap();
-        dbg!(&dat.civilizations.len());
+        assert_eq!(dat.civilizations.len(), 32);
     }
 }
