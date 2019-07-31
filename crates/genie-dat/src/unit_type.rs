@@ -49,6 +49,7 @@ impl From<u32> for StringID {
 
 fallible_try_into!(StringID, u16);
 fallible_try_into!(StringID, i16);
+fallible_try_from!(StringID, i32);
 
 impl From<StringID> for u32 {
     fn from(n: StringID) -> Self {

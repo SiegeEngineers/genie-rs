@@ -14,23 +14,26 @@ pub use color_table::ColorTable;
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 pub use random_map::*;
 pub use sound::{Sound, SoundID, SoundItem};
-pub use sprite::{SoundProp, Sprite, SpriteAttackSound, SpriteDelta, SpriteID};
+pub use sprite::{SoundProp, Sprite, SpriteAttackSound, SpriteDelta, SpriteID, GraphicID};
 use std::io::{Read, Result, Write};
 pub use task::{Task, TaskList};
-pub use tech::TechEffect;
+pub use tech::{Tech, TechEffect};
 pub use terrain::{
     Terrain, TerrainAnimation, TerrainBorder, TerrainPassGraphic, TerrainRestriction,
     TerrainSpriteFrame, TileSize,
 };
+pub use unit_type::*;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Version([u8; 8]);
 
-impl Version {
+impl From<[u8; 8]> for Version {
     fn from(identifier: [u8; 8]) -> Self {
         Self(identifier)
     }
+}
 
+impl Version {
     pub fn is_swgb(self) -> bool {
         false
     }
@@ -49,6 +52,7 @@ pub struct DatFile {
     pub effects: Vec<TechEffect>,
     pub task_lists: Vec<Option<TaskList>>,
     pub civilizations: Vec<Civilization>,
+    pub techs: Vec<Tech>,
 }
 
 impl DatFile {
@@ -197,6 +201,20 @@ impl DatFile {
             civilizations.push(Civilization::from(&mut input, player_type)?);
         }
 
+        let num_techs = input.read_u16::<LE>()?;
+        let mut techs = vec![];
+        for _ in 0..num_techs {
+            techs.push(Tech::from(&mut input)?);
+        }
+
+        let _time_slice = input.read_u32::<LE>()?;
+        let _unit_kill_rate = input.read_u32::<LE>()?;
+        let _unit_kill_total = input.read_u32::<LE>()?;
+        let _unit_hit_point_rate = input.read_u32::<LE>()?;
+        let _unit_hit_point_total = input.read_u32::<LE>()?;
+        let _razing_kill_rate = input.read_u32::<LE>()?;
+        let _razing_kill_total = input.read_u32::<LE>()?;
+
         Ok(Self {
             version,
             terrain_tables,
@@ -209,6 +227,7 @@ impl DatFile {
             effects,
             task_lists,
             civilizations,
+            techs,
         })
     }
 
@@ -239,7 +258,7 @@ mod tests {
     fn aoc() {
         let mut f = File::open("fixtures/aoc1.0c.dat").unwrap();
         let dat = DatFile::from(&mut f).unwrap();
-        assert_eq!(dat.civilizations.len(), 18);
+        assert_eq!(dat.civilizations.len(), 19);
     }
 
     #[test]
