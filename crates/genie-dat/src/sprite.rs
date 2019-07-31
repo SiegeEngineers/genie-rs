@@ -1,4 +1,5 @@
 use crate::sound::SoundID;
+use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use genie_support::{fallible_try_from, fallible_try_into, infallible_try_into};
 use std::{
@@ -70,7 +71,7 @@ pub struct SoundProp {
 
 #[derive(Debug, Default, Clone)]
 pub struct SpriteAttackSound {
-    pub sound_props: [SoundProp; 3],
+    pub sound_props: ArrayVec<[SoundProp; 3]>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -152,14 +153,18 @@ impl SoundProp {
 impl SpriteAttackSound {
     pub fn from<R: Read>(input: &mut R) -> Result<Self> {
         let mut val = SpriteAttackSound::default();
-        for prop in val.sound_props.iter_mut() {
-            *prop = SoundProp::from(input)?;
+        for _ in 0..val.sound_props.capacity() {
+            let prop = SoundProp::from(input)?;
+            if u16::from(prop.sound_id) != 0xFFFF {
+                val.sound_props.push(prop);
+            }
         }
         Ok(val)
     }
 
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        for prop in &self.sound_props {
+        for index in 0..self.sound_props.capacity() {
+            let prop = self.sound_props.get(index).copied().unwrap_or(SoundProp::default());
             prop.write_to(output)?;
         }
         Ok(())

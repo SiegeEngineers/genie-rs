@@ -1,3 +1,4 @@
+use arrayvec::ArrayVec;
 use crate::{
     sound::SoundID,
     sprite::{GraphicID, SpriteID},
@@ -247,7 +248,7 @@ pub struct StaticUnitType {
     civilization: u8,
     attribute_piece: u8,
     outline_radius: (f32, f32, f32),
-    attributes: [UnitAttribute; 3],
+    attributes: ArrayVec<[UnitAttribute; 3]>,
     damage_sprites: Vec<DamageSprite>,
     selected_sound: Option<SoundID>,
     death_sound: Option<SoundID>,
@@ -333,8 +334,11 @@ impl StaticUnitType {
             input.read_f32::<LE>()?,
             input.read_f32::<LE>()?,
         );
-        for attr in unit_type.attributes.iter_mut() {
-            *attr = UnitAttribute::from(input)?;
+        for _ in 0..3 {
+            let attr = UnitAttribute::from(input)?;
+            if attr.attribute_type != 0xFFFF {
+                unit_type.attributes.push(attr);
+            }
         }
         unit_type.damage_sprites = {
             let num_damage_sprites = input.read_u8()?;
@@ -459,7 +463,8 @@ impl StaticUnitType {
         output.write_f32::<LE>(self.outline_radius.0)?;
         output.write_f32::<LE>(self.outline_radius.1)?;
         output.write_f32::<LE>(self.outline_radius.2)?;
-        for attr in &self.attributes {
+        for index in 0..self.attributes.capacity() {
+            let attr = self.attributes.get(index).copied().unwrap_or(UnitAttribute::default());
             attr.write_to(output)?;
         }
         output.write_u8(self.damage_sprites.len().try_into().unwrap())?;
@@ -758,7 +763,7 @@ impl AttributeCost {
 #[derive(Debug, Default, Clone)]
 pub struct CombatUnitType {
     superclass: BaseCombatUnitType,
-    costs: [AttributeCost; 3],
+    costs: ArrayVec<[AttributeCost; 3]>,
     create_time: u16,
     create_at_building: Option<UnitTypeID>,
     create_button: i8,
@@ -783,8 +788,11 @@ impl CombatUnitType {
             ..Default::default()
         };
 
-        for attr in unit_type.costs.iter_mut() {
-            *attr = AttributeCost::from(input)?;
+        for _ in 0..3 {
+            let attr = AttributeCost::from(input)?;
+            if attr.attribute_type >= 0 {
+                unit_type.costs.push(attr);
+            }
         }
         unit_type.create_time = input.read_u16::<LE>()?;
         unit_type.create_at_building = read_opt_u16(input)?.map_into();
@@ -870,7 +878,7 @@ pub struct BuildingUnitType {
     on_build_make_overlay: i16,
     on_build_make_tech: Option<TechID>,
     can_burn: bool,
-    linked_buildings: [LinkedBuilding; 4],
+    linked_buildings: ArrayVec<[LinkedBuilding; 4]>,
     construction_unit: Option<UnitTypeID>,
     transform_unit: Option<UnitTypeID>,
     transform_sound: Option<SoundID>,
@@ -879,7 +887,7 @@ pub struct BuildingUnitType {
     garrison_heal_rate: f32,
     garrison_repair_rate: f32,
     salvage_unit: Option<UnitTypeID>,
-    salvage_attributes: [i8; 6],
+    salvage_attributes: ArrayVec<[i8; 6]>,
 }
 
 impl BuildingUnitType {
@@ -898,8 +906,11 @@ impl BuildingUnitType {
         unit_type.on_build_make_overlay = input.read_i16::<LE>()?;
         unit_type.on_build_make_tech = read_opt_u16(input)?.map_into();
         unit_type.can_burn = input.read_u8()? != 0;
-        for link in unit_type.linked_buildings.iter_mut() {
-            *link = LinkedBuilding::from(input)?;
+        for _ in 0..unit_type.linked_buildings.capacity() {
+            let link = LinkedBuilding::from(input)?;
+            if link.unit_id.0 != 0xFFFF {
+                unit_type.linked_buildings.push(link);
+            }
         }
 
         unit_type.construction_unit = read_opt_u16(input)?.map_into();
@@ -910,8 +921,9 @@ impl BuildingUnitType {
         unit_type.garrison_heal_rate = input.read_f32::<LE>()?;
         unit_type.garrison_repair_rate = input.read_f32::<LE>()?;
         unit_type.salvage_unit = read_opt_u16(input)?.map_into();
-        for attr in unit_type.salvage_attributes.iter_mut() {
-            *attr = input.read_i8()?;
+        for _ in 0..unit_type.salvage_attributes.capacity() {
+            let attr = input.read_i8()?;
+            unit_type.salvage_attributes.push(attr);
         }
         Ok(unit_type)
     }

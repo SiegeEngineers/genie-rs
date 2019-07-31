@@ -1,5 +1,5 @@
 use crate::{unit_type::StringID, unit_type::UnitTypeID};
-use arrayvec::ArrayString;
+use arrayvec::{ArrayVec, ArrayString};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use genie_support::MapInto;
 use std::{
@@ -36,8 +36,8 @@ pub struct TechEffectRef {
 
 #[derive(Debug, Default, Clone)]
 pub struct Tech {
-    required_techs: [i16; 6],
-    effects: [TechEffectRef; 3],
+    required_techs: ArrayVec<[i16; 6]>,
+    effects: ArrayVec<[TechEffectRef; 3]>,
     civ_id: u16,
     full_tech_mode: u16,
     location: Option<UnitTypeID>,
@@ -57,11 +57,14 @@ pub struct Tech {
 impl Tech {
     pub fn from<R: Read>(input: &mut R) -> Result<Self> {
         let mut tech = Self::default();
-        for req in tech.required_techs.iter_mut() {
-            *req = input.read_i16::<LE>()?;
+        for _ in 0..6 { // 4 on some versions
+            tech.required_techs.push(input.read_i16::<LE>()?);
         }
-        for effect in tech.effects.iter_mut() {
-            *effect = TechEffectRef::from(input)?;
+        for _ in 0..3 {
+            let effect = TechEffectRef::from(input)?;
+            if effect.effect_type != 0xFFFF {
+                tech.effects.push(effect);
+            }
         }
         let _num_required_techs = input.read_u16::<LE>()?;
         tech.civ_id = input.read_u16::<LE>()?;
