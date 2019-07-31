@@ -4,7 +4,7 @@ use crate::{
     task::TaskList,
 };
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{fallible_try_from, fallible_try_into, MapInto};
+use genie_support::{fallible_try_from, fallible_try_into, infallible_try_into, MapInto};
 use std::{
     convert::TryInto,
     io::{self, Read, Result, Write},
@@ -27,6 +27,7 @@ impl From<UnitTypeID> for u16 {
 }
 
 fallible_try_into!(UnitTypeID, i16);
+infallible_try_into!(UnitTypeID, u32);
 fallible_try_from!(UnitTypeID, i32);
 fallible_try_from!(UnitTypeID, u32);
 

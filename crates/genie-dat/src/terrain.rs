@@ -1,7 +1,10 @@
-use crate::Version;
+use crate::{sound::SoundID, sprite::GraphicID, Version};
 use arraystring::{typenum::U12, ArrayString};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::io::{Read, Result, Write};
+use std::{
+    convert::TryInto,
+    io::{Read, Result, Write},
+};
 
 type TerrainName = ArrayString<U12>;
 
@@ -61,8 +64,8 @@ pub struct Terrain {
     random: u8,
     name: TerrainName,
     slp_name: TerrainName,
-    pub slp_id: i32,
-    pub sound_id: i32,
+    pub slp_id: Option<GraphicID>,
+    pub sound_id: Option<SoundID>,
     blend_priority: Option<i32>,
     blend_mode: Option<i32>,
     pub minimap_color_high: u8,
@@ -87,8 +90,8 @@ pub struct TerrainBorder {
     random: u8,
     name: TerrainName,
     slp_name: TerrainName,
-    pub slp_id: i32,
-    pub sound_id: i32,
+    pub slp_id: Option<GraphicID>,
+    pub sound_id: Option<SoundID>,
     pub color: (u8, u8, u8),
     pub animation: TerrainAnimation,
     pub frames: Vec<Vec<TerrainSpriteFrame>>,
@@ -205,6 +208,11 @@ impl TerrainSpriteFrame {
 }
 
 impl Terrain {
+    /// Get the internal name of this terrain.
+    pub fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
     pub fn from<R: Read>(input: &mut R, _version: Version, num_terrains: u16) -> Result<Self> {
         let mut terrain = Terrain::default();
         terrain.enabled = input.read_u8()? != 0;
@@ -221,9 +229,23 @@ impl Terrain {
             let bytes: Vec<u8> = bytes.iter().cloned().take_while(|b| *b != 0).collect();
             TerrainName::from_utf8(bytes).unwrap()
         };
-        terrain.slp_id = input.read_i32::<LE>()?;
+        terrain.slp_id = {
+            let n = input.read_i32::<LE>()?;
+            if n == -1 {
+                None
+            } else {
+                Some(n.try_into().unwrap())
+            }
+        };
         let _slp_pointer = input.read_i32::<LE>()?;
-        terrain.sound_id = input.read_i32::<LE>()?;
+        terrain.sound_id = {
+            let n = input.read_i32::<LE>()?;
+            if n == -1 {
+                None
+            } else {
+                Some(n.try_into().unwrap())
+            }
+        };
         terrain.blend_priority = Some(input.read_i32::<LE>()?);
         terrain.blend_mode = Some(input.read_i32::<LE>()?);
         terrain.minimap_color_high = input.read_u8()?;
@@ -294,12 +316,25 @@ impl TerrainBorder {
             let bytes: Vec<u8> = bytes.iter().cloned().take_while(|b| *b != 0).collect();
             TerrainName::from_utf8(bytes).unwrap()
         };
-        border.slp_id = input.read_i32::<LE>()?;
+        border.slp_id = {
+            let n = input.read_i32::<LE>()?;
+            if n == -1 {
+                None
+            } else {
+                Some(n.try_into().unwrap())
+            }
+        };
         let _slp_pointer = input.read_i32::<LE>()?;
-        border.sound_id = input.read_i32::<LE>()?;
+        border.sound_id = {
+            let n = input.read_i32::<LE>()?;
+            if n == -1 {
+                None
+            } else {
+                Some(n.try_into().unwrap())
+            }
+        };
         border.color = (input.read_u8()?, input.read_u8()?, input.read_u8()?);
         border.animation = TerrainAnimation::from(input)?;
-
         for _ in 0..19 {
             let mut frames_list = vec![TerrainSpriteFrame::default(); 12];
             for frame in frames_list.iter_mut() {

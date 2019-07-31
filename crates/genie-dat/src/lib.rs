@@ -59,6 +59,11 @@ impl DatFile {
 
         let num_terrain_tables = input.read_u16::<LE>()?;
         let num_terrains = input.read_u16::<LE>()?;
+        let num_terrain_relations = if version == Version(*b"VER 5.7\0") && num_terrains == 41 {
+            42
+        } else {
+            num_terrains
+        };
 
         skip(
             &mut input,
@@ -115,8 +120,8 @@ impl DatFile {
         input.read_i16::<LE>()?;
 
         let mut terrains = vec![];
-        for _ in 0..num_terrains {
-            terrains.push(Terrain::from(&mut input, version, num_terrains)?);
+        for _ in 0..num_terrain_relations {
+            terrains.push(Terrain::from(&mut input, version, num_terrain_relations)?);
         }
 
         let mut terrain_borders = vec![];

@@ -1,6 +1,6 @@
 use crate::Version;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::fallible_try_into;
+use genie_support::{fallible_try_from, fallible_try_into, infallible_try_into};
 use std::{
     convert::TryInto,
     io::{Read, Result, Write},
@@ -22,6 +22,9 @@ impl From<SoundID> for u16 {
 }
 
 fallible_try_into!(SoundID, i16);
+infallible_try_into!(SoundID, i32);
+fallible_try_from!(SoundID, i16);
+fallible_try_from!(SoundID, i32);
 
 #[derive(Debug, Default, Clone)]
 pub struct Sound {
