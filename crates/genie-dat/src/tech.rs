@@ -1,5 +1,5 @@
 use crate::{unit_type::StringID, unit_type::UnitTypeID};
-use arraystring::{typenum::U30, ArrayString};
+use arrayvec::ArrayString;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use genie_support::MapInto;
 use std::{
@@ -16,7 +16,7 @@ pub struct EffectCommand {
     pub params: (i16, i16, i16, f32),
 }
 
-type TechEffectName = ArrayString<U30>;
+type TechEffectName = ArrayString<[u8; 31]>;
 
 /// A tech effect is a group of attribute changes that are applied when the effect is triggered.
 #[derive(Debug, Default, Clone)]
@@ -133,20 +133,21 @@ impl TechEffect {
     }
 
     pub fn from<R: Read>(input: &mut R) -> Result<Self> {
-        let name = {
-            let mut bytes = [0; 31];
-            input.read_exact(&mut bytes)?;
-            let bytes: Vec<u8> = bytes.iter().cloned().take_while(|b| *b != 0).collect();
-            TechEffectName::from_utf8(bytes).unwrap()
-        };
+        let mut effect = Self::default();
+        let mut bytes = [0; 31];
+        input.read_exact(&mut bytes)?;
+        bytes.iter()
+            .cloned()
+            .take_while(|b| *b != 0)
+            .map(char::from)
+            .for_each(|c| effect.name.push(c));
 
-        let num_effects = input.read_u16::<LE>()?;
-        let mut commands = vec![EffectCommand::default(); num_effects as usize];
-        for effect in commands.iter_mut() {
-            *effect = EffectCommand::from(input)?;
+        let num_commands = input.read_u16::<LE>()?;
+        for _ in 0..num_commands {
+            effect.commands.push(EffectCommand::from(input)?);
         }
 
-        Ok(TechEffect { name, commands })
+        Ok(effect)
     }
 
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {

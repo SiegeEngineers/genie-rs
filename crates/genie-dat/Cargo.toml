@@ -5,7 +5,7 @@ authors = ["Renée Kooi <renee@kooi.me>"]
 edition = "2018"
 
 [dependencies]
-arraystring = "^0.3.0"
+arrayvec = "^0.4.11"
 byteorder = "^1.3.1"
 flate2 = { version = "^1.0.0", features = ["rust_backend"], default-features = false }
 genie-support = { version = "^0.0.0", path = "../genie-support" }

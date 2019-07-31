@@ -1,12 +1,12 @@
 use crate::{sound::SoundID, sprite::GraphicID, Version};
-use arraystring::{typenum::U12, ArrayString};
+use arrayvec::ArrayString;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::{
     convert::TryInto,
     io::{Read, Result, Write},
 };
 
-type TerrainName = ArrayString<U12>;
+type TerrainName = ArrayString<[u8; 13]>;
 
 #[derive(Debug, Default, Clone)]
 pub struct TerrainPassGraphic {
@@ -217,18 +217,8 @@ impl Terrain {
         let mut terrain = Terrain::default();
         terrain.enabled = input.read_u8()? != 0;
         terrain.random = input.read_u8()?;
-        terrain.name = {
-            let mut bytes = [0; 13];
-            input.read_exact(&mut bytes)?;
-            let bytes: Vec<u8> = bytes.iter().cloned().take_while(|b| *b != 0).collect();
-            TerrainName::from_utf8(bytes).unwrap()
-        };
-        terrain.slp_name = {
-            let mut bytes = [0; 13];
-            input.read_exact(&mut bytes)?;
-            let bytes: Vec<u8> = bytes.iter().cloned().take_while(|b| *b != 0).collect();
-            TerrainName::from_utf8(bytes).unwrap()
-        };
+        read_terrain_name(input, &mut terrain.name)?;
+        read_terrain_name(input, &mut terrain.slp_name)?;
         terrain.slp_id = {
             let n = input.read_i32::<LE>()?;
             if n == -1 {
@@ -304,18 +294,8 @@ impl TerrainBorder {
         let mut border = TerrainBorder::default();
         border.enabled = input.read_u8()? != 0;
         border.random = input.read_u8()?;
-        border.name = {
-            let mut bytes = [0; 13];
-            input.read_exact(&mut bytes)?;
-            let bytes: Vec<u8> = bytes.iter().cloned().take_while(|b| *b != 0).collect();
-            TerrainName::from_utf8(bytes).unwrap()
-        };
-        border.slp_name = {
-            let mut bytes = [0; 13];
-            input.read_exact(&mut bytes)?;
-            let bytes: Vec<u8> = bytes.iter().cloned().take_while(|b| *b != 0).collect();
-            TerrainName::from_utf8(bytes).unwrap()
-        };
+        read_terrain_name(input, &mut border.name)?;
+        read_terrain_name(input, &mut border.slp_name)?;
         border.slp_id = {
             let n = input.read_i32::<LE>()?;
             if n == -1 {
@@ -354,4 +334,15 @@ impl TerrainBorder {
 
         Ok(border)
     }
+}
+
+fn read_terrain_name<R: Read>(input: &mut R, output: &mut TerrainName) -> Result<()> {
+    let mut bytes = [0; 13];
+    input.read_exact(&mut bytes)?;
+    bytes.iter()
+        .cloned()
+        .take_while(|b| *b != 0)
+        .map(char::from)
+        .for_each(|c| output.push(c));
+    Ok(())
 }

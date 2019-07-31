@@ -1,12 +1,12 @@
 use crate::unit_type::UnitType;
-use arraystring::{typenum::U19, ArrayString};
+use arrayvec::ArrayString;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::{
     convert::TryInto,
     io::{Read, Result, Write},
 };
 
-type CivName = ArrayString<U19>;
+type CivName = ArrayString<[u8; 20]>;
 
 #[derive(Debug, Default, Clone)]
 pub struct Civilization {
@@ -21,12 +21,13 @@ pub struct Civilization {
 impl Civilization {
     pub fn from<R: Read>(input: &mut R, _player_type: i8) -> Result<Self> {
         let mut civ = Self::default();
-        civ.name = {
-            let mut bytes = [0; 20];
-            input.read_exact(&mut bytes)?;
-            let vec: Vec<u8> = bytes.iter().cloned().take_while(|b| *b != 0).collect();
-            CivName::from_utf8(&vec).unwrap()
-        };
+        let mut bytes = [0; 20];
+        input.read_exact(&mut bytes)?;
+        bytes.iter()
+            .cloned()
+            .take_while(|b| *b != 0)
+            .map(char::from)
+            .for_each(|c| civ.name.push(c));
         let num_attributes = input.read_u16::<LE>()?;
         civ.civ_effect = input.read_u16::<LE>()?;
         civ.bonus_effect = {
