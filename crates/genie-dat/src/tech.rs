@@ -1,3 +1,4 @@
+use arraystring::{ArrayString, typenum::U30};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::io::{Read, Result, Write};
 
@@ -10,11 +11,13 @@ pub struct EffectCommand {
     pub params: (i16, i16, i16, f32),
 }
 
+pub type TechEffectName = ArrayString<U30>;
+
 /// A tech effect is a group of attribute changes that are applied when the effect is triggered.
 #[derive(Debug, Default, Clone)]
 pub struct TechEffect {
     /// Name for the effect.
-    pub name: String,
+    pub name: TechEffectName,
     /// Attribute commands to execute when this effect is triggered.
     pub commands: Vec<EffectCommand>,
 }
@@ -46,10 +49,12 @@ impl EffectCommand {
 
 impl TechEffect {
     pub fn from<R: Read>(input: &mut R) -> Result<Self> {
-        let mut name = [0; 31];
-        input.read_exact(&mut name)?;
-        let name =
-            String::from_utf8(name.iter().cloned().take_while(|b| *b != 0).collect()).unwrap();
+        let name = {
+            let mut bytes = [0; 31];
+            input.read_exact(&mut bytes)?;
+            let bytes: Vec<u8> = bytes.iter().cloned().take_while(|b| *b != 0).collect();
+            TechEffectName::from_utf8(bytes).unwrap()
+        };
 
         let num_effects = input.read_u16::<LE>()?;
         let mut commands = vec![EffectCommand::default(); num_effects as usize];
