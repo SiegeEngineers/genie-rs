@@ -53,15 +53,22 @@ impl RandomMapInfo {
     }
 
     pub fn finish<R: Read>(&mut self, input: &mut R) -> Result<()> {
+        std::io::copy(&mut input.by_ref().take(44), &mut std::io::sink())?;
         for land in self.lands.iter_mut() {
             *land = RandomMapLand::from(input)?;
         }
+
+        std::io::copy(&mut input.by_ref().take(8), &mut std::io::sink())?;
         for terrain in self.terrains.iter_mut() {
             *terrain = RandomMapTerrain::from(input)?;
         }
+
+        std::io::copy(&mut input.by_ref().take(8), &mut std::io::sink())?;
         for object in self.objects.iter_mut() {
             *object = RandomMapObject::from(input)?;
         }
+
+        std::io::copy(&mut input.by_ref().take(8), &mut std::io::sink())?;
         for elevation in self.elevations.iter_mut() {
             *elevation = RandomMapElevation::from(input)?;
         }
@@ -132,6 +139,7 @@ impl RandomMapLand {
         land.y = input.read_i32::<LE>()?;
         land.amount_of_land_used_percent = input.read_i8()?;
         land.by_player_flag = input.read_i8()?;
+        let _padding = input.read_u16::<LE>()?;
         land.radius = input.read_i32::<LE>()?;
         land.fade = input.read_i32::<LE>()?;
         land.clumpiness_factor = input.read_i32::<LE>()?;
@@ -152,6 +160,7 @@ impl RandomMapLand {
         output.write_i32::<LE>(self.y)?;
         output.write_i8(self.amount_of_land_used_percent)?;
         output.write_i8(self.by_player_flag)?;
+        output.write_u16::<LE>(0)?;
         output.write_i32::<LE>(self.radius)?;
         output.write_i32::<LE>(self.fade)?;
         output.write_i32::<LE>(self.clumpiness_factor)?;
