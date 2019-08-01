@@ -37,6 +37,7 @@ use nom::{
 };
 use rgb::RGB;
 use std::{
+    fmt,
     io::{Read, Write},
     str::{self, FromStr},
 };
@@ -138,6 +139,18 @@ pub enum ReadPaletteError {
     /// The palette could not be parsed.
     ParseError,
 }
+
+impl fmt::Display for ReadPaletteError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use ReadPaletteError::*;
+        match self {
+            IoError(err) => write!(f, "{}", err),
+            ParseError => write!(f, "parse error"),
+        }
+    }
+}
+
+impl std::error::Error for ReadPaletteError {}
 
 impl From<std::io::Error> for ReadPaletteError {
     fn from(err: std::io::Error) -> Self {
