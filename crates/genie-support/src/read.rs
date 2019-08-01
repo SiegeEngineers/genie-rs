@@ -42,7 +42,7 @@ pub fn read_opt_u16<R: Read>(input: &mut R) -> Result<Option<u16>> {
 /// ```
 pub fn read_opt_u32<R: Read>(input: &mut R) -> Result<Option<u32>> {
     let v = input.read_i32::<LE>()?;
-    if v == -1 {
+    if v < 0 {
         return Ok(None);
     }
     Ok(Some(
