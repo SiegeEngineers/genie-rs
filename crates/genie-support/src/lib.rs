@@ -1,7 +1,4 @@
-//! Campaign files store multiple scenario files in one easily distributable chunk.
-//!
-//! genie-cpx can read and write campaign files using the Campaign and CampaignWriter structs,
-//! respectively.
+//! Some internal utilities for genie-rs modules.
 
 #![deny(future_incompatible)]
 #![deny(nonstandard_style)]
