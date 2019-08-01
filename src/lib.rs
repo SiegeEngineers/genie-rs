@@ -73,6 +73,7 @@ pub use genie_scx as scx;
 pub use chariot_palette::read_from as read_palette;
 pub use chariot_palette::Palette;
 pub use genie_cpx::Campaign;
+pub use genie_dat::DatFile;
 pub use genie_drs::{DRSReader, DRSWriter};
 pub use genie_hki::HotkeyInfo;
 pub use genie_lang::LangFile;

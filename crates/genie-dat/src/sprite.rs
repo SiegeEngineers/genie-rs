@@ -23,6 +23,12 @@ impl From<SpriteID> for u16 {
     }
 }
 
+impl From<SpriteID> for usize {
+    fn from(n: SpriteID) -> Self {
+        n.0.into()
+    }
+}
+
 fallible_try_into!(SpriteID, i16);
 fallible_try_from!(SpriteID, i32);
 fallible_try_from!(SpriteID, u32);

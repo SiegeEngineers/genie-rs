@@ -9,7 +9,7 @@ mod terrain;
 mod unit_type;
 
 use byteorder::{ReadBytesExt, LE};
-pub use civ::Civilization;
+pub use civ::{Civilization, CivilizationID};
 pub use color_table::ColorTable;
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 pub use random_map::*;
@@ -73,7 +73,8 @@ impl FileVersion {
 
 #[derive(Debug, Clone)]
 pub struct DatFile {
-    version: FileVersion,
+    file_version: FileVersion,
+    game_version: GameVersion,
     pub terrain_tables: Vec<TerrainRestriction>,
     pub tile_sizes: Vec<TileSize>,
     pub terrains: Vec<Terrain>,
@@ -91,14 +92,14 @@ impl DatFile {
     pub fn from(input: impl Read) -> Result<Self> {
         let mut input = DeflateDecoder::new(input);
 
-        let mut version = [0u8; 8];
-        input.read_exact(&mut version)?;
-        let version = FileVersion(version);
+        let mut file_version = [0u8; 8];
+        input.read_exact(&mut file_version)?;
+        let file_version = FileVersion(file_version);
 
         let num_terrain_tables = input.read_u16::<LE>()?;
         let num_terrains = input.read_u16::<LE>()?;
 
-        let game_version = if version == FileVersion(*b"VER 5.7\0") {
+        let game_version = if file_version == FileVersion(*b"VER 5.7\0") {
             match num_terrains {
                 32 => GameVersion::AoK,
                 41 => GameVersion::AoC,
@@ -133,14 +134,14 @@ impl DatFile {
         }
 
         let terrain_tables = read_array(num_terrain_tables.into(), || {
-            TerrainRestriction::from(&mut input, version, num_terrains)
+            TerrainRestriction::from(&mut input, file_version, num_terrains)
         })?;
 
         let num_color_tables = input.read_u16::<LE>()?;
         let color_tables = read_array(num_color_tables.into(), || ColorTable::from(&mut input))?;
 
         let num_sounds = input.read_u16::<LE>()?;
-        let sounds = read_array(num_sounds.into(), || Sound::from(&mut input, version))?;
+        let sounds = read_array(num_sounds.into(), || Sound::from(&mut input, file_version))?;
 
         let num_sprites = input.read_u16::<LE>()?;
         let sprites_exist = read_array(num_sprites.into(), || {
@@ -174,7 +175,7 @@ impl DatFile {
         input.read_i16::<LE>()?;
 
         let terrains = read_array(num_terrains_fixed.into(), || {
-            Terrain::from(&mut input, version, num_terrains_fixed)
+            Terrain::from(&mut input, file_version, num_terrains_fixed)
         })?;
         let terrain_borders = read_array(16, || TerrainBorder::from(&mut input))?;
 
@@ -248,7 +249,8 @@ impl DatFile {
         let _razing_kill_total = input.read_u32::<LE>()?;
 
         Ok(Self {
-            version,
+            file_version,
+            game_version,
             terrain_tables,
             tile_sizes,
             terrains,
@@ -265,8 +267,26 @@ impl DatFile {
 
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         let mut output = DeflateEncoder::new(output, Compression::default());
-        output.write_all(&self.version.0)?;
+        output.write_all(&self.file_version.0)?;
         Ok(())
+    }
+
+    /// Get a civilization by its ID.
+    pub fn get_civilization(&self, id: impl Into<CivilizationID>) -> Option<&Civilization> {
+        let id: CivilizationID = id.into();
+        self.civilizations.get(usize::from(id))
+    }
+
+    /// Get a sound by its ID.
+    pub fn get_sound(&self, id: impl Into<SoundID>) -> Option<&Sound> {
+        let id: SoundID = id.into();
+        self.sounds.get(usize::from(id))
+    }
+
+    /// Get a sprite by its ID.
+    pub fn get_sprite(&self, id: impl Into<SpriteID>) -> Option<&Sprite> {
+        let id: SpriteID = id.into();
+        self.sprites.get(usize::from(id)).and_then(Option::as_ref)
     }
 }
 

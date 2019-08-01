@@ -1,10 +1,38 @@
-use crate::{unit_type::UnitType, GameVersion};
+use crate::{unit_type::{UnitTypeID,UnitType}, GameVersion};
+use genie_support::{fallible_try_into, infallible_try_into, fallible_try_from};
 use arrayvec::ArrayString;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::{
     convert::TryInto,
     io::{Read, Result, Write},
 };
+
+/// An ID identifying a civilization
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct CivilizationID(u16);
+
+impl From<u16> for CivilizationID {
+    fn from(n: u16) -> Self {
+        CivilizationID(n)
+    }
+}
+
+impl From<CivilizationID> for u16 {
+    fn from(n: CivilizationID) -> Self {
+        n.0
+    }
+}
+
+impl From<CivilizationID> for usize {
+    fn from(n: CivilizationID) -> Self {
+        n.0.into()
+    }
+}
+
+fallible_try_into!(CivilizationID, i16);
+infallible_try_into!(CivilizationID, u32);
+fallible_try_from!(CivilizationID, i32);
+fallible_try_from!(CivilizationID, u32);
 
 type CivName = ArrayString<[u8; 20]>;
 
@@ -72,10 +100,29 @@ impl Civilization {
         output.write_u16::<LE>(self.attributes.len().try_into().unwrap())?;
         output.write_u16::<LE>(self.civ_effect)?;
         output.write_u16::<LE>(self.bonus_effect.unwrap_or(0xFFFF))?;
-        output.write_u8(self.culture)?;
         for v in self.attributes.iter() {
             output.write_f32::<LE>(*v)?;
         }
+        output.write_u8(self.culture)?;
+
+        output.write_u16::<LE>(self.unit_types.len().try_into().unwrap())?;
+        for opt in &self.unit_types {
+            output.write_u32::<LE>(match opt {
+                Some(_) => 1,
+                None => 0,
+            })?;
+        }
+        for opt in &self.unit_types {
+            if let Some(unit_type) = opt {
+                unit_type.write_to(output)?;
+            }
+        }
         Ok(())
+    }
+
+    /// Get a unit type by its ID.
+    pub fn get_unit_type(&self, id: impl Into<UnitTypeID>) -> Option<&UnitType> {
+        let id: UnitTypeID = id.into();
+        self.unit_types.get(usize::from(id)).and_then(Option::as_ref)
     }
 }

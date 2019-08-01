@@ -21,8 +21,15 @@ impl From<SoundID> for u16 {
     }
 }
 
+impl From<SoundID> for usize {
+    fn from(n: SoundID) -> Self {
+        n.0.into()
+    }
+}
+
 fallible_try_into!(SoundID, i16);
 infallible_try_into!(SoundID, i32);
+infallible_try_into!(SoundID, u32);
 fallible_try_from!(SoundID, i16);
 fallible_try_from!(SoundID, i32);
 

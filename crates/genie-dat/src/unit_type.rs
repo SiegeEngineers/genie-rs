@@ -30,6 +30,12 @@ impl From<UnitTypeID> for u16 {
     }
 }
 
+impl From<UnitTypeID> for usize {
+    fn from(n: UnitTypeID) -> Self {
+        n.0.into()
+    }
+}
+
 fallible_try_into!(UnitTypeID, i16);
 infallible_try_into!(UnitTypeID, u32);
 fallible_try_from!(UnitTypeID, i32);
@@ -114,6 +120,37 @@ impl UnitType {
             80 => BuildingUnitType::from(input, version).map_into(),
             _ => panic!("unexpected unit type {}, this is probably a bug", unit_type),
         }
+    }
+
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        use UnitType::*;
+        output.write_u8(match self {
+            Static(_) => 10,
+            Tree(_) => 15,
+            Animated(_) => 20,
+            Doppleganger(_) => 25,
+            Moving(_) => 30,
+            Action(_) => 40,
+            BaseCombat(_) => 50,
+            Missile(_) => 60,
+            Combat(_) => 70,
+            Building(_) => 80,
+        })?;
+
+        match self {
+            Static(unit) => unit.write_to(output)?,
+            Tree(unit) => unit.write_to(output)?,
+            Animated(unit) => unit.write_to(output)?,
+            Doppleganger(unit) => unit.write_to(output)?,
+            Moving(unit) => unit.write_to(output)?,
+            Action(unit) => unit.write_to(output)?,
+            BaseCombat(unit) => unit.write_to(output)?,
+            Missile(unit) => unit.write_to(output)?,
+            Combat(unit) => unit.write_to(output)?,
+            Building(unit) => unit.write_to(output)?,
+        }
+
+        Ok(())
     }
 
     pub fn static_unit(&self) -> &StaticUnitType {
