@@ -3,6 +3,10 @@ name = "genie-dat"
 version = "0.1.0"
 authors = ["Renée Kooi <renee@kooi.me>"]
 edition = "2018"
+license = "GPL-3.0"
+description = "Read and write Age of Empires I/II data files."
+homepage = "https://github.com/SiegeEngineers/genie-rs"
+repository = "https://github.com/SiegeEngineers/genie-rs"
 
 [dependencies]
 arrayvec = "^0.4.11"
