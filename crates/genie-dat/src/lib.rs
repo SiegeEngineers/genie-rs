@@ -24,6 +24,24 @@ pub use terrain::{
 };
 pub use unit_type::*;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GameVersion {
+    AoK,
+    AoC,
+    HD,
+}
+
+impl GameVersion {
+    pub fn as_f32(self) -> f32 {
+        use GameVersion::*;
+        match self {
+            AoK => 11.5,
+            AoC => 11.97,
+            HD => 12.0,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FileVersion([u8; 8]);
 
@@ -79,9 +97,21 @@ impl DatFile {
 
         let num_terrain_tables = input.read_u16::<LE>()?;
         let num_terrains = input.read_u16::<LE>()?;
+
+        let game_version = if version == FileVersion(*b"VER 5.7\0") {
+            match num_terrains {
+                32 => GameVersion::AoK,
+                41 => GameVersion::AoC,
+                100 => GameVersion::HD,
+                _ => GameVersion::AoC, // TODO support different versions
+            }
+        } else {
+            GameVersion::AoC // TODO support different versions
+        };
+
         // AoC hardcodes to 42 terrains, but says 41 terrains in the data file.
         // The 42nd terrain is zeroed out.
-        let num_terrains_fixed = if version.is_aoc() && num_terrains == 41 {
+        let num_terrains_fixed = if game_version == GameVersion::AoC && num_terrains == 41 {
             42
         } else {
             num_terrains
@@ -102,7 +132,9 @@ impl DatFile {
             Ok(list)
         }
 
-        let terrain_tables = read_array(num_terrain_tables.into(), || TerrainRestriction::from(&mut input, version, num_terrains))?;
+        let terrain_tables = read_array(num_terrain_tables.into(), || {
+            TerrainRestriction::from(&mut input, version, num_terrains)
+        })?;
 
         let num_color_tables = input.read_u16::<LE>()?;
         let color_tables = read_array(num_color_tables.into(), || ColorTable::from(&mut input))?;
@@ -111,7 +143,9 @@ impl DatFile {
         let sounds = read_array(num_sounds.into(), || Sound::from(&mut input, version))?;
 
         let num_sprites = input.read_u16::<LE>()?;
-        let sprites_exist = read_array(num_sprites.into(), || input.read_u32::<LE>().map(|n| n != 0))?;
+        let sprites_exist = read_array(num_sprites.into(), || {
+            input.read_u32::<LE>().map(|n| n != 0)
+        })?;
         let mut sprites = vec![];
         for exists in sprites_exist {
             sprites.push(if exists {
@@ -139,7 +173,9 @@ impl DatFile {
         // Padding
         input.read_i16::<LE>()?;
 
-        let terrains = read_array(num_terrains_fixed.into(), || Terrain::from(&mut input, version, num_terrains_fixed))?;
+        let terrains = read_array(num_terrains_fixed.into(), || {
+            Terrain::from(&mut input, version, num_terrains_fixed)
+        })?;
         let terrain_borders = read_array(16, || TerrainBorder::from(&mut input))?;
 
         // Should just skip all this shit probably
@@ -197,7 +233,7 @@ impl DatFile {
         let civilizations = read_array(num_civilizations.into(), || {
             let player_type = input.read_i8()?;
             assert_eq!(player_type, 1);
-            Civilization::from(&mut input, player_type)
+            Civilization::from(&mut input, game_version)
         })?;
 
         let num_techs = input.read_u16::<LE>()?;
@@ -247,7 +283,7 @@ mod tests {
     fn aok() {
         let mut f = File::open("fixtures/aok.dat").unwrap();
         let dat = DatFile::from(&mut f).unwrap();
-        assert_eq!(dat.civilizations.len(), 13);
+        assert_eq!(dat.civilizations.len(), 14);
     }
 
     #[test]

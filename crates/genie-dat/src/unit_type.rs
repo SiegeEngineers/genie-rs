@@ -2,6 +2,7 @@ use crate::{
     sound::SoundID,
     sprite::{GraphicID, SpriteID},
     task::TaskList,
+    GameVersion,
 };
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
@@ -98,19 +99,19 @@ cast_unit_type!(CombatUnitType, Combat);
 cast_unit_type!(BuildingUnitType, Building);
 
 impl UnitType {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let unit_type = input.read_u8()?;
         match unit_type {
-            10 => StaticUnitType::from(input).map_into(),
-            15 => TreeUnitType::from(input).map_into(),
-            20 => AnimatedUnitType::from(input).map_into(),
-            25 => DopplegangerUnitType::from(input).map_into(),
-            30 => MovingUnitType::from(input).map_into(),
-            40 => ActionUnitType::from(input).map_into(),
-            50 => BaseCombatUnitType::from(input).map_into(),
-            60 => MissileUnitType::from(input).map_into(),
-            70 => CombatUnitType::from(input).map_into(),
-            80 => BuildingUnitType::from(input).map_into(),
+            10 => StaticUnitType::from(input, version).map_into(),
+            15 => TreeUnitType::from(input, version).map_into(),
+            20 => AnimatedUnitType::from(input, version).map_into(),
+            25 => DopplegangerUnitType::from(input, version).map_into(),
+            30 => MovingUnitType::from(input, version).map_into(),
+            40 => ActionUnitType::from(input, version).map_into(),
+            50 => BaseCombatUnitType::from(input, version).map_into(),
+            60 => MissileUnitType::from(input, version).map_into(),
+            70 => CombatUnitType::from(input, version).map_into(),
+            80 => BuildingUnitType::from(input, version).map_into(),
             _ => panic!("unexpected unit type {}, this is probably a bug", unit_type),
         }
     }
@@ -261,7 +262,7 @@ pub struct StaticUnitType {
 }
 
 impl StaticUnitType {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let mut unit_type = Self::default();
         let name_len = input.read_u16::<LE>()?;
         unit_type.id = input.read_u16::<LE>()?.into();
@@ -317,7 +318,11 @@ impl StaticUnitType {
         unit_type.occlusion_mask = input.read_u8()?;
         unit_type.obstruction_type = input.read_u8()?;
         unit_type.selection_shape = input.read_u8()?;
-        unit_type.object_flags = input.read_u32::<LE>()?;
+        unit_type.object_flags = if version.as_f32() < 11.55 {
+            0
+        } else {
+            input.read_u32::<LE>()?
+        };
         unit_type.civilization = input.read_u8()?;
         unit_type.attribute_piece = input.read_u8()?;
         unit_type.outline_radius = (
@@ -488,8 +493,8 @@ impl StaticUnitType {
 pub struct TreeUnitType(StaticUnitType);
 
 impl TreeUnitType {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
-        StaticUnitType::from(input).map(Self)
+    pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+        StaticUnitType::from(input, version).map(Self)
     }
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         self.0.write_to(output)
@@ -503,9 +508,9 @@ pub struct AnimatedUnitType {
 }
 
 impl AnimatedUnitType {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         Ok(Self {
-            superclass: StaticUnitType::from(input)?,
+            superclass: StaticUnitType::from(input, version)?,
             speed: input.read_f32::<LE>()?,
         })
     }
@@ -520,8 +525,8 @@ impl AnimatedUnitType {
 pub struct DopplegangerUnitType(AnimatedUnitType);
 
 impl DopplegangerUnitType {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
-        AnimatedUnitType::from(input).map(Self)
+    pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+        AnimatedUnitType::from(input, version).map(Self)
     }
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         self.0.write_to(output)
@@ -547,9 +552,9 @@ pub struct MovingUnitType {
 }
 
 impl MovingUnitType {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let mut unit_type = Self {
-            superclass: AnimatedUnitType::from(input)?,
+            superclass: AnimatedUnitType::from(input, version)?,
             ..Default::default()
         };
         unit_type.move_sprite = read_opt_u16(input)?.map_into();
@@ -590,9 +595,9 @@ pub struct ActionUnitType {
 }
 
 impl ActionUnitType {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let mut unit_type = Self {
-            superclass: MovingUnitType::from(input)?,
+            superclass: MovingUnitType::from(input, version)?,
             ..Default::default()
         };
         unit_type.default_task = read_opt_u16(input)?;
@@ -657,12 +662,16 @@ pub struct BaseCombatUnitType {
 }
 
 impl BaseCombatUnitType {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let mut unit_type = Self {
-            superclass: ActionUnitType::from(input)?,
+            superclass: ActionUnitType::from(input, version)?,
             ..Default::default()
         };
-        unit_type.base_armor = input.read_u16::<LE>()?;
+        unit_type.base_armor = if version.as_f32() < 11.52 {
+            input.read_u8()?.into()
+        } else {
+            input.read_u16::<LE>()?
+        };
         let num_weapons = input.read_u16::<LE>()?;
         for _ in 0..num_weapons {
             unit_type.weapons.push(WeaponInfo::from(input)?);
@@ -711,9 +720,9 @@ pub struct MissileUnitType {
 }
 
 impl MissileUnitType {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let mut unit_type = Self {
-            superclass: BaseCombatUnitType::from(input)?,
+            superclass: BaseCombatUnitType::from(input, version)?,
             ..Default::default()
         };
         unit_type.missile_type = input.read_u8()?;
@@ -777,9 +786,9 @@ pub struct CombatUnitType {
 }
 
 impl CombatUnitType {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let mut unit_type = Self {
-            superclass: BaseCombatUnitType::from(input)?,
+            superclass: BaseCombatUnitType::from(input, version)?,
             ..Default::default()
         };
 
@@ -886,13 +895,17 @@ pub struct BuildingUnitType {
 }
 
 impl BuildingUnitType {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let mut unit_type = Self {
-            superclass: CombatUnitType::from(input)?,
+            superclass: CombatUnitType::from(input, version)?,
             ..Default::default()
         };
         unit_type.construction_sprite = read_opt_u16(input)?.map_into();
-        unit_type.snow_sprite = read_opt_u16(input)?.map_into();
+        unit_type.snow_sprite = if version.as_f32() < 11.53 {
+            None
+        } else {
+            read_opt_u16(input)?.map_into()
+        };
         unit_type.connect_flag = input.read_u8()?;
         unit_type.facet = input.read_i16::<LE>()?;
         unit_type.destroy_on_build = input.read_u8()? != 0;

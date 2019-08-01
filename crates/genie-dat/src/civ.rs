@@ -1,4 +1,4 @@
-use crate::unit_type::UnitType;
+use crate::{unit_type::UnitType, GameVersion};
 use arrayvec::ArrayString;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::{
@@ -19,7 +19,7 @@ pub struct Civilization {
 }
 
 impl Civilization {
-    pub fn from<R: Read>(input: &mut R, _player_type: i8) -> Result<Self> {
+    pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let mut civ = Self::default();
         let mut bytes = [0; 20];
         input.read_exact(&mut bytes)?;
@@ -59,7 +59,7 @@ impl Civilization {
                 civ.unit_types.push(None);
                 continue;
             }
-            civ.unit_types.push(Some(UnitType::from(input)?));
+            civ.unit_types.push(Some(UnitType::from(input, version)?));
         }
 
         Ok(civ)
