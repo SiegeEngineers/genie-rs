@@ -11,7 +11,7 @@ use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 use genie_support::{read_opt_u32, MapInto, StringID, UnitTypeID};
 use std::{
     cmp::Ordering,
-    convert::TryInto,
+    convert::{TryFrom, TryInto},
     io::{Read, Write},
 };
 

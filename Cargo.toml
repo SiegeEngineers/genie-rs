@@ -10,13 +10,13 @@ repository = "https://github.com/SiegeEngineers/genie-rs"
 readme = "README.md"
 
 [dependencies]
-chariot_palette = "^0.1.5"
 genie-cpx = { version = "0.2.0", path = "crates/genie-cpx" }
 genie-dat = { version = "0.1.0", path = "crates/genie-dat" }
 genie-drs = { version = "0.1.1", path = "crates/genie-drs" }
 genie-hki = { version = "0.1.0", path = "crates/genie-hki" }
 genie-lang = { version = "0.1.0", path = "crates/genie-lang" }
 genie-scx = { version = "1.0.0", path = "crates/genie-scx" }
+jascpal = { version = "0.1.0", path = "crates/jascpal" }
 
 [dev-dependencies]
 quicli = "^0.4.0"
@@ -30,5 +30,6 @@ members = [
   "crates/genie-hki",
   "crates/genie-lang",
   "crates/genie-scx",
-  "crates/genie-support"
+  "crates/genie-support",
+  "crates/jascpal"
 ]
