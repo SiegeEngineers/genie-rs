@@ -8,8 +8,11 @@ use crate::{
 };
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
-use std::cmp::Ordering;
-use std::io::{Read, Write};
+use std::{
+    cmp::Ordering,
+    convert::TryFrom,
+    io::{Read, Write},
+};
 
 /// Compare floats with some error.
 macro_rules! cmp_float {

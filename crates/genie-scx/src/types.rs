@@ -1,7 +1,7 @@
 //! Contains pure types, no IO.
 //!
 //! Most of these are more descriptive wrappers around integers.
-use std::result::Result;
+use std::{convert::TryFrom, result::Result};
 
 /// SCX Format version.
 pub type SCXVersion = [u8; 4];
@@ -29,8 +29,10 @@ pub enum DiplomaticStance {
     Enemy = 3,
 }
 
-impl DiplomaticStance {
-    pub fn try_from(n: i32) -> Result<Self, ParseDiplomaticStanceError> {
+impl TryFrom<i32> for DiplomaticStance {
+    type Error = ParseDiplomaticStanceError;
+
+    fn try_from(n: i32) -> Result<Self, Self::Error> {
         match n {
             0 => Ok(DiplomaticStance::Ally),
             1 => Ok(DiplomaticStance::Neutral),
@@ -71,8 +73,9 @@ pub enum DataSet {
     Expansions,
 }
 
-impl DataSet {
-    pub fn try_from(n: i32) -> Result<Self, ParseDataSetError> {
+impl TryFrom<i32> for DataSet {
+    type Error = ParseDataSetError;
+    fn try_from(n: i32) -> Result<Self, Self::Error> {
         match n {
             0 => Ok(DataSet::BaseGame),
             1 => Ok(DataSet::Expansions),
@@ -117,8 +120,9 @@ pub enum DLCPackage {
     RiseOfTheRajas,
 }
 
-impl DLCPackage {
-    pub fn try_from(n: i32) -> Result<Self, ParseDLCPackageError> {
+impl TryFrom<i32> for DLCPackage {
+    type Error = ParseDLCPackageError;
+    fn try_from(n: i32) -> Result<Self, Self::Error> {
         match n {
             2 => Ok(DLCPackage::AgeOfKings),
             3 => Ok(DLCPackage::AgeOfConquerors),
