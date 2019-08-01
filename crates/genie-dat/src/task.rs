@@ -1,4 +1,6 @@
+use crate::{sound::SoundID, sprite::SpriteID, unit_type::UnitTypeID};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use genie_support::{read_opt_u16, MapInto};
 use std::{
     convert::TryInto,
     io::{Read, Result, Write},
@@ -14,7 +16,7 @@ pub struct Task {
     is_default: bool,
     action_type: u16,
     object_class: i16,
-    object_id: i16,
+    object_id: Option<UnitTypeID>,
     terrain_id: i16,
     attribute_types: (i16, i16, i16, i16),
     work_values: (f32, f32),
@@ -27,12 +29,12 @@ pub struct Task {
     owner_type: u8,
     holding_attribute: u8,
     state_building: u8,
-    move_sprite: i16,
-    work_sprite: i16,
-    work_sprite2: i16,
-    carry_sprite: i16,
-    work_sound: i16,
-    work_sound2: i16,
+    move_sprite: Option<SpriteID>,
+    work_sprite: Option<SpriteID>,
+    work_sprite2: Option<SpriteID>,
+    carry_sprite: Option<SpriteID>,
+    work_sound: Option<SoundID>,
+    work_sound2: Option<SoundID>,
 }
 
 impl Deref for TaskList {
@@ -71,7 +73,7 @@ impl Task {
         task.is_default = input.read_u8()? != 0;
         task.action_type = input.read_u16::<LE>()?;
         task.object_class = input.read_i16::<LE>()?;
-        task.object_id = input.read_i16::<LE>()?;
+        task.object_id = read_opt_u16(input)?.map_into();
         task.terrain_id = input.read_i16::<LE>()?;
         task.attribute_types = (
             input.read_i16::<LE>()?,
@@ -89,12 +91,12 @@ impl Task {
         task.owner_type = input.read_u8()?;
         task.holding_attribute = input.read_u8()?;
         task.state_building = input.read_u8()?;
-        task.move_sprite = input.read_i16::<LE>()?;
-        task.work_sprite = input.read_i16::<LE>()?;
-        task.work_sprite2 = input.read_i16::<LE>()?;
-        task.carry_sprite = input.read_i16::<LE>()?;
-        task.work_sound = input.read_i16::<LE>()?;
-        task.work_sound2 = input.read_i16::<LE>()?;
+        task.move_sprite = read_opt_u16(input)?.map_into();
+        task.work_sprite = read_opt_u16(input)?.map_into();
+        task.work_sprite2 = read_opt_u16(input)?.map_into();
+        task.carry_sprite = read_opt_u16(input)?.map_into();
+        task.work_sound = read_opt_u16(input)?.map_into();
+        task.work_sound2 = read_opt_u16(input)?.map_into();
 
         Ok(task)
     }
@@ -104,7 +106,11 @@ impl Task {
         output.write_u8(if self.is_default { 1 } else { 0 })?;
         output.write_u16::<LE>(self.action_type)?;
         output.write_i16::<LE>(self.object_class)?;
-        output.write_i16::<LE>(self.object_id)?;
+        output.write_i16::<LE>(
+            self.object_id
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
         output.write_i16::<LE>(self.terrain_id)?;
         output.write_i16::<LE>(self.attribute_types.0)?;
         output.write_i16::<LE>(self.attribute_types.1)?;
@@ -122,12 +128,36 @@ impl Task {
         output.write_u8(self.owner_type)?;
         output.write_u8(self.holding_attribute)?;
         output.write_u8(self.state_building)?;
-        output.write_i16::<LE>(self.move_sprite)?;
-        output.write_i16::<LE>(self.work_sprite)?;
-        output.write_i16::<LE>(self.work_sprite2)?;
-        output.write_i16::<LE>(self.carry_sprite)?;
-        output.write_i16::<LE>(self.work_sound)?;
-        output.write_i16::<LE>(self.work_sound2)?;
+        output.write_i16::<LE>(
+            self.move_sprite
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
+        output.write_i16::<LE>(
+            self.work_sprite
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
+        output.write_i16::<LE>(
+            self.work_sprite2
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
+        output.write_i16::<LE>(
+            self.carry_sprite
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
+        output.write_i16::<LE>(
+            self.work_sound
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
+        output.write_i16::<LE>(
+            self.work_sound2
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
         Ok(())
     }
 }

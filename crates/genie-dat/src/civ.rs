@@ -1,7 +1,10 @@
-use crate::{unit_type::{UnitTypeID,UnitType}, GameVersion};
-use genie_support::{fallible_try_into, infallible_try_into, fallible_try_from};
+use crate::{
+    unit_type::{UnitType, UnitTypeID},
+    GameVersion,
+};
 use arrayvec::ArrayString;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use genie_support::{fallible_try_from, fallible_try_into, infallible_try_into};
 use std::{
     convert::TryInto,
     io::{Read, Result, Write},
@@ -123,6 +126,8 @@ impl Civilization {
     /// Get a unit type by its ID.
     pub fn get_unit_type(&self, id: impl Into<UnitTypeID>) -> Option<&UnitType> {
         let id: UnitTypeID = id.into();
-        self.unit_types.get(usize::from(id)).and_then(Option::as_ref)
+        self.unit_types
+            .get(usize::from(id))
+            .and_then(Option::as_ref)
     }
 }
