@@ -52,8 +52,8 @@
 //!
 //! > Supported version range: all versions
 //!
-//! Support for palette files is implemented by [chariot_palette](https://github.com/ChariotEngine/Palette/).
-//! chariot_palette only supports _reading_ palette files at the moment.
+//! Palette files contain the 256-bit colour palettes used in different areas of the game. Each
+//! palette contains up to 256 r, g, b colour values. Both reading and writing is supported.
 
 #![deny(future_incompatible)]
 #![deny(nonstandard_style)]

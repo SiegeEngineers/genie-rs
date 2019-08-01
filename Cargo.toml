@@ -10,7 +10,6 @@ repository = "https://github.com/SiegeEngineers/genie-rs"
 readme = "README.md"
 
 [dependencies]
-chariot_palette = "^0.1.5"
 genie-cpx = { version = "0.2.0", path = "crates/genie-cpx" }
 genie-drs = { version = "0.1.1", path = "crates/genie-drs" }
 genie-hki = { version = "0.1.0", path = "crates/genie-hki" }
