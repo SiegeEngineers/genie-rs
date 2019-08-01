@@ -2,6 +2,7 @@ use crate::{
     sound::SoundID,
     sprite::{GraphicID, SpriteID},
     task::TaskList,
+    tech::TechID,
     terrain::TerrainID,
     GameVersion,
 };
@@ -14,8 +15,6 @@ use std::{
     convert::TryInto,
     io::{Read, Result, Write},
 };
-
-pub type TechID = u16;
 
 /// An ID identifying a unit type.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]

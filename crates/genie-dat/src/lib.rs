@@ -17,7 +17,7 @@ pub use sound::{Sound, SoundID, SoundItem};
 pub use sprite::{GraphicID, SoundProp, Sprite, SpriteAttackSound, SpriteDelta, SpriteID};
 use std::io::{Read, Result, Write};
 pub use task::{Task, TaskList};
-pub use tech::{Tech, TechEffect};
+pub use tech::{Tech, TechEffect, TechID};
 pub use terrain::{
     Terrain, TerrainAnimation, TerrainBorder, TerrainID, TerrainPassGraphic, TerrainRestriction,
     TerrainSpriteFrame, TileSize,
@@ -269,6 +269,12 @@ impl DatFile {
         let mut output = DeflateEncoder::new(output, Compression::default());
         output.write_all(&self.file_version.0)?;
         Ok(())
+    }
+
+    /// Get a tech by its ID.
+    pub fn get_tech(&self, id: impl Into<TechID>) -> Option<&Tech> {
+        let id: TechID = id.into();
+        self.techs.get(usize::from(id))
     }
 
     /// Get a terrain type by its ID.

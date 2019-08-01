@@ -1,11 +1,43 @@
-use crate::{unit_type::StringID, unit_type::UnitTypeID};
+use crate::{
+    civ::CivilizationID,
+    unit_type::{StringID, UnitTypeID},
+};
 use arrayvec::{ArrayString, ArrayVec};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{read_opt_u16, MapInto};
+use genie_support::{
+    fallible_try_from, fallible_try_into, infallible_try_into, read_opt_u16, MapInto,
+};
 use std::{
     convert::TryInto,
     io::{Read, Result, Write},
 };
+
+/// An ID identifying a tech.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct TechID(u16);
+
+impl From<u16> for TechID {
+    fn from(n: u16) -> Self {
+        TechID(n)
+    }
+}
+
+impl From<TechID> for u16 {
+    fn from(n: TechID) -> Self {
+        n.0
+    }
+}
+
+impl From<TechID> for usize {
+    fn from(n: TechID) -> Self {
+        n.0.into()
+    }
+}
+
+fallible_try_into!(TechID, i16);
+infallible_try_into!(TechID, u32);
+fallible_try_from!(TechID, i32);
+fallible_try_from!(TechID, u32);
 
 /// An effect command specifies an attribute change when a tech effect is triggered.
 #[derive(Debug, Default, Clone)]
@@ -38,7 +70,7 @@ pub struct TechEffectRef {
 pub struct Tech {
     required_techs: ArrayVec<[i16; 6]>,
     effects: ArrayVec<[TechEffectRef; 3]>,
-    civ_id: u16,
+    civilization: CivilizationID,
     full_tech_mode: u16,
     location: Option<UnitTypeID>,
     language_dll_name: Option<StringID>,
@@ -52,61 +84,6 @@ pub struct Tech {
     help_page_id: u32,
     hotkey: Option<u32>,
     name: String,
-}
-
-impl Tech {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
-        let mut tech = Self::default();
-        for _ in 0..6 {
-            // 4 on some versions
-            tech.required_techs.push(input.read_i16::<LE>()?);
-        }
-        for _ in 0..3 {
-            let effect = TechEffectRef::from(input)?;
-            if effect.effect_type != 0xFFFF {
-                tech.effects.push(effect);
-            }
-        }
-        let _num_required_techs = input.read_u16::<LE>()?;
-        tech.civ_id = input.read_u16::<LE>()?;
-        tech.full_tech_mode = input.read_u16::<LE>()?;
-        tech.location = read_opt_u16(input)?.map_into();
-        tech.language_dll_name = read_opt_u16(input)?.map_into();
-        tech.language_dll_description = read_opt_u16(input)?.map_into();
-        tech.time = input.read_u16::<LE>()?;
-        tech.time2 = input.read_u16::<LE>()?;
-        tech.type_ = input.read_u16::<LE>()?;
-        tech.icon_id = read_opt_u16(input)?;
-        tech.button_id = input.read_u8()?;
-        tech.language_dll_help = {
-            let n = input.read_i32::<LE>()?;
-            if n < 0 {
-                None
-            } else {
-                Some(n.try_into().unwrap())
-            }
-        };
-        tech.help_page_id = input.read_u32::<LE>()?;
-        tech.hotkey = {
-            let n = input.read_i32::<LE>()?;
-            if n < 0 {
-                None
-            } else {
-                Some(n.try_into().unwrap())
-            }
-        };
-        tech.name = {
-            let name_len = input.read_u16::<LE>()?;
-            let mut bytes = vec![0; name_len as usize];
-            input.read_exact(&mut bytes)?;
-            String::from_utf8(bytes.iter().cloned().take_while(|b| *b != 0).collect()).unwrap()
-        };
-        Ok(tech)
-    }
-
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        Ok(())
-    }
 }
 
 impl EffectCommand {
@@ -182,6 +159,61 @@ impl TechEffectRef {
         output.write_u16::<LE>(self.effect_type)?;
         output.write_u16::<LE>(self.amount)?;
         output.write_u8(if self.enabled { 1 } else { 0 })?;
+        Ok(())
+    }
+}
+
+impl Tech {
+    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+        let mut tech = Self::default();
+        for _ in 0..6 {
+            // 4 on some versions
+            tech.required_techs.push(input.read_i16::<LE>()?);
+        }
+        for _ in 0..3 {
+            let effect = TechEffectRef::from(input)?;
+            if effect.effect_type != 0xFFFF {
+                tech.effects.push(effect);
+            }
+        }
+        let _num_required_techs = input.read_u16::<LE>()?;
+        tech.civilization = input.read_u16::<LE>()?.into();
+        tech.full_tech_mode = input.read_u16::<LE>()?;
+        tech.location = read_opt_u16(input)?.map_into();
+        tech.language_dll_name = read_opt_u16(input)?.map_into();
+        tech.language_dll_description = read_opt_u16(input)?.map_into();
+        tech.time = input.read_u16::<LE>()?;
+        tech.time2 = input.read_u16::<LE>()?;
+        tech.type_ = input.read_u16::<LE>()?;
+        tech.icon_id = read_opt_u16(input)?;
+        tech.button_id = input.read_u8()?;
+        tech.language_dll_help = {
+            let n = input.read_i32::<LE>()?;
+            if n < 0 {
+                None
+            } else {
+                Some(n.try_into().unwrap())
+            }
+        };
+        tech.help_page_id = input.read_u32::<LE>()?;
+        tech.hotkey = {
+            let n = input.read_i32::<LE>()?;
+            if n < 0 {
+                None
+            } else {
+                Some(n.try_into().unwrap())
+            }
+        };
+        tech.name = {
+            let name_len = input.read_u16::<LE>()?;
+            let mut bytes = vec![0; name_len as usize];
+            input.read_exact(&mut bytes)?;
+            String::from_utf8(bytes.iter().cloned().take_while(|b| *b != 0).collect()).unwrap()
+        };
+        Ok(tech)
+    }
+
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         Ok(())
     }
 }
