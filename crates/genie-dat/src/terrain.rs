@@ -1,18 +1,50 @@
-use crate::{sound::SoundID, sprite::GraphicID, FileVersion};
+use crate::{
+    sound::SoundID, sprite::GraphicID, sprite::SpriteID, unit_type::UnitTypeID, FileVersion,
+};
 use arrayvec::ArrayString;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use genie_support::{
+    fallible_try_from, fallible_try_into, infallible_try_into, read_opt_u16, MapInto,
+};
 use std::{
     convert::TryInto,
     io::{Read, Result, Write},
 };
 
+/// An ID identifying a terrain.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct TerrainID(u16);
+
+impl From<u16> for TerrainID {
+    fn from(n: u16) -> Self {
+        TerrainID(n)
+    }
+}
+
+impl From<TerrainID> for u16 {
+    fn from(n: TerrainID) -> Self {
+        n.0
+    }
+}
+
+impl From<TerrainID> for usize {
+    fn from(n: TerrainID) -> Self {
+        n.0.into()
+    }
+}
+
+fallible_try_into!(TerrainID, i16);
+infallible_try_into!(TerrainID, u32);
+fallible_try_from!(TerrainID, i32);
+fallible_try_from!(TerrainID, u32);
+
 type TerrainName = ArrayString<[u8; 13]>;
 
 #[derive(Debug, Default, Clone)]
 pub struct TerrainPassGraphic {
-    exit_tile_id: i32,
-    enter_tile_id: i32,
-    walk_tile_id: i32,
+    exit_tile_sprite: Option<SpriteID>,
+    enter_tile_sprite: Option<SpriteID>,
+    walk_tile_sprite: Option<SpriteID>,
     walk_rate: Option<f32>,
     replication_amount: Option<i32>,
 }
@@ -53,7 +85,7 @@ pub struct TerrainSpriteFrame {
 
 #[derive(Debug, Default, Clone)]
 pub struct TerrainObject {
-    pub object_id: i16,
+    pub object_id: UnitTypeID,
     pub density: i16,
     pub placement_flag: i8,
 }
@@ -77,7 +109,7 @@ pub struct Terrain {
     pub impassable_terrain_id: Option<u8>,
     pub animation: TerrainAnimation,
     pub elevation_sprites: Vec<TerrainSpriteFrame>,
-    pub terrain_id_to_draw: Option<i16>,
+    pub terrain_id_to_draw: Option<TerrainID>,
     rows: i16,
     cols: i16,
     pub borders: Vec<i16>,
@@ -104,9 +136,30 @@ pub struct TerrainBorder {
 impl TerrainPassGraphic {
     pub fn from<R: Read>(input: &mut R, version: FileVersion) -> Result<Self> {
         let mut pass = TerrainPassGraphic::default();
-        pass.exit_tile_id = input.read_i32::<LE>()?;
-        pass.enter_tile_id = input.read_i32::<LE>()?;
-        pass.walk_tile_id = input.read_i32::<LE>()?;
+        pass.exit_tile_sprite = {
+            let n = input.read_i32::<LE>()?;
+            if n == -1 {
+                None
+            } else {
+                Some(n.try_into().unwrap())
+            }
+        };
+        pass.enter_tile_sprite = {
+            let n = input.read_i32::<LE>()?;
+            if n == -1 {
+                None
+            } else {
+                Some(n.try_into().unwrap())
+            }
+        };
+        pass.walk_tile_sprite = {
+            let n = input.read_i32::<LE>()?;
+            if n == -1 {
+                None
+            } else {
+                Some(n.try_into().unwrap())
+            }
+        };
         if version.is_swgb() {
             pass.walk_rate = Some(input.read_f32::<LE>()?);
         } else {
@@ -257,10 +310,7 @@ impl Terrain {
                 .elevation_sprites
                 .push(TerrainSpriteFrame::from(input)?);
         }
-        terrain.terrain_id_to_draw = match input.read_i16::<LE>()? {
-            -1 => None,
-            id => Some(id),
-        };
+        terrain.terrain_id_to_draw = read_opt_u16(input)?.map_into();
         terrain.rows = input.read_i16::<LE>()?;
         terrain.cols = input.read_i16::<LE>()?;
         for _ in 0..num_terrains {
@@ -269,7 +319,7 @@ impl Terrain {
 
         let mut terrain_objects = vec![TerrainObject::default(); 30];
         for object in terrain_objects.iter_mut() {
-            object.object_id = input.read_i16::<LE>()?;
+            object.object_id = input.read_u16::<LE>()?.into();
         }
         for object in terrain_objects.iter_mut() {
             object.density = input.read_i16::<LE>()?;

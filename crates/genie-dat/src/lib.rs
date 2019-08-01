@@ -19,7 +19,7 @@ use std::io::{Read, Result, Write};
 pub use task::{Task, TaskList};
 pub use tech::{Tech, TechEffect};
 pub use terrain::{
-    Terrain, TerrainAnimation, TerrainBorder, TerrainPassGraphic, TerrainRestriction,
+    Terrain, TerrainAnimation, TerrainBorder, TerrainID, TerrainPassGraphic, TerrainRestriction,
     TerrainSpriteFrame, TileSize,
 };
 pub use unit_type::*;
@@ -269,6 +269,12 @@ impl DatFile {
         let mut output = DeflateEncoder::new(output, Compression::default());
         output.write_all(&self.file_version.0)?;
         Ok(())
+    }
+
+    /// Get a terrain type by its ID.
+    pub fn get_terrain(&self, id: impl Into<TerrainID>) -> Option<&Terrain> {
+        let id: TerrainID = id.into();
+        self.terrains.get(usize::from(id))
     }
 
     /// Get the GAIA civilization.

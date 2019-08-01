@@ -2,6 +2,7 @@ use crate::{
     sound::SoundID,
     sprite::{GraphicID, SpriteID},
     task::TaskList,
+    terrain::TerrainID,
     GameVersion,
 };
 use arrayvec::ArrayVec;
@@ -13,6 +14,8 @@ use std::{
     convert::TryInto,
     io::{Read, Result, Write},
 };
+
+pub type TechID = u16;
 
 /// An ID identifying a unit type.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -610,6 +613,32 @@ impl MovingUnitType {
         Ok(unit_type)
     }
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        self.superclass.write_to(output)?;
+        output.write_i16::<LE>(
+            self.move_sprite
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
+        output.write_i16::<LE>(
+            self.run_sprite
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
+        output.write_f32::<LE>(self.turn_speed)?;
+        output.write_u8(self.size_class)?;
+        output.write_i16::<LE>(
+            self.trailing_unit
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
+        output.write_u8(self.trailing_options)?;
+        output.write_f32::<LE>(self.trailing_spacing)?;
+        output.write_u8(self.move_algorithm)?;
+        output.write_f32::<LE>(self.turn_radius)?;
+        output.write_f32::<LE>(self.turn_radius_speed)?;
+        output.write_f32::<LE>(self.maximum_yaw_per_second_moving)?;
+        output.write_f32::<LE>(self.stationary_yaw_revolution_time)?;
+        output.write_f32::<LE>(self.maximum_yaw_per_second_stationary)?;
         Ok(())
     }
 }
@@ -649,6 +678,36 @@ impl ActionUnitType {
         Ok(unit_type)
     }
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        self.superclass.write_to(output)?;
+        output.write_i16::<LE>(
+            self.default_task
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
+        output.write_f32::<LE>(self.search_radius)?;
+        output.write_f32::<LE>(self.work_rate)?;
+        output.write_i16::<LE>(
+            self.drop_site
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
+        output.write_i16::<LE>(
+            self.backup_drop_site
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
+        output.write_u8(self.task_by_group)?;
+        output.write_i16::<LE>(
+            self.command_sound
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
+        output.write_i16::<LE>(
+            self.move_sound
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
+        output.write_u8(self.run_pattern)?;
         Ok(())
     }
 }
@@ -741,6 +800,7 @@ impl BaseCombatUnitType {
         Ok(unit_type)
     }
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        unimplemented!();
         Ok(())
     }
 }
@@ -770,7 +830,15 @@ impl MissileUnitType {
         unit_type.ballistics_ratio = input.read_f32::<LE>()?;
         Ok(unit_type)
     }
+
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        self.superclass.write_to(output)?;
+        output.write_u8(self.missile_type)?;
+        output.write_u8(self.targetting_type)?;
+        output.write_u8(self.missile_hit_info)?;
+        output.write_u8(self.missile_die_info)?;
+        output.write_u8(self.area_effect_specials)?;
+        output.write_f32::<LE>(self.ballistics_ratio)?;
         Ok(())
     }
 }
@@ -879,9 +947,6 @@ impl CombatUnitType {
         Ok(())
     }
 }
-
-pub type TerrainID = u16;
-pub type TechID = u16;
 
 #[derive(Debug, Default, Clone)]
 pub struct LinkedBuilding {
