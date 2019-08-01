@@ -69,9 +69,9 @@ pub use genie_lang as lang;
 pub use genie_scx as scx;
 pub use jascpal as pal;
 
-pub use jascpal::Palette;
 pub use genie_cpx::Campaign;
 pub use genie_drs::{DRSReader, DRSWriter};
 pub use genie_hki::HotkeyInfo;
 pub use genie_lang::LangFile;
 pub use genie_scx::Scenario;
+pub use jascpal::Palette;
