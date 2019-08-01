@@ -10,7 +10,7 @@ mod unit_type;
 
 use byteorder::{ReadBytesExt, LE};
 pub use civ::{Civilization, CivilizationID};
-pub use color_table::ColorTable;
+pub use color_table::{ColorTable, PaletteIndex};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 pub use random_map::*;
 pub use sound::{Sound, SoundID, SoundItem};
