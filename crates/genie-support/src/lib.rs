@@ -7,10 +7,12 @@
 #![warn(missing_docs)]
 #![warn(unused)]
 
+mod ids;
 mod macros;
 mod map_into;
 mod read;
 
+pub use ids::*;
 pub use macros::*;
 pub use map_into::*;
 pub use read::*;

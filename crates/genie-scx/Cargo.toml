@@ -14,3 +14,4 @@ encoding_rs = "^0.8.17"
 flate2 = { version = "^1.0.0", features = ["rust_backend"], default-features = false }
 num-derive = "^0.2.0"
 num-traits = "^0.2.0"
+genie-support = { version = "^0.0.0", path = "../genie-support" }

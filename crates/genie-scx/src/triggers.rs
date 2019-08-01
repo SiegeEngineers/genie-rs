@@ -1,7 +1,9 @@
-use crate::util::*;
-use crate::Result;
+use crate::{util::*, Result, UnitTypeID};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::io::{Read, Write};
+use std::{
+    convert::TryInto,
+    io::{Read, Write},
+};
 
 #[derive(Debug)]
 pub struct TriggerCondition {
@@ -80,12 +82,20 @@ impl TriggerCondition {
         self.properties[3] = secondary_object;
     }
 
-    pub fn unit_type(&self) -> i32 {
+    pub fn raw_unit_type(&self) -> i32 {
         self.properties[4]
     }
 
-    pub fn set_unit_type(&mut self, unit_type: i32) {
+    pub fn set_raw_unit_type(&mut self, unit_type: i32) {
         self.properties[4] = unit_type;
+    }
+
+    pub fn unit_type(&self) -> UnitTypeID {
+        self.properties[4].try_into().unwrap()
+    }
+
+    pub fn set_unit_type(&mut self, unit_type: UnitTypeID) {
+        self.properties[4] = unit_type.try_into().unwrap();
     }
 
     pub fn player_id(&self) -> i32 {
@@ -144,12 +154,12 @@ impl TriggerCondition {
         self.properties[13] = unit_group;
     }
 
-    pub fn object_type(&self) -> i32 {
-        self.properties[14]
+    pub fn object_type(&self) -> UnitTypeID {
+        self.properties[14].try_into().unwrap()
     }
 
-    pub fn set_object_type(&mut self, object_type: i32) {
-        self.properties[14] = object_type;
+    pub fn set_object_type(&mut self, object_type: UnitTypeID) {
+        self.properties[14] = i32::from(object_type);
     }
 
     pub fn ai_signal(&self) -> i32 {
@@ -277,12 +287,12 @@ impl TriggerEffect {
         self.properties[5] = object_id;
     }
 
-    pub fn unit_type(&self) -> i32 {
-        self.properties[6]
+    pub fn unit_type(&self) -> UnitTypeID {
+        self.properties[6].try_into().unwrap()
     }
 
-    pub fn set_unit_type(&mut self, unit_type: i32) {
-        self.properties[6] = unit_type;
+    pub fn set_unit_type(&mut self, unit_type: UnitTypeID) {
+        self.properties[6] = i32::from(unit_type);
     }
 
     pub fn source_player_id(&self) -> i32 {
@@ -374,12 +384,12 @@ impl TriggerEffect {
         self.properties[20] = object_group;
     }
 
-    pub fn object_type(&self) -> i32 {
-        self.properties[21]
+    pub fn object_type(&self) -> UnitTypeID {
+        self.properties[21].try_into().unwrap()
     }
 
-    pub fn set_object_type(&mut self, object_type: i32) {
-        self.properties[21] = object_type;
+    pub fn set_object_type(&mut self, object_type: UnitTypeID) {
+        self.properties[21] = i32::from(object_type);
     }
 
     pub fn line_id(&self) -> i32 {

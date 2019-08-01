@@ -8,8 +8,12 @@ use crate::{
 };
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
-use std::cmp::Ordering;
-use std::io::{Read, Write};
+use genie_support::{read_opt_u32, MapInto, StringID, UnitTypeID};
+use std::{
+    cmp::Ordering,
+    convert::TryInto,
+    io::{Read, Write},
+};
 
 /// Compare floats with some error.
 macro_rules! cmp_float {
@@ -47,7 +51,7 @@ pub struct ScenarioObject {
     /// This object's unique ID.
     pub id: i32,
     /// The type ID of this object.
-    pub object_type: i16,
+    pub object_type: UnitTypeID,
     /// State value.
     pub state: u8,
     /// Radian angle this unit is facing.
@@ -67,7 +71,7 @@ impl ScenarioObject {
             input.read_f32::<LE>()?,
         );
         let id = input.read_i32::<LE>()?;
-        let object_type = input.read_i16::<LE>()?;
+        let object_type = input.read_u16::<LE>()?.into();
         let state = input.read_u8()?;
         let angle = input.read_f32::<LE>()?;
         let frame = if cmp_scx_version(version, *b"1.15") == Ordering::Less {
@@ -106,7 +110,7 @@ impl ScenarioObject {
         output.write_f32::<LE>(self.position.1)?;
         output.write_f32::<LE>(self.position.2)?;
         output.write_i32::<LE>(self.id)?;
-        output.write_i16::<LE>(self.object_type)?;
+        output.write_u16::<LE>(self.object_type.into())?;
         output.write_u8(self.state)?;
         output.write_f32::<LE>(self.angle)?;
         if cmp_scx_version(version, *b"1.14") == Ordering::Greater {
@@ -129,17 +133,17 @@ pub(crate) struct RGEScen {
     /// Names for each player.
     player_names: Vec<Option<String>>,
     /// Name IDs for each player.
-    player_string_table: Vec<i32>,
+    player_string_table: Vec<Option<StringID>>,
     player_base_properties: Vec<PlayerBaseProperties>,
     victory_conquest: bool,
     /// File name of this scenario.
     pub(crate) name: String,
-    description_string_table: i32,
-    hints_string_table: i32,
-    win_message_string_table: i32,
-    loss_message_string_table: i32,
-    history_string_table: i32,
-    scout_string_table: i32,
+    description_string_table: Option<StringID>,
+    hints_string_table: Option<StringID>,
+    win_message_string_table: Option<StringID>,
+    loss_message_string_table: Option<StringID>,
+    history_string_table: Option<StringID>,
+    scout_string_table: Option<StringID>,
     description: Option<String>,
     hints: Option<String>,
     win_message: Option<String>,
@@ -166,10 +170,10 @@ impl RGEScen {
                 *name = read_str(input, 256)?;
             }
         }
-        let mut player_string_table = vec![-1; 16];
+        let mut player_string_table = vec![None; 16];
         if version > 1.16 {
             for string_id in player_string_table.iter_mut() {
-                *string_id = input.read_i32::<LE>()?;
+                *string_id = read_opt_u32(input)?.map_into();
             }
         }
 
@@ -210,20 +214,20 @@ impl RGEScen {
             history_string_table,
         ) = if version >= 1.16 {
             (
-                input.read_i32::<LE>()?,
-                input.read_i32::<LE>()?,
-                input.read_i32::<LE>()?,
-                input.read_i32::<LE>()?,
-                input.read_i32::<LE>()?,
+                read_opt_u32(input)?.map_into(),
+                read_opt_u32(input)?.map_into(),
+                read_opt_u32(input)?.map_into(),
+                read_opt_u32(input)?.map_into(),
+                read_opt_u32(input)?.map_into(),
             )
         } else {
-            (-1, -1, -1, -1, -1)
+            Default::default()
         };
 
         let scout_string_table = if version >= 1.22 {
-            input.read_i32::<LE>()?
+            read_opt_u32(input)?.map_into()
         } else {
-            -1
+            Default::default()
         };
 
         let description_length = input.read_i16::<LE>()? as usize;
@@ -358,7 +362,7 @@ impl RGEScen {
         })
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W, version: f32) -> Result<()> {
+    pub fn write_to<W: Write>(&self, mut output: &mut W, version: f32) -> Result<()> {
         output.write_f32::<LE>(version)?;
 
         if version > 1.13 {
@@ -377,7 +381,7 @@ impl RGEScen {
         if version > 1.16 {
             assert_eq!(self.player_string_table.len(), 16);
             for id in &self.player_string_table {
-                output.write_i32::<LE>(*id)?;
+                write_opt_string_id(&mut output, *id)?;
             }
         }
 
@@ -403,14 +407,14 @@ impl RGEScen {
         write_str(output, &self.name)?;
 
         if version >= 1.16 {
-            output.write_i32::<LE>(self.description_string_table)?;
-            output.write_i32::<LE>(self.hints_string_table)?;
-            output.write_i32::<LE>(self.win_message_string_table)?;
-            output.write_i32::<LE>(self.loss_message_string_table)?;
-            output.write_i32::<LE>(self.history_string_table)?;
+            write_opt_string_id(&mut output, self.description_string_table)?;
+            write_opt_string_id(&mut output, self.hints_string_table)?;
+            write_opt_string_id(&mut output, self.win_message_string_table)?;
+            write_opt_string_id(&mut output, self.loss_message_string_table)?;
+            write_opt_string_id(&mut output, self.history_string_table)?;
         }
         if version >= 1.22 {
-            output.write_i32::<LE>(self.scout_string_table)?;
+            write_opt_string_id(&mut output, self.scout_string_table)?;
         }
 
         write_opt_str(output, &self.description)?;
@@ -1134,6 +1138,12 @@ impl SCXFormat {
 
         Ok(())
     }
+}
+
+fn write_opt_string_id(mut output: impl Write, val: Option<StringID>) -> Result<()> {
+    output
+        .write_i32::<LE>(val.map(|n| n.try_into().unwrap()).unwrap_or(-1))
+        .map_err(Into::into)
 }
 
 #[cfg(test)]

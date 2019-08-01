@@ -8,66 +8,12 @@ use crate::{
 };
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{
-    fallible_try_from, fallible_try_into, infallible_try_into, read_opt_u16, MapInto,
-};
+use genie_support::{read_opt_u16, MapInto};
+pub use genie_support::{StringID, UnitTypeID};
 use std::{
     convert::TryInto,
     io::{Read, Result, Write},
 };
-
-/// An ID identifying a unit type.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub struct UnitTypeID(u16);
-
-impl From<u16> for UnitTypeID {
-    fn from(n: u16) -> Self {
-        UnitTypeID(n)
-    }
-}
-
-impl From<UnitTypeID> for u16 {
-    fn from(n: UnitTypeID) -> Self {
-        n.0
-    }
-}
-
-impl From<UnitTypeID> for usize {
-    fn from(n: UnitTypeID) -> Self {
-        n.0.into()
-    }
-}
-
-fallible_try_into!(UnitTypeID, i16);
-infallible_try_into!(UnitTypeID, u32);
-fallible_try_from!(UnitTypeID, i32);
-fallible_try_from!(UnitTypeID, u32);
-
-/// An ID identifying a string resource.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub struct StringID(u32);
-
-impl From<u16> for StringID {
-    fn from(n: u16) -> Self {
-        StringID(n.into())
-    }
-}
-
-impl From<u32> for StringID {
-    fn from(n: u32) -> Self {
-        StringID(n)
-    }
-}
-
-fallible_try_into!(StringID, u16);
-fallible_try_into!(StringID, i16);
-fallible_try_from!(StringID, i32);
-
-impl From<StringID> for u32 {
-    fn from(n: StringID) -> Self {
-        n.0
-    }
-}
 
 pub type UnitClass = u16;
 
@@ -445,7 +391,7 @@ impl StaticUnitType {
         )?;
         output.write_i16::<LE>(
             self.death_spawn
-                .map(|id| id.0.try_into().unwrap())
+                .map(|id| id.try_into().unwrap())
                 .unwrap_or(-1),
         )?;
         output.write_u8(self.sort_number)?;
@@ -1017,7 +963,7 @@ impl BuildingUnitType {
         unit_type.can_burn = input.read_u8()? != 0;
         for _ in 0..unit_type.linked_buildings.capacity() {
             let link = LinkedBuilding::from(input)?;
-            if link.unit_id.0 != 0xFFFF {
+            if link.unit_id != 0xFFFF.into() {
                 unit_type.linked_buildings.push(link);
             }
         }

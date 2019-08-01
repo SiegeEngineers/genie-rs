@@ -1,6 +1,9 @@
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::{convert::TryInto,io::{Read, Result, Write}};
-use genie_support::{fallible_try_from,infallible_try_into};
+use genie_support::{fallible_try_from, infallible_try_into};
+use std::{
+    convert::TryInto,
+    io::{Read, Result, Write},
+};
 
 /// A palette index.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -49,7 +52,10 @@ impl ColorTable {
         let id = input.read_i32::<LE>()?;
         let base = input.read_i32::<LE>()?.try_into().unwrap();
         let unit_outline_color = input.read_i32::<LE>()?.try_into().unwrap();
-        let unit_selection_colors = (input.read_i32::<LE>()?.try_into().unwrap(), input.read_i32::<LE>()?.try_into().unwrap());
+        let unit_selection_colors = (
+            input.read_i32::<LE>()?.try_into().unwrap(),
+            input.read_i32::<LE>()?.try_into().unwrap(),
+        );
         let minimap_colors = (
             input.read_i32::<LE>()?.try_into().unwrap(),
             input.read_i32::<LE>()?.try_into().unwrap(),

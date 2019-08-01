@@ -1,9 +1,9 @@
 use super::ConvertError;
-use crate::{Scenario, ScenarioObject, Tile, Trigger};
+use crate::{Scenario, ScenarioObject, Tile, Trigger, UnitTypeID};
 use std::collections::HashMap;
 
 pub struct AoCToWK {
-    object_ids_map: HashMap<i32, i32>,
+    object_ids_map: HashMap<UnitTypeID, UnitTypeID>,
     terrain_ids_map: HashMap<i8, i8>,
 }
 
@@ -17,7 +17,7 @@ impl Default for AoCToWK {
             (527, 1104), // Demolition Ship, Demolition Raft
         ]
         .iter()
-        .map(|(a, b)| (*a, *b))
+        .map(|(a, b)| (UnitTypeID::from(*a), UnitTypeID::from(*b)))
         .collect();
 
         let terrain_ids_map = [
@@ -41,8 +41,8 @@ impl AoCToWK {
     ///
     /// This updates the object type IDs.
     fn convert_object(&self, object: &mut ScenarioObject) {
-        if let Some(new_type) = self.object_ids_map.get(&i32::from(object.object_type)) {
-            object.object_type = (*new_type) as i16;
+        if let Some(new_type) = self.object_ids_map.get(&object.object_type) {
+            object.object_type = *new_type;
         }
     }
 
