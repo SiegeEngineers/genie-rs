@@ -1,36 +1,9 @@
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{fallible_try_from, infallible_try_into};
+pub use jascpal::PaletteIndex;
 use std::{
     convert::TryInto,
     io::{Read, Result, Write},
 };
-
-/// A palette index.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub struct PaletteIndex(u8);
-impl From<u8> for PaletteIndex {
-    fn from(n: u8) -> Self {
-        PaletteIndex(n)
-    }
-}
-
-impl From<PaletteIndex> for u8 {
-    fn from(n: PaletteIndex) -> Self {
-        n.0
-    }
-}
-
-impl From<PaletteIndex> for usize {
-    fn from(n: PaletteIndex) -> Self {
-        n.0.into()
-    }
-}
-
-fallible_try_from!(PaletteIndex, i32);
-fallible_try_from!(PaletteIndex, u32);
-infallible_try_into!(PaletteIndex, i16);
-infallible_try_into!(PaletteIndex, i32);
-infallible_try_into!(PaletteIndex, u32);
 
 /// Player colour data.
 #[derive(Debug, Clone)]

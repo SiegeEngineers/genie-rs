@@ -37,6 +37,8 @@ use nom::{
 };
 use rgb::RGB;
 use std::{
+    convert::{TryFrom, TryInto},
+    num::TryFromIntError,
     fmt,
     io::{Read, Write},
     str::{self, FromStr},
@@ -62,10 +64,25 @@ impl From<u8> for PaletteIndex {
     }
 }
 
+impl TryFrom<i32> for PaletteIndex {
+    type Error = TryFromIntError;
+    #[inline]
+    fn try_from(n: i32) -> Result<Self, Self::Error> {
+        n.try_into().map(Self)
+    }
+}
+
 impl From<PaletteIndex> for u8 {
     #[inline]
     fn from(n: PaletteIndex) -> Self {
         n.0
+    }
+}
+
+impl From<PaletteIndex> for i32 {
+    #[inline]
+    fn from(n: PaletteIndex) -> Self {
+        n.0.into()
     }
 }
 
