@@ -27,6 +27,45 @@ use std::{
 /// Represents an RGB colour.
 pub type Color = RGB<u8>;
 
+/// A palette index.
+///
+/// ## Example
+/// ```rust
+/// use jascpal::{Palette, PaletteIndex, Color};
+/// let pal = Palette::default();
+/// assert_eq!(pal[PaletteIndex::from(0)], Color { r: 0, g: 0, b: 0 });
+/// ```
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct PaletteIndex(u8);
+impl From<u8> for PaletteIndex {
+    #[inline]
+    fn from(n: u8) -> Self {
+        PaletteIndex(n)
+    }
+}
+
+impl From<PaletteIndex> for u8 {
+    #[inline]
+    fn from(n: PaletteIndex) -> Self {
+        n.0
+    }
+}
+
+impl From<PaletteIndex> for usize {
+    #[inline]
+    fn from(n: PaletteIndex) -> Self {
+        n.0.into()
+    }
+}
+
+impl FromStr for PaletteIndex {
+    type Err = std::num::ParseIntError;
+    #[inline]
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        input.parse().map(Self)
+    }
+}
+
 /// Eat any amount of whitespace: ASCII spaces and tabs.
 fn whitespace(input: &[u8]) -> IResult<&[u8], ()> {
     map(many1(one_of(&b" \t"[..])), |_| ())(input)
@@ -182,6 +221,25 @@ impl Palette {
         let mut bytes = vec![];
         self.write_to(&mut bytes).unwrap();
         bytes
+    }
+}
+
+impl std::ops::Index<PaletteIndex> for Palette {
+    type Output = Color;
+    /// Get the colour at the given index.
+    #[inline]
+    fn index(&self, index: PaletteIndex) -> &Self::Output {
+        let index: usize = index.into();
+        &self.colors[index]
+    }
+}
+
+impl std::ops::IndexMut<PaletteIndex> for Palette {
+    /// Get the colour at the given index.
+    #[inline]
+    fn index_mut(&mut self, index: PaletteIndex) -> &mut Self::Output {
+        let index: usize = index.into();
+        &mut self.colors[index]
     }
 }
 
