@@ -6,30 +6,35 @@ use std::convert::TryInto;
 pub struct UnitTypeID(u16);
 
 impl From<u16> for UnitTypeID {
+    #[inline]
     fn from(n: u16) -> Self {
         UnitTypeID(n)
     }
 }
 
 impl From<UnitTypeID> for u16 {
+    #[inline]
     fn from(n: UnitTypeID) -> Self {
         n.0
     }
 }
 
 impl From<UnitTypeID> for i32 {
+    #[inline]
     fn from(n: UnitTypeID) -> Self {
         n.0.into()
     }
 }
 
 impl From<UnitTypeID> for u32 {
+    #[inline]
     fn from(n: UnitTypeID) -> Self {
         n.0.into()
     }
 }
 
 impl From<UnitTypeID> for usize {
+    #[inline]
     fn from(n: UnitTypeID) -> Self {
         n.0.into()
     }
@@ -44,12 +49,14 @@ fallible_try_from!(UnitTypeID, u32);
 pub struct StringID(u32);
 
 impl From<u16> for StringID {
+    #[inline]
     fn from(n: u16) -> Self {
         StringID(n.into())
     }
 }
 
 impl From<u32> for StringID {
+    #[inline]
     fn from(n: u32) -> Self {
         StringID(n)
     }

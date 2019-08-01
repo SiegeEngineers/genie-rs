@@ -22,6 +22,7 @@ impl<Source, Target, Error> MapInto<Result<Target, Error>> for Result<Source, Er
 where
     Target: From<Source>,
 {
+    #[inline]
     fn map_into(self) -> Result<Target, Error> {
         self.map(|v| v.into())
     }
@@ -31,6 +32,7 @@ impl<Source, Target> MapInto<Option<Target>> for Option<Source>
 where
     Target: From<Source>,
 {
+    #[inline]
     fn map_into(self) -> Option<Target> {
         self.map(|v| v.into())
     }

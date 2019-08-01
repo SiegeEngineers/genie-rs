@@ -17,6 +17,7 @@ use std::{
 /// assert_eq!(read_opt_u16(&mut minus_one).unwrap(), None);
 /// assert_eq!(read_opt_u16(&mut zero).unwrap(), Some(0));
 /// ```
+#[inline]
 pub fn read_opt_u16<R: Read>(input: &mut R) -> Result<Option<u16>> {
     let v = input.read_i16::<LE>()?;
     if v == -1 {
@@ -40,6 +41,7 @@ pub fn read_opt_u16<R: Read>(input: &mut R) -> Result<Option<u16>> {
 /// assert_eq!(read_opt_u32(&mut minus_one).unwrap(), None);
 /// assert_eq!(read_opt_u32(&mut one).unwrap(), Some(1));
 /// ```
+#[inline]
 pub fn read_opt_u32<R: Read>(input: &mut R) -> Result<Option<u32>> {
     let v = input.read_i32::<LE>()?;
     if v < 0 {
