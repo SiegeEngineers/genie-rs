@@ -43,8 +43,8 @@ pub struct ColorTable {
     unit_selection_colors: (PaletteIndex, PaletteIndex),
     /// Palette indices for this colour on the minimap.
     minimap_colors: (PaletteIndex, PaletteIndex, PaletteIndex),
-    /// Palette index to use for this player colour in the in-game statistics in the bottom right.
-    statistics_text_color: PaletteIndex,
+    /// Color table to use for this player colour in the in-game statistics in the bottom right.
+    statistics_text_color: i32,
 }
 
 impl ColorTable {
@@ -61,7 +61,7 @@ impl ColorTable {
             input.read_i32::<LE>()?.try_into().unwrap(),
             input.read_i32::<LE>()?.try_into().unwrap(),
         );
-        let statistics_text_color = input.read_i32::<LE>()?.try_into().unwrap();
+        let statistics_text_color = input.read_i32::<LE>()?;
 
         Ok(Self {
             id,
@@ -82,7 +82,7 @@ impl ColorTable {
         output.write_i32::<LE>(self.minimap_colors.0.try_into().unwrap())?;
         output.write_i32::<LE>(self.minimap_colors.1.try_into().unwrap())?;
         output.write_i32::<LE>(self.minimap_colors.2.try_into().unwrap())?;
-        output.write_i32::<LE>(self.statistics_text_color.try_into().unwrap())?;
+        output.write_i32::<LE>(self.statistics_text_color)?;
         Ok(())
     }
 }
