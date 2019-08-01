@@ -11,6 +11,23 @@
 //! ```
 //!
 //! Colours are represented using the [`rgb`](https://crates.io/crates/rgb) crate.
+//!
+//! ## Example
+//! ```rust
+//! use std::io::Cursor;
+//! use jascpal::{Palette, PaletteIndex, Color};
+//! let cursor = Cursor::new(b"JASC-PAL\r\n0100\r\n2\r\n0 0 0\r\n255 255 255\r\n".to_vec());
+//! let pal = Palette::read_from(cursor).unwrap();
+//! assert_eq!(pal[PaletteIndex::from(0)], Color { r: 0, g: 0, b: 0 });
+//! assert_eq!(pal[PaletteIndex::from(1)], Color { r: 255, g: 255, b: 255 });
+//! let mut pal = pal;
+//! pal[PaletteIndex::from(1)] = Color { r: 0, g: 255, b: 255 };
+//! pal.add(Color { r: 255, g: 0, b: 0 });
+//! assert_eq!(
+//!     pal.to_string(),
+//!     "JASC-PAL\r\n0100\r\n3\r\n0 0 0\r\n0 255 255\r\n255 0 0\r\n".to_string()
+//! );
+//! ```
 use nom::{
     bytes::complete::tag,
     character::complete::{digit1, one_of},
