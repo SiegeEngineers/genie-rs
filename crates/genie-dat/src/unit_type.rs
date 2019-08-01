@@ -5,10 +5,12 @@ use crate::{
 };
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{fallible_try_from, fallible_try_into, infallible_try_into, MapInto};
+use genie_support::{
+    fallible_try_from, fallible_try_into, infallible_try_into, read_opt_u16, MapInto,
+};
 use std::{
     convert::TryInto,
-    io::{self, Read, Result, Write},
+    io::{Read, Result, Write},
 };
 
 /// An ID identifying a unit type.
@@ -256,17 +258,6 @@ pub struct StaticUnitType {
     convert_terrain_flag: u8,
     copy_id: u16,
     unit_group: u16,
-}
-
-fn read_opt_u16<R: Read>(input: &mut R) -> Result<Option<u16>> {
-    let v = input.read_i16::<LE>()?;
-    if v == -1 {
-        return Ok(None);
-    }
-    Ok(Some(
-        v.try_into()
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?,
-    ))
 }
 
 impl StaticUnitType {

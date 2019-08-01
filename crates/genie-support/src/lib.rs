@@ -9,6 +9,8 @@
 
 mod macros;
 mod map_into;
+mod read;
 
 pub use macros::*;
 pub use map_into::*;
+pub use read::*;

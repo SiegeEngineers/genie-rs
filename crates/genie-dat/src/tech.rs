@@ -1,10 +1,10 @@
 use crate::{unit_type::StringID, unit_type::UnitTypeID};
 use arrayvec::{ArrayString, ArrayVec};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::MapInto;
+use genie_support::{read_opt_u16, MapInto};
 use std::{
     convert::TryInto,
-    io::{self, Read, Result, Write},
+    io::{Read, Result, Write},
 };
 
 /// An effect command specifies an attribute change when a tech effect is triggered.
@@ -184,15 +184,4 @@ impl TechEffectRef {
         output.write_u8(if self.enabled { 1 } else { 0 })?;
         Ok(())
     }
-}
-
-fn read_opt_u16<R: Read>(input: &mut R) -> Result<Option<u16>> {
-    let v = input.read_i16::<LE>()?;
-    if v == -1 {
-        return Ok(None);
-    }
-    Ok(Some(
-        v.try_into()
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?,
-    ))
 }
