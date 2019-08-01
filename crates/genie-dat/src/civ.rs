@@ -23,7 +23,8 @@ impl Civilization {
         let mut civ = Self::default();
         let mut bytes = [0; 20];
         input.read_exact(&mut bytes)?;
-        bytes.iter()
+        bytes
+            .iter()
             .cloned()
             .take_while(|b| *b != 0)
             .map(char::from)

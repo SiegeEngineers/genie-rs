@@ -1,9 +1,9 @@
-use arrayvec::ArrayVec;
 use crate::{
     sound::SoundID,
     sprite::{GraphicID, SpriteID},
     task::TaskList,
 };
+use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use genie_support::{fallible_try_from, fallible_try_into, infallible_try_into, MapInto};
 use std::{
@@ -464,7 +464,11 @@ impl StaticUnitType {
         output.write_f32::<LE>(self.outline_radius.1)?;
         output.write_f32::<LE>(self.outline_radius.2)?;
         for index in 0..self.attributes.capacity() {
-            let attr = self.attributes.get(index).copied().unwrap_or(UnitAttribute::default());
+            let attr = self
+                .attributes
+                .get(index)
+                .copied()
+                .unwrap_or(UnitAttribute::default());
             attr.write_to(output)?;
         }
         output.write_u8(self.damage_sprites.len().try_into().unwrap())?;

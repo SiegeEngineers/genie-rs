@@ -1,5 +1,5 @@
 use crate::{unit_type::StringID, unit_type::UnitTypeID};
-use arrayvec::{ArrayVec, ArrayString};
+use arrayvec::{ArrayString, ArrayVec};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use genie_support::MapInto;
 use std::{
@@ -57,7 +57,8 @@ pub struct Tech {
 impl Tech {
     pub fn from<R: Read>(input: &mut R) -> Result<Self> {
         let mut tech = Self::default();
-        for _ in 0..6 { // 4 on some versions
+        for _ in 0..6 {
+            // 4 on some versions
             tech.required_techs.push(input.read_i16::<LE>()?);
         }
         for _ in 0..3 {
@@ -88,7 +89,11 @@ impl Tech {
         tech.help_page_id = input.read_u32::<LE>()?;
         tech.hotkey = {
             let n = input.read_i32::<LE>()?;
-            if n < 0 { None } else { Some(n.try_into().unwrap()) }
+            if n < 0 {
+                None
+            } else {
+                Some(n.try_into().unwrap())
+            }
         };
         tech.name = {
             let name_len = input.read_u16::<LE>()?;
@@ -139,7 +144,8 @@ impl TechEffect {
         let mut effect = Self::default();
         let mut bytes = [0; 31];
         input.read_exact(&mut bytes)?;
-        bytes.iter()
+        bytes
+            .iter()
             .cloned()
             .take_while(|b| *b != 0)
             .map(char::from)

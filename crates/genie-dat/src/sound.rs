@@ -1,4 +1,4 @@
-use crate::Version;
+use crate::FileVersion;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use genie_support::{fallible_try_from, fallible_try_into, infallible_try_into};
 use std::{
@@ -44,7 +44,7 @@ pub struct SoundItem {
 }
 
 impl SoundItem {
-    pub fn from<R: Read>(input: &mut R, _version: Version) -> Result<Self> {
+    pub fn from<R: Read>(input: &mut R, _version: FileVersion) -> Result<Self> {
         let mut item = SoundItem::default();
         let mut filename = [0u8; 13];
         input.read_exact(&mut filename)?;
@@ -57,7 +57,7 @@ impl SoundItem {
         Ok(item)
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W, _version: Version) -> Result<()> {
+    pub fn write_to<W: Write>(&self, output: &mut W, _version: FileVersion) -> Result<()> {
         output.write_i32::<LE>(self.resource_id)?;
         output.write_i16::<LE>(self.probability)?;
         // AoK only, must both be set
@@ -70,7 +70,7 @@ impl SoundItem {
 }
 
 impl Sound {
-    pub fn from<R: Read>(input: &mut R, version: Version) -> Result<Self> {
+    pub fn from<R: Read>(input: &mut R, version: FileVersion) -> Result<Self> {
         let mut sound = Sound::default();
         sound.id = input.read_u16::<LE>()?.into();
         sound.play_delay = input.read_i16::<LE>()?;
@@ -82,7 +82,7 @@ impl Sound {
         Ok(sound)
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W, version: Version) -> Result<()> {
+    pub fn write_to<W: Write>(&self, output: &mut W, version: FileVersion) -> Result<()> {
         output.write_u16::<LE>(self.id.into())?;
         output.write_i16::<LE>(self.play_delay)?;
         output.write_u16::<LE>(self.len().try_into().unwrap())?;

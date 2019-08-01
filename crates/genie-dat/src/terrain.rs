@@ -1,4 +1,4 @@
-use crate::{sound::SoundID, sprite::GraphicID, Version};
+use crate::{sound::SoundID, sprite::GraphicID, FileVersion};
 use arrayvec::ArrayString;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::{
@@ -102,7 +102,7 @@ pub struct TerrainBorder {
 }
 
 impl TerrainPassGraphic {
-    pub fn from<R: Read>(input: &mut R, version: Version) -> Result<Self> {
+    pub fn from<R: Read>(input: &mut R, version: FileVersion) -> Result<Self> {
         let mut pass = TerrainPassGraphic::default();
         pass.exit_tile_id = input.read_i32::<LE>()?;
         pass.enter_tile_id = input.read_i32::<LE>()?;
@@ -117,7 +117,7 @@ impl TerrainPassGraphic {
 }
 
 impl TerrainRestriction {
-    pub fn from<R: Read>(input: &mut R, version: Version, num_terrains: u16) -> Result<Self> {
+    pub fn from<R: Read>(input: &mut R, version: FileVersion, num_terrains: u16) -> Result<Self> {
         let mut passability = vec![0.0; num_terrains as usize];
         for value in passability.iter_mut() {
             *value = input.read_f32::<LE>()?;
@@ -213,7 +213,7 @@ impl Terrain {
         self.name.as_str()
     }
 
-    pub fn from<R: Read>(input: &mut R, _version: Version, num_terrains: u16) -> Result<Self> {
+    pub fn from<R: Read>(input: &mut R, _version: FileVersion, num_terrains: u16) -> Result<Self> {
         let mut terrain = Terrain::default();
         terrain.enabled = input.read_u8()? != 0;
         terrain.random = input.read_u8()?;
@@ -339,7 +339,8 @@ impl TerrainBorder {
 fn read_terrain_name<R: Read>(input: &mut R, output: &mut TerrainName) -> Result<()> {
     let mut bytes = [0; 13];
     input.read_exact(&mut bytes)?;
-    bytes.iter()
+    bytes
+        .iter()
         .cloned()
         .take_while(|b| *b != 0)
         .map(char::from)

@@ -14,7 +14,7 @@ pub use color_table::ColorTable;
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 pub use random_map::*;
 pub use sound::{Sound, SoundID, SoundItem};
-pub use sprite::{SoundProp, Sprite, SpriteAttackSound, SpriteDelta, SpriteID, GraphicID};
+pub use sprite::{GraphicID, SoundProp, Sprite, SpriteAttackSound, SpriteDelta, SpriteID};
 use std::io::{Read, Result, Write};
 pub use task::{Task, TaskList};
 pub use tech::{Tech, TechEffect};
@@ -25,23 +25,37 @@ pub use terrain::{
 pub use unit_type::*;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Version([u8; 8]);
+pub struct FileVersion([u8; 8]);
 
-impl From<[u8; 8]> for Version {
+impl From<[u8; 8]> for FileVersion {
     fn from(identifier: [u8; 8]) -> Self {
         Self(identifier)
     }
 }
 
-impl Version {
+impl FileVersion {
+    /// Is this file built for Star Wars: Galactic Battlegrounds?
     pub fn is_swgb(self) -> bool {
         false
+    }
+
+    /// Is this file built for Age of Empires II: The Conquerors?
+    pub fn is_aoc(self) -> bool {
+        self.into_data_version() == 11.97
+    }
+
+    /// Get the data version associated with this file version.
+    pub fn into_data_version(self) -> f32 {
+        match &self.0 {
+            b"VER 5.7\0" => 11.97,
+            _ => panic!("unknown version"),
+        }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct DatFile {
-    version: Version,
+    version: FileVersion,
     pub terrain_tables: Vec<TerrainRestriction>,
     pub tile_sizes: Vec<TileSize>,
     pub terrains: Vec<Terrain>,
@@ -61,43 +75,43 @@ impl DatFile {
 
         let mut version = [0u8; 8];
         input.read_exact(&mut version)?;
-        let version = Version(version);
+        let version = FileVersion(version);
 
         let num_terrain_tables = input.read_u16::<LE>()?;
         let num_terrains = input.read_u16::<LE>()?;
-        let num_terrain_relations = if version == Version(*b"VER 5.7\0") && num_terrains == 41 {
+        // AoC hardcodes to 42 terrains, but says 41 terrains in the data file.
+        // The 42nd terrain is zeroed out.
+        let num_terrains_fixed = if version.is_aoc() && num_terrains == 41 {
             42
         } else {
             num_terrains
         };
 
+        // Two lists of pointers
         skip(
             &mut input,
             4 * u64::from(num_terrain_tables) + 4 * u64::from(num_terrain_tables),
         )?;
 
-        let mut terrain_tables = vec![];
-        for _ in 0..num_terrain_tables {
-            terrain_tables.push(TerrainRestriction::from(&mut input, version, num_terrains)?);
+        #[must_use]
+        fn read_array<T>(num: usize, mut read: impl FnMut() -> Result<T>) -> Result<Vec<T>> {
+            let mut list = vec![];
+            for _ in 0..num {
+                list.push(read()?);
+            }
+            Ok(list)
         }
+
+        let terrain_tables = read_array(num_terrain_tables.into(), || TerrainRestriction::from(&mut input, version, num_terrains))?;
 
         let num_color_tables = input.read_u16::<LE>()?;
-        let mut color_tables = vec![];
-        for _ in 0..num_color_tables {
-            color_tables.push(ColorTable::from(&mut input)?);
-        }
+        let color_tables = read_array(num_color_tables.into(), || ColorTable::from(&mut input))?;
 
         let num_sounds = input.read_u16::<LE>()?;
-        let mut sounds = vec![];
-        for _ in 0..num_sounds {
-            sounds.push(Sound::from(&mut input, version)?);
-        }
+        let sounds = read_array(num_sounds.into(), || Sound::from(&mut input, version))?;
 
         let num_sprites = input.read_u16::<LE>()?;
-        let mut sprites_exist = vec![];
-        for _ in 0..num_sprites {
-            sprites_exist.push(input.read_u32::<LE>()? != 0);
-        }
+        let sprites_exist = read_array(num_sprites.into(), || input.read_u32::<LE>().map(|n| n != 0))?;
         let mut sprites = vec![];
         for exists in sprites_exist {
             sprites.push(if exists {
@@ -125,15 +139,8 @@ impl DatFile {
         // Padding
         input.read_i16::<LE>()?;
 
-        let mut terrains = vec![];
-        for _ in 0..num_terrain_relations {
-            terrains.push(Terrain::from(&mut input, version, num_terrain_relations)?);
-        }
-
-        let mut terrain_borders = vec![];
-        for _ in 0..16 {
-            terrain_borders.push(TerrainBorder::from(&mut input)?);
-        }
+        let terrains = read_array(num_terrains_fixed.into(), || Terrain::from(&mut input, version, num_terrains_fixed))?;
+        let terrain_borders = read_array(16, || TerrainBorder::from(&mut input))?;
 
         // Should just skip all this shit probably
         let _map_row_offset = input.read_i32::<LE>()?;
@@ -166,46 +173,35 @@ impl DatFile {
         // Lots more pointers and stuff
         skip(&mut input, 21 + 157 * 4)?;
 
-        let num_random_maps = input.read_u32::<LE>()?;
+        let num_random_maps = input.read_u32::<LE>()? as usize;
         let _random_maps_pointer = input.read_u32::<LE>()?;
 
-        let mut random_maps = vec![];
-        for _ in 0..num_random_maps {
-            random_maps.push(RandomMapInfo::from(&mut input)?);
-        }
+        let mut random_maps = read_array(num_random_maps, || RandomMapInfo::from(&mut input))?;
         for map in random_maps.iter_mut() {
             map.finish(&mut input)?;
         }
 
-        let num_effects = input.read_u32::<LE>()?;
-        let mut effects = vec![];
-        for _ in 0..num_effects {
-            effects.push(TechEffect::from(&mut input)?);
-        }
+        let num_effects = input.read_u32::<LE>()? as usize;
+        let effects = read_array(num_effects, || TechEffect::from(&mut input))?;
 
-        let num_task_lists = input.read_u32::<LE>()?;
-        let mut task_lists = vec![];
-        for _ in 0..num_task_lists {
-            task_lists.push(if input.read_u8()? != 0 {
-                Some(TaskList::from(&mut input)?)
+        let num_task_lists = input.read_u32::<LE>()? as usize;
+        let task_lists = read_array(num_task_lists, || {
+            if input.read_u8()? != 0 {
+                TaskList::from(&mut input).map(Some)
             } else {
-                None
-            });
-        }
+                Ok(None)
+            }
+        })?;
 
         let num_civilizations = input.read_u16::<LE>()?;
-        let mut civilizations = vec![];
-        for _ in 0..num_civilizations {
+        let civilizations = read_array(num_civilizations.into(), || {
             let player_type = input.read_i8()?;
             assert_eq!(player_type, 1);
-            civilizations.push(Civilization::from(&mut input, player_type)?);
-        }
+            Civilization::from(&mut input, player_type)
+        })?;
 
         let num_techs = input.read_u16::<LE>()?;
-        let mut techs = vec![];
-        for _ in 0..num_techs {
-            techs.push(Tech::from(&mut input)?);
-        }
+        let techs = read_array(num_techs.into(), || Tech::from(&mut input))?;
 
         let _time_slice = input.read_u32::<LE>()?;
         let _unit_kill_rate = input.read_u32::<LE>()?;
