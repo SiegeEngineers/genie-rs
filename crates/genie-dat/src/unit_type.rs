@@ -500,7 +500,7 @@ impl StaticUnitType {
             let attr = self
                 .attributes
                 .get(index)
-                .copied()
+                .cloned()
                 .unwrap_or(UnitAttribute::default());
             attr.write_to(output)?;
         }

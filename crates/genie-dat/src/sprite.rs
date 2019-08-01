@@ -173,7 +173,7 @@ impl SpriteAttackSound {
             let prop = self
                 .sound_props
                 .get(index)
-                .copied()
+                .cloned()
                 .unwrap_or(SoundProp::default());
             prop.write_to(output)?;
         }

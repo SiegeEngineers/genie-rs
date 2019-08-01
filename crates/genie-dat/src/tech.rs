@@ -99,7 +99,7 @@ impl Tech {
             let name_len = input.read_u16::<LE>()?;
             let mut bytes = vec![0; name_len as usize];
             input.read_exact(&mut bytes)?;
-            String::from_utf8(bytes.iter().copied().take_while(|b| *b != 0).collect()).unwrap()
+            String::from_utf8(bytes.iter().cloned().take_while(|b| *b != 0).collect()).unwrap()
         };
         Ok(tech)
     }
