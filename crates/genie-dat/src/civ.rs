@@ -50,6 +50,11 @@ pub struct Civilization {
 }
 
 impl Civilization {
+    /// Get the name of this civilization.
+    pub fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
     pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let mut civ = Self::default();
         let mut bytes = [0; 20];

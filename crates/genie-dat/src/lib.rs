@@ -271,6 +271,11 @@ impl DatFile {
         Ok(())
     }
 
+    /// Get the GAIA civilization.
+    pub fn get_gaia(&self) -> Option<&Civilization> {
+        self.get_civilization(0)
+    }
+
     /// Get a civilization by its ID.
     pub fn get_civilization(&self, id: impl Into<CivilizationID>) -> Option<&Civilization> {
         let id: CivilizationID = id.into();
