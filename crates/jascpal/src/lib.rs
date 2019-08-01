@@ -9,6 +9,8 @@
 //! $num_colors
 //! $rgb...
 //! ```
+//!
+//! Colours are represented using the [`rgb`](https://crates.io/crates/rgb) crate.
 use nom::{
     bytes::complete::tag,
     character::complete::{digit1, one_of},
@@ -25,20 +27,24 @@ use std::{
 /// Represents an RGB colour.
 pub type Color = RGB<u8>;
 
+/// Eat any amount of whitespace: ASCII spaces and tabs.
 fn whitespace(input: &[u8]) -> IResult<&[u8], ()> {
     map(many1(one_of(&b" \t"[..])), |_| ())(input)
 }
 
+/// Parse an UTF-8 byte slice using FromStr.
 fn parse_bytes<Parsed: FromStr>(string: &[u8]) -> Result<Parsed, ()> {
     str::from_utf8(string)
         .map_err(|_| ())
         .and_then(|s| s.parse().map_err(|_| ()))
 }
 
+/// Eat and return a number.
 fn parse_number<Parsed: FromStr>(input: &[u8]) -> IResult<&[u8], Parsed> {
     map_res(digit1, parse_bytes)(input)
 }
 
+/// Eat and return an RGB value (three `u8` components).
 fn parse_rgb(input: &[u8]) -> IResult<&[u8], Color> {
     let (input, r) = parse_number(input)?;
     let (input, _) = whitespace(input)?;
@@ -49,6 +55,7 @@ fn parse_rgb(input: &[u8]) -> IResult<&[u8], Color> {
     Ok((input, RGB { r, g, b }))
 }
 
+/// Parse a header and colours from an input stream.
 fn parse(input: &[u8]) -> IResult<&[u8], Vec<Color>> {
     let (input, _) = tag(b"JASC-PAL\r\n")(input)?;
     let (input, _) = tag(b"0100\r\n")(input)?;
@@ -105,6 +112,7 @@ impl Default for Palette {
 }
 
 impl Palette {
+    /// Create an empty palette.
     #[inline]
     pub fn new() -> Self {
         Self::from(vec![])
@@ -162,6 +170,8 @@ impl Palette {
         self.colors.is_empty()
     }
 
+    /// Add a colour at the end of the palette.
+    #[inline]
     pub fn add(&mut self, color: Color) {
         self.colors.push(color);
     }
