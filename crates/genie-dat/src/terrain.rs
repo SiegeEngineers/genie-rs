@@ -4,7 +4,7 @@ use crate::{
 use arrayvec::ArrayString;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use genie_support::{
-    fallible_try_from, fallible_try_into, infallible_try_into, read_opt_u16, MapInto,
+    fallible_try_from, fallible_try_into, infallible_try_into, read_opt_u16, read_opt_u32, MapInto,
 };
 use std::{
     convert::TryInto,
@@ -136,36 +136,28 @@ pub struct TerrainBorder {
 impl TerrainPassGraphic {
     pub fn from<R: Read>(input: &mut R, version: FileVersion) -> Result<Self> {
         let mut pass = TerrainPassGraphic::default();
-        pass.exit_tile_sprite = {
-            let n = input.read_i32::<LE>()?;
-            if n == -1 {
-                None
-            } else {
-                Some(n.try_into().unwrap())
-            }
-        };
-        pass.enter_tile_sprite = {
-            let n = input.read_i32::<LE>()?;
-            if n == -1 {
-                None
-            } else {
-                Some(n.try_into().unwrap())
-            }
-        };
-        pass.walk_tile_sprite = {
-            let n = input.read_i32::<LE>()?;
-            if n == -1 {
-                None
-            } else {
-                Some(n.try_into().unwrap())
-            }
-        };
+        pass.exit_tile_sprite = read_opt_u32(input)?.map(|v| v.try_into().unwrap());
+        pass.enter_tile_sprite = read_opt_u32(input)?.map(|v| v.try_into().unwrap());
+        pass.walk_tile_sprite = read_opt_u32(input)?.map(|v| v.try_into().unwrap());
         if version.is_swgb() {
             pass.walk_rate = Some(input.read_f32::<LE>()?);
         } else {
             pass.replication_amount = Some(input.read_i32::<LE>()?);
         }
         Ok(pass)
+    }
+
+    pub fn write_to<W: Write>(&self, output: &mut W, version: FileVersion) -> Result<()> {
+        output.write_i32::<LE>(self.exit_tile_sprite.map_into().unwrap_or(-1))?;
+        output.write_i32::<LE>(self.enter_tile_sprite.map_into().unwrap_or(-1))?;
+        output.write_i32::<LE>(self.walk_tile_sprite.map_into().unwrap_or(-1))?;
+        // TODO decide on correct default values for these
+        if version.is_swgb() {
+            output.write_f32::<LE>(self.walk_rate.unwrap_or(0.0))?;
+        } else {
+            output.write_i32::<LE>(self.replication_amount.unwrap_or(-1))?;
+        }
+        Ok(())
     }
 }
 
@@ -186,6 +178,23 @@ impl TerrainRestriction {
             passability,
             pass_graphics,
         })
+    }
+
+    pub fn write_to<W: Write>(
+        &self,
+        output: &mut W,
+        version: FileVersion,
+        num_terrains: u16,
+    ) -> Result<()> {
+        assert_eq!(self.passability.len(), num_terrains.into());
+        assert_eq!(self.pass_graphics.len(), num_terrains.into());
+        for value in &self.passability {
+            output.write_f32::<LE>(*value)?;
+        }
+        for graphic in &self.pass_graphics {
+            graphic.write_to(output, version)?;
+        }
+        Ok(())
     }
 }
 

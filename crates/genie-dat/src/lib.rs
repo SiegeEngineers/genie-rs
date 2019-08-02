@@ -8,14 +8,17 @@ mod tech;
 mod terrain;
 mod unit_type;
 
-use byteorder::{ReadBytesExt, LE};
+use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 pub use civ::{Civilization, CivilizationID};
 pub use color_table::{ColorTable, PaletteIndex};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 pub use random_map::*;
 pub use sound::{Sound, SoundID, SoundItem};
 pub use sprite::{GraphicID, SoundProp, Sprite, SpriteAttackSound, SpriteDelta, SpriteID};
-use std::io::{Read, Result, Write};
+use std::{
+    convert::TryInto,
+    io::{Read, Result, Write},
+};
 pub use task::{Task, TaskList};
 pub use tech::{Tech, TechEffect, TechID};
 pub use terrain::{
@@ -268,6 +271,63 @@ impl DatFile {
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         let mut output = DeflateEncoder::new(output, Compression::default());
         output.write_all(&self.file_version.0)?;
+        output.write_u16::<LE>(self.terrain_tables.len().try_into().unwrap())?;
+        let num_terrains = if self.game_version == GameVersion::AoC && self.terrains.len() == 42 {
+            41
+        } else {
+            self.terrains.len()
+        };
+        output.write_u16::<LE>(num_terrains.try_into().unwrap())?;
+
+        // Two lists of pointers
+        output.write_all(&vec![
+            0u8;
+            4 * self.terrain_tables.len()
+                + 4 * self.terrain_tables.len()
+        ])?;
+
+        for table in &self.terrain_tables {
+            table.write_to(
+                &mut output,
+                self.file_version,
+                num_terrains.try_into().unwrap(),
+            )?;
+        }
+
+        output.write_u16::<LE>(self.color_tables.len().try_into().unwrap())?;
+        for table in &self.color_tables {
+            table.write_to(&mut output)?;
+        }
+
+        output.write_u16::<LE>(self.sounds.len().try_into().unwrap())?;
+        for sound in &self.sounds {
+            sound.write_to(&mut output, self.file_version)?;
+        }
+
+        output.write_u16::<LE>(self.sprites.len().try_into().unwrap())?;
+        for maybe_sprite in &self.sprites {
+            output.write_u32::<LE>(match maybe_sprite {
+                Some(_) => 1,
+                None => 0,
+            })?;
+        }
+        for maybe_sprite in &self.sprites {
+            if let Some(sprite) = maybe_sprite {
+                sprite.write_to(&mut output)?;
+            }
+        }
+
+        output.write_u32::<LE>(0)?; // map vtable pointer
+        output.write_u32::<LE>(0)?; // map tiles pointer
+        output.write_u32::<LE>(0)?; // map width
+        output.write_u32::<LE>(0)?; // map height
+        output.write_u32::<LE>(0)?; // world width
+        output.write_u32::<LE>(0)?; // world height
+
+        for size in &self.tile_sizes {
+            size.write_to(&mut output)?;
+        }
+
         Ok(())
     }
 

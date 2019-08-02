@@ -1,7 +1,9 @@
 use crate::sound::SoundID;
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{fallible_try_from, fallible_try_into, infallible_try_into};
+use genie_support::{
+    fallible_try_from, fallible_try_into, infallible_try_into, read_opt_u16, MapInto,
+};
 use std::{
     convert::{TryFrom, TryInto},
     io::{Read, Result, Write},
@@ -20,6 +22,18 @@ impl From<u16> for SpriteID {
 impl From<SpriteID> for u16 {
     fn from(n: SpriteID) -> Self {
         n.0
+    }
+}
+
+impl From<SpriteID> for i32 {
+    fn from(n: SpriteID) -> Self {
+        n.0.into()
+    }
+}
+
+impl From<SpriteID> for u32 {
+    fn from(n: SpriteID) -> Self {
+        n.0.into()
     }
 }
 
@@ -63,7 +77,7 @@ infallible_try_into!(GraphicID, i32);
 
 #[derive(Debug, Default, Clone)]
 pub struct SpriteDelta {
-    pub sprite_id: SpriteID,
+    pub sprite_id: Option<SpriteID>,
     pub offset_x: i16,
     pub offset_y: i16,
     pub display_angle: i16,
@@ -109,7 +123,7 @@ pub struct Sprite {
 impl SpriteDelta {
     pub fn from<R: Read>(input: &mut R) -> Result<Self> {
         let mut delta = SpriteDelta::default();
-        delta.sprite_id = input.read_u16::<LE>()?.into();
+        delta.sprite_id = read_opt_u16(input)?.map_into();
         // padding
         input.read_i16::<LE>()?;
         // pointer address to the parent sprite (overridden at load time by the game)
@@ -124,7 +138,7 @@ impl SpriteDelta {
     }
 
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        output.write_i16::<LE>(self.sprite_id.try_into().unwrap())?;
+        output.write_i16::<LE>(self.sprite_id.map(|v| v.try_into().unwrap()).unwrap_or(-1))?;
         // padding
         output.write_i16::<LE>(0)?;
         // pointer address to the parent sprite (overridden at load time by the game)
@@ -212,10 +226,7 @@ impl Sprite {
             input.read_i16::<LE>()?,
         );
         let num_deltas = input.read_u16::<LE>()?;
-        sprite.sound_id = match input.read_i16::<LE>()? {
-            -1 => None,
-            id => Some((id as u16).into()),
-        };
+        sprite.sound_id = read_opt_u16(input)?.map_into();
         let attack_sounds_used = input.read_u8()? != 0;
         sprite.num_frames = input.read_u16::<LE>()?;
         sprite.num_facets = input.read_u16::<LE>()?;
@@ -237,5 +248,46 @@ impl Sprite {
         }
 
         Ok(sprite)
+    }
+
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        if self.attack_sounds.len() > 0 {
+            assert_eq!(self.attack_sounds.len(), usize::from(self.num_facets));
+        }
+        let mut name = [0u8; 21];
+        (&mut name[..]).write_all(self.name.as_bytes())?;
+        let mut filename = [0u8; 13];
+        (&mut filename[..]).write_all(self.filename.as_bytes())?;
+        output.write_i32::<LE>(self.slp_id.map(|v| v.try_into().unwrap()).unwrap_or(-1))?;
+        output.write_u8(if self.is_loaded { 1 } else { 0 })?;
+        output.write_u8(if self.color_flag { 1 } else { 0 })?;
+        output.write_u8(self.layer)?;
+        output.write_u16::<LE>(self.color_table)?;
+        output.write_u8(if self.transparent_selection { 1 } else { 0 })?;
+        output.write_i16::<LE>(self.bounding_box.0)?;
+        output.write_i16::<LE>(self.bounding_box.1)?;
+        output.write_i16::<LE>(self.bounding_box.2)?;
+        output.write_i16::<LE>(self.bounding_box.3)?;
+
+        output.write_u16::<LE>(self.deltas.len().try_into().unwrap())?;
+        output.write_i16::<LE>(self.sound_id.map(|v| v.try_into().unwrap()).unwrap_or(-1))?;
+        output.write_u8(if self.attack_sounds.len() > 0 { 1 } else { 0 })?;
+        output.write_u16::<LE>(self.num_frames)?;
+        output.write_u16::<LE>(self.num_facets)?;
+        output.write_f32::<LE>(self.base_speed)?;
+        output.write_f32::<LE>(self.frame_rate)?;
+        output.write_f32::<LE>(self.replay_delay)?;
+        output.write_i8(self.sequence_type)?;
+        output.write_u16::<LE>(self.id.into())?;
+        output.write_i8(self.mirror_flag)?;
+        output.write_i8(self.other_flag)?;
+
+        for delta in &self.deltas {
+            delta.write_to(output)?;
+        }
+        for sound in &self.attack_sounds {
+            sound.write_to(output)?;
+        }
+        Ok(())
     }
 }
