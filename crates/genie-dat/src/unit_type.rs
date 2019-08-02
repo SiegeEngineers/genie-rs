@@ -19,29 +19,29 @@ pub type UnitClass = u16;
 
 #[derive(Debug, Clone)]
 pub enum UnitType {
-    Static(StaticUnitType),
-    Tree(TreeUnitType),
-    Animated(AnimatedUnitType),
-    Doppleganger(DopplegangerUnitType),
-    Moving(MovingUnitType),
-    Action(ActionUnitType),
-    BaseCombat(BaseCombatUnitType),
-    Missile(MissileUnitType),
-    Combat(CombatUnitType),
-    Building(BuildingUnitType),
+    Base(Box<BaseUnitType>),
+    Tree(Box<TreeUnitType>),
+    Animated(Box<AnimatedUnitType>),
+    Doppleganger(Box<DopplegangerUnitType>),
+    Moving(Box<MovingUnitType>),
+    Action(Box<ActionUnitType>),
+    BaseCombat(Box<BaseCombatUnitType>),
+    Missile(Box<MissileUnitType>),
+    Combat(Box<CombatUnitType>),
+    Building(Box<BuildingUnitType>),
 }
 
 macro_rules! cast_unit_type {
     ($struct:ident, $tag:ident) => {
         impl From<$struct> for UnitType {
             fn from(v: $struct) -> Self {
-                UnitType::$tag(v)
+                UnitType::$tag(Box::new(v))
             }
         }
     };
 }
 
-cast_unit_type!(StaticUnitType, Static);
+cast_unit_type!(BaseUnitType, Base);
 cast_unit_type!(TreeUnitType, Tree);
 cast_unit_type!(AnimatedUnitType, Animated);
 cast_unit_type!(DopplegangerUnitType, Doppleganger);
@@ -56,7 +56,7 @@ impl UnitType {
     pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let unit_type = input.read_u8()?;
         match unit_type {
-            10 => StaticUnitType::from(input, version).map_into(),
+            10 => BaseUnitType::from(input, version).map_into(),
             15 => TreeUnitType::from(input, version).map_into(),
             20 => AnimatedUnitType::from(input, version).map_into(),
             25 => DopplegangerUnitType::from(input, version).map_into(),
@@ -73,7 +73,7 @@ impl UnitType {
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         use UnitType::*;
         output.write_u8(match self {
-            Static(_) => 10,
+            Base(_) => 10,
             Tree(_) => 15,
             Animated(_) => 20,
             Doppleganger(_) => 25,
@@ -86,7 +86,7 @@ impl UnitType {
         })?;
 
         match self {
-            Static(unit) => unit.write_to(output)?,
+            Base(unit) => unit.write_to(output)?,
             Tree(unit) => unit.write_to(output)?,
             Animated(unit) => unit.write_to(output)?,
             Doppleganger(unit) => unit.write_to(output)?,
@@ -101,35 +101,19 @@ impl UnitType {
         Ok(())
     }
 
-    pub fn static_unit(&self) -> &StaticUnitType {
+    pub fn base(&self) -> &BaseUnitType {
         use UnitType::*;
         match self {
-            Static(unit) => unit,
-            Tree(TreeUnitType(unit)) => unit,
-            Animated(AnimatedUnitType {
-                superclass: unit, ..
-            }) => unit,
-            Doppleganger(DopplegangerUnitType(AnimatedUnitType {
-                superclass: unit, ..
-            })) => unit,
-            Moving(MovingUnitType {
-                superclass: unit, ..
-            }) => &unit.superclass,
-            Action(ActionUnitType {
-                superclass: unit, ..
-            }) => &unit.superclass.superclass,
-            BaseCombat(BaseCombatUnitType {
-                superclass: unit, ..
-            }) => &unit.superclass.superclass.superclass,
-            Missile(MissileUnitType {
-                superclass: unit, ..
-            }) => &unit.superclass.superclass.superclass.superclass,
-            Combat(CombatUnitType {
-                superclass: unit, ..
-            }) => &unit.superclass.superclass.superclass.superclass,
-            Building(BuildingUnitType {
-                superclass: unit, ..
-            }) => &unit.superclass.superclass.superclass.superclass.superclass,
+            Base(unit) => &unit,
+            Tree(unit) => &unit.0,
+            Animated(unit) => &unit.superclass,
+            Doppleganger(unit) => &unit.0.superclass,
+            Moving(unit) => &unit.superclass.superclass,
+            Action(unit) => &unit.superclass.superclass.superclass,
+            BaseCombat(unit) => &unit.superclass.superclass.superclass.superclass,
+            Missile(unit) => &unit.superclass.superclass.superclass.superclass.superclass,
+            Combat(unit) => &unit.superclass.superclass.superclass.superclass.superclass,
+            Building(unit) => &unit.superclass.superclass.superclass.superclass.superclass.superclass,
         }
     }
 }
@@ -181,7 +165,7 @@ impl DamageSprite {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct StaticUnitType {
+pub struct BaseUnitType {
     name: String,
     id: UnitTypeID,
     string_id: StringID,
@@ -246,7 +230,7 @@ pub struct StaticUnitType {
     unit_group: u16,
 }
 
-impl StaticUnitType {
+impl BaseUnitType {
     pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let mut unit_type = Self::default();
         let name_len = input.read_u16::<LE>()?;
@@ -475,11 +459,11 @@ impl StaticUnitType {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct TreeUnitType(StaticUnitType);
+pub struct TreeUnitType(BaseUnitType);
 
 impl TreeUnitType {
     pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
-        StaticUnitType::from(input, version).map(Self)
+        BaseUnitType::from(input, version).map(Self)
     }
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         self.0.write_to(output)
@@ -488,14 +472,14 @@ impl TreeUnitType {
 
 #[derive(Debug, Default, Clone)]
 pub struct AnimatedUnitType {
-    superclass: StaticUnitType,
+    superclass: BaseUnitType,
     speed: f32,
 }
 
 impl AnimatedUnitType {
     pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         Ok(Self {
-            superclass: StaticUnitType::from(input, version)?,
+            superclass: BaseUnitType::from(input, version)?,
             speed: input.read_f32::<LE>()?,
         })
     }
