@@ -1,7 +1,6 @@
-use crate::util::*;
-use crate::Result;
+use crate::{util::*, Result};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::io::{Read, Write};
+use std::{convert::TryInto, io::{Read, Write}};
 
 /// A trigger condition, describing when a trigger can fire.
 #[derive(Debug, Default, Clone)]
@@ -474,6 +473,42 @@ impl Trigger {
         })
     }
 
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        output.write_i32::<LE>(if self.enabled { 1 } else { 0 })?;
+        output.write_i8(if self.looping { 1 } else { 0 })?;
+        output.write_i32::<LE>(self.name_id)?;
+        output.write_i8(if self.is_objective { 1 } else { 0 })?;
+        output.write_i32::<LE>(self.objective_order)?;
+        output.write_u32::<LE>(self.start_time)?;
+        /*
+        let description_length = input.read_u32::<LE>()? as usize;
+        let description = read_str(input, description_length)?;
+
+        let name_length = input.read_u32::<LE>()? as usize;
+        let name = read_str(input, name_length)?;
+
+        let num_effects = input.read_i32::<LE>()?;
+        let mut effects = vec![];
+        let mut effect_order = vec![];
+        for _ in 0..num_effects {
+            effects.push(TriggerEffect::from(input, version)?);
+        }
+        for _ in 0..num_effects {
+            effect_order.push(input.read_i32::<LE>()?);
+        }
+
+        let num_conditions = input.read_i32::<LE>()?;
+        let mut conditions = vec![];
+        let mut condition_order = vec![];
+        for _ in 0..num_conditions {
+            conditions.push(TriggerCondition::from(input, version)?);
+        }
+        for _ in 0..num_conditions {
+            condition_order.push(input.read_i32::<LE>()?);
+        }
+        */
+    }
+
     pub fn conditions(&self) -> impl Iterator<Item = &TriggerCondition> {
         self.condition_order
             .iter()
@@ -550,8 +585,15 @@ impl TriggerSystem {
         if version >= 1.5 {
             output.write_i8(self.objectives_state)?;
         }
-        // num triggers
-        output.write_u32::<LE>(0)?;
+        output.write_u32::<LE>(self.triggers.len().try_into().unwrap())?;
+        for trigger in &self.triggers {
+            trigger.write_to(output, version)?;
+        }
+        if version >= 1.4 {
+            for order in &self.trigger_order {
+                output.write_u32::<LE>(*order)?;
+            }
+        }
         Ok(())
     }
 
