@@ -1,5 +1,26 @@
 //! Libraries for reading/writing Age of Empires 2 data files.
 //!
+//! ## Data Files
+//!
+//! > Supported version range: Age of Empires 2: Age of Kings, Age of Conquerors, HD Edition
+//!
+//! genie-dat can read data files (empires.dat) for Age of Empires 2. When reading a file, the
+//! version is detected automatically, based on the amount of terrains included in the file (since
+//! that is hardcoded in each game executable).
+//!
+//! Writing data files is not yet supported, and many of the things that the library reads are not
+//! yet exposed in the public API.
+//!
+//! ```rust
+//! use genie::DatFile;
+//! let mut input = std::fs::File::open("./crates/genie-dat/fixtures/aok.dat")
+//!     .expect("failed to open file");
+//!
+//! let dat = DatFile::from(&mut input).expect("failed to parse file");
+//! assert_eq!(dat.civilizations.len(), 14);
+//! assert_eq!(dat.civilizations[1].name(), "British");
+//! ```
+//!
 //! ## Scenario Files
 //!
 //! > Supported version range: AoE1 betas through to Age of Empires 2: HD Edition

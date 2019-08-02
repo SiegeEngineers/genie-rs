@@ -75,3 +75,20 @@ macro_rules! fallible_try_from {
         }
     };
 }
+
+#[macro_export]
+/// Compare floats with some error.
+///
+/// ```rust
+/// use genie_support::cmp_float;
+/// assert!(cmp_float!(0.0 == 0.0));
+/// assert!(!cmp_float!(0.0 != 0.0));
+/// ```
+macro_rules! cmp_float {
+    ($id:ident == $val:expr) => {
+        ($id - $val).abs() < std::f32::EPSILON
+    };
+    ($id:ident != $val:expr) => {
+        ($id - $val).abs() > std::f32::EPSILON
+    };
+}

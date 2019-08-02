@@ -8,22 +8,12 @@ use crate::{
 };
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
-use genie_support::{read_opt_u32, MapInto, StringID, UnitTypeID};
+use genie_support::{cmp_float, read_opt_u32, MapInto, StringID, UnitTypeID};
 use std::{
     cmp::Ordering,
     convert::{TryFrom, TryInto},
     io::{Read, Write},
 };
-
-/// Compare floats with some error.
-macro_rules! cmp_float {
-    ($id:ident == $val:expr) => {
-        ($id - $val).abs() < std::f32::EPSILON
-    };
-    ($id:ident != $val:expr) => {
-        ($id - $val).abs() > std::f32::EPSILON
-    };
-}
 
 fn cmp_scx_version(a: SCXVersion, b: SCXVersion) -> Ordering {
     match a[0].cmp(&b[0]) {

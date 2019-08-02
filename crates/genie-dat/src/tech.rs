@@ -155,7 +155,7 @@ impl TechEffectRef {
         })
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    pub fn write_to<W: Write>(self, output: &mut W) -> Result<()> {
         output.write_u16::<LE>(self.effect_type)?;
         output.write_u16::<LE>(self.amount)?;
         output.write_u8(if self.enabled { 1 } else { 0 })?;
@@ -213,7 +213,7 @@ impl Tech {
         Ok(tech)
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        Ok(())
+    pub fn write_to<W: Write>(&self, _output: &mut W) -> Result<()> {
+        unimplemented!()
     }
 }

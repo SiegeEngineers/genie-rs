@@ -8,6 +8,7 @@ mod tech;
 mod terrain;
 mod unit_type;
 
+use genie_support::cmp_float;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 pub use civ::{Civilization, CivilizationID};
 pub use color_table::{ColorTable, PaletteIndex};
@@ -62,7 +63,8 @@ impl FileVersion {
 
     /// Is this file built for Age of Empires II: The Conquerors?
     pub fn is_aoc(self) -> bool {
-        self.into_data_version() == 11.97
+        let data_version = self.into_data_version();
+        cmp_float!(data_version == 11.97)
     }
 
     /// Get the data version associated with this file version.

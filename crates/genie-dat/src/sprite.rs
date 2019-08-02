@@ -53,7 +53,7 @@ pub struct GraphicID(u16);
 
 impl From<u16> for GraphicID {
     fn from(n: u16) -> Self {
-        GraphicID(n.into())
+        GraphicID(n)
     }
 }
 
@@ -188,7 +188,7 @@ impl SpriteAttackSound {
                 .sound_props
                 .get(index)
                 .cloned()
-                .unwrap_or(SoundProp::default());
+                .unwrap_or_default();
             prop.write_to(output)?;
         }
         Ok(())
@@ -251,7 +251,7 @@ impl Sprite {
     }
 
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        if self.attack_sounds.len() > 0 {
+        if !self.attack_sounds.is_empty() {
             assert_eq!(self.attack_sounds.len(), usize::from(self.num_facets));
         }
         let mut name = [0u8; 21];
@@ -271,7 +271,7 @@ impl Sprite {
 
         output.write_u16::<LE>(self.deltas.len().try_into().unwrap())?;
         output.write_i16::<LE>(self.sound_id.map(|v| v.try_into().unwrap()).unwrap_or(-1))?;
-        output.write_u8(if self.attack_sounds.len() > 0 { 1 } else { 0 })?;
+        output.write_u8(if self.attack_sounds.is_empty() { 0 } else { 1 })?;
         output.write_u16::<LE>(self.num_frames)?;
         output.write_u16::<LE>(self.num_facets)?;
         output.write_f32::<LE>(self.base_speed)?;

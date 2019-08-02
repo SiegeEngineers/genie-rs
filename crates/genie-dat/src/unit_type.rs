@@ -149,7 +149,7 @@ impl UnitAttribute {
             flag: input.read_u8()?,
         })
     }
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    pub fn write_to<W: Write>(self, output: &mut W) -> Result<()> {
         output.write_u16::<LE>(self.attribute_type)?;
         output.write_f32::<LE>(self.amount)?;
         output.write_u8(self.flag)?;
@@ -449,7 +449,7 @@ impl StaticUnitType {
                 .attributes
                 .get(index)
                 .cloned()
-                .unwrap_or(UnitAttribute::default());
+                .unwrap_or_default();
             attr.write_to(output)?;
         }
         output.write_u8(self.damage_sprites.len().try_into().unwrap())?;
@@ -670,7 +670,7 @@ impl WeaponInfo {
             value: input.read_i16::<LE>()?,
         })
     }
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    pub fn write_to<W: Write>(self, output: &mut W) -> Result<()> {
         output.write_i16::<LE>(self.weapon_type)?;
         output.write_i16::<LE>(self.value)?;
         Ok(())
@@ -744,9 +744,9 @@ impl BaseCombatUnitType {
         unit_type.displayed_reload_time = input.read_f32::<LE>()?;
         Ok(unit_type)
     }
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+
+    pub fn write_to<W: Write>(&self, _output: &mut W) -> Result<()> {
         unimplemented!();
-        Ok(())
     }
 }
 
@@ -888,8 +888,9 @@ impl CombatUnitType {
 
         Ok(unit_type)
     }
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        Ok(())
+
+    pub fn write_to<W: Write>(&self, _output: &mut W) -> Result<()> {
+        unimplemented!();
     }
 }
 
@@ -982,7 +983,8 @@ impl BuildingUnitType {
         }
         Ok(unit_type)
     }
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        Ok(())
+
+    pub fn write_to<W: Write>(&self, _output: &mut W) -> Result<()> {
+        unimplemented!()
     }
 }
