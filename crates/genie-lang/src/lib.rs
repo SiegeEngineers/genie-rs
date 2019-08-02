@@ -315,13 +315,19 @@ impl FromStr for LangFileType {
 }
 
 /// Helper to detect the most common encoding among several sample lines.
-#[derive(Default)]
 struct EncodingDetector {
     used_lines: Vec<Vec<u8>>,
     occurrences: Vec<(&'static Encoding, usize)>,
 }
 
 impl EncodingDetector {
+    fn new(capacity: usize) -> Self {
+        Self {
+            used_lines: Vec::with_capacity(capacity),
+            occurrences: Vec::with_capacity(capacity),
+        }
+    }
+
     /// Detect the encoding for one sample line.
     fn check_line(&mut self, line: Vec<u8>) {
         if let Some(enc) = Encoding::for_label(detect_encoding(&line).0.as_bytes()) {
@@ -461,7 +467,7 @@ impl LangFile {
 
         // count which guessed encodings occur in the first 16 lines, hopefully later lines will
         // agree!
-        let mut detector = EncodingDetector::default();
+        let mut detector = EncodingDetector::new(16);
         for _ in 0..16 {
             if !read_line(&mut input, &mut line)? {
                 line.clear();
