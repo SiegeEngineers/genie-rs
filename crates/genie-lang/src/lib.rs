@@ -101,8 +101,8 @@
 #![warn(unused)]
 
 use byteorder::{ReadBytesExt, LE};
-use encoding_rs::{UTF_16LE, WINDOWS_1252};
-use encoding_rs_io::DecodeReaderBytesBuilder;
+use chardet::detect as detect_encoding;
+use encoding_rs::{Encoding, UTF_16LE};
 use pelite::{
     pe32::{Pe, PeFile},
     resources::Name,
@@ -224,15 +224,18 @@ pub enum LoadError {
     /// An error occurred while parsing a numeric string ID into an integer
     /// value.
     ParseIntError(ParseIntError),
+    /// An error occurred while decoding bytes in the file to a string.
+    DecodeStringError,
 }
 
 impl fmt::Display for LoadError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use LoadError::{IoError, ParseIntError, PeError};
+        use LoadError::{DecodeStringError, IoError, ParseIntError, PeError};
         match self {
             IoError(e) => e.fmt(f),
             ParseIntError(e) => e.fmt(f),
             PeError(e) => e.fmt(f),
+            DecodeStringError => write!(f, "string decoding failed"),
         }
     }
 }
@@ -311,6 +314,20 @@ impl FromStr for LangFileType {
     }
 }
 
+/// Decode a string with unknown encoding.
+fn decode_str(bytes: &[u8]) -> Result<String, ()> {
+    let (encoding_name, _confidence, _language) = detect_encoding(&bytes);
+    Encoding::for_label(encoding_name.as_bytes())
+        .ok_or(())
+        .and_then(|encoding| {
+            let (decoded, _enc, failed) = encoding.decode(&bytes);
+            if failed {
+                return Err(());
+            }
+            Ok(decoded.to_string())
+        })
+}
+
 /// A mapping of `StringKey` key to `String` values.
 ///
 /// May be read from or written to one of the three file formats for Aoe2
@@ -387,21 +404,27 @@ impl LangFile {
     }
 
     /// Reads a language file from a .INI file, like the ones used by Voobly and
-    /// the aoc-language-ini mod.
+    /// the aoc-language-ini mod. INI language files can have any encoding, so this function
+    /// attempts to detect it.
     ///
     /// This function eagerly loads all the strings into memory.
-    /// At this time, the encoding of the language.ini file is assumed to be
-    /// Windows codepage 1252.
     ///
     /// Returns `Err(e)` where `e` is a `LoadError` if an error occurs while
     /// loading the file.
     fn read_ini(&mut self, input: impl Read) -> Result<(), LoadError> {
-        let input = DecodeReaderBytesBuilder::new()
-            .encoding(Some(WINDOWS_1252))
-            .build(input);
-        let input = BufReader::new(input);
-        for line in input.lines() {
-            self.load_ini_line(&line?)?;
+        let mut line = vec![];
+        let mut input = BufReader::new(input);
+        loop {
+            let len = input.read_until(b'\n', &mut line)?;
+            if len == 0 {
+                break;
+            }
+            line.pop(); // get rid of the \n
+            if line.last() == Some(&b'\r') {
+                line.pop();
+            }
+            self.load_ini_line(&line)?;
+            line.clear();
         }
         Ok(())
     }
@@ -413,12 +436,12 @@ impl LangFile {
     /// A `LoadError` is returned if an error occurs while parsing.
     ///
     /// Returns a `LoadError` if an error occurs while reading the line.
-    fn load_ini_line(&mut self, line: &str) -> Result<(), LoadError> {
-        if line.starts_with(';') {
+    fn load_ini_line(&mut self, line: &[u8]) -> Result<(), LoadError> {
+        if let None | Some(b';') = line.get(0) {
             return Ok(());
         }
 
-        let mut split = line.splitn(2, '=');
+        let mut split = line.splitn(2, |byte| *byte == b'=');
         let id = match split.next() {
             Some(id) => id,
             None => return Ok(()),
@@ -428,8 +451,11 @@ impl LangFile {
             None => return Ok(()),
         };
 
-        let id: u32 = id.parse()?;
-        let value = unescape(value.chars(), false);
+        let id: u32 = std::str::from_utf8(id)
+            .map_err(|_| LoadError::DecodeStringError)?
+            .parse()?;
+        let decoded = decode_str(value).map_err(|_| LoadError::DecodeStringError)?;
+        let value = unescape(decoded.chars(), false);
         self.0.insert(StringKey::from(id), value);
         Ok(())
     }
@@ -954,5 +980,18 @@ mod tests {
         } else {
             panic!();
         }
+    }
+
+    /// Tests encoding detection for .ini files, which assume the machine's default encoding.
+    #[test]
+    fn detect_encoding() {
+        use super::{LangFileType::Ini, StringKey};
+        use std::fs::File;
+        let f = File::open("./test/inis/korean.ini").unwrap();
+        let lang_file = Ini.read_from(f).unwrap();
+        assert_eq!(
+            lang_file.get(&StringKey::Num(8022)),
+            Some(&"베틀 연구 (주민 체력 +15; 방어력 +1/+2P)".to_string())
+        );
     }
 }
