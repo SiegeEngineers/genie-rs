@@ -374,7 +374,8 @@ fn skip<R: Read>(input: &mut R, bytes: u64) -> Result<u64> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs::File;
+    use sha1::{Digest, Sha1};
+    use std::{fs::File, io::Cursor};
 
     #[test]
     fn aok() {
@@ -395,5 +396,18 @@ mod tests {
         let mut f = File::open("fixtures/hd.dat").unwrap();
         let dat = DatFile::from(&mut f).unwrap();
         assert_eq!(dat.civilizations.len(), 32);
+    }
+
+    #[test]
+    fn reserialize() {
+        let original = std::fs::read("fixtures/aoc1.0c.dat").unwrap();
+        let mut cursor = Cursor::new(&original);
+        let dat = DatFile::from(&mut cursor).unwrap();
+        let mut serialized = vec![];
+        dat.write_to(&mut serialized).unwrap();
+
+        let orig_hash = Sha1::new().chain(original).result();
+        let new_hash = Sha1::new().chain(serialized).result();
+        assert_eq!(orig_hash, new_hash);
     }
 }
