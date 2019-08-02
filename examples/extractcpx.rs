@@ -1,8 +1,7 @@
 use genie::Campaign;
-use quicli::prelude::*;
-use structopt::StructOpt;
-use std::path::PathBuf;
 use std::fs::File;
+use std::path::PathBuf;
+use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
 struct List {
@@ -40,7 +39,8 @@ fn list(args: List) {
     println!("Version: {}", String::from_utf8_lossy(&campaign.version()));
     println!("Scenarios: ({})", campaign.len());
 
-    let names = campaign.entries()
+    let names = campaign
+        .entries()
         .map(|entry| entry.filename.to_string())
         .collect::<Vec<String>>();
 
@@ -51,14 +51,15 @@ fn list(args: List) {
 }
 
 fn extract(args: Extract) {
-    let dir = args.output.unwrap_or_else(|| {
-        std::env::current_dir().expect("invalid cwd")
-    });
+    let dir = args
+        .output
+        .unwrap_or_else(|| std::env::current_dir().expect("invalid cwd"));
 
     let f = File::open(args.input).expect("could not open file");
     let mut campaign = Campaign::from(f).expect("not a campaign file");
 
-    let names = campaign.entries()
+    let names = campaign
+        .entries()
         .map(|entry| entry.filename.to_string())
         .collect::<Vec<String>>();
 

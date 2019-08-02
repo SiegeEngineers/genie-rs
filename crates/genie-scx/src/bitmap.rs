@@ -1,7 +1,8 @@
 //! Handles bitmap files embedded in the scenario file.
 
+use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::io::{Read, Result, Write};
+use std::io::{Read, Write};
 
 /// A colour in the bitmap palette.
 ///

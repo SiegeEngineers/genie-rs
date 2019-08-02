@@ -1,14 +1,17 @@
 use crate::util::*;
+use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::io::{Read, Result, Write};
+use std::io::{Read, Write};
 
-#[derive(Debug)]
+/// A trigger condition, describing when a trigger can fire.
+#[derive(Debug, Default, Clone)]
 pub struct TriggerCondition {
     condition_type: i32,
     properties: Vec<i32>,
 }
 
 impl TriggerCondition {
+    /// Read a trigger condition from an input stream, with the given trigger system version.
     pub fn from<R: Read>(input: &mut R, version: f64) -> Result<Self> {
         let condition_type = input.read_i32::<LE>()?;
         let num_properties = if version > 1.0 {
@@ -31,6 +34,7 @@ impl TriggerCondition {
         })
     }
 
+    /// Write this trigger condition to an output stream, with the given trigger system version.
     pub fn write_to<W: Write>(&self, output: &mut W, version: f64) -> Result<()> {
         output.write_i32::<LE>(self.condition_type)?;
         if version > 1.0 {
@@ -168,6 +172,7 @@ impl TriggerCondition {
     }
 }
 
+/// A trigger effect, describing the response when a trigger fires.
 #[derive(Debug)]
 pub struct TriggerEffect {
     effect_type: i32,
@@ -178,6 +183,7 @@ pub struct TriggerEffect {
 }
 
 impl TriggerEffect {
+    /// Read a trigger effect from an input stream, with the given trigger system version.
     pub fn from<R: Read>(input: &mut R, version: f64) -> Result<Self> {
         let effect_type = input.read_i32::<LE>()?;
         let num_properties = if version > 1.0 {
@@ -218,6 +224,7 @@ impl TriggerEffect {
         })
     }
 
+    /// Write a trigger effect to an output stream, with the given trigger system version.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_i32::<LE>(self.effect_type)?;
         output.write_i32::<LE>(self.properties.len() as i32)?;
@@ -398,6 +405,7 @@ impl TriggerEffect {
     }
 }
 
+/// A trigger, describing automatic interactive behaviours in a scenario.
 #[derive(Debug)]
 pub struct Trigger {
     enabled: bool,
@@ -415,6 +423,7 @@ pub struct Trigger {
 }
 
 impl Trigger {
+    /// Read a trigger from an input stream, with the given trigger system version.
     pub fn from<R: Read>(input: &mut R, version: f64) -> Result<Self> {
         let enabled = input.read_i32::<LE>()? != 0;
         let looping = input.read_i8()? != 0;
@@ -486,6 +495,7 @@ impl Trigger {
     }
 }
 
+/// The trigger system maintains an ordered list  of triggers.
 #[derive(Debug)]
 pub struct TriggerSystem {
     version: f64,
@@ -545,12 +555,14 @@ impl TriggerSystem {
         Ok(())
     }
 
+    /// Iterate over all triggers, in order.
     pub fn triggers(&self) -> impl Iterator<Item = &Trigger> {
         self.trigger_order
             .iter()
             .map(move |index| &self.triggers[*index as usize])
     }
 
+    /// Iterate over all triggers, mutably and unordered.
     pub fn triggers_unordered_mut(&mut self) -> impl Iterator<Item = &mut Trigger> {
         self.triggers.iter_mut()
     }

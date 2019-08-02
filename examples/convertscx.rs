@@ -1,8 +1,8 @@
+use genie::scx::{convert::AutoToWK, VersionBundle};
 use genie::Scenario;
-use genie::scx::{VersionBundle, convert::AutoToWK};
 use quicli::prelude::*;
-use structopt::StructOpt;
 use std::{fs::File, path::PathBuf};
+use structopt::StructOpt;
 
 /// Convert Age of Empires scenario files between versions.
 #[derive(Debug, StructOpt)]

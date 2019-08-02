@@ -1,21 +1,18 @@
 //! This module contains the data format reading/writing.
 
-#![allow(clippy::cyclomatic_complexity)]
+#![allow(clippy::cognitive_complexity)]
 
-use crate::ai::AIInfo;
-use crate::bitmap::Bitmap;
-use crate::header::SCXHeader;
-use crate::map::Map;
-use crate::player::*;
-use crate::triggers::TriggerSystem;
-use crate::types::*;
-use crate::util::*;
-use crate::victory::*;
-use crate::VersionBundle;
+use crate::{
+    ai::AIInfo, bitmap::Bitmap, header::SCXHeader, map::Map, player::*, triggers::TriggerSystem,
+    types::*, util::*, victory::*, Error, Result, VersionBundle,
+};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
-use std::cmp::Ordering;
-use std::io::{Error, ErrorKind, Read, Result, Write};
+use std::{
+    cmp::Ordering,
+    convert::TryFrom,
+    io::{Read, Write},
+};
 
 /// Compare floats with some error.
 macro_rules! cmp_float {
@@ -206,8 +203,7 @@ impl RGEScen {
         assert!([-1.0, 0.0].contains(&input.read_f32::<LE>()?));
 
         let name_length = input.read_i16::<LE>()? as usize;
-        let name = read_str(input, name_length)?
-            .ok_or_else(|| Error::new(ErrorKind::Other, "must have a file name"))?;
+        let name = read_str(input, name_length)?.ok_or(Error::MissingFileNameError)?;
 
         let (
             description_string_table,
@@ -847,8 +843,10 @@ impl TribeScen {
         if version >= 1.18 {
             let most = *self.num_disabled_buildings.iter().max().unwrap_or(&0);
             if most > max_disabled_buildings {
-                return Err(Error::new(ErrorKind::Other,
-                      format!("too many disabled buildings: got {}, but requested version supports up to {}", most, max_disabled_buildings)));
+                return Err(Error::TooManyDisabledBuildingsError(
+                    most,
+                    max_disabled_buildings,
+                ));
             }
 
             for num in &self.num_disabled_techs {
@@ -880,25 +878,13 @@ impl TribeScen {
         } else if version > 1.03 {
             let most = *self.num_disabled_techs.iter().max().unwrap_or(&0);
             if most > 20 {
-                return Err(Error::new(
-                    ErrorKind::Other,
-                    format!(
-                        "too many disabled techs: got {}, but requested version supports up to 20",
-                        most
-                    ),
-                ));
+                return Err(Error::TooManyDisabledTechsError(most));
             }
             if self.num_disabled_units.iter().any(|&n| n > 0) {
-                return Err(Error::new(
-                    ErrorKind::Other,
-                    "requested version does not support disabling units".to_string(),
-                ));
+                return Err(Error::CannotDisableUnitsError);
             }
             if self.num_disabled_buildings.iter().any(|&n| n > 0) {
-                return Err(Error::new(
-                    ErrorKind::Other,
-                    "requested version does not support disabling buildings".to_string(),
-                ));
+                return Err(Error::CannotDisableBuildingsError);
             }
 
             // Old scenarios only allowed disabling up to 20 techs per player.
@@ -910,22 +896,13 @@ impl TribeScen {
         } else {
             // <= 1.03 did not support disabling anything
             if self.num_disabled_techs.iter().any(|&n| n > 0) {
-                return Err(Error::new(
-                    ErrorKind::Other,
-                    "requested version does not support disabling techs".to_string(),
-                ));
+                return Err(Error::CannotDisableTechsError);
             }
             if self.num_disabled_units.iter().any(|&n| n > 0) {
-                return Err(Error::new(
-                    ErrorKind::Other,
-                    "requested version does not support disabling units".to_string(),
-                ));
+                return Err(Error::CannotDisableUnitsError);
             }
             if self.num_disabled_buildings.iter().any(|&n| n > 0) {
-                return Err(Error::new(
-                    ErrorKind::Other,
-                    "requested version does not support disabling buildings".to_string(),
-                ));
+                return Err(Error::CannotDisableBuildingsError);
             }
         }
 
@@ -1092,10 +1069,7 @@ impl SCXFormat {
             b"1.20" | b"1.21" => Self::load_121(format_version, 1.14, input),
             // Definitive Edition
             b"3.13" => Self::load_121(format_version, 1.14, input),
-            _ => Err(Error::new(
-                ErrorKind::Other,
-                format!("Unsupported format version {:?}", format_version),
-            )),
+            _ => Err(Error::UnsupportedFormatVersionError(format_version)),
         }
     }
 

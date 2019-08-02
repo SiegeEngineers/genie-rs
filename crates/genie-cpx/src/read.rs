@@ -1,7 +1,44 @@
 use crate::{CPXVersion, CampaignHeader, ScenarioMeta};
 use byteorder::{ReadBytesExt, LE};
-use genie_scx::Scenario;
-use std::io::{Error, ErrorKind, Read, Result, Seek, SeekFrom};
+use genie_scx::{self as scx, Scenario};
+use std::io::{self, Cursor, Read, Seek, SeekFrom};
+
+#[derive(Debug)]
+pub enum ReadCampaignError {
+    DecodeStringError,
+    IoError(io::Error),
+    MissingNameError,
+    NotFoundError,
+    ParseSCXError(scx::Error),
+}
+
+impl From<io::Error> for ReadCampaignError {
+    fn from(err: io::Error) -> ReadCampaignError {
+        ReadCampaignError::IoError(err)
+    }
+}
+
+impl From<scx::Error> for ReadCampaignError {
+    fn from(err: scx::Error) -> ReadCampaignError {
+        ReadCampaignError::ParseSCXError(err)
+    }
+}
+
+impl std::fmt::Display for ReadCampaignError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ReadCampaignError::DecodeStringError => write!(f, "invalid string"),
+            ReadCampaignError::IoError(err) => write!(f, "{}", err),
+            ReadCampaignError::MissingNameError => {
+                write!(f, "campaign or scenario must have a name")
+            }
+            ReadCampaignError::NotFoundError => write!(f, "scenario not found in campaign"),
+            ReadCampaignError::ParseSCXError(err) => write!(f, "{}", err),
+        }
+    }
+}
+
+type Result<T> = std::result::Result<T, ReadCampaignError>;
 
 pub fn read_fixed_str<R: Read>(input: &mut R, len: usize) -> Result<Option<String>> {
     let mut bytes = vec![0; len];
@@ -15,14 +52,14 @@ pub fn read_fixed_str<R: Read>(input: &mut R, len: usize) -> Result<Option<Strin
     } else {
         String::from_utf8(bytes)
             .map(Some)
-            .map_err(|_| Error::new(ErrorKind::Other, "invalid string"))
+            .map_err(|_| ReadCampaignError::DecodeStringError)
     }
 }
 
 fn read_campaign_header<R: Read>(input: &mut R) -> Result<CampaignHeader> {
     let mut version = [0; 4];
     input.read_exact(&mut version)?;
-    let name = read_fixed_str(input, 256)?.expect("must have a name");
+    let name = read_fixed_str(input, 256)?.ok_or(ReadCampaignError::MissingNameError)?;
     let num_scenarios = input.read_i32::<LE>()? as usize;
 
     Ok(CampaignHeader {
@@ -35,8 +72,8 @@ fn read_campaign_header<R: Read>(input: &mut R) -> Result<CampaignHeader> {
 fn read_scenario_meta<R: Read>(input: &mut R) -> Result<ScenarioMeta> {
     let size = input.read_i32::<LE>()? as usize;
     let offset = input.read_i32::<LE>()? as usize;
-    let name = read_fixed_str(input, 255)?.expect("must have a name");
-    let filename = read_fixed_str(input, 255)?.expect("must have a name");
+    let name = read_fixed_str(input, 255)?.ok_or(ReadCampaignError::MissingNameError)?;
+    let filename = read_fixed_str(input, 255)?.ok_or(ReadCampaignError::MissingNameError)?;
     let mut padding = [0; 2];
     input.read_exact(&mut padding)?;
 
@@ -126,26 +163,21 @@ where
     /// Get a scenario by its file name.
     pub fn by_name(&mut self, filename: &str) -> Result<Scenario> {
         self.by_name_raw(filename)
-            .map(std::io::Cursor::new)
-            .and_then(|mut buf| Scenario::from(&mut buf))
+            .map(Cursor::new)
+            .and_then(|mut buf| Scenario::from(&mut buf).map_err(ReadCampaignError::ParseSCXError))
     }
 
     /// Get a scenario by its campaign index.
     pub fn by_index(&mut self, index: usize) -> Result<Scenario> {
         self.by_index_raw(index)
-            .map(std::io::Cursor::new)
-            .and_then(|mut buf| Scenario::from(&mut buf))
+            .map(Cursor::new)
+            .and_then(|mut buf| Scenario::from(&mut buf).map_err(ReadCampaignError::ParseSCXError))
     }
 
     /// Get a scenario file buffer by its file name.
     pub fn by_name_raw(&mut self, filename: &str) -> Result<Vec<u8>> {
         self.get_id(filename)
-            .ok_or_else(|| {
-                std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "scenario not found in campaign",
-                )
-            })
+            .ok_or(ReadCampaignError::NotFoundError)
             .and_then(|index| self.by_index_raw(index))
     }
 
@@ -153,12 +185,7 @@ where
     pub fn by_index_raw(&mut self, index: usize) -> Result<Vec<u8>> {
         let entry = match self.entries.get(index) {
             Some(entry) => entry,
-            None => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "scenario not found in campaign",
-                ))
-            }
+            None => return Err(ReadCampaignError::NotFoundError),
         };
 
         let mut result = vec![];

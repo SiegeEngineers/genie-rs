@@ -1,9 +1,36 @@
 use crate::{CampaignHeader, ScenarioMeta};
 use byteorder::{WriteBytesExt, LE};
-use genie_scx::Scenario;
-use std::io::{Result, Write};
+use genie_scx::{Result as SCXResult, Scenario};
+use std::io::{self, Write};
 
-fn write_campaign_header<W: Write>(header: &CampaignHeader, output: &mut W) -> Result<()> {
+#[derive(Debug)]
+pub enum WriteCampaignError {
+    // TODO String could not be encoded.
+    // EncodeStringError,
+    IoError(io::Error),
+    NotFoundError(usize),
+}
+
+impl From<io::Error> for WriteCampaignError {
+    fn from(err: io::Error) -> WriteCampaignError {
+        WriteCampaignError::IoError(err)
+    }
+}
+
+impl std::fmt::Display for WriteCampaignError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            WriteCampaignError::IoError(err) => write!(f, "{}", err),
+            WriteCampaignError::NotFoundError(n) => {
+                write!(f, "missing scenario data for index {}", n)
+            }
+        }
+    }
+}
+
+impl std::error::Error for WriteCampaignError {}
+
+fn write_campaign_header<W: Write>(header: &CampaignHeader, output: &mut W) -> io::Result<()> {
     assert!(header.num_scenarios < std::i32::MAX as usize);
 
     output.write_all(&header.version)?;
@@ -15,7 +42,7 @@ fn write_campaign_header<W: Write>(header: &CampaignHeader, output: &mut W) -> R
     Ok(())
 }
 
-fn write_scenario_meta<W: Write>(meta: &ScenarioMeta, output: &mut W) -> Result<()> {
+fn write_scenario_meta<W: Write>(meta: &ScenarioMeta, output: &mut W) -> io::Result<()> {
     assert!(meta.size < std::i32::MAX as usize);
     assert!(meta.offset < std::i32::MAX as usize);
 
@@ -82,7 +109,7 @@ impl<W: Write> CampaignWriter<W> {
         });
     }
 
-    pub fn add(&mut self, name: &str, scx: &Scenario) -> Result<()> {
+    pub fn add(&mut self, name: &str, scx: &Scenario) -> SCXResult<()> {
         let mut bytes = vec![];
         scx.write_to(&mut bytes)?;
         self.scenarios.push(CampaignEntry {
@@ -97,12 +124,12 @@ impl<W: Write> CampaignWriter<W> {
         self.writer
     }
 
-    fn write_header(&mut self) -> Result<()> {
+    fn write_header(&mut self) -> io::Result<()> {
         self.header.num_scenarios = self.scenarios.len();
         write_campaign_header(&self.header, &mut self.writer)
     }
 
-    fn write_metas(&mut self) -> Result<()> {
+    fn write_metas(&mut self) -> io::Result<()> {
         let mut offset = 256 + 8 + self.scenarios.len() * (255 + 255 + 8);
         for scen in &self.scenarios {
             let meta = ScenarioMeta {
@@ -117,14 +144,14 @@ impl<W: Write> CampaignWriter<W> {
         Ok(())
     }
 
-    fn write_scenarios(&mut self) -> Result<()> {
+    fn write_scenarios(&mut self) -> io::Result<()> {
         for scen in &self.scenarios {
             self.writer.write_all(scen.bytes())?;
         }
         Ok(())
     }
 
-    pub fn flush(mut self) -> Result<W> {
+    pub fn flush(mut self) -> io::Result<W> {
         self.write_header()?;
         self.write_metas()?;
         self.write_scenarios()?;

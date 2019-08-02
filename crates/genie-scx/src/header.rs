@@ -1,7 +1,13 @@
-use crate::types::{DLCPackage, DataSet, SCXVersion};
-use crate::util::*;
+use crate::{
+    types::{DLCPackage, DataSet, SCXVersion},
+    util::*,
+    Result,
+};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::io::{Read, Result, Write};
+use std::{
+    convert::TryFrom,
+    io::{Read, Write},
+};
 
 #[derive(Debug)]
 pub struct DLCOptions {

@@ -1,14 +1,13 @@
 [package]
-name = "genie-drs"
-version = "0.1.1"
+name = "jascpal"
+version = "0.1.0"
 authors = ["Renée Kooi <renee@kooi.me>"]
 edition = "2018"
 license = "GPL-3.0"
-description = "Read .drs archive files from the Genie Engine, used in Age of Empires 1/2 and SWGB"
+description = "Read and write JASC palette files."
 homepage = "https://github.com/SiegeEngineers/genie-rs"
 repository = "https://github.com/SiegeEngineers/genie-rs"
-readme = "README.md"
 
 [dependencies]
-byteorder = "^1.3.1"
-sorted-vec = "^0.3.0"
+nom = { version = "^5.0.0", default-features = false, features = ["std"] }
+rgb = "^0.8.13"

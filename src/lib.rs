@@ -52,19 +52,26 @@
 //!
 //! > Supported version range: all versions
 //!
-//! Support for palette files is implemented by [chariot_palette](https://github.com/ChariotEngine/Palette/).
-//! chariot_palette only supports _reading_ palette files at the moment.
+//! Palette files contain the 256-bit colour palettes used in different areas of the game. Each
+//! palette contains up to 256 r, g, b colour values. Both reading and writing is supported.
+
+#![deny(future_incompatible)]
+#![deny(nonstandard_style)]
+#![deny(rust_2018_idioms)]
+#![deny(unsafe_code)]
+#![warn(missing_docs)]
+#![warn(unused)]
+
 pub use genie_cpx as cpx;
 pub use genie_drs as drs;
 pub use genie_hki as hki;
 pub use genie_lang as lang;
 pub use genie_scx as scx;
-pub use chariot_palette as pal;
+pub use jascpal as pal;
 
 pub use genie_cpx::Campaign;
-pub use genie_drs::DRSReader;
+pub use genie_drs::{DRSReader, DRSWriter};
 pub use genie_hki::HotkeyInfo;
 pub use genie_lang::LangFile;
 pub use genie_scx::Scenario;
-pub use chariot_palette::Palette;
-pub use chariot_palette::read_from as read_palette;
+pub use jascpal::Palette;
