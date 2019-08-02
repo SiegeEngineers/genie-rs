@@ -144,6 +144,7 @@ impl StringKey {
     /// assert!(StringKey::from(0).is_numeric());
     /// assert!(!StringKey::from("").is_numeric());
     /// ```
+    #[inline]
     pub fn is_numeric(&self) -> bool {
         use StringKey::{Name, Num};
         match self {
@@ -161,6 +162,7 @@ impl StringKey {
     /// assert!(!StringKey::from(0).is_named());
     /// assert!(StringKey::from("").is_named());
     /// ```
+    #[inline]
     pub fn is_named(&self) -> bool {
         use StringKey::{Name, Num};
         match self {
@@ -181,18 +183,21 @@ impl fmt::Display for StringKey {
 }
 
 impl From<u32> for StringKey {
+    #[inline]
     fn from(n: u32) -> Self {
         StringKey::Num(n)
     }
 }
 
 impl From<i32> for StringKey {
+    #[inline]
     fn from(n: i32) -> Self {
         StringKey::from(n as u32)
     }
 }
 
 impl From<&str> for StringKey {
+    #[inline]
     fn from(s: &str) -> Self {
         use StringKey::{Name, Num};
         if let Ok(n) = s.parse() {
@@ -204,6 +209,7 @@ impl From<&str> for StringKey {
 }
 
 impl From<String> for StringKey {
+    #[inline]
     fn from(s: String) -> Self {
         StringKey::from(&s[..])
     }
@@ -288,6 +294,7 @@ pub enum LangFileType {
 impl LangFileType {
     /// Reads a language file from an input reader.
     /// Returns a `LoadError` if an error occurs while reading.
+    #[inline]
     pub fn read_from(&self, r: impl Read) -> Result<LangFile, LoadError> {
         use LangFileType::{Dll, Ini, KeyValue};
         let mut lang_file = LangFile::new();
@@ -374,6 +381,7 @@ impl LangFile {
     ///
     /// Returns `Err(e)` where `e` is a `LoadError` if an error occurs while
     /// loading the file.
+    #[inline]
     pub fn read_dll(&mut self, mut input: impl Read) -> Result<(), LoadError> {
         let mut bytes = vec![];
         input.read_to_end(&mut bytes)?;
@@ -569,6 +577,7 @@ impl LangFile {
     }
 
     /// Writes this language file to an output writer using the ini format.
+    #[inline]
     pub fn write_to_ini<W: Write>(&self, output: &mut W) -> io::Result<()> {
         // TODO warning if there are string ids
         for (id, string) in self.iter().filter(|(id, _)| id.is_numeric()) {
@@ -579,6 +588,7 @@ impl LangFile {
 
     /// Writes this language file to an output writer using the key-value
     /// format.
+    #[inline]
     pub fn write_to_keyval<W: Write>(&self, output: &mut W) -> io::Result<()> {
         for (id, string) in self.iter() {
             output.write_all(format!("{} \"{}\"\n", id, escape(string, true)).as_bytes())?;
@@ -595,6 +605,7 @@ impl LangFile {
     ///
     /// let lang_file = LangFile::new();
     /// ```
+    #[inline]
     pub fn new() -> Self {
         LangFile(HashMap::new())
     }
@@ -612,6 +623,7 @@ impl LangFile {
     /// lang_file.insert(StringKey::from(0), String::from(""));
     /// assert!(!lang_file.is_empty());
     /// ```
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -628,6 +640,7 @@ impl LangFile {
     /// lang_file.insert(StringKey::from(0), String::from(""));
     /// assert_eq!(1, lang_file.len());
     /// ```
+    #[inline]
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -644,6 +657,7 @@ impl LangFile {
     /// lang_file.clear();
     /// assert!(lang_file.is_empty());
     /// ```
+    #[inline]
     pub fn clear(&mut self) {
         self.0.clear()
     }
@@ -665,6 +679,7 @@ impl LangFile {
     /// }
     /// assert!(lang_file.is_empty());
     /// ```
+    #[inline]
     pub fn drain(&mut self) -> Drain<'_, StringKey, String> {
         self.0.drain()
     }
@@ -681,6 +696,7 @@ impl LangFile {
     /// assert!(lang_file.contains_key(&StringKey::from(0)));
     /// assert!(!lang_file.contains_key(&StringKey::from(1)));
     /// ```
+    #[inline]
     pub fn contains_key(&self, k: &StringKey) -> bool {
         self.0.contains_key(k)
     }
@@ -697,6 +713,7 @@ impl LangFile {
     /// assert_eq!(Some(&String::from("")), lang_file.get(&StringKey::from(0)));
     /// assert_eq!(None, lang_file.get(&StringKey::from(1)));
     /// ```
+    #[inline]
     pub fn get(&self, k: &StringKey) -> Option<&String> {
         self.0.get(k)
     }
@@ -713,6 +730,7 @@ impl LangFile {
     /// if let Some(s) = lang_file.get_mut(&StringKey::from(0)) { s.push('A'); }
     /// assert_eq!("aA", lang_file.get(&StringKey::from(0)).unwrap());
     /// ```
+    #[inline]
     pub fn get_mut(&mut self, k: &StringKey) -> Option<&mut String> {
         self.0.get_mut(k)
     }
@@ -735,6 +753,7 @@ impl LangFile {
     /// assert_eq!("aA", lang_file.get(&StringKey::from(0)).unwrap());
     /// assert_eq!("HelloA", lang_file.get(&StringKey::from(1)).unwrap());
     /// ```
+    #[inline]
     pub fn entry(&mut self, key: StringKey) -> Entry<'_, StringKey, String> {
         self.0.entry(key)
     }
@@ -759,6 +778,7 @@ impl LangFile {
     /// assert_eq!(Some(String::from("b")),
     ///            lang_file.insert(StringKey::from(0), String::from("c")));
     /// ```
+    #[inline]
     pub fn insert(&mut self, k: StringKey, v: String) -> Option<String> {
         self.0.insert(k, v)
     }
@@ -778,6 +798,7 @@ impl LangFile {
     ///            lang_file.remove(&StringKey::from(0)));
     /// assert_eq!(None, lang_file.remove(&StringKey::from(0)));
     /// ```
+    #[inline]
     pub fn remove(&mut self, k: &StringKey) -> Option<String> {
         self.0.remove(k)
     }
@@ -803,6 +824,7 @@ impl LangFile {
     /// });
     /// assert_eq!(3, lang_file.len());
     /// ```
+    #[inline]
     pub fn retain<F: FnMut(&StringKey, &mut String) -> bool>(&mut self, f: F) {
         self.0.retain(f)
     }
@@ -823,6 +845,7 @@ impl LangFile {
     ///
     /// for (k, v) in lang_file.iter() { println!("key: {}, val: {}", k, v); }
     /// ```
+    #[inline]
     pub fn iter(&self) -> Iter<'_, StringKey, String> {
         self.0.iter()
     }
@@ -845,6 +868,7 @@ impl LangFile {
     /// for (_, v) in lang_file.iter_mut() { v.push('A'); }
     /// for (k, v) in &lang_file { println!("key: {}, val: {}", k, v); }
     /// ```
+    #[inline]
     pub fn iter_mut(&mut self) -> IterMut<'_, StringKey, String> {
         self.0.iter_mut()
     }
@@ -865,6 +889,7 @@ impl LangFile {
     ///
     /// for k in lang_file.keys() { println!("key: {}", k); }
     /// ```
+    #[inline]
     pub fn keys(&self) -> Keys<'_, StringKey, String> {
         self.0.keys()
     }
@@ -885,6 +910,7 @@ impl LangFile {
     ///
     /// for v in lang_file.values() { println!("value: {}", v); }
     /// ```
+    #[inline]
     pub fn values(&self) -> Values<'_, StringKey, String> {
         self.0.values()
     }
@@ -906,6 +932,7 @@ impl LangFile {
     /// for v in lang_file.values_mut() { v.push('A'); }
     /// for v in lang_file.values() { println!("{}", v); }
     /// ```
+    #[inline]
     pub fn values_mut(&mut self) -> ValuesMut<'_, StringKey, String> {
         self.0.values_mut()
     }
