@@ -1,4 +1,6 @@
 use crate::{CPXVersion, CampaignHeader, ScenarioMeta};
+use chardet::{detect as detect_encoding};
+use encoding_rs::Encoding;
 use byteorder::{ReadBytesExt, LE};
 use genie_scx::{self as scx, Scenario};
 use std::io::{self, Cursor, Read, Seek, SeekFrom};
@@ -40,6 +42,20 @@ impl std::fmt::Display for ReadCampaignError {
 
 type Result<T> = std::result::Result<T, ReadCampaignError>;
 
+/// Decode a string with unknown encoding.
+fn decode_str(bytes: &[u8]) -> Result<String> {
+    let (encoding_name, confidence, language) = detect_encoding(&bytes);
+    Encoding::for_label(encoding_name.as_bytes())
+        .ok_or(ReadCampaignError::DecodeStringError)
+        .and_then(|encoding| {
+            let (decoded, _enc, failed) = encoding.decode(&bytes);
+            if failed {
+                return Err(ReadCampaignError::DecodeStringError)
+            }
+            Ok(decoded.to_string())
+        })
+}
+
 pub fn read_fixed_str<R: Read>(input: &mut R, len: usize) -> Result<Option<String>> {
     let mut bytes = vec![0; len];
     input.read_exact(&mut bytes[0..len])?;
@@ -50,9 +66,7 @@ pub fn read_fixed_str<R: Read>(input: &mut R, len: usize) -> Result<Option<Strin
     if bytes.is_empty() {
         Ok(None)
     } else {
-        String::from_utf8(bytes)
-            .map(Some)
-            .map_err(|_| ReadCampaignError::DecodeStringError)
+        decode_str(&bytes).map(Some)
     }
 }
 
@@ -204,6 +218,22 @@ where
 mod tests {
     use super::*;
     use std::fs::File;
+
+    /// Try to parse a file with an encoding that is not compatible with UTF-8.
+    /// Source: http://aok.heavengames.com/blacksmith/showfile.php?fileid=884
+    #[test]
+    fn detect_encoding() {
+        let f = File::open("./test/campaigns/DER FALL VON SACSAHUAMAN - TEIL I.cpx").unwrap();
+        let cpx = Campaign::from(f).unwrap();
+        assert_eq!(cpx.version(), *b"1.00");
+        assert_eq!(cpx.name(), "DER FALL VON SACSAHUAMÁN - TEIL I");
+        assert_eq!(cpx.len(), 1);
+
+        let names: Vec<&String> = cpx.entries().map(|e| &e.name).collect();
+        assert_eq!(names, vec!["Der Weg nach Sacsahuamán"]);
+        let filenames: Vec<&String> = cpx.entries().map(|e| &e.filename).collect();
+        assert_eq!(filenames, vec!["Der Weg nach Sacsahuamán.scx"]);
+    }
 
     /// Source: http://aoe.heavengames.com/dl-php/showfile.php?fileid=1678
     #[test]
