@@ -102,7 +102,7 @@
 
 use byteorder::{ReadBytesExt, LE};
 use chardet::detect as detect_encoding;
-use encoding_rs::{Encoding, UTF_16LE};
+use encoding_rs::{Encoding, UTF_8, UTF_16LE};
 use pelite::{
     pe32::{Pe, PeFile},
     resources::Name,
@@ -314,18 +314,45 @@ impl FromStr for LangFileType {
     }
 }
 
-/// Decode a string with unknown encoding.
-fn decode_str(bytes: &[u8]) -> Result<String, ()> {
-    let (encoding_name, _confidence, _language) = detect_encoding(&bytes);
-    Encoding::for_label(encoding_name.as_bytes())
-        .ok_or(())
-        .and_then(|encoding| {
-            let (decoded, _enc, failed) = encoding.decode(&bytes);
-            if failed {
-                return Err(());
+/// Helper to detect the most common encoding among several sample lines.
+#[derive(Default)]
+struct EncodingDetector {
+    used_lines: Vec<Vec<u8>>,
+    occurrences: Vec<(&'static Encoding, usize)>,
+}
+
+impl EncodingDetector {
+    /// Detect the encoding for one sample line.
+    fn check_line(&mut self, line: Vec<u8>) {
+        if let Some(enc) = Encoding::for_label(detect_encoding(&line).0.as_bytes()) {
+            self.add(enc);
+        }
+        self.used_lines.push(line);
+    }
+
+    /// Add one detected encoding.
+    fn add(&mut self, enc: &'static Encoding) {
+        if let Some(pair) = self.occurrences.iter_mut().find(|(existing_enc, _)| existing_enc == &enc) {
+            pair.1 += 1;
+        } else {
+            self.occurrences.push((enc, 1));
+        }
+    }
+
+    /// Consume this object and return the detected encoding, as well as any lines that were used
+    /// for detection, so the consumer can iterate over them or something.
+    fn finish(mut self) -> (&'static Encoding, Vec<Vec<u8>>) {
+        // if no encoding could be detected for any of the lines, just do whatever
+        let last = self.occurrences.pop().unwrap_or((UTF_8, 0));
+        let (most_common_encoding, _count) = self.occurrences.into_iter().fold(last, |a, b| {
+            if b.1 > a.1 {
+                b
+            } else {
+                a
             }
-            Ok(decoded.to_string())
-        })
+        });
+        (most_common_encoding, self.used_lines)
+    }
 }
 
 /// A mapping of `StringKey` key to `String` values.
@@ -412,18 +439,48 @@ impl LangFile {
     /// Returns `Err(e)` where `e` is a `LoadError` if an error occurs while
     /// loading the file.
     fn read_ini(&mut self, input: impl Read) -> Result<(), LoadError> {
+        /// Read one ini file line (until \n) from a reader, stripping \r\n.
+        /// Returns Ok(true) if a line was read, Ok(false) if there are no more lines, Err() if
+        /// an I/O error occurred.
+        fn read_line(input: &mut BufReader<impl Read>, mut line: &mut Vec<u8>) -> Result<bool, LoadError> {
+            let len = input.read_until(b'\n', &mut line)?;
+            if len > 0 {
+                line.pop(); // get rid of the \n
+                if line.last() == Some(&b'\r') {
+                    line.pop();
+                }
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        }
+
+        // temporary buffer for reading lines
         let mut line = vec![];
         let mut input = BufReader::new(input);
-        loop {
-            let len = input.read_until(b'\n', &mut line)?;
-            if len == 0 {
+
+        // count which guessed encodings occur in the first 16 lines, hopefully later lines will
+        // agree!
+        let mut detector = EncodingDetector::default();
+        for _ in 0..16 {
+            if !read_line(&mut input, &mut line)? {
+                line.clear();
                 break;
             }
-            line.pop(); // get rid of the \n
-            if line.last() == Some(&b'\r') {
-                line.pop();
+            detector.check_line(line.clone());
+            line.clear();
+        }
+
+        let (encoding, cache_lines) = detector.finish();
+        for cached_line in cache_lines {
+            self.load_ini_line(&cached_line, encoding)?;
+        }
+
+        loop {
+            if !read_line(&mut input, &mut line)? {
+                break;
             }
-            self.load_ini_line(&line)?;
+            self.load_ini_line(&line, encoding)?;
             line.clear();
         }
         Ok(())
@@ -436,7 +493,7 @@ impl LangFile {
     /// A `LoadError` is returned if an error occurs while parsing.
     ///
     /// Returns a `LoadError` if an error occurs while reading the line.
-    fn load_ini_line(&mut self, line: &[u8]) -> Result<(), LoadError> {
+    fn load_ini_line(&mut self, line: &[u8], encoding: &'static Encoding) -> Result<(), LoadError> {
         if let None | Some(b';') = line.get(0) {
             return Ok(());
         }
@@ -454,7 +511,10 @@ impl LangFile {
         let id: u32 = std::str::from_utf8(id)
             .map_err(|_| LoadError::DecodeStringError)?
             .parse()?;
-        let decoded = decode_str(value).map_err(|_| LoadError::DecodeStringError)?;
+        let (decoded, _enc, failed) = encoding.decode(&value);
+        if failed {
+            return Err(LoadError::DecodeStringError);
+        }
         let value = unescape(decoded.chars(), false);
         self.0.insert(StringKey::from(id), value);
         Ok(())
