@@ -77,12 +77,14 @@ macro_rules! fallible_try_from {
 }
 
 #[macro_export]
-/// Compare floats with some error.
+/// Compare floats with some error. The left-hand side must be a variable name, the right-hand side
+/// can be any expression.
 ///
 /// ```rust
 /// use genie_support::cmp_float;
-/// assert!(cmp_float!(0.0 == 0.0));
-/// assert!(!cmp_float!(0.0 != 0.0));
+/// let zero = 0.0;
+/// assert!(cmp_float!(zero == 0.0));
+/// assert!(!cmp_float!(zero != 0.0));
 /// ```
 macro_rules! cmp_float {
     ($id:ident == $val:expr) => {
