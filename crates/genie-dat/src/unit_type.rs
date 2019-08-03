@@ -113,7 +113,15 @@ impl UnitType {
             BaseCombat(unit) => &unit.superclass.superclass.superclass.superclass,
             Missile(unit) => &unit.superclass.superclass.superclass.superclass.superclass,
             Combat(unit) => &unit.superclass.superclass.superclass.superclass.superclass,
-            Building(unit) => &unit.superclass.superclass.superclass.superclass.superclass.superclass,
+            Building(unit) => {
+                &unit
+                    .superclass
+                    .superclass
+                    .superclass
+                    .superclass
+                    .superclass
+                    .superclass
+            }
         }
     }
 }
@@ -429,11 +437,7 @@ impl BaseUnitType {
         output.write_f32::<LE>(self.outline_radius.1)?;
         output.write_f32::<LE>(self.outline_radius.2)?;
         for index in 0..self.attributes.capacity() {
-            let attr = self
-                .attributes
-                .get(index)
-                .cloned()
-                .unwrap_or_default();
+            let attr = self.attributes.get(index).cloned().unwrap_or_default();
             attr.write_to(output)?;
         }
         output.write_u8(self.damage_sprites.len().try_into().unwrap())?;

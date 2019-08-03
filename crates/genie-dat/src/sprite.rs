@@ -184,11 +184,7 @@ impl SpriteAttackSound {
 
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         for index in 0..self.sound_props.capacity() {
-            let prop = self
-                .sound_props
-                .get(index)
-                .cloned()
-                .unwrap_or_default();
+            let prop = self.sound_props.get(index).cloned().unwrap_or_default();
             prop.write_to(output)?;
         }
         Ok(())

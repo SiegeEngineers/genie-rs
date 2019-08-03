@@ -38,9 +38,9 @@ use nom::{
 use rgb::RGB;
 use std::{
     convert::{TryFrom, TryInto},
-    num::TryFromIntError,
     fmt,
     io::{Read, Write},
+    num::TryFromIntError,
     str::{self, FromStr},
 };
 
