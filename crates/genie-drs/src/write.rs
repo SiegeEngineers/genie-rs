@@ -18,14 +18,14 @@ where
     W: Write + Seek,
 {
     fn open(&mut self, drs: &mut InnerDRSWriter<W>) -> Result<(), io::Error>;
-    fn add_resource<R: Read>(
+    fn add_resource(
         &mut self,
         drs: &mut InnerDRSWriter<W>,
         table: ResourceType,
         resource: DRSResource,
-        data: R,
+        data: &mut dyn Read,
     ) -> Result<DRSResource, io::Error>;
-    fn close(self, drs: &mut InnerDRSWriter<W>) -> Result<(), io::Error>;
+    fn close(&mut self, drs: &mut InnerDRSWriter<W>) -> Result<(), io::Error>;
 }
 
 /// Create the entire DRS file in memory first, then flush it to the output.
@@ -44,12 +44,12 @@ where
         Ok(())
     }
 
-    fn add_resource<R: Read>(
+    fn add_resource(
         &mut self,
         _drs: &mut InnerDRSWriter<W>,
         table: ResourceType,
         mut resource: DRSResource,
-        mut data: R,
+        data: &mut dyn Read,
     ) -> Result<DRSResource, io::Error> {
         let mut bytes = vec![];
         data.read_to_end(&mut bytes)?;
@@ -59,7 +59,7 @@ where
         Ok(resource)
     }
 
-    fn close(self, drs: &mut InnerDRSWriter<W>) -> Result<(), io::Error> {
+    fn close(&mut self, drs: &mut InnerDRSWriter<W>) -> Result<(), io::Error> {
         assert!(
             self.resources.len() < u32::max_value() as usize,
             "too many resources"
@@ -104,6 +104,7 @@ where
         Ok(())
     }
 }
+
 /// Writer strategy that reserve space for metadata for the given amount of tables and files at the top of the file, then fills it in at the end.
 pub struct ReserveDirectoryStrategy {
     reserved_tables: u32,
@@ -141,17 +142,17 @@ where
         Ok(())
     }
 
-    fn add_resource<R: Read>(
+    fn add_resource(
         &mut self,
         drs: &mut InnerDRSWriter<W>,
         _table: ResourceType,
         mut resource: DRSResource,
-        mut data: R,
+        data: &mut dyn Read,
     ) -> Result<DRSResource, io::Error> {
         assert!(self.file_space_left > 0, "too many files");
         self.file_space_left -= 1;
 
-        let len = std::io::copy(&mut data, &mut drs.output)?;
+        let len = std::io::copy(data, &mut drs.output)?;
         assert!(len < u64::from(u32::max_value()), "file too large");
         resource.offset = self.write_offset;
         resource.size = len as u32;
@@ -159,7 +160,7 @@ where
         Ok(resource)
     }
 
-    fn close(self, drs: &mut InnerDRSWriter<W>) -> Result<(), io::Error> {
+    fn close(&mut self, drs: &mut InnerDRSWriter<W>) -> Result<(), io::Error> {
         assert!(
             drs.tables.len() <= self.reserved_tables as usize,
             "too many tables"
@@ -244,22 +245,20 @@ where
 /// // → a Vec<u8> containing the DRS file
 /// # Ok(()) }
 /// ```
-pub struct DRSWriter<W, S>
+pub struct DRSWriter<W>
 where
     W: Write + Seek,
-    S: Strategy<W>,
 {
     inner: InnerDRSWriter<W>,
-    strategy: S,
+    strategy: Box<dyn Strategy<W>>,
 }
 
-impl<W, S> DRSWriter<W, S>
+impl<W> DRSWriter<W>
 where
     W: Write + Seek,
-    S: Strategy<W>,
 {
     /// Create a writer with the given strategy.
-    pub fn new(output: W, strategy: S) -> io::Result<Self> {
+    pub fn new(output: W, strategy: impl Strategy<W> + 'static) -> io::Result<Self> {
         let header = DRSHeader::default();
 
         let mut writer = Self {
@@ -268,7 +267,7 @@ where
                 header,
                 tables: vec![],
             },
-            strategy,
+            strategy: Box::new(strategy),
         };
 
         writer.strategy.open(&mut writer.inner)?;
@@ -282,14 +281,16 @@ where
         self.add_inner(t.into(), id, data)
     }
 
-    fn add_inner(&mut self, t: ResourceType, id: u32, data: impl Read) -> io::Result<()> {
+    fn add_inner(&mut self, t: ResourceType, id: u32, mut data: impl Read) -> io::Result<()> {
         let res = DRSResource {
             id,
             offset: 0, // TBD
             size: 0,   // TBD
         };
 
-        let res = self.strategy.add_resource(&mut self.inner, t, res, data)?;
+        let res = self
+            .strategy
+            .add_resource(&mut self.inner, t, res, &mut data)?;
 
         match self
             .inner

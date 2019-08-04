@@ -2,12 +2,7 @@
 
 Rust libraries for reading/writing various Age of Empires I/II files.
 
-## Install
-
-```toml
-[dependencies]
-genie = "^0.1.0"
-```
+See [docs.rs](https://docs.rs/genie) for documentation.
 
 ## Example Programs
 
