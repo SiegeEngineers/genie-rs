@@ -115,11 +115,11 @@
 use byteorder::{ReadBytesExt, LE};
 #[cfg(feature = "chardet")]
 use chardet::detect as detect_encoding;
-use encoding_rs::{Encoding, UTF_16LE};
 #[cfg(feature = "chardet")]
 use encoding_rs::UTF_8;
 #[cfg(not(feature = "chardet"))]
 use encoding_rs::WINDOWS_1252;
+use encoding_rs::{Encoding, UTF_16LE};
 use pelite::{
     pe32::{Pe, PeFile},
     resources::Name,
@@ -364,7 +364,11 @@ impl EncodingDetector {
 
     /// Add one detected encoding.
     fn add(&mut self, enc: &'static Encoding) {
-        if let Some(pair) = self.occurrences.iter_mut().find(|(existing_enc, _)| existing_enc == &enc) {
+        if let Some(pair) = self
+            .occurrences
+            .iter_mut()
+            .find(|(existing_enc, _)| existing_enc == &enc)
+        {
             pair.1 += 1;
         } else {
             self.occurrences.push((enc, 1));
@@ -376,13 +380,10 @@ impl EncodingDetector {
     fn finish(mut self) -> (&'static Encoding, Vec<Vec<u8>>) {
         // if no encoding could be detected for any of the lines, just do whatever
         let last = self.occurrences.pop().unwrap_or((UTF_8, 0));
-        let (most_common_encoding, _count) = self.occurrences.into_iter().fold(last, |a, b| {
-            if b.1 > a.1 {
-                b
-            } else {
-                a
-            }
-        });
+        let (most_common_encoding, _count) =
+            self.occurrences
+                .into_iter()
+                .fold(last, |a, b| if b.1 > a.1 { b } else { a });
         (most_common_encoding, self.used_lines)
     }
 }
@@ -475,7 +476,10 @@ impl LangFile {
         /// Read one ini file line (until \n) from a reader, stripping \r\n.
         /// Returns Ok(true) if a line was read, Ok(false) if there are no more lines, Err() if
         /// an I/O error occurred.
-        fn read_line(input: &mut BufReader<impl Read>, mut line: &mut Vec<u8>) -> Result<bool, LoadError> {
+        fn read_line(
+            input: &mut BufReader<impl Read>,
+            mut line: &mut Vec<u8>,
+        ) -> Result<bool, LoadError> {
             let len = input.read_until(b'\n', &mut line)?;
             if len > 0 {
                 line.pop(); // get rid of the \n
@@ -493,7 +497,7 @@ impl LangFile {
         let mut input = BufReader::new(input);
 
         #[cfg(feature = "chardet")]
-        let encoding  = {
+        let encoding = {
             // count which guessed encodings occur in the first 16 lines, hopefully later lines will
             // agree!
             let mut detector = EncodingDetector::new(16);
