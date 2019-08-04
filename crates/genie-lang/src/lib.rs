@@ -30,6 +30,18 @@
 //! ```
 //!
 //! ## INI files
+//!
+//! INI files tend to use the system's standard character encoding, so a language file created on
+//! one system may not be parsed correctly on another. By default, genie-lang does character
+//! encoding detection on .INI files to mitigate this. This incurs a size cost and a small runtime
+//! cost. The character detection can be disabled by disabling the `chardet` Cargo feature.
+//!
+//! ```toml
+//! [dependencies]
+//! genie = { version = "*", default-features = false, features = ["chardet"] }
+//! ```
+//!
+//!
 //! ```rust
 //! use genie_lang::{LangFileType::Ini, StringKey};
 //! use std::io::Cursor;
@@ -101,8 +113,13 @@
 #![warn(unused)]
 
 use byteorder::{ReadBytesExt, LE};
-use encoding_rs::{UTF_16LE, WINDOWS_1252};
-use encoding_rs_io::DecodeReaderBytesBuilder;
+#[cfg(feature = "chardet")]
+use chardet::detect as detect_encoding;
+#[cfg(feature = "chardet")]
+use encoding_rs::UTF_8;
+#[cfg(not(feature = "chardet"))]
+use encoding_rs::WINDOWS_1252;
+use encoding_rs::{Encoding, UTF_16LE};
 use pelite::{
     pe32::{Pe, PeFile},
     resources::Name,
@@ -144,6 +161,7 @@ impl StringKey {
     /// assert!(StringKey::from(0).is_numeric());
     /// assert!(!StringKey::from("").is_numeric());
     /// ```
+    #[inline]
     pub fn is_numeric(&self) -> bool {
         use StringKey::{Name, Num};
         match self {
@@ -161,6 +179,7 @@ impl StringKey {
     /// assert!(!StringKey::from(0).is_named());
     /// assert!(StringKey::from("").is_named());
     /// ```
+    #[inline]
     pub fn is_named(&self) -> bool {
         use StringKey::{Name, Num};
         match self {
@@ -181,18 +200,21 @@ impl fmt::Display for StringKey {
 }
 
 impl From<u32> for StringKey {
+    #[inline]
     fn from(n: u32) -> Self {
         StringKey::Num(n)
     }
 }
 
 impl From<i32> for StringKey {
+    #[inline]
     fn from(n: i32) -> Self {
         StringKey::from(n as u32)
     }
 }
 
 impl From<&str> for StringKey {
+    #[inline]
     fn from(s: &str) -> Self {
         use StringKey::{Name, Num};
         if let Ok(n) = s.parse() {
@@ -204,6 +226,7 @@ impl From<&str> for StringKey {
 }
 
 impl From<String> for StringKey {
+    #[inline]
     fn from(s: String) -> Self {
         StringKey::from(&s[..])
     }
@@ -224,15 +247,18 @@ pub enum LoadError {
     /// An error occurred while parsing a numeric string ID into an integer
     /// value.
     ParseIntError(ParseIntError),
+    /// An error occurred while decoding bytes in the file to a string.
+    DecodeStringError,
 }
 
 impl fmt::Display for LoadError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use LoadError::{IoError, ParseIntError, PeError};
+        use LoadError::{DecodeStringError, IoError, ParseIntError, PeError};
         match self {
             IoError(e) => e.fmt(f),
             ParseIntError(e) => e.fmt(f),
             PeError(e) => e.fmt(f),
+            DecodeStringError => write!(f, "string decoding failed"),
         }
     }
 }
@@ -285,6 +311,7 @@ pub enum LangFileType {
 impl LangFileType {
     /// Reads a language file from an input reader.
     /// Returns a `LoadError` if an error occurs while reading.
+    #[inline]
     pub fn read_from(&self, r: impl Read) -> Result<LangFile, LoadError> {
         use LangFileType::{Dll, Ini, KeyValue};
         let mut lang_file = LangFile::new();
@@ -311,6 +338,56 @@ impl FromStr for LangFileType {
     }
 }
 
+/// Helper to detect the most common encoding among several sample lines.
+#[cfg(feature = "chardet")]
+struct EncodingDetector {
+    used_lines: Vec<Vec<u8>>,
+    occurrences: Vec<(&'static Encoding, usize)>,
+}
+
+#[cfg(feature = "chardet")]
+impl EncodingDetector {
+    fn new(capacity: usize) -> Self {
+        Self {
+            used_lines: Vec::with_capacity(capacity),
+            occurrences: Vec::with_capacity(capacity),
+        }
+    }
+
+    /// Detect the encoding for one sample line.
+    fn check_line(&mut self, line: Vec<u8>) {
+        if let Some(enc) = Encoding::for_label(detect_encoding(&line).0.as_bytes()) {
+            self.add(enc);
+        }
+        self.used_lines.push(line);
+    }
+
+    /// Add one detected encoding.
+    fn add(&mut self, enc: &'static Encoding) {
+        if let Some(pair) = self
+            .occurrences
+            .iter_mut()
+            .find(|(existing_enc, _)| existing_enc == &enc)
+        {
+            pair.1 += 1;
+        } else {
+            self.occurrences.push((enc, 1));
+        }
+    }
+
+    /// Consume this object and return the detected encoding, as well as any lines that were used
+    /// for detection, so the consumer can iterate over them or something.
+    fn finish(mut self) -> (&'static Encoding, Vec<Vec<u8>>) {
+        // if no encoding could be detected for any of the lines, just do whatever
+        let last = self.occurrences.pop().unwrap_or((UTF_8, 0));
+        let (most_common_encoding, _count) =
+            self.occurrences
+                .into_iter()
+                .fold(last, |a, b| if b.1 > a.1 { b } else { a });
+        (most_common_encoding, self.used_lines)
+    }
+}
+
 /// A mapping of `StringKey` key to `String` values.
 ///
 /// May be read from or written to one of the three file formats for Aoe2
@@ -324,6 +401,7 @@ impl LangFile {
     ///
     /// Returns `Err(e)` where `e` is a `LoadError` if an error occurs while
     /// loading the file.
+    #[inline]
     pub fn read_dll(&mut self, mut input: impl Read) -> Result<(), LoadError> {
         let mut bytes = vec![];
         input.read_to_end(&mut bytes)?;
@@ -387,22 +465,68 @@ impl LangFile {
     }
 
     /// Reads a language file from a .INI file, like the ones used by Voobly and
-    /// the aoc-language-ini mod.
+    /// the aoc-language-ini mod. INI language files can have any encoding, so this function
+    /// attempts to detect it.
     ///
     /// This function eagerly loads all the strings into memory.
-    /// At this time, the encoding of the language.ini file is assumed to be
-    /// Windows codepage 1252.
     ///
     /// Returns `Err(e)` where `e` is a `LoadError` if an error occurs while
     /// loading the file.
     fn read_ini(&mut self, input: impl Read) -> Result<(), LoadError> {
-        let input = DecodeReaderBytesBuilder::new()
-            .encoding(Some(WINDOWS_1252))
-            .build(input);
-        let input = BufReader::new(input);
-        for line in input.lines() {
-            self.load_ini_line(&line?)?;
+        /// Read one ini file line (until \n) from a reader, stripping \r\n.
+        /// Returns Ok(true) if a line was read, Ok(false) if there are no more lines, Err() if
+        /// an I/O error occurred.
+        fn read_line(
+            input: &mut BufReader<impl Read>,
+            mut line: &mut Vec<u8>,
+        ) -> Result<bool, LoadError> {
+            let len = input.read_until(b'\n', &mut line)?;
+            if len > 0 {
+                line.pop(); // get rid of the \n
+                if line.last() == Some(&b'\r') {
+                    line.pop();
+                }
+                Ok(true)
+            } else {
+                Ok(false)
+            }
         }
+
+        // temporary buffer for reading lines
+        let mut line = vec![];
+        let mut input = BufReader::new(input);
+
+        #[cfg(feature = "chardet")]
+        let encoding = {
+            // count which guessed encodings occur in the first 16 lines, hopefully later lines will
+            // agree!
+            let mut detector = EncodingDetector::new(16);
+            for _ in 0..16 {
+                if !read_line(&mut input, &mut line)? {
+                    line.clear();
+                    break;
+                }
+                detector.check_line(line.clone());
+                line.clear();
+            }
+
+            let (encoding, cache_lines) = detector.finish();
+            for cached_line in cache_lines {
+                self.load_ini_line(&cached_line, encoding)?;
+            }
+            encoding
+        };
+        #[cfg(not(feature = "chardet"))]
+        let encoding = WINDOWS_1252;
+
+        loop {
+            if !read_line(&mut input, &mut line)? {
+                break;
+            }
+            self.load_ini_line(&line, encoding)?;
+            line.clear();
+        }
+
         Ok(())
     }
 
@@ -413,12 +537,12 @@ impl LangFile {
     /// A `LoadError` is returned if an error occurs while parsing.
     ///
     /// Returns a `LoadError` if an error occurs while reading the line.
-    fn load_ini_line(&mut self, line: &str) -> Result<(), LoadError> {
-        if line.starts_with(';') {
+    fn load_ini_line(&mut self, line: &[u8], encoding: &'static Encoding) -> Result<(), LoadError> {
+        if let None | Some(b';') = line.get(0) {
             return Ok(());
         }
 
-        let mut split = line.splitn(2, '=');
+        let mut split = line.splitn(2, |byte| *byte == b'=');
         let id = match split.next() {
             Some(id) => id,
             None => return Ok(()),
@@ -428,8 +552,14 @@ impl LangFile {
             None => return Ok(()),
         };
 
-        let id: u32 = id.parse()?;
-        let value = unescape(value.chars(), false);
+        let id: u32 = std::str::from_utf8(id)
+            .map_err(|_| LoadError::DecodeStringError)?
+            .parse()?;
+        let (decoded, _enc, failed) = encoding.decode(&value);
+        if failed {
+            return Err(LoadError::DecodeStringError);
+        }
+        let value = unescape(decoded.chars(), false);
         self.0.insert(StringKey::from(id), value);
         Ok(())
     }
@@ -477,6 +607,7 @@ impl LangFile {
     }
 
     /// Writes this language file to an output writer using the ini format.
+    #[inline]
     pub fn write_to_ini<W: Write>(&self, output: &mut W) -> io::Result<()> {
         // TODO warning if there are string ids
         for (id, string) in self.iter().filter(|(id, _)| id.is_numeric()) {
@@ -487,6 +618,7 @@ impl LangFile {
 
     /// Writes this language file to an output writer using the key-value
     /// format.
+    #[inline]
     pub fn write_to_keyval<W: Write>(&self, output: &mut W) -> io::Result<()> {
         for (id, string) in self.iter() {
             output.write_all(format!("{} \"{}\"\n", id, escape(string, true)).as_bytes())?;
@@ -503,6 +635,7 @@ impl LangFile {
     ///
     /// let lang_file = LangFile::new();
     /// ```
+    #[inline]
     pub fn new() -> Self {
         LangFile(HashMap::new())
     }
@@ -520,6 +653,7 @@ impl LangFile {
     /// lang_file.insert(StringKey::from(0), String::from(""));
     /// assert!(!lang_file.is_empty());
     /// ```
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -536,6 +670,7 @@ impl LangFile {
     /// lang_file.insert(StringKey::from(0), String::from(""));
     /// assert_eq!(1, lang_file.len());
     /// ```
+    #[inline]
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -552,6 +687,7 @@ impl LangFile {
     /// lang_file.clear();
     /// assert!(lang_file.is_empty());
     /// ```
+    #[inline]
     pub fn clear(&mut self) {
         self.0.clear()
     }
@@ -573,6 +709,7 @@ impl LangFile {
     /// }
     /// assert!(lang_file.is_empty());
     /// ```
+    #[inline]
     pub fn drain(&mut self) -> Drain<'_, StringKey, String> {
         self.0.drain()
     }
@@ -589,6 +726,7 @@ impl LangFile {
     /// assert!(lang_file.contains_key(&StringKey::from(0)));
     /// assert!(!lang_file.contains_key(&StringKey::from(1)));
     /// ```
+    #[inline]
     pub fn contains_key(&self, k: &StringKey) -> bool {
         self.0.contains_key(k)
     }
@@ -605,6 +743,7 @@ impl LangFile {
     /// assert_eq!(Some(&String::from("")), lang_file.get(&StringKey::from(0)));
     /// assert_eq!(None, lang_file.get(&StringKey::from(1)));
     /// ```
+    #[inline]
     pub fn get(&self, k: &StringKey) -> Option<&String> {
         self.0.get(k)
     }
@@ -621,6 +760,7 @@ impl LangFile {
     /// if let Some(s) = lang_file.get_mut(&StringKey::from(0)) { s.push('A'); }
     /// assert_eq!("aA", lang_file.get(&StringKey::from(0)).unwrap());
     /// ```
+    #[inline]
     pub fn get_mut(&mut self, k: &StringKey) -> Option<&mut String> {
         self.0.get_mut(k)
     }
@@ -643,6 +783,7 @@ impl LangFile {
     /// assert_eq!("aA", lang_file.get(&StringKey::from(0)).unwrap());
     /// assert_eq!("HelloA", lang_file.get(&StringKey::from(1)).unwrap());
     /// ```
+    #[inline]
     pub fn entry(&mut self, key: StringKey) -> Entry<'_, StringKey, String> {
         self.0.entry(key)
     }
@@ -667,6 +808,7 @@ impl LangFile {
     /// assert_eq!(Some(String::from("b")),
     ///            lang_file.insert(StringKey::from(0), String::from("c")));
     /// ```
+    #[inline]
     pub fn insert(&mut self, k: StringKey, v: String) -> Option<String> {
         self.0.insert(k, v)
     }
@@ -686,6 +828,7 @@ impl LangFile {
     ///            lang_file.remove(&StringKey::from(0)));
     /// assert_eq!(None, lang_file.remove(&StringKey::from(0)));
     /// ```
+    #[inline]
     pub fn remove(&mut self, k: &StringKey) -> Option<String> {
         self.0.remove(k)
     }
@@ -711,6 +854,7 @@ impl LangFile {
     /// });
     /// assert_eq!(3, lang_file.len());
     /// ```
+    #[inline]
     pub fn retain<F: FnMut(&StringKey, &mut String) -> bool>(&mut self, f: F) {
         self.0.retain(f)
     }
@@ -731,6 +875,7 @@ impl LangFile {
     ///
     /// for (k, v) in lang_file.iter() { println!("key: {}, val: {}", k, v); }
     /// ```
+    #[inline]
     pub fn iter(&self) -> Iter<'_, StringKey, String> {
         self.0.iter()
     }
@@ -753,6 +898,7 @@ impl LangFile {
     /// for (_, v) in lang_file.iter_mut() { v.push('A'); }
     /// for (k, v) in &lang_file { println!("key: {}, val: {}", k, v); }
     /// ```
+    #[inline]
     pub fn iter_mut(&mut self) -> IterMut<'_, StringKey, String> {
         self.0.iter_mut()
     }
@@ -773,6 +919,7 @@ impl LangFile {
     ///
     /// for k in lang_file.keys() { println!("key: {}", k); }
     /// ```
+    #[inline]
     pub fn keys(&self) -> Keys<'_, StringKey, String> {
         self.0.keys()
     }
@@ -793,6 +940,7 @@ impl LangFile {
     ///
     /// for v in lang_file.values() { println!("value: {}", v); }
     /// ```
+    #[inline]
     pub fn values(&self) -> Values<'_, StringKey, String> {
         self.0.values()
     }
@@ -814,6 +962,7 @@ impl LangFile {
     /// for v in lang_file.values_mut() { v.push('A'); }
     /// for v in lang_file.values() { println!("{}", v); }
     /// ```
+    #[inline]
     pub fn values_mut(&mut self) -> ValuesMut<'_, StringKey, String> {
         self.0.values_mut()
     }
@@ -954,5 +1103,18 @@ mod tests {
         } else {
             panic!();
         }
+    }
+
+    /// Tests encoding detection for .ini files, which assume the machine's default encoding.
+    #[test]
+    fn detect_encoding() {
+        use super::{LangFileType::Ini, StringKey};
+        use std::fs::File;
+        let f = File::open("./test/inis/korean.ini").unwrap();
+        let lang_file = Ini.read_from(f).unwrap();
+        assert_eq!(
+            lang_file.get(&StringKey::Num(8022)),
+            Some(&"베틀 연구 (주민 체력 +15; 방어력 +1/+2P)".to_string())
+        );
     }
 }
