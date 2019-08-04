@@ -30,6 +30,18 @@
 //! ```
 //!
 //! ## INI files
+//!
+//! INI files tend to use the system's standard character encoding, so a language file created on
+//! one system may not be parsed correctly on another. By default, genie-lang does character
+//! encoding detection on .INI files to mitigate this. This incurs a size cost and a small runtime
+//! cost. The character detection can be disabled by disabling the `chardet` Cargo feature.
+//!
+//! ```toml
+//! [dependencies]
+//! genie = { version = "*", default-features = false, features = ["chardet"] }
+//! ```
+//!
+//!
 //! ```rust
 //! use genie_lang::{LangFileType::Ini, StringKey};
 //! use std::io::Cursor;
@@ -101,8 +113,13 @@
 #![warn(unused)]
 
 use byteorder::{ReadBytesExt, LE};
+#[cfg(feature = "chardet")]
 use chardet::detect as detect_encoding;
-use encoding_rs::{Encoding, UTF_8, UTF_16LE};
+use encoding_rs::{Encoding, UTF_16LE};
+#[cfg(feature = "chardet")]
+use encoding_rs::UTF_8;
+#[cfg(not(feature = "chardet"))]
+use encoding_rs::WINDOWS_1252;
 use pelite::{
     pe32::{Pe, PeFile},
     resources::Name,
@@ -322,11 +339,13 @@ impl FromStr for LangFileType {
 }
 
 /// Helper to detect the most common encoding among several sample lines.
+#[cfg(feature = "chardet")]
 struct EncodingDetector {
     used_lines: Vec<Vec<u8>>,
     occurrences: Vec<(&'static Encoding, usize)>,
 }
 
+#[cfg(feature = "chardet")]
 impl EncodingDetector {
     fn new(capacity: usize) -> Self {
         Self {
@@ -473,22 +492,28 @@ impl LangFile {
         let mut line = vec![];
         let mut input = BufReader::new(input);
 
-        // count which guessed encodings occur in the first 16 lines, hopefully later lines will
-        // agree!
-        let mut detector = EncodingDetector::new(16);
-        for _ in 0..16 {
-            if !read_line(&mut input, &mut line)? {
+        #[cfg(feature = "chardet")]
+        let encoding  = {
+            // count which guessed encodings occur in the first 16 lines, hopefully later lines will
+            // agree!
+            let mut detector = EncodingDetector::new(16);
+            for _ in 0..16 {
+                if !read_line(&mut input, &mut line)? {
+                    line.clear();
+                    break;
+                }
+                detector.check_line(line.clone());
                 line.clear();
-                break;
             }
-            detector.check_line(line.clone());
-            line.clear();
-        }
 
-        let (encoding, cache_lines) = detector.finish();
-        for cached_line in cache_lines {
-            self.load_ini_line(&cached_line, encoding)?;
-        }
+            let (encoding, cache_lines) = detector.finish();
+            for cached_line in cache_lines {
+                self.load_ini_line(&cached_line, encoding)?;
+            }
+            encoding
+        };
+        #[cfg(not(feature = "chardet"))]
+        let encoding = WINDOWS_1252;
 
         loop {
             if !read_line(&mut input, &mut line)? {
@@ -497,6 +522,7 @@ impl LangFile {
             self.load_ini_line(&line, encoding)?;
             line.clear();
         }
+
         Ok(())
     }
 
