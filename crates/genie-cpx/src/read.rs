@@ -1,7 +1,7 @@
 use crate::{CPXVersion, CampaignHeader, ScenarioMeta};
-use chardet::{detect as detect_encoding};
-use encoding_rs::Encoding;
 use byteorder::{ReadBytesExt, LE};
+use chardet::detect as detect_encoding;
+use encoding_rs::Encoding;
 use genie_scx::{self as scx, Scenario};
 use std::io::{self, Cursor, Read, Seek, SeekFrom};
 
@@ -50,7 +50,7 @@ fn decode_str(bytes: &[u8]) -> Result<String> {
         .and_then(|encoding| {
             let (decoded, _enc, failed) = encoding.decode(&bytes);
             if failed {
-                return Err(ReadCampaignError::DecodeStringError)
+                return Err(ReadCampaignError::DecodeStringError);
             }
             Ok(decoded.to_string())
         })

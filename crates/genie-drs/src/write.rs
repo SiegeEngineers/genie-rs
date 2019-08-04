@@ -288,7 +288,9 @@ where
             size: 0,   // TBD
         };
 
-        let res = self.strategy.add_resource(&mut self.inner, t, res, &mut data)?;
+        let res = self
+            .strategy
+            .add_resource(&mut self.inner, t, res, &mut data)?;
 
         match self
             .inner
