@@ -88,9 +88,9 @@ macro_rules! fallible_try_from {
 /// ```
 macro_rules! cmp_float {
     ($id:ident == $val:expr) => {
-        ($id - $val).abs() < std::f32::EPSILON
+        f32::abs($id - $val) < std::f32::EPSILON
     };
     ($id:ident != $val:expr) => {
-        ($id - $val).abs() > std::f32::EPSILON
+        f32::abs($id - $val) > std::f32::EPSILON
     };
 }
