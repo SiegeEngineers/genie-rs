@@ -5,12 +5,18 @@ use encoding_rs::Encoding;
 use genie_scx::{self as scx, Scenario};
 use std::io::{self, Cursor, Read, Seek, SeekFrom};
 
+/// Type for errrors that could occur while reading/parsing a campaign file.
 #[derive(Debug)]
 pub enum ReadCampaignError {
+    /// A string could not be decoded, its encoding may be unknown or it may be binary nonsense.
     DecodeStringError,
+    /// An I/O error occurred.
     IoError(io::Error),
+    /// The campaign file or a scenario inside it is missing a user-facing name value.
     MissingNameError,
+    /// The requested scenario file does not exist in this campaign file.
     NotFoundError,
+    /// A scenario file could not be parsed.
     ParseSCXError(scx::Error),
 }
 
@@ -44,7 +50,7 @@ type Result<T> = std::result::Result<T, ReadCampaignError>;
 
 /// Decode a string with unknown encoding.
 fn decode_str(bytes: &[u8]) -> Result<String> {
-    let (encoding_name, confidence, language) = detect_encoding(&bytes);
+    let (encoding_name, _confidence, _language) = detect_encoding(&bytes);
     Encoding::for_label(encoding_name.as_bytes())
         .ok_or(ReadCampaignError::DecodeStringError)
         .and_then(|encoding| {
@@ -142,6 +148,7 @@ where
         self.header.version
     }
 
+    /// Get the user-facing name of this campaign.
     pub fn name(&self) -> &str {
         &self.header.name
     }
@@ -156,18 +163,22 @@ where
         self.entries.len()
     }
 
+    /// Returns true if this campaign contains no scenario files.
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty()
     }
 
+    /// Get the user-facing name of the scenario at the given index.
     pub fn get_name(&self, id: usize) -> Option<&str> {
         self.entries.get(id).map(|entry| entry.name.as_ref())
     }
 
+    /// Get the filename of the scenario at the given index.
     pub fn get_filename(&self, id: usize) -> Option<&str> {
         self.entries.get(id).map(|entry| entry.filename.as_ref())
     }
 
+    /// Return the index of the scenario with the given filename, if it exists.
     fn get_id(&self, filename: &str) -> Option<usize> {
         self.entries
             .iter()
