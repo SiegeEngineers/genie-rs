@@ -53,17 +53,24 @@ pub struct ResourceType([u8; 4]);
 impl ResourceType {
     #[inline]
     fn write_to<W: Write>(self, output: &mut W) -> Result<(), Error> {
-        output.write_all(&self.0)?;
+        let mut bytes = [0; 4];
+        bytes.copy_from_slice(&self.0);
+        bytes.reverse();
+        output.write_all(&bytes)?;
         Ok(())
+    }
+}
+
+impl AsRef<str> for ResourceType {
+    fn as_ref(&self) -> &str {
+        str::from_utf8(&self.0[..]).unwrap().trim()
     }
 }
 
 impl ToString for ResourceType {
     fn to_string(&self) -> String {
-        let mut bytes = [0 as u8; 4];
-        bytes.clone_from_slice(&self.0);
-        bytes.reverse();
-        str::from_utf8(&bytes).unwrap().trim().to_string()
+        let s: &str = self.as_ref();
+        s.to_string()
     }
 }
 
@@ -88,7 +95,8 @@ impl core::str::FromStr for ResourceType {
 }
 
 impl From<[u8; 4]> for ResourceType {
-    fn from(u: [u8; 4]) -> Self {
+    fn from(mut u: [u8; 4]) -> Self {
+        u.reverse();
         Self(u)
     }
 }
@@ -99,7 +107,6 @@ impl From<&[u8]> for ResourceType {
         assert!(u.len() <= 4);
         let mut bytes = [b' '; 4];
         (&mut bytes[0..u.len()]).copy_from_slice(u);
-        bytes.reverse();
         Self(bytes)
     }
 }
