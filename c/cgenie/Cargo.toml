@@ -1,0 +1,20 @@
+[package]
+name = "cgenie"
+version = "0.1.0"
+authors = ["Renée Kooi <renee@kooi.me>"]
+edition = "2018"
+license = "GPL-3.0"
+description = "C-compatible APIs for genie-rs libraries"
+homepage = "https://github.com/SiegeEngineers/genie-rs"
+repository = "https://github.com/SiegeEngineers/genie-rs"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# Need to figure out FFI generics to make this work
+# cgenie-cpx = { path = "../cgenie-cpx" }
+cgenie-drs = { path = "../cgenie-drs" }
+cgenie-hki = { path = "../cgenie-hki" }
+cgenie-lang = { path = "../cgenie-lang" }
+cgenie-scx = { path = "../cgenie-scx" }

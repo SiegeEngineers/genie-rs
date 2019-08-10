@@ -28,5 +28,13 @@ members = [
   "crates/genie-hki",
   "crates/genie-lang",
   "crates/genie-scx",
-  "crates/jascpal"
+  "crates/jascpal",
+
+  "c/cgenie",
+  # need to figure out FFI generics to make this work
+  # "c/cgenie-cpx",
+  "c/cgenie-drs",
+  "c/cgenie-hki",
+  "c/cgenie-lang",
+  "c/cgenie-scx",
 ]
