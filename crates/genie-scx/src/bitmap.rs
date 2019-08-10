@@ -6,7 +6,7 @@ use rgb::RGBA8;
 use std::io::{Read, Write};
 
 /// Bitmap header info.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct BitmapInfo {
     size: u32,
     width: i32,
