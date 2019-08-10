@@ -48,6 +48,19 @@ type DRSVersion = [u8; 4];
 ///
 /// In a .drs archive, type names are represented as 4 bytes. They are laid out in reverse order and
 /// padded with ASCII space characters (`' '`). For example, the "slp" resource type is stored as `" pls"`.
+///
+/// ## Examples
+/// ```rust
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use genie_drs::ResourceType;
+/// let slp = ResourceType::from(*b" pls");
+/// assert_eq!(&slp, "slp", "implements AsRef<str>");
+/// assert_eq!(slp.to_string(), "slp", "implements ToString");
+/// assert_eq!(slp, ResourceType::from(*b" pls"));
+/// let bina = "bina".parse::<ResourceType>()?;
+/// assert_ne!(slp, bina);
+/// # Ok(()) }
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ResourceType([u8; 4]);
 impl ResourceType {
@@ -58,6 +71,13 @@ impl ResourceType {
         bytes.reverse();
         output.write_all(&bytes)?;
         Ok(())
+    }
+}
+
+impl PartialEq<str> for ResourceType {
+    fn eq(&self, ext: &str) -> bool {
+        let me: &str = self.as_ref();
+        me == ext
     }
 }
 
@@ -81,9 +101,17 @@ impl ToString for ResourceType {
 #[derive(Debug)]
 pub struct ParseResourceTypeError;
 
-/// Parse a resource type from a string, with error handling.
+impl std::fmt::Display for ParseResourceTypeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "invalid resource type, must be 4 characters")
+    }
+}
+
+impl std::error::Error for ParseResourceTypeError {}
+
 impl core::str::FromStr for ResourceType {
     type Err = ParseResourceTypeError;
+    /// Parse a resource type from a string, with error handling.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let bytes = s.as_bytes();
         if bytes.len() > 4 {
@@ -270,11 +298,19 @@ impl DRSTable {
             .map(|index| &self.resources[index])
     }
 
+    /// Get the resource type this table contains.
+    #[inline]
+    pub fn resource_type(&self) -> ResourceType {
+        self.resource_type
+    }
+
+    /// Deprecated, use `resource_type()` instead.
     #[inline]
     pub fn resource_ext(&self) -> String {
         self.resource_type.to_string()
     }
 
+    /// Add a resource to this table.
     #[inline]
     pub(crate) fn add(&mut self, res: DRSResource) -> &mut DRSResource {
         self.resources.push(res);
