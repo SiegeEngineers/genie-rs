@@ -324,7 +324,7 @@ impl LangFile {
     ///
     /// Returns `Err(e)` where `e` is a `LoadError` if an error occurs while
     /// loading the file.
-    pub fn read_dll(&mut self, mut input: impl Read) -> Result<(), LoadError> {
+    fn read_dll(&mut self, mut input: impl Read) -> Result<(), LoadError> {
         let mut bytes = vec![];
         input.read_to_end(&mut bytes)?;
         let pe = PeFile::from_bytes(&bytes)?;

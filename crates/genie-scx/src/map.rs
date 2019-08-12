@@ -3,7 +3,7 @@ use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::io::{Read, Write};
 
 /// A map tile.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Tile {
     /// The terrain.
     pub terrain: i8,
@@ -14,7 +14,7 @@ pub struct Tile {
 }
 
 /// Describes the terrain in a map.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Map {
     /// Width of this map in tiles.
     width: u32,

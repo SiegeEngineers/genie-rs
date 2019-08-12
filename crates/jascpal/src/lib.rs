@@ -28,6 +28,14 @@
 //!     "JASC-PAL\r\n0100\r\n3\r\n0 0 0\r\n0 255 255\r\n255 0 0\r\n".to_string()
 //! );
 //! ```
+
+#![deny(future_incompatible)]
+#![deny(nonstandard_style)]
+#![deny(rust_2018_idioms)]
+#![deny(unsafe_code)]
+#![warn(missing_docs)]
+#![warn(unused)]
+
 use nom::{
     bytes::complete::tag,
     character::complete::{digit1, one_of},
@@ -323,7 +331,7 @@ impl ToString for Palette {
     #[inline]
     fn to_string(&self) -> String {
         let s = self.to_bytes();
-        unsafe { String::from_utf8_unchecked(s) }
+        String::from_utf8(s).unwrap()
     }
 }
 

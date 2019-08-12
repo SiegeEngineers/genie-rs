@@ -9,7 +9,7 @@ use std::{
     io::{Read, Write},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DLCOptions {
     pub version: i32,
     pub game_data_set: DataSet,
@@ -46,9 +46,9 @@ impl DLCOptions {
         };
 
         let num_dependencies = input.read_u32::<LE>()?;
-        let mut dependencies = vec![];
-        for _ in 0..num_dependencies {
-            dependencies.push(DLCPackage::try_from(input.read_i32::<LE>()?)?);
+        let mut dependencies = vec![DLCPackage::AgeOfKings; num_dependencies as usize];
+        for dependency in dependencies.iter_mut() {
+            *dependency = DLCPackage::try_from(input.read_i32::<LE>()?)?;
         }
 
         Ok(DLCOptions {
@@ -69,7 +69,7 @@ impl DLCOptions {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SCXHeader {
     /// Version of the header.
     ///

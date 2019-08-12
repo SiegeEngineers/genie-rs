@@ -154,6 +154,7 @@ impl std::error::Error for Error {}
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// A Scenario file.
+#[derive(Debug, Clone)]
 pub struct Scenario {
     format: SCXFormat,
     version: VersionBundle,

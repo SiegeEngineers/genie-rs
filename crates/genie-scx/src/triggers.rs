@@ -183,7 +183,7 @@ impl TriggerCondition {
 }
 
 /// A trigger effect, describing the response when a trigger fires.
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
 pub struct TriggerEffect {
     effect_type: i32,
     properties: Vec<i32>,
@@ -416,7 +416,7 @@ impl TriggerEffect {
 }
 
 /// A trigger, describing automatic interactive behaviours in a scenario.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Trigger {
     enabled: bool,
     looping: bool,
@@ -506,7 +506,7 @@ impl Trigger {
 }
 
 /// The trigger system maintains an ordered list  of triggers.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TriggerSystem {
     version: f64,
     objectives_state: i8,

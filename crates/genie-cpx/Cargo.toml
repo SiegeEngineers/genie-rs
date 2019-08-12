@@ -1,6 +1,6 @@
 [package]
 name = "genie-cpx"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Renée Kooi <renee@kooi.me>"]
 edition = "2018"
 license = "GPL-3.0"
@@ -10,4 +10,6 @@ repository = "https://github.com/SiegeEngineers/genie-rs"
 
 [dependencies]
 byteorder = "^1.3.1"
-genie-scx = { version = "1.0.0", path = "../genie-scx" }
+chardet = "^0.2.4"
+encoding_rs = "^0.8.17"
+genie-scx = { version = "2.0.0", path = "../genie-scx" }
