@@ -161,6 +161,7 @@ pub struct Scenario {
 
 impl Scenario {
     /// Read a scenario file.
+    #[inline]
     pub fn from<R: Read>(input: &mut R) -> Result<Self> {
         let format = SCXFormat::load_scenario(input)?;
         let version = format.version();
@@ -171,11 +172,13 @@ impl Scenario {
     /// Write the scenario file to an output stream.
     ///
     /// Equivalent to `scen.write_to_version(scen.version())`.
+    #[inline]
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         self.format.write_to(output, self.version())
     }
 
     /// Write the scenario file to an output stream, targeting specific game versions.
+    #[inline]
     pub fn write_to_version<W: Write>(
         &self,
         output: &mut W,
@@ -185,41 +188,49 @@ impl Scenario {
     }
 
     /// Get the format version of this SCX file.
+    #[inline]
     pub fn format_version(&self) -> SCXVersion {
         self.version().format
     }
 
     /// Get the header version for this SCX file.
+    #[inline]
     pub fn header_version(&self) -> u32 {
         self.version().header
     }
 
     /// Get the data version for this SCX file.
+    #[inline]
     pub fn data_version(&self) -> f32 {
         self.version().data
     }
 
     /// Get the header.
+    #[inline]
     pub fn header(&self) -> &SCXHeader {
         &self.format.header
     }
 
     /// Get the scenario description.
+    #[inline]
     pub fn description(&self) -> Option<&str> {
         self.format.tribe_scen.description()
     }
 
     /// Get the scenario filename.
+    #[inline]
     pub fn filename(&self) -> &str {
         &self.format.tribe_scen.base.name
     }
 
     /// Get data about the game versions this scenario file was made for.
+    #[inline]
     pub fn version(&self) -> &VersionBundle {
         &self.version
     }
 
     /// Check if this scenario requires the given DLC (for HD Edition scenarios only).
+    #[inline]
     pub fn requires_dlc(&self, dlc: DLCPackage) -> bool {
         match &self.header().dlc_options {
             Some(options) => options.dependencies.iter().any(|dep| *dep == dlc),
@@ -227,7 +238,16 @@ impl Scenario {
         }
     }
 
+    /// Get the UserPatch mod name of the mod that was used to create this scenario.
+    ///
+    /// This returns the short name, like "WK" for WololoKingdoms or "aoc" for Age of Chivalry.
+    #[inline]
+    pub fn mod_name(&self) -> Option<&str> {
+        self.format.mod_name()
+    }
+
     /// Iterate over all the objects placed in the scenario.
+    #[inline]
     pub fn objects(&self) -> impl Iterator<Item = &ScenarioObject> {
         self.format
             .player_objects
@@ -237,6 +257,7 @@ impl Scenario {
     }
 
     /// Iterate mutably over all the objects placed in the scenario.
+    #[inline]
     pub fn objects_mut(&mut self) -> impl Iterator<Item = &mut ScenarioObject> {
         self.format
             .player_objects
@@ -246,21 +267,25 @@ impl Scenario {
     }
 
     /// Get the map/terrain data for this scenario.
+    #[inline]
     pub fn map(&self) -> &Map {
         &self.format.map
     }
 
     /// Get the (mutable) map/terrain data for this scenario.
+    #[inline]
     pub fn map_mut(&mut self) -> &mut Map {
         &mut self.format.map
     }
 
     /// Get trigger data for this scenario if it exists.
+    #[inline]
     pub fn triggers(&self) -> Option<&TriggerSystem> {
         self.format.triggers.as_ref()
     }
 
     /// Get (mutable) trigger data for this scenario if it exists.
+    #[inline]
     pub fn triggers_mut(&mut self) -> Option<&mut TriggerSystem> {
         self.format.triggers.as_mut()
     }

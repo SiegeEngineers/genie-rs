@@ -1118,6 +1118,13 @@ impl SCXFormat {
 
         Ok(())
     }
+
+    /// Get the name of the UserPatch mod that was used to create this scenario, if applicable.
+    ///
+    /// Returns None if no mod was used.
+    pub fn mod_name(&self) -> Option<&str> {
+        self.tribe_scen.base.player_names[9].as_ref().map(|string| string.as_str())
+    }
 }
 
 #[cfg(test)]
