@@ -30,7 +30,14 @@ impl Map {
         Self {
             width,
             height,
-            tiles: vec![Tile { terrain: 0, elevation: 0, zone: 0 }; (width * height) as usize],
+            tiles: vec![
+                Tile {
+                    terrain: 0,
+                    elevation: 0,
+                    zone: 0
+                };
+                (width * height) as usize
+            ],
         }
     }
 

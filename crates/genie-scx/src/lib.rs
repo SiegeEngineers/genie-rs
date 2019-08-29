@@ -25,6 +25,7 @@ mod victory;
 use format::SCXFormat;
 use std::io::{self, Read, Write};
 
+pub use ai::ParseAIErrorCodeError;
 pub use format::ScenarioObject;
 pub use header::{DLCOptions, SCXHeader};
 pub use map::{Map, Tile};
@@ -67,6 +68,8 @@ pub enum Error {
     ParseDLCPackageError(ParseDLCPackageError),
     /// The given ID is not a known starting age in AoE1 or AoE2.
     ParseStartingAgeError(ParseStartingAgeError),
+    /// The given ID is not a known error code.
+    ParseAIErrorCodeError(ParseAIErrorCodeError),
     /// An error occurred while reading or writing.
     IoError(io::Error),
 }
@@ -109,6 +112,7 @@ error_impl_from!(ParseDiplomaticStanceError);
 error_impl_from!(ParseDataSetError);
 error_impl_from!(ParseDLCPackageError);
 error_impl_from!(ParseStartingAgeError);
+error_impl_from!(ParseAIErrorCodeError);
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -143,6 +147,7 @@ impl std::fmt::Display for Error {
             Error::ParseDataSetError(err) => write!(f, "{}", err),
             Error::ParseDLCPackageError(err) => write!(f, "{}", err),
             Error::ParseStartingAgeError(err) => write!(f, "{}", err),
+            Error::ParseAIErrorCodeError(err) => write!(f, "{}", err),
         }
     }
 }
