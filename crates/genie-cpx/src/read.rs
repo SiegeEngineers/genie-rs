@@ -76,11 +76,24 @@ pub fn read_fixed_str<R: Read>(input: &mut R, len: usize) -> Result<Option<Strin
     }
 }
 
+fn read_new_str<R: Read>(input: &mut R) -> Result<Option<String>> {
+    let _open = input.read_u16::<LE>()?; // start of string
+    let len = input.read_u16::<LE>()? as usize;
+    let mut bytes = vec![0; len];
+    input.read_exact(&mut bytes[0..len])?;
+    decode_str(&bytes).map(Some)
+}
+
 fn read_campaign_header<R: Read>(input: &mut R) -> Result<CampaignHeader> {
     let mut version = [0; 4];
     input.read_exact(&mut version)?;
-    let name = read_fixed_str(input, 256)?.ok_or(ReadCampaignError::MissingNameError)?;
-    let num_scenarios = input.read_i32::<LE>()? as usize;
+    let (name, num_scenarios) = if version == *b"1.10" {
+        let num_scenarios = input.read_i32::<LE>()? as usize;
+        (read_new_str(input)?.ok_or(ReadCampaignError::MissingNameError)?, num_scenarios)
+    } else {
+        (read_fixed_str(input, 256)?.ok_or(ReadCampaignError::MissingNameError)?,
+        input.read_i32::<LE>()? as usize)
+    };
 
     Ok(CampaignHeader {
         version,
@@ -89,11 +102,20 @@ fn read_campaign_header<R: Read>(input: &mut R) -> Result<CampaignHeader> {
     })
 }
 
-fn read_scenario_meta<R: Read>(input: &mut R) -> Result<ScenarioMeta> {
+fn read_scenario_meta<R: Read>(input: &mut R, version: CPXVersion) -> Result<ScenarioMeta> {
     let size = input.read_i32::<LE>()? as usize;
     let offset = input.read_i32::<LE>()? as usize;
-    let name = read_fixed_str(input, 255)?.ok_or(ReadCampaignError::MissingNameError)?;
-    let filename = read_fixed_str(input, 255)?.ok_or(ReadCampaignError::MissingNameError)?;
+    dbg!(size,offset);
+    let name = if version == *b"1.10" {
+        read_new_str(input)
+    } else {
+        read_fixed_str(input, 255)
+    }?.ok_or(ReadCampaignError::MissingNameError)?;
+    let filename = if version == *b"1.10" {
+        read_new_str(input)
+    } else {
+        read_fixed_str(input, 255)
+    }?.ok_or(ReadCampaignError::MissingNameError)?;
     let mut padding = [0; 2];
     input.read_exact(&mut padding)?;
 
@@ -125,10 +147,10 @@ where
     /// This immediately reads the campaign header and scenario metadata, but not the scenario
     /// files themselves.
     pub fn from(mut input: R) -> Result<Self> {
-        let header = read_campaign_header(&mut input)?;
+        let header = dbg!(read_campaign_header(&mut input))?;
         let mut entries = vec![];
         for _ in 0..header.num_scenarios {
-            entries.push(read_scenario_meta(&mut input)?);
+            entries.push(read_scenario_meta(&mut input, header.version)?);
         }
 
         Ok(Self {
@@ -240,9 +262,9 @@ mod tests {
         assert_eq!(cpx.name(), "DER FALL VON SACSAHUAMÁN - TEIL I");
         assert_eq!(cpx.len(), 1);
 
-        let names: Vec<&String> = cpx.entries().map(|e| &e.name).collect();
+        let names: Vec<_> = cpx.entries().map(|e| &e.name).collect();
         assert_eq!(names, vec!["Der Weg nach Sacsahuamán"]);
-        let filenames: Vec<&String> = cpx.entries().map(|e| &e.filename).collect();
+        let filenames: Vec<_> = cpx.entries().map(|e| &e.filename).collect();
         assert_eq!(filenames, vec!["Der Weg nach Sacsahuamán.scx"]);
     }
 
@@ -255,9 +277,9 @@ mod tests {
         assert_eq!(c.version(), *b"1.00");
         assert_eq!(c.name(), "Armies at War, A Combat Showcase");
         assert_eq!(c.len(), 1);
-        let names: Vec<&String> = c.entries().map(|e| &e.name).collect();
+        let names: Vec<_> = c.entries().map(|e| &e.name).collect();
         assert_eq!(names, vec!["Bronze Age Art of War"]);
-        let filenames: Vec<&String> = c.entries().map(|e| &e.filename).collect();
+        let filenames: Vec<_> = c.entries().map(|e| &e.filename).collect();
         assert_eq!(filenames, vec!["Bronze Age Art of War.scn"]);
 
         c.by_index_raw(0).expect("could not read raw file");
@@ -273,7 +295,7 @@ mod tests {
         assert_eq!(c.version(), *b"1.00");
         assert_eq!(c.name(), "Rise of Egypt Learning Campaign");
         assert_eq!(c.len(), 12);
-        let filenames: Vec<&String> = c.entries().map(|e| &e.filename).collect();
+        let filenames: Vec<_> = c.entries().map(|e| &e.filename).collect();
         assert_eq!(
             filenames,
             vec![
