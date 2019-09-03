@@ -8,10 +8,11 @@
 //!
 //! ## DLLs
 //! ```rust
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use genie_lang::{LangFileType::Dll, StringKey};
 //! use std::fs::File;
-//! let f = File::open("./test/dlls/language_x1_p1.dll").unwrap();
-//! let lang_file = Dll.read_from(f).unwrap();
+//! let f = File::open("./test/dlls/language_x1_p1.dll")?;
+//! let lang_file = Dll.read_from(f)?;
 //! assert_eq!(
 //!     lang_file.get(&StringKey::from(30177)),
 //!     Some(&String::from("Turbo Random Map - Buildings create units faster, villagers gather faster, build faster, and carry more.")));
@@ -27,10 +28,12 @@
 //!           <b>Unique Unit:<b> Cataphract (cavalry) \n\n\
 //!           <b>Unique Tech:<b> Logistica (Cataphracts cause trample damage) \n\n\
 //!           <b>Team Bonus:<b> Monks +50% heal speed")));
+//! # Ok(()) }
 //! ```
 //!
 //! ## INI files
 //! ```rust
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use genie_lang::{LangFileType::Ini, StringKey};
 //! use std::io::Cursor;
 //! let text = br#"
@@ -39,14 +42,16 @@
 //! 46524=Uighurs: Yes, that is the pelt of the great wolf. We will join you, Genghis Khan. And to seal the agreement, we will give you the gift of flaming arrows!
 //! "#;
 //! let f = Cursor::new(&text[..]);
-//! let lang_file = Ini.read_from(f).unwrap();
+//! let lang_file = Ini.read_from(f)?;
 //! assert_eq!(
 //!     lang_file.get(&StringKey::from(46523)),
 //!     Some(&String::from("The Uighurs will join if you kill Ornlu the wolf and return to tell the tale.")));
+//! # Ok(()) }
 //! ```
 //!
 //! ## HD key-value files
 //! ```rust
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use genie_lang::{LangFileType::KeyValue, StringKey};
 //! use std::io::Cursor;
 //! let text = br#"
@@ -56,32 +61,34 @@
 //! LOBBYBROWSER_DATMOD_TITLE_FORMAT "DatMod: \"%s\""
 //! "#;
 //! let f = Cursor::new(&text[..]);
-//! let lang_file = KeyValue.read_from(f).unwrap();
+//! let lang_file = KeyValue.read_from(f)?;
 //! assert_eq!(
 //!     lang_file.get(&StringKey::from(46523)),
 //!     Some(&String::from("The Uighurs will join if you kill Ornlu the wolf and return to tell the tale.")));
 //! assert_eq!(
 //!     lang_file.get(&StringKey::from("LOBBYBROWSER_DATMOD_TITLE_FORMAT")),
 //!     Some(&String::from(r#"DatMod: "%s""#)));
+//! # Ok(()) }
 //! ```
 //!
 //! ## Creating a file from scratch
 //! ```rust
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use genie_lang::{LangFile, StringKey};
 //! use std::str;
 //! let mut lang_file = LangFile::new();
 //! lang_file.insert(StringKey::from(46604), String::from("Kill the traitor, Kushluk.\n\n\
 //!                       Prevent the tent of Genghis Khan (Wonder) from being destroyed."));
 //! let mut out = vec![];
-//! lang_file.write_to_ini(&mut out).unwrap();
+//! lang_file.write_to_ini(&mut out)?;
 //! assert_eq!(
-//!     str::from_utf8(&out).unwrap(),
+//!     str::from_utf8(&out)?,
 //!     r"46604=Kill the traitor, Kushluk.\n\nPrevent the tent of Genghis Khan (Wonder) from being destroyed.
 //! ");
 //! lang_file.insert(StringKey::from("LOBBYBROWSER_DATMOD_TITLE_FORMAT"), String::from(r#"DatMod: "%s""#));
 //! let mut out = vec![];
-//! lang_file.write_to_keyval(&mut out).unwrap();
-//! let result_string = str::from_utf8(&out).unwrap();
+//! lang_file.write_to_keyval(&mut out)?;
+//! let result_string = str::from_utf8(&out)?;
 //! println!("{}", result_string);
 //! assert!(
 //!     result_string == r#"46604 "Kill the traitor, Kushluk.\n\nPrevent the tent of Genghis Khan (Wonder) from being destroyed."
@@ -91,6 +98,7 @@
 //!     result_string == r#"LOBBYBROWSER_DATMOD_TITLE_FORMAT "DatMod: \"%s\""
 //! 46604 "Kill the traitor, Kushluk.\n\nPrevent the tent of Genghis Khan (Wonder) from being destroyed."
 //! "#);
+//! # Ok(()) }
 //! ```
 
 #![deny(future_incompatible)]
