@@ -1,5 +1,4 @@
 use genie_drs::{DRSReader, DRSWriter, ReserveDirectoryStrategy};
-use quicli::prelude::*;
 use std::{
     collections::HashSet,
     fs::{create_dir_all, File},
@@ -7,6 +6,8 @@ use std::{
     path::PathBuf,
 };
 use structopt::StructOpt;
+
+type CliResult = Result<(), Box<dyn std::error::Error>>;
 
 #[derive(StructOpt)]
 struct Cli {

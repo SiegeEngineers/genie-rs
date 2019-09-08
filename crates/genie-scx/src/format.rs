@@ -43,7 +43,7 @@ fn cmp_scx_version(a: SCXVersion, b: SCXVersion) -> Ordering {
 //     MapType,
 // }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct ScenarioObject {
     /// Position (x, y, z) of this object.
     pub position: (f32, f32, f32),
@@ -125,7 +125,7 @@ impl ScenarioObject {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct RGEScen {
     /// Data version.
     pub(crate) version: f32,
@@ -169,6 +169,7 @@ impl RGEScen {
                 *name = read_str(input, 256)?;
             }
         }
+
         let mut player_string_table = vec![-1; 16];
         if version > 1.16 {
             for string_id in player_string_table.iter_mut() {
@@ -176,19 +177,13 @@ impl RGEScen {
             }
         }
 
-        let mut player_base_properties = vec![];
+        let mut player_base_properties = vec![PlayerBaseProperties::default(); 16];
         if version > 1.13 {
-            for _ in 0..16 {
-                let active = input.read_i32::<LE>()?;
-                let player_type = input.read_i32::<LE>()?;
-                let civilization = input.read_i32::<LE>()?;
-                let posture = input.read_i32::<LE>()?;
-                player_base_properties.push(PlayerBaseProperties {
-                    active,
-                    civilization,
-                    player_type,
-                    posture,
-                });
+            for properties in player_base_properties.iter_mut() {
+                properties.active = input.read_i32::<LE>()?;
+                properties.player_type = input.read_i32::<LE>()?;
+                properties.civilization = input.read_i32::<LE>()?;
+                properties.posture = input.read_i32::<LE>()?;
             }
         }
 
@@ -297,8 +292,8 @@ impl RGEScen {
             }
         }
 
-        let mut player_files = vec![];
-        for _ in 0..16 {
+        let mut player_files = vec![PlayerFiles::default(); 16];
+        for files in player_files.iter_mut() {
             let build_list_length = input.read_i32::<LE>()? as usize;
             let city_plan_length = input.read_i32::<LE>()? as usize;
             let ai_rules_length = if version >= 1.08 {
@@ -307,15 +302,9 @@ impl RGEScen {
                 0
             };
 
-            let build_list = read_str(input, build_list_length)?;
-            let city_plan = read_str(input, city_plan_length)?;
-            let ai_rules = read_str(input, ai_rules_length)?;
-
-            player_files.push(PlayerFiles {
-                build_list,
-                city_plan,
-                ai_rules,
-            });
+            files.build_list = read_str(input, build_list_length)?;
+            files.city_plan = read_str(input, city_plan_length)?;
+            files.ai_rules = read_str(input, ai_rules_length)?;
         }
 
         let mut ai_rules_types = vec![0; 16];
@@ -482,7 +471,7 @@ impl RGEScen {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct TribeScen {
     /// "Engine" data.
     ///
@@ -543,7 +532,7 @@ impl TribeScen {
         let mut base = RGEScen::from(input)?;
         let version = base.version;
 
-        let mut player_start_resources = vec![];
+        let mut player_start_resources = vec![PlayerStartResources::default(); 16];
 
         // Moved to RGEScen in 1.13
         if version <= 1.13 {
@@ -551,23 +540,18 @@ impl TribeScen {
                 *name = read_str(input, 256)?;
             }
 
-            for _ in 0..16 {
-                let active = input.read_i32::<LE>()?;
+            for i in 0..16 {
+                let properties = &mut base.player_base_properties[i];
+                properties.active = input.read_i32::<LE>()?;
                 let resources = PlayerStartResources::from(input, version)?;
-                let player_type = input.read_i32::<LE>()?;
-                let civilization = input.read_i32::<LE>()?;
-                let posture = input.read_i32::<LE>()?;
-                player_start_resources.push(resources);
-                base.player_base_properties.push(PlayerBaseProperties {
-                    active,
-                    civilization,
-                    player_type,
-                    posture,
-                });
+                properties.player_type = input.read_i32::<LE>()?;
+                properties.civilization = input.read_i32::<LE>()?;
+                properties.posture = input.read_i32::<LE>()?;
+                player_start_resources[i] = resources;
             }
         } else {
-            for _ in 0..16 {
-                player_start_resources.push(PlayerStartResources::from(input, version)?);
+            for resources in player_start_resources.iter_mut() {
+                *resources = PlayerStartResources::from(input, version)?;
             }
         }
 
@@ -595,19 +579,17 @@ impl TribeScen {
             9000
         };
 
-        let mut diplomacy = vec![];
-        for _ in 0..16 {
-            let mut player_diplomacy = vec![];
-            for _ in 0..16 {
-                player_diplomacy.push(DiplomaticStance::try_from(input.read_i32::<LE>()?)?);
+        let mut diplomacy = vec![vec![DiplomaticStance::Neutral; 16]; 16];
+        for player_diplomacy in diplomacy.iter_mut() {
+            for stance in player_diplomacy.iter_mut() {
+                *stance = DiplomaticStance::try_from(input.read_i32::<LE>()?)?;
             }
-            diplomacy.push(player_diplomacy);
         }
 
-        let mut legacy_victory_info = vec![vec![]; 16];
+        let mut legacy_victory_info = vec![vec![LegacyVictoryInfo::default(); 12]; 16];
         for list in legacy_victory_info.iter_mut() {
-            for _ in 0..12 {
-                list.push(LegacyVictoryInfo::from(input)?);
+            for victory_info in list.iter_mut() {
+                *victory_info = LegacyVictoryInfo::from(input)?;
             }
         }
 
@@ -616,9 +598,9 @@ impl TribeScen {
             debug_assert_eq!(sep, -99);
         }
 
-        let mut allied_victory = vec![];
-        for _ in 0..16 {
-            allied_victory.push(input.read_i32::<LE>()?);
+        let mut allied_victory = vec![0i32; 16];
+        for setting in allied_victory.iter_mut() {
+            *setting = input.read_i32::<LE>()?;
         }
 
         let (teams_locked, can_change_teams, random_start_locations, max_teams) = if version >= 1.24
@@ -953,7 +935,7 @@ impl TribeScen {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SCXFormat {
     /// Version of the SCX format.
     pub(crate) version: SCXVersion,
@@ -1136,6 +1118,15 @@ impl SCXFormat {
         output.finish()?;
 
         Ok(())
+    }
+
+    /// Get the name of the UserPatch mod that was used to create this scenario, if applicable.
+    ///
+    /// Returns None if no mod was used.
+    pub fn mod_name(&self) -> Option<&str> {
+        self.tribe_scen.base.player_names[9]
+            .as_ref()
+            .map(|string| string.as_str())
     }
 }
 

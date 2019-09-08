@@ -4,7 +4,7 @@ use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::io::{Read, Write};
 
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
 pub struct PlayerBaseProperties {
     pub(crate) posture: i32,
     pub(crate) player_type: i32,
@@ -12,7 +12,7 @@ pub struct PlayerBaseProperties {
     pub(crate) active: i32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
 pub struct PlayerFiles {
     /// Obsolete.
     pub(crate) build_list: Option<String>,
@@ -22,7 +22,7 @@ pub struct PlayerFiles {
     pub(crate) ai_rules: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PlayerStartResources {
     pub(crate) gold: i32,
     pub(crate) wood: i32,
@@ -31,6 +31,20 @@ pub struct PlayerStartResources {
     pub(crate) ore: i32,
     pub(crate) goods: i32,
     pub(crate) player_color: Option<i32>,
+}
+
+impl Default for PlayerStartResources {
+    fn default() -> Self {
+        Self {
+            gold: 100,
+            wood: 200,
+            food: 200,
+            stone: 200,
+            ore: 100,
+            goods: 0,
+            player_color: None,
+        }
+    }
 }
 
 impl PlayerStartResources {
@@ -74,7 +88,7 @@ impl PlayerStartResources {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ScenarioPlayerData {
     name: Option<String>,
     view: (f32, f32),
@@ -196,7 +210,7 @@ impl ScenarioPlayerData {
 }
 
 /// Initial player attributes.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct WorldPlayerData {
     /// Initial food count.
     pub(crate) food: f32,
@@ -212,6 +226,20 @@ pub struct WorldPlayerData {
     pub(crate) goods: f32,
     /// Max population.
     pub(crate) population: f32,
+}
+
+impl Default for WorldPlayerData {
+    fn default() -> Self {
+        Self {
+            wood: 200.0,
+            food: 200.0,
+            gold: 100.0,
+            stone: 200.0,
+            ore: 100.0,
+            goods: 0.0,
+            population: 75.0,
+        }
+    }
 }
 
 impl WorldPlayerData {

@@ -3,11 +3,13 @@ use byteorder::{WriteBytesExt, LE};
 use genie_scx::{Result as SCXResult, Scenario};
 use std::io::{self, Write};
 
+/// Type for errors that could occur during writing.
 #[derive(Debug)]
 pub enum WriteCampaignError {
-    // TODO String could not be encoded.
-    // EncodeStringError,
+    /// An I/O error occurred during writing.
     IoError(io::Error),
+    /// A scenario could not be found, either because the original campaign file was corrupt, or
+    /// the scenario file exists but could not be parsed.
     NotFoundError(usize),
 }
 
@@ -30,6 +32,7 @@ impl std::fmt::Display for WriteCampaignError {
 
 impl std::error::Error for WriteCampaignError {}
 
+/// Write the campaign header to the `output` stream.
 fn write_campaign_header<W: Write>(header: &CampaignHeader, output: &mut W) -> io::Result<()> {
     assert!(header.num_scenarios < std::i32::MAX as usize);
 
@@ -42,6 +45,7 @@ fn write_campaign_header<W: Write>(header: &CampaignHeader, output: &mut W) -> i
     Ok(())
 }
 
+/// Write metadata for a single scenario into the `output` stream.
 fn write_scenario_meta<W: Write>(meta: &ScenarioMeta, output: &mut W) -> io::Result<()> {
     assert!(meta.size < std::i32::MAX as usize);
     assert!(meta.offset < std::i32::MAX as usize);
@@ -62,6 +66,7 @@ fn write_scenario_meta<W: Write>(meta: &ScenarioMeta, output: &mut W) -> io::Res
     Ok(())
 }
 
+/// Describes a scenario file to be added to the campaign.
 struct CampaignEntry {
     name: String,
     filename: String,
@@ -69,23 +74,30 @@ struct CampaignEntry {
 }
 
 impl CampaignEntry {
+    /// Get the user-visible name of this entry.
     fn name(&self) -> &str {
         &self.name
     }
 
+    /// Get the file name of this entry.
     fn filename(&self) -> &str {
         &self.filename
     }
 
+    /// Get the size in bytes of this entry.
     fn size(&self) -> usize {
         self.bytes.len()
     }
 
+    /// Get the byte array for this entry.
     fn bytes(&self) -> &[u8] {
         &self.bytes
     }
 }
 
+/// A campaign file writer. Instantiate it, then add scenario files to it.
+///
+/// This has to keep all scenario files in memory until the file is written, either on a call to `flush()` or implicitly when the struct is dropped.
 pub struct CampaignWriter<W: Write> {
     writer: W,
     header: CampaignHeader,
@@ -93,6 +105,7 @@ pub struct CampaignWriter<W: Write> {
 }
 
 impl<W: Write> CampaignWriter<W> {
+    /// Create a new campaign with user-visible name `name`, writing to the `writer` stream.
     pub fn new(name: &str, writer: W) -> Self {
         Self {
             writer,
@@ -101,6 +114,7 @@ impl<W: Write> CampaignWriter<W> {
         }
     }
 
+    /// Add a scenario (as a byte array) to this campaign.
     pub fn add_raw(&mut self, name: &str, filename: &str, scx: Vec<u8>) {
         self.scenarios.push(CampaignEntry {
             name: name.to_owned(),
@@ -109,6 +123,7 @@ impl<W: Write> CampaignWriter<W> {
         });
     }
 
+    /// Add a Scenario instance from genie-scx to this campaign.
     pub fn add(&mut self, name: &str, scx: &Scenario) -> SCXResult<()> {
         let mut bytes = vec![];
         scx.write_to(&mut bytes)?;
@@ -120,15 +135,18 @@ impl<W: Write> CampaignWriter<W> {
         Ok(())
     }
 
+    /// Consume the `CampaignWriter` instance, returning the inner `Write` instance.
     pub fn into_inner(self) -> W {
         self.writer
     }
 
+    /// Write the campaign header.
     fn write_header(&mut self) -> io::Result<()> {
         self.header.num_scenarios = self.scenarios.len();
         write_campaign_header(&self.header, &mut self.writer)
     }
 
+    /// Write the scenario metadata block.
     fn write_metas(&mut self) -> io::Result<()> {
         let mut offset = 256 + 8 + self.scenarios.len() * (255 + 255 + 8);
         for scen in &self.scenarios {
@@ -144,6 +162,7 @@ impl<W: Write> CampaignWriter<W> {
         Ok(())
     }
 
+    /// Write the scenario data.
     fn write_scenarios(&mut self) -> io::Result<()> {
         for scen in &self.scenarios {
             self.writer.write_all(scen.bytes())?;
@@ -151,6 +170,9 @@ impl<W: Write> CampaignWriter<W> {
         Ok(())
     }
 
+    /// Write the scenarios to the output stream, consuming the CampaignWriter object.
+    ///
+    /// Returns the inner `Write`.
     pub fn flush(mut self) -> io::Result<W> {
         self.write_header()?;
         self.write_metas()?;

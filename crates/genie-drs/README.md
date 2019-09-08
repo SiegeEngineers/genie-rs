@@ -21,13 +21,13 @@ genie-drs = "^0.1.1"
 use std::fs::File;
 use genie_drs::DRSReader;
 
-let mut file = File::open("test.drs").unwrap();
-let drs = DRSReader::new(&mut file).unwrap();
+let mut file = File::open("test.drs")?;
+let drs = DRSReader::new(&mut file)?;
 
 for table in drs.tables() {
     for resource in table.resources() {
-        let content = drs.read_resource(&mut file, table.resource_type, resource.id).unwrap();
-        println!("{}: {:?}", resource.id, std::str::from_utf8(&content).unwrap());
+        let content = drs.read_resource(&mut file, table.resource_type, resource.id)?;
+        println!("{}: {:?}", resource.id, std::str::from_utf8(&content)?);
     }
 }
 ```
