@@ -231,8 +231,8 @@ pub struct WorldPlayerData {
 impl Default for WorldPlayerData {
     fn default() -> Self {
         Self {
-            wood: 200.0,
             food: 200.0,
+            wood: 200.0,
             gold: 100.0,
             stone: 200.0,
             ore: 100.0,
@@ -245,12 +245,12 @@ impl Default for WorldPlayerData {
 impl WorldPlayerData {
     pub fn from<R: Read>(input: &mut R, version: f32) -> Result<Self> {
         Ok(Self {
-            wood: if version > 1.06 {
+            food: if version > 1.06 {
                 input.read_f32::<LE>()?
             } else {
                 200.0
             },
-            food: if version > 1.06 {
+            wood: if version > 1.06 {
                 input.read_f32::<LE>()?
             } else {
                 200.0
@@ -284,10 +284,12 @@ impl WorldPlayerData {
     }
 
     pub fn write_to<W: Write>(&self, output: &mut W, version: f32) -> Result<()> {
-        output.write_f32::<LE>(self.gold)?;
-        output.write_f32::<LE>(self.wood)?;
-        output.write_f32::<LE>(self.food)?;
-        output.write_f32::<LE>(self.stone)?;
+        if version > 1.06 {
+            output.write_f32::<LE>(self.food)?;
+            output.write_f32::<LE>(self.wood)?;
+            output.write_f32::<LE>(self.gold)?;
+            output.write_f32::<LE>(self.stone)?;
+        }
         if version > 1.12 {
             output.write_f32::<LE>(self.ore)?;
         }

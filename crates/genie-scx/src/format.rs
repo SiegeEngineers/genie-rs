@@ -1128,6 +1128,20 @@ impl SCXFormat {
             .as_ref()
             .map(|string| string.as_str())
     }
+
+    /// Hash the scenario, for comparison with other instances.
+    ///
+    /// This is only available in tests and the implementation is horrifying :)
+    #[cfg(test)]
+    pub fn hash(&self) -> u64 {
+        use std::{
+        collections::hash_map::DefaultHasher,
+        hash::{Hash, Hasher},
+        };
+        let mut hasher = DefaultHasher::new();
+        format!("{:#?}", self).hash(&mut hasher);
+        hasher.finish()
+    }
 }
 
 #[cfg(test)]
@@ -1158,9 +1172,10 @@ mod tests {
 
         let mut f = std::io::Cursor::new(out);
         let format2 = SCXFormat::load_scenario(&mut f).expect("failed to read");
+
         assert_eq!(
-            format!("{:#?}", format),
-            format!("{:#?}", format2),
+            format.hash(),
+            format2.hash(),
             "should produce exactly the same scenario"
         );
     }
@@ -1256,6 +1271,15 @@ mod tests {
         format
             .write_to(&mut out, &format.version())
             .expect("failed to write");
+
+        let mut f = std::io::Cursor::new(out);
+        let format2 = SCXFormat::load_scenario(&mut f).expect("failed to read");
+
+        assert_eq!(
+            format.hash(),
+            format2.hash(),
+            "should produce exactly the same scenario"
+        );
     }
 
     #[test]

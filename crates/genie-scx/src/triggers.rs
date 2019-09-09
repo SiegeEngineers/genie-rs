@@ -473,40 +473,44 @@ impl Trigger {
         })
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    /// Write this trigger condition to an output stream, with the given trigger system version.
+    pub fn write_to<W: Write>(&self, output: &mut W, version: f64) -> Result<()> {
         output.write_i32::<LE>(if self.enabled { 1 } else { 0 })?;
         output.write_i8(if self.looping { 1 } else { 0 })?;
         output.write_i32::<LE>(self.name_id)?;
         output.write_i8(if self.is_objective { 1 } else { 0 })?;
         output.write_i32::<LE>(self.objective_order)?;
         output.write_u32::<LE>(self.start_time)?;
-        /*
-        let description_length = input.read_u32::<LE>()? as usize;
-        let description = read_str(input, description_length)?;
 
-        let name_length = input.read_u32::<LE>()? as usize;
-        let name = read_str(input, name_length)?;
-
-        let num_effects = input.read_i32::<LE>()?;
-        let mut effects = vec![];
-        let mut effect_order = vec![];
-        for _ in 0..num_effects {
-            effects.push(TriggerEffect::from(input, version)?);
+        if let Some(descr) = &self.description {
+            output.write_u32::<LE>(descr.len().try_into().unwrap())?;
+            write_str(output, descr)?;
+        } else {
+            output.write_u32::<LE>(0)?;
         }
-        for _ in 0..num_effects {
-            effect_order.push(input.read_i32::<LE>()?);
+        if let Some(name) = &self.name {
+            output.write_u32::<LE>(name.len().try_into().unwrap())?;
+            write_str(output, name)?;
+        } else {
+            output.write_u32::<LE>(0)?;
         }
 
-        let num_conditions = input.read_i32::<LE>()?;
-        let mut conditions = vec![];
-        let mut condition_order = vec![];
-        for _ in 0..num_conditions {
-            conditions.push(TriggerCondition::from(input, version)?);
+        output.write_u32::<LE>(self.effects.len() as u32)?;
+        for effect in &self.effects {
+            effect.write_to(output)?;
         }
-        for _ in 0..num_conditions {
-            condition_order.push(input.read_i32::<LE>()?);
+        for order in &self.effect_order {
+            output.write_i32::<LE>(*order)?;
         }
-        */
+        output.write_u32::<LE>(self.conditions.len() as u32)?;
+        for condition in &self.conditions {
+            condition.write_to(output, version)?;
+        }
+        for order in &self.condition_order {
+            output.write_i32::<LE>(*order)?;
+        }
+
+        Ok(())
     }
 
     pub fn conditions(&self) -> impl Iterator<Item = &TriggerCondition> {
@@ -591,7 +595,7 @@ impl TriggerSystem {
         }
         if version >= 1.4 {
             for order in &self.trigger_order {
-                output.write_u32::<LE>(*order)?;
+                output.write_i32::<LE>(*order)?;
             }
         }
         Ok(())
