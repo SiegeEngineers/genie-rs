@@ -111,6 +111,7 @@
 use byteorder::{ReadBytesExt, LE};
 use encoding_rs::{UTF_16LE, WINDOWS_1252};
 use encoding_rs_io::DecodeReaderBytesBuilder;
+pub use genie_support::{StringKey, TryFromStringKeyError};
 use pelite::{
     pe32::{Pe, PeFile},
     resources::Name,
@@ -124,98 +125,6 @@ use std::iter::FromIterator;
 use std::num::ParseIntError;
 use std::ops::Index;
 use std::str::FromStr;
-
-/// A key in a language file.
-///
-/// A key may be either a nonnegative integer or an arbitrary string.
-///
-/// The original game supports only nonnegative integers.
-/// The HD Edition allows for integers as well as Strings to serve as keys in a
-/// key value file.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum StringKey {
-    /// An integer string key.
-    Num(u32),
-
-    /// A named string key.
-    /// The string must not represent a `u32` value (such keys must be `Num`).
-    Name(String),
-}
-
-impl StringKey {
-    /// Returns `true` if and only if this `StringKey` is a number.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use genie_lang::StringKey;
-    /// assert!(StringKey::from(0).is_numeric());
-    /// assert!(!StringKey::from("").is_numeric());
-    /// ```
-    pub fn is_numeric(&self) -> bool {
-        use StringKey::{Name, Num};
-        match self {
-            Num(_) => true,
-            Name(_) => false,
-        }
-    }
-
-    /// Returns `true` if and only if this `StringKey` is a string name.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use genie_lang::StringKey;
-    /// assert!(!StringKey::from(0).is_named());
-    /// assert!(StringKey::from("").is_named());
-    /// ```
-    pub fn is_named(&self) -> bool {
-        use StringKey::{Name, Num};
-        match self {
-            Num(_) => false,
-            Name(_) => true,
-        }
-    }
-}
-
-impl fmt::Display for StringKey {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use StringKey::{Name, Num};
-        match self {
-            Num(n) => write!(f, "{}", n),
-            Name(s) => write!(f, "{}", s),
-        }
-    }
-}
-
-impl From<u32> for StringKey {
-    fn from(n: u32) -> Self {
-        StringKey::Num(n)
-    }
-}
-
-impl From<i32> for StringKey {
-    fn from(n: i32) -> Self {
-        StringKey::from(n as u32)
-    }
-}
-
-impl From<&str> for StringKey {
-    fn from(s: &str) -> Self {
-        use StringKey::{Name, Num};
-        if let Ok(n) = s.parse() {
-            Num(n)
-        } else {
-            Name(String::from(s))
-        }
-    }
-}
-
-impl From<String> for StringKey {
-    fn from(s: String) -> Self {
-        StringKey::from(&s[..])
-    }
-}
 
 /// Errors that may occur when loading a language file.
 ///
@@ -926,41 +835,4 @@ fn escape(source: &str, quoted: bool) -> String {
         }
     }
     escaped
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Tests converting from an int to a string key.
-    #[test]
-    fn string_key_from_int() {
-        if let StringKey::Num(n) = StringKey::from(0) {
-            assert_eq!(0, n);
-        } else {
-            panic!();
-        }
-    }
-
-    /// Tests converting from a string representing an int to a string key.
-    #[test]
-    fn string_key_from_str_to_int() {
-        let s = "57329";
-        if let StringKey::Num(n) = StringKey::from(s) {
-            assert_eq!(57329, n);
-        } else {
-            panic!();
-        }
-    }
-
-    /// Tests converting from a string not representing an int to a string key.
-    #[test]
-    fn string_key_from_str_to_str() {
-        let s = "grassDaut";
-        if let StringKey::Name(n) = StringKey::from(s) {
-            assert_eq!(s, n);
-        } else {
-            panic!();
-        }
-    }
 }
