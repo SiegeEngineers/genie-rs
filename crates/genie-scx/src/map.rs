@@ -21,25 +21,46 @@ pub struct Map {
     /// Height of this map in tiles.
     height: u32,
     /// Matrix of tiles on this map.
-    tiles: Vec<Vec<Tile>>,
+    tiles: Vec<Tile>,
 }
 
 impl Map {
+    /// Create a new, empty map.
+    pub fn new(width: u32, height: u32) -> Self {
+        Self {
+            width,
+            height,
+            tiles: vec![
+                Tile {
+                    terrain: 0,
+                    elevation: 0,
+                    zone: 0
+                };
+                (width * height) as usize
+            ],
+        }
+    }
+
+    /// Fill the map with the given terrain type.
+    pub fn fill(&mut self, terrain_type: i8) {
+        for tile in self.tiles.iter_mut() {
+            tile.terrain = terrain_type;
+        }
+    }
+
     pub fn from<R: Read>(input: &mut R) -> Result<Self> {
         let width = input.read_u32::<LE>()?;
         let height = input.read_u32::<LE>()?;
 
-        let mut tiles = Vec::with_capacity(height as usize);
+        let mut tiles = Vec::with_capacity((height * height) as usize);
         for _ in 0..height {
-            let mut row = Vec::with_capacity(width as usize);
             for _ in 0..width {
-                row.push(Tile {
+                tiles.push(Tile {
                     terrain: input.read_i8()?,
                     elevation: input.read_i8()?,
                     zone: input.read_i8()?,
                 });
             }
-            tiles.push(row);
         }
 
         Ok(Self {
@@ -53,17 +74,12 @@ impl Map {
         output.write_u32::<LE>(self.width)?;
         output.write_u32::<LE>(self.height)?;
 
-        assert_eq!(self.tiles.len(), self.height as usize);
-        for row in &self.tiles {
-            assert_eq!(row.len(), self.width as usize);
-        }
+        assert_eq!(self.tiles.len(), (self.height * self.width) as usize);
 
-        for row in &self.tiles {
-            for tile in row {
-                output.write_i8(tile.terrain)?;
-                output.write_i8(tile.elevation)?;
-                output.write_i8(tile.zone)?;
-            }
+        for tile in &self.tiles {
+            output.write_i8(tile.terrain)?;
+            output.write_i8(tile.elevation)?;
+            output.write_i8(tile.zone)?;
         }
 
         Ok(())
@@ -83,29 +99,53 @@ impl Map {
     ///
     /// If the coordinates are out of bounds, returns None.
     pub fn tile(&self, x: u32, y: u32) -> Option<&Tile> {
-        self.tiles
-            .get(y as usize)
-            .and_then(|row| row.get(x as usize))
+        self.tiles.get((y * self.width + x) as usize)
     }
 
     /// Get a mutable reference to the tile at the given coordinates.
     ///
     /// If the coordinates are out of bounds, returns None.
     pub fn tile_mut(&mut self, x: u32, y: u32) -> Option<&mut Tile> {
-        self.tiles
-            .get_mut(y as usize)
-            .and_then(|row| row.get_mut(x as usize))
+        self.tiles.get_mut((y * self.width + x) as usize)
     }
 
     /// Iterate over all the tiles.
     pub fn tiles(&self) -> impl Iterator<Item = &Tile> {
-        self.tiles.iter().map(|row| row.iter()).flatten()
+        self.tiles.iter()
     }
 
     /// Iterate over all the tiles, with mutable references.
     ///
     /// This is handy if you want to replace terrains throughout the entire map, for example.
     pub fn tiles_mut(&mut self) -> impl Iterator<Item = &mut Tile> {
-        self.tiles.iter_mut().map(|row| row.iter_mut()).flatten()
+        self.tiles.iter_mut()
+    }
+
+    /// Iterate over all the tiles by row.
+    ///
+    /// This is handy if you want to iterate over tiles while keeping track of coordinates.
+    ///
+    /// ## Example
+    /// ```rust
+    /// # use genie_scx::{Map, Tile};
+    /// # let map = Map::new(120, 120);
+    /// let mut ys = vec![];
+    /// for (y, row) in map.rows().enumerate() {
+    ///     let mut xs = vec![];
+    ///     for (x, tile) in row.iter().enumerate() {
+    ///         xs.push(x);
+    ///     }
+    ///     assert_eq!(xs, (0..120).collect::<Vec<usize>>());
+    ///     ys.push(y);
+    /// }
+    /// assert_eq!(ys, (0..120).collect::<Vec<usize>>());
+    /// ```
+    pub fn rows(&self) -> impl Iterator<Item = &[Tile]> {
+        self.tiles.chunks_exact(self.width as usize)
+    }
+
+    /// Iterate over all the tiles by row, with mutable references.
+    pub fn rows_mut(&mut self) -> impl Iterator<Item = &mut [Tile]> {
+        self.tiles.chunks_exact_mut(self.width as usize)
     }
 }

@@ -160,6 +160,7 @@ impl RGEScen {
                 *name = read_str(input, 256)?;
             }
         }
+
         let mut player_string_table = vec![None; 16];
         if version > 1.16 {
             for string_id in player_string_table.iter_mut() {
@@ -1108,6 +1109,15 @@ impl SCXFormat {
         output.finish()?;
 
         Ok(())
+    }
+
+    /// Get the name of the UserPatch mod that was used to create this scenario, if applicable.
+    ///
+    /// Returns None if no mod was used.
+    pub fn mod_name(&self) -> Option<&str> {
+        self.tribe_scen.base.player_names[9]
+            .as_ref()
+            .map(|string| string.as_str())
     }
 }
 

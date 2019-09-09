@@ -934,12 +934,15 @@ impl HotkeyGroup {
 
     /// Returns the number of hotkeys in this `HotkeyGroup`.
     /// ```rust
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// use std::fs::File;
     /// use genie_hki::HotkeyInfo;
-    /// let mut f = File::open("test/files/aoc1.hki").unwrap();
-    /// let info = HotkeyInfo::from(&mut f).expect("failed to read file");
-    /// let group = info.group(3).unwrap(); // Villager hotkeys
+    /// let mut f = File::open("test/files/aoc1.hki")?;
+    /// let info = HotkeyInfo::from(&mut f)?;
+    /// // Villager hotkeys are group 3 in AoC and HD Edition.
+    /// let group = info.group(3).expect("file does not contain villager hotkeys");
     /// assert_eq!(28, group.num_hotkeys());
+    /// # Ok(()) }
     /// ```
     pub fn num_hotkeys(&self) -> usize {
         self.hotkeys.len()
@@ -1051,15 +1054,17 @@ impl HotkeyInfo {
     /// Gets the file version.
     ///
     /// ```rust
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// use std::fs::File;
     /// use genie_hki::HotkeyInfo;
-    /// let mut f = File::open("test/files/aoc1.hki").unwrap();
+    /// let mut f = File::open("test/files/aoc1.hki")?;
     /// let info = HotkeyInfo::from(&mut f).expect("failed to read file");
     /// assert_eq!(info.version(), 1.0);
     ///
-    /// let mut f = File::open("test/files/hd0.hki").unwrap();
+    /// let mut f = File::open("test/files/hd0.hki")?;
     /// let info = HotkeyInfo::from(&mut f).expect("failed to read file");
     /// assert_eq!(info.version(), 3.0);
+    /// # Ok(()) }
     /// ```
     pub fn version(&self) -> f32 {
         self.version
@@ -1068,12 +1073,14 @@ impl HotkeyInfo {
     /// Returns an immutable reference to a hotkey group, if that group exists.
     ///
     /// ```rust
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// use std::fs::File;
     /// use genie_hki::{HotkeyInfo, HotkeyGroupId};
-    /// let mut f = File::open("test/files/aoc1.hki").unwrap();
+    /// let mut f = File::open("test/files/aoc1.hki")?;
     /// let info = HotkeyInfo::from(&mut f).expect("failed to read file");
     /// assert!(info.group(HotkeyGroupId::Villager as usize).is_some());
     /// assert!(info.group(HotkeyGroupId::Mill as usize).is_none());
+    /// # Ok(()) }
     /// ```
     pub fn group(&self, group_id: usize) -> Option<&HotkeyGroup> {
         self.groups.get(group_id)
@@ -1086,16 +1093,18 @@ impl HotkeyInfo {
 
     /// Returns the number of hotkey groups in this info's hotkey file.
     /// ```rust
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// use std::fs::File;
     /// use genie_hki::HotkeyInfo;
     ///
-    /// let mut f = File::open("test/files/aoc1.hki").unwrap();
+    /// let mut f = File::open("test/files/aoc1.hki")?;
     /// let info = HotkeyInfo::from(&mut f).expect("failed to read file");
     /// assert_eq!(14, info.num_groups());
     ///
-    /// let mut f = File::open("test/files/wk.hki").unwrap();
+    /// let mut f = File::open("test/files/wk.hki")?;
     /// let info = HotkeyInfo::from(&mut f).expect("failed to read file");
     /// assert_eq!(15, info.num_groups());
+    /// # Ok(()) }
     /// ```
     pub fn num_groups(&self) -> usize {
         self.groups.len()

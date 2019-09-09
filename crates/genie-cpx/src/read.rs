@@ -46,6 +46,8 @@ impl std::fmt::Display for ReadCampaignError {
     }
 }
 
+impl std::error::Error for ReadCampaignError {}
+
 type Result<T> = std::result::Result<T, ReadCampaignError>;
 
 /// Decode a string with unknown encoding.
