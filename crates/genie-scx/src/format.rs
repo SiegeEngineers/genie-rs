@@ -1135,8 +1135,8 @@ impl SCXFormat {
     #[cfg(test)]
     pub fn hash(&self) -> u64 {
         use std::{
-        collections::hash_map::DefaultHasher,
-        hash::{Hash, Hasher},
+            collections::hash_map::DefaultHasher,
+            hash::{Hash, Hasher},
         };
         let mut hasher = DefaultHasher::new();
         format!("{:#?}", self).hash(&mut hasher);
