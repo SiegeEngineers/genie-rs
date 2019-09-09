@@ -76,7 +76,6 @@ impl HotkeyInfoMetadata {
     ///
     /// let him = HotkeyInfoMetadata::new();
     /// ```
-    #[inline]
     pub fn new() -> Self {
         Default::default()
     }
@@ -92,7 +91,6 @@ impl HotkeyInfoMetadata {
     /// let mut him = HotkeyInfoMetadata::new();
     /// him.add(StringKey::from(0));
     /// ```
-    #[inline]
     pub fn add(&mut self, sk: StringKey) {
         self.0.push(sk)
     }
@@ -110,7 +108,6 @@ impl HotkeyInfoMetadata {
     /// him.add(StringKey::from(0));
     /// assert_eq!(1, him.len());
     /// ```
-    #[inline]
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -128,7 +125,6 @@ impl HotkeyInfoMetadata {
     /// him.add(StringKey::from(0));
     /// assert!(!him.is_empty());
     /// ```
-    #[inline]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
@@ -149,7 +145,6 @@ impl HotkeyInfoMetadata {
     /// him.add(StringKey::from(0));
     /// assert_eq!(Some(&StringKey::from(0)), him.get(0));
     /// ```
-    #[inline]
     pub fn get(&self, index: usize) -> Option<&StringKey> {
         self.0.get(index)
     }
@@ -171,7 +166,6 @@ impl HotkeyInfoMetadata {
     /// assert_eq!(Some(&StringKey::from(1)), iter.next());
     /// assert_eq!(None, iter.next());
     /// ```
-    #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &StringKey> {
         self.0.iter()
     }
@@ -260,13 +254,6 @@ pub enum HotkeyGroupId {
     Castle = 0xD,
     /// Commands when a Mill is selected.
     Mill = 0xE,
-}
-
-impl From<HotkeyGroupId> for usize {
-    #[inline]
-    fn from(n: HotkeyGroupId) -> usize {
-        n as usize
-    }
 }
 
 /// Hotkeys for castles.
@@ -580,20 +567,17 @@ impl GroupIndexError {
     /// Returns a `GroupIndexError` with group index `index` and a number of
     /// groups equal to `num_groups`.
     /// Panics if `index < num_groups`.
-    #[inline]
     pub fn new(index: usize, num_groups: usize) -> Self {
         assert!(num_groups <= index);
         Self { index, num_groups }
     }
 
     /// Returns the index of the group that was accessed.
-    #[inline]
     pub fn index(&self) -> usize {
         self.index
     }
 
     /// Returns the number of valid groups.
-    #[inline]
     pub fn num_groups(&self) -> usize {
         self.num_groups
     }
@@ -625,20 +609,17 @@ impl HotkeyIndexError {
     /// Returns a `HotkeyIndexError` with hotkey index `index` and a number of
     /// hotkeys equal to `num_hotkeys`.
     /// Panics if `index < num_hotkeys`.
-    #[inline]
     pub fn new(index: usize, num_hotkeys: usize) -> Self {
         assert!(num_hotkeys <= index);
         Self { index, num_hotkeys }
     }
 
     /// Returns the index of the hotkey that was accessed.
-    #[inline]
     pub fn index(&self) -> usize {
         self.index
     }
 
     /// Returns the number of valid hotkeys.
-    #[inline]
     pub fn num_hotkeys(&self) -> usize {
         self.num_hotkeys
     }
@@ -723,7 +704,6 @@ impl Hotkey {
     /// assert_eq!(0, hki.key);
     /// assert_eq!(5, hki2.key);
     /// ```
-    #[inline]
     pub fn key(self, key: i32) -> Self {
         Self { key, ..self }
     }
@@ -747,7 +727,6 @@ impl Hotkey {
     /// assert_eq!(5, hki3.key);
     /// assert_eq!(0, hki4.key);
     /// ```
-    #[inline]
     pub fn string_id(self, string_id: i32) -> Self {
         if string_id == -1 {
             Self {
@@ -773,7 +752,6 @@ impl Hotkey {
     /// assert!(!hki.ctrl);
     /// assert!(hki2.ctrl);
     /// ```
-    #[inline]
     pub fn ctrl(self, ctrl: bool) -> Self {
         Self { ctrl, ..self }
     }
@@ -791,7 +769,6 @@ impl Hotkey {
     /// assert!(!hki.alt);
     /// assert!(hki2.alt);
     /// ```
-    #[inline]
     pub fn alt(self, alt: bool) -> Self {
         Self { alt, ..self }
     }
@@ -809,7 +786,6 @@ impl Hotkey {
     /// assert!(!hki.shift);
     /// assert!(hki2.shift);
     /// ```
-    #[inline]
     pub fn shift(self, shift: bool) -> Self {
         Self { shift, ..self }
     }
@@ -910,14 +886,12 @@ impl HotkeyGroup {
 
     /// Returns an immutable reference to a single hotkey, if that hotkey is
     /// present in this `HotkeyGroup`.
-    #[inline]
     pub fn hotkey(&self, index: usize) -> Option<&Hotkey> {
         self.hotkeys.get(index)
     }
 
     /// Get a mutable reference to a single hotkey.
     /// This way, you can edit or replace the mapping.
-    #[inline]
     pub fn hotkey_mut(&mut self, index: usize) -> Option<&mut Hotkey> {
         self.hotkeys.get_mut(index)
     }
@@ -925,7 +899,6 @@ impl HotkeyGroup {
     /// Returns a hotkey group equivalent to this group but with the hotkey
     /// at `index` unbound so that the key is `0` and all modifier keys are
     /// `false`. Returns an error if the index does not exist.
-    #[inline]
     pub fn unbind(&self, index: usize) -> Result<Self, HotkeyIndexError> {
         self.bind(index, 0, false, false, false)
     }
@@ -1093,7 +1066,6 @@ impl HotkeyInfo {
     /// assert_eq!(info.version(), 3.0);
     /// # Ok(()) }
     /// ```
-    #[inline]
     pub fn version(&self) -> f32 {
         self.version
     }
@@ -1106,19 +1078,17 @@ impl HotkeyInfo {
     /// use genie_hki::{HotkeyInfo, HotkeyGroupId};
     /// let mut f = File::open("test/files/aoc1.hki")?;
     /// let info = HotkeyInfo::from(&mut f).expect("failed to read file");
-    /// assert!(info.group(HotkeyGroupId::Villager).is_some());
-    /// assert!(info.group(HotkeyGroupId::Mill).is_none());
+    /// assert!(info.group(HotkeyGroupId::Villager as usize).is_some());
+    /// assert!(info.group(HotkeyGroupId::Mill as usize).is_none());
     /// # Ok(()) }
     /// ```
-    #[inline]
-    pub fn group(&self, group_id: impl Into<usize>) -> Option<&HotkeyGroup> {
-        self.groups.get(group_id.into())
+    pub fn group(&self, group_id: usize) -> Option<&HotkeyGroup> {
+        self.groups.get(group_id)
     }
 
     /// Returns a mutable reference to a hotkey group, if that group exists.
-    #[inline]
-    pub fn group_mut(&mut self, group_id: impl Into<usize>) -> Option<&mut HotkeyGroup> {
-        self.groups.get_mut(group_id.into())
+    pub fn group_mut(&mut self, group_id: usize) -> Option<&mut HotkeyGroup> {
+        self.groups.get_mut(group_id)
     }
 
     /// Returns the number of hotkey groups in this info's hotkey file.
@@ -1136,14 +1106,12 @@ impl HotkeyInfo {
     /// assert_eq!(15, info.num_groups());
     /// # Ok(()) }
     /// ```
-    #[inline]
     pub fn num_groups(&self) -> usize {
         self.groups.len()
     }
 
     /// Returns an iterator over the hotkey groups present in this info's hotkey
     /// file.
-    #[inline]
     pub fn iter(&self) -> impl Iterator<Item = &HotkeyGroup> {
         self.groups.iter()
     }
@@ -1151,7 +1119,6 @@ impl HotkeyInfo {
     /// Returns a `HotkeyInfo` struct equivalent to this `HotkeyInfo`, but with
     /// the key at index `key_index` of the group given by `group_index`
     /// unbound. Returns an error if either index does not exist.
-    #[inline]
     pub fn unbind_key(&self, group_index: usize, key_index: usize) -> Result<Self, IndexError> {
         self.bind_key(group_index, key_index, 0, false, false, false)
     }
@@ -1305,7 +1272,7 @@ mod tests {
     fn hk_group_iter() {
         let mut f = File::open("test/files/aoc1.hki").unwrap();
         let info = HotkeyInfo::from(&mut f).expect("failed to read file");
-        let group = info.group(HotkeyGroupId::UnitCommands).unwrap();
+        let group = info.group(HotkeyGroupId::UnitCommands as usize).unwrap();
         let mut hotkey_iter = group.iter();
         assert_eq!(19214, hotkey_iter.next().unwrap().string_id);
         assert_eq!(19215, hotkey_iter.next().unwrap().string_id);
@@ -1331,34 +1298,34 @@ mod tests {
         let info = HotkeyInfo::from(&mut f).expect("failed to read file");
         let mut iter = info.iter();
         assert_eq!(
-            info.group(HotkeyGroupId::UnitCommands),
+            info.group(HotkeyGroupId::UnitCommands as usize),
             iter.next()
         );
         assert_eq!(
-            info.group(HotkeyGroupId::GameCommands),
+            info.group(HotkeyGroupId::GameCommands as usize),
             iter.next()
         );
-        assert_eq!(info.group(HotkeyGroupId::Scroll), iter.next());
-        assert_eq!(info.group(HotkeyGroupId::Villager), iter.next());
-        assert_eq!(info.group(HotkeyGroupId::TownCenter), iter.next());
-        assert_eq!(info.group(HotkeyGroupId::Dock), iter.next());
-        assert_eq!(info.group(HotkeyGroupId::Barracks), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::Scroll as usize), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::Villager as usize), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::TownCenter as usize), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::Dock as usize), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::Barracks as usize), iter.next());
         assert_eq!(
-            info.group(HotkeyGroupId::ArcheryRange),
+            info.group(HotkeyGroupId::ArcheryRange as usize),
             iter.next()
         );
-        assert_eq!(info.group(HotkeyGroupId::Stable), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::Stable as usize), iter.next());
         assert_eq!(
-            info.group(HotkeyGroupId::SiegeWorkshop),
+            info.group(HotkeyGroupId::SiegeWorkshop as usize),
             iter.next()
         );
-        assert_eq!(info.group(HotkeyGroupId::Monastery), iter.next());
-        assert_eq!(info.group(HotkeyGroupId::Market), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::Monastery as usize), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::Market as usize), iter.next());
         assert_eq!(
-            info.group(HotkeyGroupId::MilitaryUnits),
+            info.group(HotkeyGroupId::MilitaryUnits as usize),
             iter.next()
         );
-        assert_eq!(info.group(HotkeyGroupId::Castle), iter.next());
+        assert_eq!(info.group(HotkeyGroupId::Castle as usize), iter.next());
         assert_eq!(None, iter.next());
     }
 
@@ -1366,7 +1333,7 @@ mod tests {
     fn hk_group_unbind() {
         let mut f = File::open("test/files/aoc1.hki").unwrap();
         let info = HotkeyInfo::from(&mut f).expect("failed to read file");
-        let group0 = info.group(HotkeyGroupId::UnitCommands).unwrap();
+        let group0 = info.group(HotkeyGroupId::UnitCommands as usize).unwrap();
         let group1 = group0
             .unbind(UnitCommandHotkeys::BuildEconomic as usize)
             .unwrap();
@@ -1378,7 +1345,7 @@ mod tests {
     fn hk_group_bind() {
         let mut f = File::open("test/files/aoc1.hki").unwrap();
         let info = HotkeyInfo::from(&mut f).expect("failed to read file");
-        let group0 = info.group(HotkeyGroupId::UnitCommands).unwrap();
+        let group0 = info.group(HotkeyGroupId::UnitCommands as usize).unwrap();
         let group1 = group0
             .bind(
                 UnitCommandHotkeys::BuildEconomic as usize,
@@ -1396,7 +1363,7 @@ mod tests {
     fn hk_group_bad_index() {
         let mut f = File::open("test/files/aoc1.hki").unwrap();
         let info = HotkeyInfo::from(&mut f).expect("failed to read file");
-        let group = info.group(HotkeyGroupId::UnitCommands).unwrap();
+        let group = info.group(HotkeyGroupId::UnitCommands as usize).unwrap();
         let result = group.unbind(99999);
         assert!(result.is_err());
     }
@@ -1409,7 +1376,7 @@ mod tests {
         assert_eq!(
             66,
             info0
-                .group(HotkeyGroupId::UnitCommands)
+                .group(HotkeyGroupId::UnitCommands as usize)
                 .unwrap()
                 .hotkey(0)
                 .unwrap()
@@ -1418,7 +1385,7 @@ mod tests {
         assert_eq!(
             0,
             info1
-                .group(HotkeyGroupId::UnitCommands)
+                .group(HotkeyGroupId::UnitCommands as usize)
                 .unwrap()
                 .hotkey(0)
                 .unwrap()
@@ -1434,7 +1401,7 @@ mod tests {
         assert_eq!(
             66,
             info0
-                .group(HotkeyGroupId::UnitCommands)
+                .group(HotkeyGroupId::UnitCommands as usize)
                 .unwrap()
                 .hotkey(0)
                 .unwrap()
@@ -1443,7 +1410,7 @@ mod tests {
         assert_eq!(
             65,
             info1
-                .group(HotkeyGroupId::UnitCommands)
+                .group(HotkeyGroupId::UnitCommands as usize)
                 .unwrap()
                 .hotkey(0)
                 .unwrap()
