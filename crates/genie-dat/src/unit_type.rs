@@ -52,6 +52,17 @@ macro_rules! cast_unit_type {
     };
 }
 
+macro_rules! inherit_unit_type {
+    ($struct:ident, $super:ident) => {
+        impl std::ops::Deref for $struct {
+            type Target = $super;
+            fn deref(&self) -> &Self::Target {
+                &self.superclass
+            }
+        }
+    }
+}
+
 cast_unit_type!(BaseUnitType, Base);
 cast_unit_type!(TreeUnitType, Tree);
 cast_unit_type!(AnimatedUnitType, Animated);
@@ -62,6 +73,16 @@ cast_unit_type!(BaseCombatUnitType, BaseCombat);
 cast_unit_type!(MissileUnitType, Missile);
 cast_unit_type!(CombatUnitType, Combat);
 cast_unit_type!(BuildingUnitType, Building);
+
+// inherit_unit_type!(TreeUnitType, BaseUnitType);
+inherit_unit_type!(AnimatedUnitType, BaseUnitType);
+// inherit_unit_type!(DopplegangerUnitType, AnimatedUnitType);
+inherit_unit_type!(MovingUnitType, AnimatedUnitType);
+inherit_unit_type!(ActionUnitType, MovingUnitType);
+inherit_unit_type!(BaseCombatUnitType, ActionUnitType);
+inherit_unit_type!(MissileUnitType, BaseCombatUnitType);
+inherit_unit_type!(CombatUnitType, BaseCombatUnitType);
+inherit_unit_type!(BuildingUnitType, CombatUnitType);
 
 impl UnitType {
     fn type_id(&self) -> u8 {
@@ -117,36 +138,72 @@ impl UnitType {
         Ok(())
     }
 
+    /// Get the base unit type properties for this unit.
     pub fn base(&self) -> &BaseUnitType {
         use UnitType::*;
         match self {
             Base(unit) => &unit,
             Tree(unit) => &unit.0,
-            Animated(unit) => &unit.superclass,
-            Doppleganger(unit) => &unit.0.superclass,
-            Moving(unit) => &unit.superclass.superclass,
-            Action(unit) => &unit.superclass.superclass.superclass,
-            BaseCombat(unit) => &unit.superclass.superclass.superclass.superclass,
-            Missile(unit) => &unit.superclass.superclass.superclass.superclass.superclass,
-            Combat(unit) => &unit.superclass.superclass.superclass.superclass.superclass,
-            Building(unit) => {
-                &unit
-                    .superclass
-                    .superclass
-                    .superclass
-                    .superclass
-                    .superclass
-                    .superclass
-            }
+            Animated(unit) => &unit,
+            Doppleganger(unit) => &unit.0,
+            Moving(unit) => &unit,
+            Action(unit) => &unit,
+            BaseCombat(unit) => &unit,
+            Missile(unit) => &unit,
+            Combat(unit) => &unit,
+            Building(unit) => &unit
+        }
+    }
+
+    /// Get the animated unit type properties for this unit.
+    pub fn animated(&self) -> Option<&AnimatedUnitType> {
+        use UnitType::*;
+        match self {
+            Base(_) | Tree(_) => None,
+            Animated(unit) => Some(&unit),
+            Doppleganger(unit) => Some(&unit.0),
+            Moving(unit) => Some(&unit),
+            Action(unit) => Some(&unit),
+            BaseCombat(unit) => Some(&unit),
+            Missile(unit) => Some(&unit),
+            Combat(unit) => Some(&unit),
+            Building(unit) => Some(&unit),
+        }
+    }
+
+    /// Get the moving unit type properties for this unit.
+    pub fn moving(&self) -> Option<&MovingUnitType> {
+        use UnitType::*;
+        match self {
+            Base(_) | Tree(_) | Animated(_) | Doppleganger(_) => None,
+            Moving(unit) => Some(&unit),
+            Action(unit) => Some(&unit),
+            BaseCombat(unit) => Some(&unit),
+            Missile(unit) => Some(&unit),
+            Combat(unit) => Some(&unit),
+            Building(unit) => Some(&unit),
+        }
+    }
+
+    /// Get the action unit type properties for this unit.
+    pub fn action(&self) -> Option<&ActionUnitType> {
+        use UnitType::*;
+        match self {
+            Base(_) | Tree(_) | Animated(_) | Doppleganger(_) | Moving(_) => None,
+            Action(unit) => Some(&unit),
+            BaseCombat(unit) => Some(&unit),
+            Missile(unit) => Some(&unit),
+            Combat(unit) => Some(&unit),
+            Building(unit) => Some(&unit),
         }
     }
 }
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct UnitAttribute {
-    attribute_type: u16,
-    amount: f32,
-    flag: u8,
+    pub attribute_type: u16,
+    pub amount: f32,
+    pub flag: u8,
 }
 
 impl UnitAttribute {
@@ -167,9 +224,9 @@ impl UnitAttribute {
 
 #[derive(Debug, Default, Clone)]
 pub struct DamageSprite {
-    sprite: SpriteID,
-    damage_percent: u16,
-    flag: u8,
+    pub sprite: SpriteID,
+    pub damage_percent: u16,
+    pub flag: u8,
 }
 
 impl DamageSprite {
@@ -191,67 +248,67 @@ impl DamageSprite {
 #[derive(Debug, Default, Clone)]
 pub struct BaseUnitType {
     name: String,
-    id: UnitTypeID,
-    string_id: StringID,
+    pub id: UnitTypeID,
+    pub string_id: StringID,
     string_id2: Option<StringID>,
-    unit_class: UnitClass,
-    standing_sprite_1: Option<SpriteID>,
-    standing_sprite_2: Option<SpriteID>,
-    dying_sprite: Option<SpriteID>,
-    undead_sprite: Option<SpriteID>,
-    undead_flag: u8,
-    hp: u16,
-    los: f32,
-    garrison_capacity: u8,
-    radius: (f32, f32, f32),
-    train_sound: Option<SoundID>,
-    damage_sound: Option<SoundID>,
-    death_spawn: Option<UnitTypeID>,
-    sort_number: u8,
-    can_be_built_on: bool,
-    button_picture: Option<GraphicID>,
-    hide_in_scenario_editor: bool,
-    portrait_picture: Option<GraphicID>,
-    enabled: bool,
-    disabled: bool,
-    tile_req: (i16, i16),
-    center_tile_req: (i16, i16),
-    construction_radius: (f32, f32),
-    elevation_flag: bool,
-    fog_flag: bool,
-    terrain_restriction_id: u16,
-    movement_type: u8,
-    attribute_max_amount: u16,
-    attribute_rot: f32,
-    area_effect_level: u8,
-    combat_level: u8,
-    select_level: u8,
-    map_draw_level: u8,
-    unit_level: u8,
-    multiple_attribute_mod: f32,
-    map_color: u8,
-    help_string_id: StringID,
-    help_page_id: u32,
-    hotkey_id: u32,
-    recyclable: bool,
-    track_as_resource: bool,
-    create_doppleganger: bool,
-    resource_group: u8,
-    occlusion_mask: u8,
-    obstruction_type: u8,
-    selection_shape: u8,
-    object_flags: u32,
-    civilization: u8,
-    attribute_piece: u8,
-    outline_radius: (f32, f32, f32),
-    attributes: ArrayVec<[UnitAttribute; 3]>,
-    damage_sprites: Vec<DamageSprite>,
-    selected_sound: Option<SoundID>,
-    death_sound: Option<SoundID>,
-    attack_reaction: u8,
-    convert_terrain_flag: u8,
-    copy_id: u16,
-    unit_group: u16,
+    pub unit_class: UnitClass,
+    pub standing_sprite_1: Option<SpriteID>,
+    pub standing_sprite_2: Option<SpriteID>,
+    pub dying_sprite: Option<SpriteID>,
+    pub undead_sprite: Option<SpriteID>,
+    pub undead_flag: u8,
+    pub hp: u16,
+    pub los: f32,
+    pub garrison_capacity: u8,
+    pub radius: (f32, f32, f32),
+    pub train_sound: Option<SoundID>,
+    pub damage_sound: Option<SoundID>,
+    pub death_spawn: Option<UnitTypeID>,
+    pub sort_number: u8,
+    pub can_be_built_on: bool,
+    pub button_picture: Option<GraphicID>,
+    pub hide_in_scenario_editor: bool,
+    pub portrait_picture: Option<GraphicID>,
+    pub enabled: bool,
+    pub disabled: bool,
+    pub tile_req: (i16, i16),
+    pub center_tile_req: (i16, i16),
+    pub construction_radius: (f32, f32),
+    pub elevation_flag: bool,
+    pub fog_flag: bool,
+    pub terrain_restriction_id: u16,
+    pub movement_type: u8,
+    pub attribute_max_amount: u16,
+    pub attribute_rot: f32,
+    pub area_effect_level: u8,
+    pub combat_level: u8,
+    pub select_level: u8,
+    pub map_draw_level: u8,
+    pub unit_level: u8,
+    pub multiple_attribute_mod: f32,
+    pub map_color: u8,
+    pub help_string_id: StringID,
+    pub help_page_id: u32,
+    pub hotkey_id: u32,
+    pub recyclable: bool,
+    pub track_as_resource: bool,
+    pub create_doppleganger: bool,
+    pub resource_group: u8,
+    pub occlusion_mask: u8,
+    pub obstruction_type: u8,
+    pub selection_shape: u8,
+    pub object_flags: u32,
+    pub civilization: u8,
+    pub attribute_piece: u8,
+    pub outline_radius: (f32, f32, f32),
+    pub attributes: ArrayVec<[UnitAttribute; 3]>,
+    pub damage_sprites: Vec<DamageSprite>,
+    pub selected_sound: Option<SoundID>,
+    pub death_sound: Option<SoundID>,
+    pub attack_reaction: u8,
+    pub convert_terrain_flag: u8,
+    pub copy_id: u16,
+    pub unit_group: u16,
 }
 
 impl BaseUnitType {
@@ -493,7 +550,7 @@ impl TreeUnitType {
 #[derive(Debug, Default, Clone)]
 pub struct AnimatedUnitType {
     superclass: BaseUnitType,
-    speed: f32,
+    pub speed: f32,
 }
 
 impl AnimatedUnitType {
@@ -525,19 +582,19 @@ impl DopplegangerUnitType {
 #[derive(Debug, Default, Clone)]
 pub struct MovingUnitType {
     superclass: AnimatedUnitType,
-    move_sprite: Option<SpriteID>,
-    run_sprite: Option<SpriteID>,
-    turn_speed: f32,
-    size_class: u8,
-    trailing_unit: Option<UnitTypeID>,
-    trailing_options: u8,
-    trailing_spacing: f32,
-    move_algorithm: u8,
-    turn_radius: f32,
-    turn_radius_speed: f32,
-    maximum_yaw_per_second_moving: f32,
-    stationary_yaw_revolution_time: f32,
-    maximum_yaw_per_second_stationary: f32,
+    pub move_sprite: Option<SpriteID>,
+    pub run_sprite: Option<SpriteID>,
+    pub turn_speed: f32,
+    pub size_class: u8,
+    pub trailing_unit: Option<UnitTypeID>,
+    pub trailing_options: u8,
+    pub trailing_spacing: f32,
+    pub move_algorithm: u8,
+    pub turn_radius: f32,
+    pub turn_radius_speed: f32,
+    pub maximum_yaw_per_second_moving: f32,
+    pub stationary_yaw_revolution_time: f32,
+    pub maximum_yaw_per_second_stationary: f32,
 }
 
 impl MovingUnitType {
@@ -595,18 +652,18 @@ impl MovingUnitType {
 #[derive(Debug, Default, Clone)]
 pub struct ActionUnitType {
     superclass: MovingUnitType,
-    default_task: Option<u16>,
-    search_radius: f32,
-    work_rate: f32,
-    drop_site: Option<UnitTypeID>,
-    backup_drop_site: Option<UnitTypeID>,
-    task_by_group: u8,
-    command_sound: Option<SoundID>,
-    move_sound: Option<SoundID>,
+    pub default_task: Option<u16>,
+    pub search_radius: f32,
+    pub work_rate: f32,
+    pub drop_site: Option<UnitTypeID>,
+    pub backup_drop_site: Option<UnitTypeID>,
+    pub task_by_group: u8,
+    pub command_sound: Option<SoundID>,
+    pub move_sound: Option<SoundID>,
     /// Task list for older versions; newer game versions store the task list at the root of the
     /// dat file, and use `unit_type.copy_id` to refer to one of those task lists.
-    tasks: Option<TaskList>,
-    run_pattern: u8,
+    pub tasks: Option<TaskList>,
+    pub run_pattern: u8,
 }
 
 impl ActionUnitType {
@@ -663,8 +720,8 @@ impl ActionUnitType {
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct WeaponInfo {
-    weapon_type: i16,
-    value: i16,
+    pub weapon_type: i16,
+    pub value: i16,
 }
 
 impl WeaponInfo {
@@ -684,26 +741,26 @@ impl WeaponInfo {
 #[derive(Debug, Default, Clone)]
 pub struct BaseCombatUnitType {
     superclass: ActionUnitType,
-    base_armor: u16,
-    weapons: Vec<WeaponInfo>,
-    armors: Vec<WeaponInfo>,
-    defense_terrain_bonus: Option<u16>,
-    weapon_range_max: f32,
-    area_effect_range: f32,
-    attack_speed: f32,
-    missile_id: Option<UnitTypeID>,
-    base_hit_chance: i16,
-    break_off_combat: i8,
-    frame_delay: i16,
-    weapon_offset: (f32, f32, f32),
-    blast_level_offense: i8,
-    weapon_range_min: f32,
-    missed_missile_spread: f32,
-    fight_sprite: Option<SpriteID>,
-    displayed_armor: i16,
-    displayed_attack: i16,
-    displayed_range: f32,
-    displayed_reload_time: f32,
+    pub base_armor: u16,
+    pub weapons: Vec<WeaponInfo>,
+    pub armors: Vec<WeaponInfo>,
+    pub defense_terrain_bonus: Option<u16>,
+    pub weapon_range_max: f32,
+    pub area_effect_range: f32,
+    pub attack_speed: f32,
+    pub missile_id: Option<UnitTypeID>,
+    pub base_hit_chance: i16,
+    pub break_off_combat: i8,
+    pub frame_delay: i16,
+    pub weapon_offset: (f32, f32, f32),
+    pub blast_level_offense: i8,
+    pub weapon_range_min: f32,
+    pub missed_missile_spread: f32,
+    pub fight_sprite: Option<SpriteID>,
+    pub displayed_armor: i16,
+    pub displayed_attack: i16,
+    pub displayed_range: f32,
+    pub displayed_reload_time: f32,
 }
 
 impl BaseCombatUnitType {
@@ -757,12 +814,12 @@ impl BaseCombatUnitType {
 #[derive(Debug, Default, Clone)]
 pub struct MissileUnitType {
     superclass: BaseCombatUnitType,
-    missile_type: u8,
-    targetting_type: u8,
-    missile_hit_info: u8,
-    missile_die_info: u8,
-    area_effect_specials: u8,
-    ballistics_ratio: f32,
+    pub missile_type: u8,
+    pub targetting_type: u8,
+    pub missile_hit_info: u8,
+    pub missile_die_info: u8,
+    pub area_effect_specials: u8,
+    pub ballistics_ratio: f32,
 }
 
 impl MissileUnitType {
@@ -794,9 +851,9 @@ impl MissileUnitType {
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct AttributeCost {
-    attribute_type: i16,
-    amount: i16,
-    flag: u8,
+    pub attribute_type: i16,
+    pub amount: i16,
+    pub flag: u8,
 }
 
 impl AttributeCost {
@@ -821,22 +878,22 @@ impl AttributeCost {
 #[derive(Debug, Default, Clone)]
 pub struct CombatUnitType {
     superclass: BaseCombatUnitType,
-    costs: ArrayVec<[AttributeCost; 3]>,
-    create_time: u16,
-    create_at_building: Option<UnitTypeID>,
-    create_button: i8,
-    rear_attack_modifier: f32,
-    flank_attack_modifier: f32,
-    hero_flag: u8,
-    garrison_sprite: Option<SpriteID>,
-    volley_fire_amount: f32,
-    max_attacks_in_volley: i8,
-    volley_spread: (f32, f32),
-    volley_start_spread_adjustment: f32,
-    volley_missile: Option<UnitTypeID>,
-    special_attack_sprite: Option<SpriteID>,
-    special_attack_flag: i8,
-    displayed_pierce_armor: i16,
+    pub costs: ArrayVec<[AttributeCost; 3]>,
+    pub create_time: u16,
+    pub create_at_building: Option<UnitTypeID>,
+    pub create_button: i8,
+    pub rear_attack_modifier: f32,
+    pub flank_attack_modifier: f32,
+    pub hero_flag: u8,
+    pub garrison_sprite: Option<SpriteID>,
+    pub volley_fire_amount: f32,
+    pub max_attacks_in_volley: i8,
+    pub volley_spread: (f32, f32),
+    pub volley_start_spread_adjustment: f32,
+    pub volley_missile: Option<UnitTypeID>,
+    pub special_attack_sprite: Option<SpriteID>,
+    pub special_attack_flag: i8,
+    pub displayed_pierce_armor: i16,
 }
 
 impl CombatUnitType {
@@ -900,9 +957,9 @@ impl CombatUnitType {
 
 #[derive(Debug, Default, Clone)]
 pub struct LinkedBuilding {
-    unit_id: UnitTypeID,
-    x_offset: f32,
-    y_offset: f32,
+    pub unit_id: UnitTypeID,
+    pub x_offset: f32,
+    pub y_offset: f32,
 }
 
 impl LinkedBuilding {
@@ -924,26 +981,26 @@ impl LinkedBuilding {
 #[derive(Debug, Default, Clone)]
 pub struct BuildingUnitType {
     superclass: CombatUnitType,
-    construction_sprite: Option<SpriteID>,
-    snow_sprite: Option<SpriteID>,
-    connect_flag: u8,
-    facet: i16,
-    destroy_on_build: bool,
-    on_build_make_unit: Option<UnitTypeID>,
-    on_build_make_tile: Option<TerrainID>,
-    on_build_make_overlay: i16,
-    on_build_make_tech: Option<TechID>,
-    can_burn: bool,
-    linked_buildings: ArrayVec<[LinkedBuilding; 4]>,
-    construction_unit: Option<UnitTypeID>,
-    transform_unit: Option<UnitTypeID>,
-    transform_sound: Option<SoundID>,
-    construction_sound: Option<SoundID>,
-    garrison_type: i8,
-    garrison_heal_rate: f32,
-    garrison_repair_rate: f32,
-    salvage_unit: Option<UnitTypeID>,
-    salvage_attributes: ArrayVec<[i8; 6]>,
+    pub construction_sprite: Option<SpriteID>,
+    pub snow_sprite: Option<SpriteID>,
+    pub connect_flag: u8,
+    pub facet: i16,
+    pub destroy_on_build: bool,
+    pub on_build_make_unit: Option<UnitTypeID>,
+    pub on_build_make_tile: Option<TerrainID>,
+    pub on_build_make_overlay: i16,
+    pub on_build_make_tech: Option<TechID>,
+    pub can_burn: bool,
+    pub linked_buildings: ArrayVec<[LinkedBuilding; 4]>,
+    pub construction_unit: Option<UnitTypeID>,
+    pub transform_unit: Option<UnitTypeID>,
+    pub transform_sound: Option<SoundID>,
+    pub construction_sound: Option<SoundID>,
+    pub garrison_type: i8,
+    pub garrison_heal_rate: f32,
+    pub garrison_repair_rate: f32,
+    pub salvage_unit: Option<UnitTypeID>,
+    pub salvage_attributes: ArrayVec<[i8; 6]>,
 }
 
 impl BuildingUnitType {
