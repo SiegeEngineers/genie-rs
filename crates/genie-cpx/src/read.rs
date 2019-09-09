@@ -52,6 +52,10 @@ type Result<T> = std::result::Result<T, ReadCampaignError>;
 
 /// Decode a string with unknown encoding.
 fn decode_str(bytes: &[u8]) -> Result<String> {
+    if bytes.is_empty() {
+        return Ok("".to_string());
+    }
+
     let (encoding_name, _confidence, _language) = detect_encoding(&bytes);
     Encoding::for_label(encoding_name.as_bytes())
         .ok_or(ReadCampaignError::DecodeStringError)
@@ -78,8 +82,12 @@ pub fn read_fixed_str<R: Read>(input: &mut R, len: usize) -> Result<Option<Strin
     }
 }
 
-fn read_new_str<R: Read>(input: &mut R) -> Result<Option<String>> {
-    let _open = input.read_u16::<LE>()?; // start of string
+fn read_variable_str<R: Read>(input: &mut R) -> Result<Option<String>> {
+    let open = input.read_u16::<LE>()?;
+    // Check that this actually is the start of a string
+    if open != 0x0A60 {
+        return Err(ReadCampaignError::DecodeStringError);
+    }
     let len = input.read_u16::<LE>()? as usize;
     let mut bytes = vec![0; len];
     input.read_exact(&mut bytes[0..len])?;
@@ -91,10 +99,15 @@ fn read_campaign_header<R: Read>(input: &mut R) -> Result<CampaignHeader> {
     input.read_exact(&mut version)?;
     let (name, num_scenarios) = if version == *b"1.10" {
         let num_scenarios = input.read_i32::<LE>()? as usize;
-        (read_new_str(input)?.ok_or(ReadCampaignError::MissingNameError)?, num_scenarios)
+        (
+            read_variable_str(input)?.ok_or(ReadCampaignError::MissingNameError)?,
+            num_scenarios,
+        )
     } else {
-        (read_fixed_str(input, 256)?.ok_or(ReadCampaignError::MissingNameError)?,
-        input.read_i32::<LE>()? as usize)
+        (
+            read_fixed_str(input, 256)?.ok_or(ReadCampaignError::MissingNameError)?,
+            input.read_i32::<LE>()? as usize,
+        )
     };
 
     Ok(CampaignHeader {
@@ -104,20 +117,25 @@ fn read_campaign_header<R: Read>(input: &mut R) -> Result<CampaignHeader> {
     })
 }
 
-fn read_scenario_meta<R: Read>(input: &mut R, version: CPXVersion) -> Result<ScenarioMeta> {
+fn read_scenario_meta_de<R: Read>(input: &mut R) -> Result<ScenarioMeta> {
+    let size = input.read_u64::<LE>()? as usize;
+    let offset = input.read_u64::<LE>()? as usize;
+    let name = read_variable_str(input)?.ok_or(ReadCampaignError::MissingNameError)?;
+    let filename = read_variable_str(input)?.ok_or(ReadCampaignError::MissingNameError)?;
+
+    Ok(ScenarioMeta {
+        size,
+        offset,
+        name,
+        filename,
+    })
+}
+
+fn read_scenario_meta<R: Read>(input: &mut R) -> Result<ScenarioMeta> {
     let size = input.read_i32::<LE>()? as usize;
     let offset = input.read_i32::<LE>()? as usize;
-    dbg!(size,offset);
-    let name = if version == *b"1.10" {
-        read_new_str(input)
-    } else {
-        read_fixed_str(input, 255)
-    }?.ok_or(ReadCampaignError::MissingNameError)?;
-    let filename = if version == *b"1.10" {
-        read_new_str(input)
-    } else {
-        read_fixed_str(input, 255)
-    }?.ok_or(ReadCampaignError::MissingNameError)?;
+    let name = read_fixed_str(input, 255)?.ok_or(ReadCampaignError::MissingNameError)?;
+    let filename = read_fixed_str(input, 255)?.ok_or(ReadCampaignError::MissingNameError)?;
     let mut padding = [0; 2];
     input.read_exact(&mut padding)?;
 
@@ -149,10 +167,15 @@ where
     /// This immediately reads the campaign header and scenario metadata, but not the scenario
     /// files themselves.
     pub fn from(mut input: R) -> Result<Self> {
-        let header = dbg!(read_campaign_header(&mut input))?;
+        let header = read_campaign_header(&mut input)?;
         let mut entries = vec![];
+        let read_entry = if header.version == *b"1.10" {
+            read_scenario_meta_de
+        } else {
+            read_scenario_meta
+        };
         for _ in 0..header.num_scenarios {
-            entries.push(read_scenario_meta(&mut input, header.version)?);
+            entries.push(dbg!(read_entry(&mut input)?));
         }
 
         Ok(Self {
@@ -315,5 +338,33 @@ mod tests {
                 "Siege Battle.scn",
             ]
         );
+    }
+
+    #[test]
+    fn aoe_de() -> Result<()> {
+        let f = File::open("test/campaigns/10 The First Punic War.aoecpn")?;
+        let c = Campaign::from(f)?;
+
+        assert_eq!(c.version(), *b"1.10");
+        assert_eq!(c.name(), "10 The First Punic War");
+        assert_eq!(c.len(), 3);
+        let filenames: Vec<_> = c.entries().map(|e| &e.filename).collect();
+        assert_eq!(
+            filenames,
+            vec![
+                "Scxt1-01-The Battle of Agrigentum.aoescn",
+                "Scxt1-02-The Battle of Mylae.aoescn",
+                "Scxt1-03-The Battle of Tunis.aoescn",
+            ]
+        );
+
+        /* Enable when genie_scx supports DE1 scenarios better
+        let mut c = c;
+        for i in 0..c.len() {
+            let _scen = c.by_index(i)?;
+        }
+        */
+
+        Ok(())
     }
 }

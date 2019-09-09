@@ -98,10 +98,7 @@ mod tests {
         let mut written_cpx = Campaign::from(Cursor::new(outstream))?;
         assert_eq!(written_cpx.name(), incpx.name());
         assert_eq!(written_cpx.len(), incpx.len());
-        assert_eq!(
-            written_cpx.by_index_raw(0)?,
-            incpx.by_index_raw(0)?
-        );
+        assert_eq!(written_cpx.by_index_raw(0)?, incpx.by_index_raw(0)?);
         Ok(())
     }
 }
