@@ -48,30 +48,6 @@ fallible_try_into!(UnitTypeID, i16);
 fallible_try_from!(UnitTypeID, i32);
 fallible_try_from!(UnitTypeID, u32);
 
-/// An ID identifying a string resource.
-#[derive(Debug, Hash, Default, Clone, Copy, PartialEq, Eq)]
-pub struct StringID(u32);
-
-impl From<u16> for StringID {
-    #[inline]
-    fn from(n: u16) -> Self {
-        StringID(n.into())
-    }
-}
-
-impl From<u32> for StringID {
-    #[inline]
-    fn from(n: u32) -> Self {
-        StringID(n)
-    }
-}
-
-fallible_try_into!(StringID, u16);
-fallible_try_into!(StringID, i16);
-infallible_try_into!(StringID, u32);
-fallible_try_into!(StringID, i32);
-fallible_try_from!(StringID, i32);
-
 /// A key in a language file.
 ///
 /// A key may be either a nonnegative integer or an arbitrary string.

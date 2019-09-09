@@ -8,11 +8,11 @@ use crate::{
 };
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
-use genie_support::{cmp_float, read_opt_u32, MapInto, StringID, UnitTypeID};
+use genie_support::{cmp_float, read_opt_u32, MapInto, StringKey, UnitTypeID};
 use std::{
     cmp::Ordering,
     convert::{TryFrom, TryInto},
-    io::{Read, Write},
+    io::{self, Read, Write},
 };
 
 fn cmp_scx_version(a: SCXVersion, b: SCXVersion) -> Ordering {
@@ -123,17 +123,17 @@ pub(crate) struct RGEScen {
     /// Names for each player.
     player_names: Vec<Option<String>>,
     /// Name IDs for each player.
-    player_string_table: Vec<Option<StringID>>,
+    player_string_table: Vec<Option<StringKey>>,
     player_base_properties: Vec<PlayerBaseProperties>,
     victory_conquest: bool,
     /// File name of this scenario.
     pub(crate) name: String,
-    description_string_table: Option<StringID>,
-    hints_string_table: Option<StringID>,
-    win_message_string_table: Option<StringID>,
-    loss_message_string_table: Option<StringID>,
-    history_string_table: Option<StringID>,
-    scout_string_table: Option<StringID>,
+    description_string_table: Option<StringKey>,
+    hints_string_table: Option<StringKey>,
+    win_message_string_table: Option<StringKey>,
+    loss_message_string_table: Option<StringKey>,
+    history_string_table: Option<StringKey>,
+    scout_string_table: Option<StringKey>,
     description: Option<String>,
     hints: Option<String>,
     win_message: Option<String>,
@@ -360,7 +360,7 @@ impl RGEScen {
         if version > 1.16 {
             assert_eq!(self.player_string_table.len(), 16);
             for id in &self.player_string_table {
-                write_opt_string_id(&mut output, *id)?;
+                write_opt_string_key(&mut output, id)?;
             }
         }
 
@@ -386,14 +386,14 @@ impl RGEScen {
         write_str(output, &self.name)?;
 
         if version >= 1.16 {
-            write_opt_string_id(&mut output, self.description_string_table)?;
-            write_opt_string_id(&mut output, self.hints_string_table)?;
-            write_opt_string_id(&mut output, self.win_message_string_table)?;
-            write_opt_string_id(&mut output, self.loss_message_string_table)?;
-            write_opt_string_id(&mut output, self.history_string_table)?;
+            write_opt_string_key(&mut output, &self.description_string_table)?;
+            write_opt_string_key(&mut output, &self.hints_string_table)?;
+            write_opt_string_key(&mut output, &self.win_message_string_table)?;
+            write_opt_string_key(&mut output, &self.loss_message_string_table)?;
+            write_opt_string_key(&mut output, &self.history_string_table)?;
         }
         if version >= 1.22 {
-            write_opt_string_id(&mut output, self.scout_string_table)?;
+            write_opt_string_key(&mut output, &self.scout_string_table)?;
         }
 
         write_opt_str(output, &self.description)?;
@@ -1121,10 +1121,14 @@ impl SCXFormat {
     }
 }
 
-fn write_opt_string_id(mut output: impl Write, val: Option<StringID>) -> Result<()> {
-    output
-        .write_i32::<LE>(val.map(|n| n.try_into().unwrap()).unwrap_or(-1))
-        .map_err(Into::into)
+fn write_opt_string_key<W: Write>(output: &mut W, opt_key: &Option<StringKey>) -> Result<()> {
+    output.write_i16::<LE>(if let Some(key) = opt_key {
+        key.try_into()
+            .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?
+    } else {
+        -1
+    })?;
+    Ok(())
 }
 
 #[cfg(test)]

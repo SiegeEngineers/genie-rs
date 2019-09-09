@@ -27,7 +27,7 @@ use std::io::{self, Read, Write};
 
 pub use ai::ParseAIErrorCodeError;
 pub use format::ScenarioObject;
-pub use genie_support::{StringID, UnitTypeID};
+pub use genie_support::{StringKey, UnitTypeID};
 pub use header::{DLCOptions, SCXHeader};
 pub use map::{Map, Tile};
 pub use triggers::{Trigger, TriggerCondition, TriggerEffect, TriggerSystem};
