@@ -1,12 +1,10 @@
 //! Displays civilizations from a specified dat file.
 
 use genie::DatFile;
-use std::error::Error;
-use std::fs::File;
-use std::path::PathBuf;
+use std::{error::Error, fs::File, path::PathBuf};
 use structopt::StructOpt;
 
-/// Displays an individual hotkey from a hotkey file.
+/// Display civilizations from a specified dat file.
 #[derive(Debug, StructOpt)]
 #[structopt(name = "displaycivs")]
 struct DisplayCivs {

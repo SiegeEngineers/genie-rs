@@ -60,7 +60,7 @@ macro_rules! inherit_unit_type {
                 &self.superclass
             }
         }
-    }
+    };
 }
 
 cast_unit_type!(BaseUnitType, Base);
@@ -151,7 +151,7 @@ impl UnitType {
             BaseCombat(unit) => &unit,
             Missile(unit) => &unit,
             Combat(unit) => &unit,
-            Building(unit) => &unit
+            Building(unit) => &unit,
         }
     }
 
