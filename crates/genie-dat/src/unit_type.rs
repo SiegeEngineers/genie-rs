@@ -19,15 +19,26 @@ pub type UnitClass = u16;
 
 #[derive(Debug, Clone)]
 pub enum UnitType {
+    /// The base unit type, for units that do not do anything.
     Base(Box<BaseUnitType>),
+    /// The tree unit type.
     Tree(Box<TreeUnitType>),
+    /// Unit type that supports animated sprites.
     Animated(Box<AnimatedUnitType>),
+    /// Unit type for the "fake" units you see in the fog of war, after the actual unit has been
+    /// destroyed.
     Doppleganger(Box<DopplegangerUnitType>),
+    /// Unit type that supports movement.
     Moving(Box<MovingUnitType>),
+    /// Unit type that supports being tasked by a player.
     Action(Box<ActionUnitType>),
+    /// Unit type that supports combat.
     BaseCombat(Box<BaseCombatUnitType>),
+    /// Unit type for projectiles/missiles/arrows.
     Missile(Box<MissileUnitType>),
+    /// Unit type that supports combat (with additional Age of Empires specific data).
     Combat(Box<CombatUnitType>),
+    /// Unit type for buildings.
     Building(Box<BuildingUnitType>),
 }
 
@@ -53,6 +64,22 @@ cast_unit_type!(CombatUnitType, Combat);
 cast_unit_type!(BuildingUnitType, Building);
 
 impl UnitType {
+    fn type_id(&self) -> u8 {
+        use UnitType::*;
+        match self {
+            Base(_) => 10,
+            Tree(_) => 15,
+            Animated(_) => 20,
+            Doppleganger(_) => 25,
+            Moving(_) => 30,
+            Action(_) => 40,
+            BaseCombat(_) => 50,
+            Missile(_) => 60,
+            Combat(_) => 70,
+            Building(_) => 80,
+        }
+    }
+
     pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let unit_type = input.read_u8()?;
         match unit_type {
@@ -72,18 +99,7 @@ impl UnitType {
 
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         use UnitType::*;
-        output.write_u8(match self {
-            Base(_) => 10,
-            Tree(_) => 15,
-            Animated(_) => 20,
-            Doppleganger(_) => 25,
-            Moving(_) => 30,
-            Action(_) => 40,
-            BaseCombat(_) => 50,
-            Missile(_) => 60,
-            Combat(_) => 70,
-            Building(_) => 80,
-        })?;
+        output.write_u8(self.type_id())?;
 
         match self {
             Base(unit) => unit.write_to(output)?,

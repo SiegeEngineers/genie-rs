@@ -1,3 +1,15 @@
+//! A reader for Age of Empires game data files.
+//!
+//! This crate aims to support every data file that exists, but is for now being tested with AoE1,
+//! AoE2, and AoE2: HD Edition.
+
+#![deny(future_incompatible)]
+#![deny(nonstandard_style)]
+#![deny(rust_2018_idioms)]
+#![deny(unsafe_code)]
+#![warn(missing_docs)]
+#![warn(unused)]
+
 mod civ;
 mod color_table;
 mod random_map;
@@ -28,15 +40,20 @@ pub use terrain::{
 };
 pub use unit_type::*;
 
+/// A game version targeted by a data file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GameVersion {
+    /// The original expansion-less Age of Empires 2: Age of Kings.
     AoK,
+    /// Age of Empires 2 with the The Conquerors expansion.
     AoC,
+    /// Age of EMpires 2: HD Edition.
     HD,
 }
 
 impl GameVersion {
-    pub fn as_f32(self) -> f32 {
+    /// Get the most likely internal game data version number for a given game version.
+    fn as_f32(self) -> f32 {
         use GameVersion::*;
         match self {
             AoK => 11.5,
@@ -46,6 +63,7 @@ impl GameVersion {
     }
 }
 
+/// A data file version.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FileVersion([u8; 8]);
 
@@ -68,7 +86,7 @@ impl FileVersion {
     }
 
     /// Get the data version associated with this file version.
-    pub fn into_data_version(self) -> f32 {
+    fn into_data_version(self) -> f32 {
         match &self.0 {
             b"VER 5.7\0" => 11.97,
             _ => panic!("unknown version"),
@@ -76,24 +94,37 @@ impl FileVersion {
     }
 }
 
+/// A data file.
 #[derive(Debug, Clone)]
 pub struct DatFile {
     file_version: FileVersion,
     game_version: GameVersion,
+    /// Terrain restriction tables.
     pub terrain_tables: Vec<TerrainRestriction>,
+    /// Tile size data.
     pub tile_sizes: Vec<TileSize>,
+    /// Terrains.
     pub terrains: Vec<Terrain>,
+    /// Terrain border data, specifying how different terrains blend.
     pub terrain_borders: Vec<TerrainBorder>,
+    /// Data about player colours.
     pub color_tables: Vec<ColorTable>,
+    /// The available sounds.
     pub sounds: Vec<Sound>,
+    /// The available sprites.
     pub sprites: Vec<Option<Sprite>>,
+    /// Tech effect data.
     pub effects: Vec<TechEffect>,
+    /// Task lists for unit types.
     pub task_lists: Vec<Option<TaskList>>,
+    /// The available civilizations.
     pub civilizations: Vec<Civilization>,
+    /// Techs or researches.
     pub techs: Vec<Tech>,
 }
 
 impl DatFile {
+    /// Read a data file from a compressed byte stream.
     pub fn from(input: impl Read) -> Result<Self> {
         let mut input = DeflateDecoder::new(input);
 
@@ -270,6 +301,7 @@ impl DatFile {
         })
     }
 
+    /// Serialize this data file to an output stream. Compression is applied by this function.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         let mut output = DeflateEncoder::new(output, Compression::default());
         output.write_all(&self.file_version.0)?;
@@ -369,6 +401,7 @@ impl DatFile {
     }
 }
 
+/// Skip some unimportant bytes on an input stream.
 fn skip<R: Read>(input: &mut R, bytes: u64) -> Result<u64> {
     std::io::copy(&mut input.by_ref().take(bytes), &mut std::io::sink())
 }
