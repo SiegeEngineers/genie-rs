@@ -406,28 +406,22 @@ mod tests {
 
     #[test]
     #[ignore]
-    fn reserialize() {
-        let original = std::fs::read("fixtures/aoc1.0c.dat").unwrap();
+    fn reserialize() -> Result<()> {
+        let original = std::fs::read("fixtures/aoc1.0c.dat")?;
         let mut cursor = Cursor::new(&original);
-        let dat = DatFile::from(&mut cursor).unwrap();
+        let dat = DatFile::from(&mut cursor)?;
         let mut serialized = vec![];
-        dat.write_to(&mut serialized).unwrap();
+        dat.write_to(&mut serialized)?;
 
-        let original = decompress(original);
-        let serialized = decompress(serialized);
+        let mut cursor = Cursor::new(&serialized);
+        let dat2 = DatFile::from(&mut cursor)?;
 
         let mut orig_hasher = DefaultHasher::new();
         let mut new_hasher = DefaultHasher::new();
-        original.hash(&mut orig_hasher);
-        serialized.hash(&mut new_hasher);
+        format!("{:?}", dat).hash(&mut orig_hasher);
+        format!("{:?}", dat2).hash(&mut new_hasher);
         assert_eq!(orig_hasher.finish(), new_hasher.finish());
 
-        fn decompress(bytes: Vec<u8>) -> Vec<u8> {
-            use flate2::read::DeflateDecoder;
-            let mut decompressed = vec![];
-            let mut decoder = DeflateDecoder::new(Cursor::new(bytes));
-            decoder.read_to_end(&mut decompressed).unwrap();
-            decompressed
-        }
+        Ok(())
     }
 }
