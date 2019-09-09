@@ -376,8 +376,12 @@ fn skip<R: Read>(input: &mut R, bytes: u64) -> Result<u64> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sha1::{Digest, Sha1};
-    use std::{fs::File, io::Cursor};
+    use std::{
+        collections::hash_map::DefaultHasher,
+        fs::File,
+        hash::{Hash, Hasher},
+        io::Cursor,
+    };
 
     #[test]
     fn aok() {
@@ -411,9 +415,12 @@ mod tests {
 
         let original = decompress(original);
         let serialized = decompress(serialized);
-        let orig_hash = Sha1::new().chain(original).result();
-        let new_hash = Sha1::new().chain(serialized).result();
-        assert_eq!(orig_hash, new_hash);
+
+        let mut orig_hasher = DefaultHasher::new();
+        let mut new_hasher = DefaultHasher::new();
+        original.hash(&mut orig_hasher);
+        serialized.hash(&mut new_hasher);
+        assert_eq!(orig_hasher.finish(), new_hasher.finish());
 
         fn decompress(bytes: Vec<u8>) -> Vec<u8> {
             use flate2::read::DeflateDecoder;
