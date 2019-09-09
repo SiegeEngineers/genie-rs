@@ -8,11 +8,11 @@ use crate::{
 };
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{read_opt_u16, MapInto};
-pub use genie_support::{StringID, UnitTypeID};
+pub use genie_support::UnitTypeID;
+use genie_support::{read_opt_u16, MapInto, StringKey};
 use std::{
     convert::TryInto,
-    io::{Read, Result, Write},
+    io::{self, Read, Result, Write},
 };
 
 pub type UnitClass = u16;
@@ -249,8 +249,8 @@ impl DamageSprite {
 pub struct BaseUnitType {
     name: String,
     pub id: UnitTypeID,
-    pub string_id: StringID,
-    string_id2: Option<StringID>,
+    pub string_id: StringKey,
+    string_id2: Option<StringKey>,
     pub unit_class: UnitClass,
     pub standing_sprite_1: Option<SpriteID>,
     pub standing_sprite_2: Option<SpriteID>,
@@ -287,7 +287,7 @@ pub struct BaseUnitType {
     pub unit_level: u8,
     pub multiple_attribute_mod: f32,
     pub map_color: u8,
-    pub help_string_id: StringID,
+    pub help_string_id: StringKey,
     pub help_page_id: u32,
     pub hotkey_id: u32,
     pub recyclable: bool,
@@ -410,12 +410,8 @@ impl BaseUnitType {
 
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u16::<LE>(self.id.into())?;
-        output.write_u16::<LE>(self.string_id.try_into().unwrap())?;
-        output.write_i16::<LE>(
-            self.string_id2
-                .map(|id| id.try_into().unwrap())
-                .unwrap_or(-1),
-        )?;
+        output.write_i16::<LE>((&self.string_id).try_into().unwrap())?;
+        write_opt_string_key(output, &self.string_id2)?;
         output.write_u16::<LE>(self.unit_class)?;
         output.write_i16::<LE>(
             self.standing_sprite_1
@@ -493,7 +489,7 @@ impl BaseUnitType {
         output.write_u8(self.unit_level)?;
         output.write_f32::<LE>(self.multiple_attribute_mod)?;
         output.write_u8(self.map_color)?;
-        output.write_u32::<LE>(self.help_string_id.try_into().unwrap())?;
+        output.write_u32::<LE>((&self.help_string_id).try_into().unwrap())?;
         output.write_u32::<LE>(self.help_page_id)?;
         output.write_u32::<LE>(self.hotkey_id)?;
         output.write_u8(if self.recyclable { 1 } else { 0 })?;
@@ -1048,4 +1044,14 @@ impl BuildingUnitType {
     pub fn write_to<W: Write>(&self, _output: &mut W) -> Result<()> {
         unimplemented!()
     }
+}
+
+fn write_opt_string_key<W: Write>(output: &mut W, opt_key: &Option<StringKey>) -> Result<()> {
+    output.write_i16::<LE>(if let Some(key) = opt_key {
+        key.try_into()
+            .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?
+    } else {
+        -1
+    })?;
+    Ok(())
 }

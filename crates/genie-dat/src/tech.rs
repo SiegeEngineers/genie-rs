@@ -1,11 +1,8 @@
-use crate::{
-    civ::CivilizationID,
-    unit_type::{StringID, UnitTypeID},
-};
+use crate::{civ::CivilizationID, unit_type::UnitTypeID};
 use arrayvec::{ArrayString, ArrayVec};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use genie_support::{
-    fallible_try_from, fallible_try_into, infallible_try_into, read_opt_u16, MapInto,
+    fallible_try_from, fallible_try_into, infallible_try_into, read_opt_u16, MapInto, StringKey,
 };
 use std::{
     convert::TryInto,
@@ -73,14 +70,14 @@ pub struct Tech {
     civilization: CivilizationID,
     full_tech_mode: u16,
     location: Option<UnitTypeID>,
-    language_dll_name: Option<StringID>,
-    language_dll_description: Option<StringID>,
+    language_dll_name: Option<StringKey>,
+    language_dll_description: Option<StringKey>,
     time: u16,
     time2: u16,
     type_: u16,
     icon_id: Option<u16>,
     button_id: u8,
-    language_dll_help: Option<StringID>,
+    language_dll_help: Option<StringKey>,
     help_page_id: u32,
     hotkey: Option<u32>,
     name: String,

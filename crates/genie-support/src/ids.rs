@@ -79,7 +79,7 @@ fallible_try_from!(StringID, i32);
 /// The original game supports only nonnegative integers.
 /// The HD Edition allows for integers as well as Strings to serve as keys in a
 /// key value file.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Hash, Clone, PartialEq, Eq)]
 pub enum StringKey {
     /// An integer string key.
     Num(u32),
@@ -89,6 +89,13 @@ pub enum StringKey {
     Name(String),
 }
 
+impl Default for StringKey {
+    #[inline]
+    fn default() -> Self {
+        Self::Num(0)
+    }
+}
+
 impl StringKey {
     /// Returns `true` if and only if this `StringKey` is a number.
     ///
@@ -96,7 +103,8 @@ impl StringKey {
     ///
     /// ```
     /// use genie_support::StringKey;
-    /// assert!(StringKey::from(0).is_numeric());
+    /// use std::convert::TryFrom;
+    /// assert!(StringKey::try_from(0).unwrap().is_numeric());
     /// assert!(!StringKey::from("").is_numeric());
     /// ```
     #[inline]
@@ -113,7 +121,8 @@ impl StringKey {
     ///
     /// ```
     /// use genie_support::StringKey;
-    /// assert!(!StringKey::from(0).is_named());
+    /// use std::convert::TryFrom;
+    /// assert!(!StringKey::try_from(0).unwrap().is_named());
     /// assert!(StringKey::from("").is_named());
     /// ```
     #[inline]
@@ -141,10 +150,25 @@ impl From<u32> for StringKey {
     }
 }
 
+impl From<u16> for StringKey {
+    #[inline]
+    fn from(n: u16) -> Self {
+        Self::Num(n.into())
+    }
+}
+
 impl TryFrom<i32> for StringKey {
     type Error = TryFromIntError;
     #[inline]
     fn try_from(n: i32) -> Result<Self, Self::Error> {
+        u32::try_from(n).map(Self::Num)
+    }
+}
+
+impl TryFrom<i16> for StringKey {
+    type Error = TryFromIntError;
+    #[inline]
+    fn try_from(n: i16) -> Result<Self, Self::Error> {
         u32::try_from(n).map(Self::Num)
     }
 }
@@ -214,7 +238,7 @@ mod tests {
     /// Tests converting from an int to a string key.
     #[test]
     fn string_key_from_int() {
-        if let StringKey::Num(n) = StringKey::from(0) {
+        if let StringKey::Num(n) = StringKey::try_from(0).unwrap() {
             assert_eq!(0, n);
         } else {
             panic!();
