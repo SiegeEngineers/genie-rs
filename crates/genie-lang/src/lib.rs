@@ -10,14 +10,14 @@
 //! ```rust
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use genie_lang::{LangFileType::Dll, StringKey};
-//! use std::fs::File;
+//! use std::{convert::TryFrom, fs::File};
 //! let f = File::open("./test/dlls/language_x1_p1.dll")?;
 //! let lang_file = Dll.read_from(f)?;
 //! assert_eq!(
-//!     lang_file.get(&StringKey::from(30177)),
+//!     lang_file.get(&StringKey::try_from(30177).unwrap()),
 //!     Some(&String::from("Turbo Random Map - Buildings create units faster, villagers gather faster, build faster, and carry more.")));
 //! assert_eq!(
-//!     lang_file.get(&StringKey::from(20156)),
+//!     lang_file.get(&StringKey::try_from(20156).unwrap()),
 //!     Some(&String::from("<b>Byzantines<b> \n\
 //!           Defensive civilization \n\
 //!           · Buildings +10% HPs Dark, +20% Feudal, \n +30% Castle, +40% Imperial Age \n\
@@ -35,7 +35,7 @@
 //! ```rust
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use genie_lang::{LangFileType::Ini, StringKey};
-//! use std::io::Cursor;
+//! use std::{convert::TryFrom, io::Cursor};
 //! let text = br#"
 //! 46523=The Uighurs will join if you kill Ornlu the wolf and return to tell the tale.
 //! ; a comment
@@ -44,7 +44,7 @@
 //! let f = Cursor::new(&text[..]);
 //! let lang_file = Ini.read_from(f)?;
 //! assert_eq!(
-//!     lang_file.get(&StringKey::from(46523)),
+//!     lang_file.get(&StringKey::try_from(46523).unwrap()),
 //!     Some(&String::from("The Uighurs will join if you kill Ornlu the wolf and return to tell the tale.")));
 //! # Ok(()) }
 //! ```
@@ -53,7 +53,7 @@
 //! ```rust
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use genie_lang::{LangFileType::KeyValue, StringKey};
-//! use std::io::Cursor;
+//! use std::{convert::TryFrom, io::Cursor};
 //! let text = br#"
 //! 46523 "The Uighurs will join if you kill Ornlu the wolf and return to tell the tale."
 //! 46524 "Uighurs: Yes, that is the pelt of the great wolf. We will join you, Genghis Khan. And to seal the agreement, we will give you the gift of flaming arrows!"
@@ -63,7 +63,7 @@
 //! let f = Cursor::new(&text[..]);
 //! let lang_file = KeyValue.read_from(f)?;
 //! assert_eq!(
-//!     lang_file.get(&StringKey::from(46523)),
+//!     lang_file.get(&StringKey::try_from(46523).unwrap()),
 //!     Some(&String::from("The Uighurs will join if you kill Ornlu the wolf and return to tell the tale.")));
 //! assert_eq!(
 //!     lang_file.get(&StringKey::from("LOBBYBROWSER_DATMOD_TITLE_FORMAT")),
@@ -75,9 +75,9 @@
 //! ```rust
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use genie_lang::{LangFile, StringKey};
-//! use std::str;
+//! use std::{convert::TryFrom, str};
 //! let mut lang_file = LangFile::new();
-//! lang_file.insert(StringKey::from(46604), String::from("Kill the traitor, Kushluk.\n\n\
+//! lang_file.insert(StringKey::try_from(46604).unwrap(), String::from("Kill the traitor, Kushluk.\n\n\
 //!                       Prevent the tent of Genghis Khan (Wonder) from being destroyed."));
 //! let mut out = vec![];
 //! lang_file.write_to_ini(&mut out)?;
@@ -431,10 +431,11 @@ impl LangFile {
     ///
     /// ```
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
     /// assert!(lang_file.is_empty());
-    /// lang_file.insert(StringKey::from(0), String::from(""));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from(""));
     /// assert!(!lang_file.is_empty());
     /// ```
     pub fn is_empty(&self) -> bool {
@@ -447,10 +448,11 @@ impl LangFile {
     ///
     /// ```
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
     /// assert_eq!(0, lang_file.len());
-    /// lang_file.insert(StringKey::from(0), String::from(""));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from(""));
     /// assert_eq!(1, lang_file.len());
     /// ```
     pub fn len(&self) -> usize {
@@ -463,9 +465,10 @@ impl LangFile {
     ///
     /// ```
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from(""));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from(""));
     /// lang_file.clear();
     /// assert!(lang_file.is_empty());
     /// ```
@@ -479,13 +482,14 @@ impl LangFile {
     ///
     /// ```
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from("a"));
-    /// lang_file.insert(StringKey::from(1), String::from("b"));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from("a"));
+    /// lang_file.insert(StringKey::try_from(1).unwrap(), String::from("b"));
     ///
     /// for (k, v) in lang_file.drain().take(1) {
-    ///     assert!(k == StringKey::from(0) || k == StringKey::from(1));
+    ///     assert!(k == StringKey::try_from(0).unwrap() || k == StringKey::try_from(1).unwrap());
     ///     assert!(v == "a" || v == "b");
     /// }
     /// assert!(lang_file.is_empty());
@@ -500,11 +504,12 @@ impl LangFile {
     ///
     /// ```
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from(""));
-    /// assert!(lang_file.contains_key(&StringKey::from(0)));
-    /// assert!(!lang_file.contains_key(&StringKey::from(1)));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from(""));
+    /// assert!(lang_file.contains_key(&StringKey::try_from(0).unwrap()));
+    /// assert!(!lang_file.contains_key(&StringKey::try_from(1).unwrap()));
     /// ```
     pub fn contains_key(&self, k: &StringKey) -> bool {
         self.0.contains_key(k)
@@ -516,11 +521,12 @@ impl LangFile {
     ///
     /// ```
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from(""));
-    /// assert_eq!(Some(&String::from("")), lang_file.get(&StringKey::from(0)));
-    /// assert_eq!(None, lang_file.get(&StringKey::from(1)));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from(""));
+    /// assert_eq!(Some(&String::from("")), lang_file.get(&StringKey::try_from(0).unwrap()));
+    /// assert_eq!(None, lang_file.get(&StringKey::try_from(1).unwrap()));
     /// ```
     pub fn get(&self, k: &StringKey) -> Option<&String> {
         self.0.get(k)
@@ -532,11 +538,12 @@ impl LangFile {
     ///
     /// ```
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from("a"));
-    /// if let Some(s) = lang_file.get_mut(&StringKey::from(0)) { s.push('A'); }
-    /// assert_eq!("aA", lang_file.get(&StringKey::from(0)).unwrap());
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from("a"));
+    /// if let Some(s) = lang_file.get_mut(&StringKey::try_from(0).unwrap()) { s.push('A'); }
+    /// assert_eq!("aA", lang_file.get(&StringKey::try_from(0).unwrap()).unwrap());
     /// ```
     pub fn get_mut(&mut self, k: &StringKey) -> Option<&mut String> {
         self.0.get_mut(k)
@@ -548,17 +555,18 @@ impl LangFile {
     ///
     /// ```
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from("a"));
-    /// let s0 = lang_file.entry(StringKey::from(0))
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from("a"));
+    /// let s0 = lang_file.entry(StringKey::try_from(0).unwrap())
     ///                   .or_insert(String::from("Hello"));
     /// s0.push('A');
-    /// let s1 = lang_file.entry(StringKey::from(1))
+    /// let s1 = lang_file.entry(StringKey::try_from(1).unwrap())
     ///                   .or_insert(String::from("Hello"));
     /// s1.push('A');
-    /// assert_eq!("aA", lang_file.get(&StringKey::from(0)).unwrap());
-    /// assert_eq!("HelloA", lang_file.get(&StringKey::from(1)).unwrap());
+    /// assert_eq!("aA", lang_file.get(&StringKey::try_from(0).unwrap()).unwrap());
+    /// assert_eq!("HelloA", lang_file.get(&StringKey::try_from(1).unwrap()).unwrap());
     /// ```
     pub fn entry(&mut self, key: StringKey) -> Entry<'_, StringKey, String> {
         self.0.entry(key)
@@ -575,14 +583,15 @@ impl LangFile {
     ///
     /// ```
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from("a"));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from("a"));
     /// assert!(!lang_file.is_empty());
     ///
-    /// lang_file.insert(StringKey::from(0), String::from("b"));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from("b"));
     /// assert_eq!(Some(String::from("b")),
-    ///            lang_file.insert(StringKey::from(0), String::from("c")));
+    ///            lang_file.insert(StringKey::try_from(0).unwrap(), String::from("c")));
     /// ```
     pub fn insert(&mut self, k: StringKey, v: String) -> Option<String> {
         self.0.insert(k, v)
@@ -596,12 +605,13 @@ impl LangFile {
     ///
     /// ```
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from(""));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from(""));
     /// assert_eq!(Some(String::from("")),
-    ///            lang_file.remove(&StringKey::from(0)));
-    /// assert_eq!(None, lang_file.remove(&StringKey::from(0)));
+    ///            lang_file.remove(&StringKey::try_from(0).unwrap()));
+    /// assert_eq!(None, lang_file.remove(&StringKey::try_from(0).unwrap()));
     /// ```
     pub fn remove(&mut self, k: &StringKey) -> Option<String> {
         self.0.remove(k)
@@ -616,11 +626,12 @@ impl LangFile {
     ///
     /// ```
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from("zero"));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from("zero"));
     /// lang_file.insert(StringKey::from("a"), String::from("a"));
-    /// lang_file.insert(StringKey::from(1), String::from("one"));
+    /// lang_file.insert(StringKey::try_from(1).unwrap(), String::from("one"));
     /// lang_file.insert(StringKey::from("2"), String::from("two"));
     /// lang_file.retain(|k, _| match k {
     ///     StringKey::Num(_) => true,
@@ -639,11 +650,12 @@ impl LangFile {
     ///
     /// ```no_run
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from("zero"));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from("zero"));
     /// lang_file.insert(StringKey::from("a"), String::from("a"));
-    /// lang_file.insert(StringKey::from(1), String::from("one"));
+    /// lang_file.insert(StringKey::try_from(1).unwrap(), String::from("one"));
     /// lang_file.insert(StringKey::from("2"), String::from("two"));
     ///
     /// for (k, v) in lang_file.iter() { println!("key: {}, val: {}", k, v); }
@@ -660,11 +672,12 @@ impl LangFile {
     ///
     /// ```no_run
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from("zero"));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from("zero"));
     /// lang_file.insert(StringKey::from("a"), String::from("a"));
-    /// lang_file.insert(StringKey::from(1), String::from("one"));
+    /// lang_file.insert(StringKey::try_from(1).unwrap(), String::from("one"));
     /// lang_file.insert(StringKey::from("2"), String::from("two"));
     ///
     /// for (_, v) in lang_file.iter_mut() { v.push('A'); }
@@ -681,11 +694,12 @@ impl LangFile {
     ///
     /// ```no_run
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from("zero"));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from("zero"));
     /// lang_file.insert(StringKey::from("a"), String::from("a"));
-    /// lang_file.insert(StringKey::from(1), String::from("one"));
+    /// lang_file.insert(StringKey::try_from(1).unwrap(), String::from("one"));
     /// lang_file.insert(StringKey::from("2"), String::from("two"));
     ///
     /// for k in lang_file.keys() { println!("key: {}", k); }
@@ -701,11 +715,12 @@ impl LangFile {
     ///
     /// ```no_run
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from("zero"));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from("zero"));
     /// lang_file.insert(StringKey::from("a"), String::from("a"));
-    /// lang_file.insert(StringKey::from(1), String::from("one"));
+    /// lang_file.insert(StringKey::try_from(1).unwrap(), String::from("one"));
     /// lang_file.insert(StringKey::from("2"), String::from("two"));
     ///
     /// for v in lang_file.values() { println!("value: {}", v); }
@@ -721,11 +736,12 @@ impl LangFile {
     ///
     /// ```no_run
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from("zero"));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from("zero"));
     /// lang_file.insert(StringKey::from("a"), String::from("a"));
-    /// lang_file.insert(StringKey::from(1), String::from("one"));
+    /// lang_file.insert(StringKey::try_from(1).unwrap(), String::from("one"));
     /// lang_file.insert(StringKey::from("2"), String::from("two"));
     ///
     /// for v in lang_file.values_mut() { v.push('A'); }
