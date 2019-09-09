@@ -35,8 +35,8 @@ use std::{
 pub use task::{Task, TaskList};
 pub use tech::{Tech, TechEffect, TechID};
 pub use terrain::{
-    Terrain, TerrainAnimation, TerrainBorder, TerrainID, TerrainPassGraphic, TerrainRestriction,
-    TerrainSpriteFrame, TileSize,
+    Terrain, TerrainAnimation, TerrainBorder, TerrainID, TerrainObject, TerrainPassGraphic,
+    TerrainRestriction, TerrainSpriteFrame, TileSize,
 };
 pub use unit_type::*;
 
