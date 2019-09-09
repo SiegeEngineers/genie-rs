@@ -12,13 +12,14 @@
 //! yet exposed in the public API.
 //!
 //! ```rust
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use genie::DatFile;
-//! let mut input = std::fs::File::open("./crates/genie-dat/fixtures/aok.dat")
-//!     .expect("failed to open file");
+//! let mut input = std::fs::File::open("./crates/genie-dat/fixtures/aok.dat")?;
 //!
-//! let dat = DatFile::from(&mut input).expect("failed to parse file");
+//! let dat = DatFile::from(&mut input)?;
 //! assert_eq!(dat.civilizations.len(), 14);
 //! assert_eq!(dat.civilizations[1].name(), "British");
+//! # Ok(()) }
 //! ```
 //!
 //! ## Scenario Files
@@ -32,22 +33,20 @@
 //! refer to terrains or units that do not exist in the different version.
 //!
 //! ```rust
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use genie::Scenario;
 //! use genie::scx::VersionBundle;
 //!
 //! /// Read an AoE1 scenario file
-//! let mut input = std::fs::File::open("./crates/genie-scx/test/scenarios/Dawn of a New Age.scn")
-//!     .expect("failed to open file");
-//! let mut output = std::fs::File::create("converted.scx")
-//!     .expect("failed to open file");
+//! let infile = "./crates/genie-scx/test/scenarios/Dawn of a New Age.scn";
+//! let mut input = std::fs::File::open(infile)?;
+//! let mut output = std::fs::File::create("converted.scx")?;
 //!
-//! let scen = Scenario::from(&mut input)
-//!     .expect("failed to read scenario");
-//! scen.write_to_version(&mut output, &VersionBundle::aoc())
-//!     .expect("failed to write scenario");
+//! let scen = Scenario::from(&mut input)?;
+//! scen.write_to_version(&mut output, &VersionBundle::aoc())?;
 //!
-//! std::fs::remove_file("converted.scx")
-//!     .expect("failed to delete file");
+//! # std::fs::remove_file("converted.scx")?;
+//! # Ok(()) }
 //! ```
 //!
 //! ### Implementation Status
