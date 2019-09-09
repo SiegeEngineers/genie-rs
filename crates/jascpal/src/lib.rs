@@ -257,7 +257,7 @@ impl Palette {
     #[inline]
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = vec![];
-        self.write_to(&mut bytes).unwrap();
+        self.write_to(&mut bytes).expect("serialization failed, this is a bug");
         bytes
     }
 }
@@ -314,7 +314,7 @@ impl ToString for Palette {
     #[inline]
     fn to_string(&self) -> String {
         let s = self.to_bytes();
-        String::from_utf8(s).unwrap()
+        String::from_utf8(s).expect("serialization not utf-8, this is a bug")
     }
 }
 
@@ -325,7 +325,7 @@ mod tests {
 
     #[test]
     fn parse_test() {
-        parse(b"JASC-PAL\r\n0100\r\n2\r\n0 0 0\r\n255 255 255\r\n").unwrap();
+        parse(b"JASC-PAL\r\n0100\r\n2\r\n0 0 0\r\n255 255 255\r\n").expect("failed to parse");
     }
 
     #[test]
@@ -333,7 +333,7 @@ mod tests {
         assert_eq!(
             "JASC-PAL\r\n0100\r\n3\r\n255 0 255\r\n0 0 255\r\n0 255 0\r\n"
                 .parse::<Palette>()
-                .unwrap(),
+                .expect("failed to parse"),
             Palette::from(vec![
                 RGB {
                     r: 255,
@@ -373,7 +373,7 @@ mod tests {
     #[test]
     fn it_works() {
         let cursor = Cursor::new(b"JASC-PAL\r\n0100\r\n2\r\n0 0 0\r\n255 255 255\r\n".to_vec());
-        let pal = Palette::read_from(cursor).unwrap();
+        let pal = Palette::read_from(cursor).expect("failed to parse");
         assert_eq!(
             pal.colors,
             vec![

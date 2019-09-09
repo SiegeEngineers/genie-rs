@@ -89,18 +89,19 @@ mod tests {
     use std::io::Cursor;
 
     #[test]
-    fn rebuild_cpx() {
-        let instream = File::open("./test/campaigns/Armies at War A Combat Showcase.cpn").unwrap();
+    fn rebuild_cpx() -> Result<(), Box<dyn std::error::Error>> {
+        let instream = File::open("./test/campaigns/Armies at War A Combat Showcase.cpn")?;
         let mut outstream = vec![];
-        let mut incpx = Campaign::from(instream).unwrap();
-        incpx.write_to(&mut outstream).unwrap();
+        let mut incpx = Campaign::from(instream)?;
+        incpx.write_to(&mut outstream)?;
 
-        let mut written_cpx = Campaign::from(Cursor::new(outstream)).unwrap();
+        let mut written_cpx = Campaign::from(Cursor::new(outstream))?;
         assert_eq!(written_cpx.name(), incpx.name());
         assert_eq!(written_cpx.len(), incpx.len());
         assert_eq!(
-            written_cpx.by_index_raw(0).unwrap(),
-            incpx.by_index_raw(0).unwrap()
+            written_cpx.by_index_raw(0)?,
+            incpx.by_index_raw(0)?
         );
+        Ok(())
     }
 }

@@ -83,7 +83,7 @@ impl PartialEq<str> for ResourceType {
 
 impl AsRef<str> for ResourceType {
     fn as_ref(&self) -> &str {
-        str::from_utf8(&self.0[..]).unwrap().trim()
+        str::from_utf8(&self.0[..]).expect("resource type must be utf-8").trim()
     }
 }
 
@@ -208,9 +208,9 @@ impl std::fmt::Debug for DRSHeader {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f,
            "DRSHeader {{ banner_msg: '{}', version: '{}', password: '{}', num_resource_types: {}, directory_size: {} }}",
-           str::from_utf8(&self.banner_msg).unwrap(),
-           str::from_utf8(&self.version).unwrap(),
-           str::from_utf8(&self.password).unwrap(),
+           str::from_utf8(&self.banner_msg).expect("banner must be utf8"),
+           str::from_utf8(&self.version).expect("version must be utf8"),
+           str::from_utf8(&self.password).expect("password must be utf8"),
            self.num_resource_types,
            self.directory_size
         )
@@ -315,7 +315,7 @@ impl DRSTable {
     pub(crate) fn add(&mut self, res: DRSResource) -> &mut DRSResource {
         self.resources.push(res);
         self.num_resources += 1;
-        self.resources.last_mut().unwrap()
+        self.resources.last_mut().expect("last_mut returned None?")
     }
 }
 
@@ -372,27 +372,27 @@ mod tests {
     use std::fs::File;
 
     #[test]
-    fn it_works() {
-        let mut file = File::open("test.drs").unwrap();
-        let drs = DRSReader::new(&mut file).unwrap();
+    fn it_works() -> Result<(), Box<dyn std::error::Error>> {
+        let mut file = File::open("test.drs")?;
+        let drs = DRSReader::new(&mut file)?;
         let mut expected = vec![
             // (reversed_type, id, size)
-            ("js".parse().unwrap(), 1, 632),
-            ("js".parse().unwrap(), 2, 452),
-            ("js".parse().unwrap(), 3, 38),
-            ("json".parse().unwrap(), 4, 710),
+            ("js".parse()?, 1, 632),
+            ("js".parse()?, 2, 452),
+            ("js".parse()?, 3, 38),
+            ("json".parse()?, 4, 710),
         ];
 
         for table in drs.tables() {
             for resource in table.resources() {
-                let content = drs
-                    .read_resource(&mut file, table.resource_type, resource.id)
-                    .unwrap();
+                let content = drs.read_resource(&mut file, table.resource_type, resource.id)?;
                 assert_eq!(
                     expected.remove(0),
                     (table.resource_type, resource.id, content.len())
                 );
             }
         }
+
+        Ok(())
     }
 }
