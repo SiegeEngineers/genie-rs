@@ -330,7 +330,7 @@ impl DatFile {
             size.write_to(&mut output)?;
         }
 
-        Ok(())
+        unimplemented!()
     }
 
     /// Get a tech by its ID.
