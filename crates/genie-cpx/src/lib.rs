@@ -20,7 +20,7 @@ pub use write::{CampaignWriter, WriteCampaignError};
 
 /// Version identifier for the campaign file format.
 ///
-/// The only existing version is `b"1.00"`.
+/// Use one of the AOE_AOK or AOE1_DE constants rather than writing them out manually.
 pub type CPXVersion = [u8; 4];
 
 /// Version identifier for AoE1, AoE2, and AoE2: HD campaign files.
@@ -42,7 +42,7 @@ pub(crate) struct CampaignHeader {
 impl CampaignHeader {
     pub(crate) fn new(name: &str) -> Self {
         Self {
-            version: *b"1.00",
+            version: AOE_AOK,
             name: name.to_string(),
             num_scenarios: 0,
         }

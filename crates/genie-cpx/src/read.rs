@@ -274,6 +274,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::{AOE1_DE, AOE_AOK};
     use super::*;
     use std::fs::File;
 
@@ -283,7 +284,7 @@ mod tests {
     fn detect_encoding() {
         let f = File::open("./test/campaigns/DER FALL VON SACSAHUAMAN - TEIL I.cpx").unwrap();
         let cpx = Campaign::from(f).unwrap();
-        assert_eq!(cpx.version(), *b"1.00");
+        assert_eq!(cpx.version(), AOE_AOK);
         assert_eq!(cpx.name(), "DER FALL VON SACSAHUAMÁN - TEIL I");
         assert_eq!(cpx.len(), 1);
 
@@ -299,7 +300,7 @@ mod tests {
         let f = File::open("test/campaigns/Armies at War A Combat Showcase.cpn").unwrap();
         let mut c = Campaign::from(f).expect("could not read meta");
 
-        assert_eq!(c.version(), *b"1.00");
+        assert_eq!(c.version(), AOE_AOK);
         assert_eq!(c.name(), "Armies at War, A Combat Showcase");
         assert_eq!(c.len(), 1);
         let names: Vec<_> = c.entries().map(|e| &e.name).collect();
@@ -317,7 +318,7 @@ mod tests {
         let f = File::open("test/campaigns/Rise of Egypt Learning Campaign.cpn").unwrap();
         let c = Campaign::from(f).expect("could not read meta");
 
-        assert_eq!(c.version(), *b"1.00");
+        assert_eq!(c.version(), AOE_AOK);
         assert_eq!(c.name(), "Rise of Egypt Learning Campaign");
         assert_eq!(c.len(), 12);
         let filenames: Vec<_> = c.entries().map(|e| &e.filename).collect();
@@ -345,7 +346,7 @@ mod tests {
         let f = File::open("test/campaigns/10 The First Punic War.aoecpn")?;
         let c = Campaign::from(f)?;
 
-        assert_eq!(c.version(), *b"1.10");
+        assert_eq!(c.version(), AOE1_DE);
         assert_eq!(c.name(), "10 The First Punic War");
         assert_eq!(c.len(), 3);
         let filenames: Vec<_> = c.entries().map(|e| &e.filename).collect();
