@@ -484,6 +484,46 @@ impl Trigger {
         })
     }
 
+    /// Write this trigger condition to an output stream, with the given trigger system version.
+    pub fn write_to<W: Write>(&self, output: &mut W, version: f64) -> Result<()> {
+        output.write_i32::<LE>(if self.enabled { 1 } else { 0 })?;
+        output.write_i8(if self.looping { 1 } else { 0 })?;
+        output.write_i32::<LE>(self.name_id)?;
+        output.write_i8(if self.is_objective { 1 } else { 0 })?;
+        output.write_i32::<LE>(self.objective_order)?;
+        output.write_u32::<LE>(self.start_time)?;
+
+        if let Some(descr) = &self.description {
+            output.write_u32::<LE>(descr.len().try_into().unwrap())?;
+            write_str(output, descr)?;
+        } else {
+            output.write_u32::<LE>(0)?;
+        }
+        if let Some(name) = &self.name {
+            output.write_u32::<LE>(name.len().try_into().unwrap())?;
+            write_str(output, name)?;
+        } else {
+            output.write_u32::<LE>(0)?;
+        }
+
+        output.write_u32::<LE>(self.effects.len() as u32)?;
+        for effect in &self.effects {
+            effect.write_to(output)?;
+        }
+        for order in &self.effect_order {
+            output.write_i32::<LE>(*order)?;
+        }
+        output.write_u32::<LE>(self.conditions.len() as u32)?;
+        for condition in &self.conditions {
+            condition.write_to(output, version)?;
+        }
+        for order in &self.condition_order {
+            output.write_i32::<LE>(*order)?;
+        }
+
+        Ok(())
+    }
+
     pub fn conditions(&self) -> impl Iterator<Item = &TriggerCondition> {
         self.condition_order
             .iter()
@@ -560,8 +600,15 @@ impl TriggerSystem {
         if version >= 1.5 {
             output.write_i8(self.objectives_state)?;
         }
-        // num triggers
-        output.write_u32::<LE>(0)?;
+        output.write_u32::<LE>(self.triggers.len().try_into().unwrap())?;
+        for trigger in &self.triggers {
+            trigger.write_to(output, version)?;
+        }
+        if version >= 1.4 {
+            for order in &self.trigger_order {
+                output.write_i32::<LE>(*order)?;
+            }
+        }
         Ok(())
     }
 
