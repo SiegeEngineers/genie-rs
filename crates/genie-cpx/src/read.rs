@@ -52,6 +52,10 @@ type Result<T> = std::result::Result<T, ReadCampaignError>;
 
 /// Decode a string with unknown encoding.
 fn decode_str(bytes: &[u8]) -> Result<String> {
+    if bytes.is_empty() {
+        return Ok("".to_string());
+    }
+
     let (encoding_name, _confidence, _language) = detect_encoding(&bytes);
     Encoding::for_label(encoding_name.as_bytes())
         .ok_or(ReadCampaignError::DecodeStringError)
@@ -78,16 +82,52 @@ pub fn read_fixed_str<R: Read>(input: &mut R, len: usize) -> Result<Option<Strin
     }
 }
 
+fn read_variable_str<R: Read>(input: &mut R) -> Result<Option<String>> {
+    let open = input.read_u16::<LE>()?;
+    // Check that this actually is the start of a string
+    if open != 0x0A60 {
+        return Err(ReadCampaignError::DecodeStringError);
+    }
+    let len = input.read_u16::<LE>()? as usize;
+    let mut bytes = vec![0; len];
+    input.read_exact(&mut bytes[0..len])?;
+    decode_str(&bytes).map(Some)
+}
+
 fn read_campaign_header<R: Read>(input: &mut R) -> Result<CampaignHeader> {
     let mut version = [0; 4];
     input.read_exact(&mut version)?;
-    let name = read_fixed_str(input, 256)?.ok_or(ReadCampaignError::MissingNameError)?;
-    let num_scenarios = input.read_i32::<LE>()? as usize;
+    let (name, num_scenarios) = if version == *b"1.10" {
+        let num_scenarios = input.read_i32::<LE>()? as usize;
+        (
+            read_variable_str(input)?.ok_or(ReadCampaignError::MissingNameError)?,
+            num_scenarios,
+        )
+    } else {
+        (
+            read_fixed_str(input, 256)?.ok_or(ReadCampaignError::MissingNameError)?,
+            input.read_i32::<LE>()? as usize,
+        )
+    };
 
     Ok(CampaignHeader {
         version,
         name,
         num_scenarios,
+    })
+}
+
+fn read_scenario_meta_de<R: Read>(input: &mut R) -> Result<ScenarioMeta> {
+    let size = input.read_u64::<LE>()? as usize;
+    let offset = input.read_u64::<LE>()? as usize;
+    let name = read_variable_str(input)?.ok_or(ReadCampaignError::MissingNameError)?;
+    let filename = read_variable_str(input)?.ok_or(ReadCampaignError::MissingNameError)?;
+
+    Ok(ScenarioMeta {
+        size,
+        offset,
+        name,
+        filename,
     })
 }
 
@@ -129,8 +169,13 @@ where
     pub fn from(mut input: R) -> Result<Self> {
         let header = read_campaign_header(&mut input)?;
         let mut entries = vec![];
+        let read_entry = if header.version == *b"1.10" {
+            read_scenario_meta_de
+        } else {
+            read_scenario_meta
+        };
         for _ in 0..header.num_scenarios {
-            entries.push(read_scenario_meta(&mut input)?);
+            entries.push(dbg!(read_entry(&mut input)?));
         }
 
         Ok(Self {
@@ -229,6 +274,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::{AOE1_DE, AOE_AOK};
     use super::*;
     use std::fs::File;
 
@@ -238,13 +284,13 @@ mod tests {
     fn detect_encoding() {
         let f = File::open("./test/campaigns/DER FALL VON SACSAHUAMAN - TEIL I.cpx").unwrap();
         let cpx = Campaign::from(f).unwrap();
-        assert_eq!(cpx.version(), *b"1.00");
+        assert_eq!(cpx.version(), AOE_AOK);
         assert_eq!(cpx.name(), "DER FALL VON SACSAHUAMÁN - TEIL I");
         assert_eq!(cpx.len(), 1);
 
-        let names: Vec<&String> = cpx.entries().map(|e| &e.name).collect();
+        let names: Vec<_> = cpx.entries().map(|e| &e.name).collect();
         assert_eq!(names, vec!["Der Weg nach Sacsahuamán"]);
-        let filenames: Vec<&String> = cpx.entries().map(|e| &e.filename).collect();
+        let filenames: Vec<_> = cpx.entries().map(|e| &e.filename).collect();
         assert_eq!(filenames, vec!["Der Weg nach Sacsahuamán.scx"]);
     }
 
@@ -254,12 +300,12 @@ mod tests {
         let f = File::open("test/campaigns/Armies at War A Combat Showcase.cpn").unwrap();
         let mut c = Campaign::from(f).expect("could not read meta");
 
-        assert_eq!(c.version(), *b"1.00");
+        assert_eq!(c.version(), AOE_AOK);
         assert_eq!(c.name(), "Armies at War, A Combat Showcase");
         assert_eq!(c.len(), 1);
-        let names: Vec<&String> = c.entries().map(|e| &e.name).collect();
+        let names: Vec<_> = c.entries().map(|e| &e.name).collect();
         assert_eq!(names, vec!["Bronze Age Art of War"]);
-        let filenames: Vec<&String> = c.entries().map(|e| &e.filename).collect();
+        let filenames: Vec<_> = c.entries().map(|e| &e.filename).collect();
         assert_eq!(filenames, vec!["Bronze Age Art of War.scn"]);
 
         c.by_index_raw(0).expect("could not read raw file");
@@ -272,10 +318,10 @@ mod tests {
         let f = File::open("test/campaigns/Rise of Egypt Learning Campaign.cpn").unwrap();
         let c = Campaign::from(f).expect("could not read meta");
 
-        assert_eq!(c.version(), *b"1.00");
+        assert_eq!(c.version(), AOE_AOK);
         assert_eq!(c.name(), "Rise of Egypt Learning Campaign");
         assert_eq!(c.len(), 12);
-        let filenames: Vec<&String> = c.entries().map(|e| &e.filename).collect();
+        let filenames: Vec<_> = c.entries().map(|e| &e.filename).collect();
         assert_eq!(
             filenames,
             vec![
@@ -293,5 +339,33 @@ mod tests {
                 "Siege Battle.scn",
             ]
         );
+    }
+
+    #[test]
+    fn aoe_de() -> Result<()> {
+        let f = File::open("test/campaigns/10 The First Punic War.aoecpn")?;
+        let c = Campaign::from(f)?;
+
+        assert_eq!(c.version(), AOE1_DE);
+        assert_eq!(c.name(), "10 The First Punic War");
+        assert_eq!(c.len(), 3);
+        let filenames: Vec<_> = c.entries().map(|e| &e.filename).collect();
+        assert_eq!(
+            filenames,
+            vec![
+                "Scxt1-01-The Battle of Agrigentum.aoescn",
+                "Scxt1-02-The Battle of Mylae.aoescn",
+                "Scxt1-03-The Battle of Tunis.aoescn",
+            ]
+        );
+
+        /* Enable when genie_scx supports DE1 scenarios better
+        let mut c = c;
+        for i in 0..c.len() {
+            let _scen = c.by_index(i)?;
+        }
+        */
+
+        Ok(())
     }
 }
