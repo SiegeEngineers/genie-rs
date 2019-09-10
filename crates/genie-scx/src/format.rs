@@ -1122,7 +1122,7 @@ impl SCXFormat {
 }
 
 fn write_opt_string_key<W: Write>(output: &mut W, opt_key: &Option<StringKey>) -> Result<()> {
-    output.write_i16::<LE>(if let Some(key) = opt_key {
+    output.write_i32::<LE>(if let Some(key) = opt_key {
         key.try_into()
             .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?
     } else {
