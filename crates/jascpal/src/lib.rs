@@ -257,7 +257,8 @@ impl Palette {
     #[inline]
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = vec![];
-        self.write_to(&mut bytes).expect("serialization failed, this is a bug");
+        self.write_to(&mut bytes)
+            .expect("serialization failed, this is a bug");
         bytes
     }
 }
