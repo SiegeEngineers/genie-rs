@@ -342,20 +342,22 @@ mod test {
     static ONE_FILE: &[u8] = b"Copyright (c) 1997 Ensemble Studios.\x1a\x00\x00\x001.00tribe\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x58\x00\x00\x00 txt\x4C\x00\x00\x00\x01\x00\x00\x00\x01\x00\x00\x00\x58\x00\x00\x00\x11\x00\x00\x00example test file";
 
     #[test]
-    fn one_file_reserve() {
+    fn one_file_reserve() -> Result<(), Box<dyn std::error::Error>> {
         let output = Cursor::new(vec![]);
-        let mut drs = DRSWriter::new(output, ReserveDirectoryStrategy::new(1, 1)).unwrap();
-        drs.add("txt", 1, "example test file".as_bytes()).unwrap();
-        let output = drs.flush().unwrap().into_inner();
+        let mut drs = DRSWriter::new(output, ReserveDirectoryStrategy::new(1, 1))?;
+        drs.add("txt", 1, "example test file".as_bytes())?;
+        let output = drs.flush()?.into_inner();
         assert_eq!(output, ONE_FILE.to_vec());
+        Ok(())
     }
 
     #[test]
-    fn one_file_memory() {
+    fn one_file_memory() -> Result<(), Box<dyn std::error::Error>> {
         let output = Cursor::new(vec![]);
-        let mut drs = DRSWriter::new(output, InMemoryStrategy::default()).unwrap();
-        drs.add("txt", 1, "example test file".as_bytes()).unwrap();
-        let output = drs.flush().unwrap().into_inner();
+        let mut drs = DRSWriter::new(output, InMemoryStrategy::default())?;
+        drs.add("txt", 1, "example test file".as_bytes())?;
+        let output = drs.flush()?.into_inner();
         assert_eq!(output, ONE_FILE.to_vec());
+        Ok(())
     }
 }

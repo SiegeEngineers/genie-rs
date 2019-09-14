@@ -48,22 +48,49 @@ type DRSVersion = [u8; 4];
 ///
 /// In a .drs archive, type names are represented as 4 bytes. They are laid out in reverse order and
 /// padded with ASCII space characters (`' '`). For example, the "slp" resource type is stored as `" pls"`.
+///
+/// ## Examples
+/// ```rust
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use genie_drs::ResourceType;
+/// let slp = ResourceType::from(*b" pls");
+/// assert_eq!(&slp, "slp", "implements AsRef<str>");
+/// assert_eq!(slp.to_string(), "slp", "implements ToString");
+/// assert_eq!(slp, ResourceType::from(*b" pls"));
+/// let bina = "bina".parse::<ResourceType>()?;
+/// assert_ne!(slp, bina);
+/// # Ok(()) }
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ResourceType([u8; 4]);
 impl ResourceType {
     #[inline]
     fn write_to<W: Write>(self, output: &mut W) -> Result<(), Error> {
-        output.write_all(&self.0)?;
+        let mut bytes = [0; 4];
+        bytes.copy_from_slice(&self.0);
+        bytes.reverse();
+        output.write_all(&bytes)?;
         Ok(())
+    }
+}
+
+impl PartialEq<str> for ResourceType {
+    fn eq(&self, ext: &str) -> bool {
+        let me: &str = self.as_ref();
+        me == ext
+    }
+}
+
+impl AsRef<str> for ResourceType {
+    fn as_ref(&self) -> &str {
+        str::from_utf8(&self.0[..]).expect("resource type must be utf-8").trim()
     }
 }
 
 impl ToString for ResourceType {
     fn to_string(&self) -> String {
-        let mut bytes = [0 as u8; 4];
-        bytes.clone_from_slice(&self.0);
-        bytes.reverse();
-        str::from_utf8(&bytes).unwrap().trim().to_string()
+        let s: &str = self.as_ref();
+        s.to_string()
     }
 }
 
@@ -74,9 +101,17 @@ impl ToString for ResourceType {
 #[derive(Debug)]
 pub struct ParseResourceTypeError;
 
-/// Parse a resource type from a string, with error handling.
+impl std::fmt::Display for ParseResourceTypeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "invalid resource type, must be 4 characters")
+    }
+}
+
+impl std::error::Error for ParseResourceTypeError {}
+
 impl core::str::FromStr for ResourceType {
     type Err = ParseResourceTypeError;
+    /// Parse a resource type from a string, with error handling.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let bytes = s.as_bytes();
         if bytes.len() > 4 {
@@ -88,7 +123,8 @@ impl core::str::FromStr for ResourceType {
 }
 
 impl From<[u8; 4]> for ResourceType {
-    fn from(u: [u8; 4]) -> Self {
+    fn from(mut u: [u8; 4]) -> Self {
+        u.reverse();
         Self(u)
     }
 }
@@ -99,7 +135,6 @@ impl From<&[u8]> for ResourceType {
         assert!(u.len() <= 4);
         let mut bytes = [b' '; 4];
         (&mut bytes[0..u.len()]).copy_from_slice(u);
-        bytes.reverse();
         Self(bytes)
     }
 }
@@ -173,9 +208,9 @@ impl std::fmt::Debug for DRSHeader {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f,
            "DRSHeader {{ banner_msg: '{}', version: '{}', password: '{}', num_resource_types: {}, directory_size: {} }}",
-           str::from_utf8(&self.banner_msg).unwrap(),
-           str::from_utf8(&self.version).unwrap(),
-           str::from_utf8(&self.password).unwrap(),
+           str::from_utf8(&self.banner_msg).expect("banner must be utf8"),
+           str::from_utf8(&self.version).expect("version must be utf8"),
+           str::from_utf8(&self.password).expect("password must be utf8"),
            self.num_resource_types,
            self.directory_size
         )
@@ -263,16 +298,24 @@ impl DRSTable {
             .map(|index| &self.resources[index])
     }
 
+    /// Get the resource type this table contains.
+    #[inline]
+    pub fn resource_type(&self) -> ResourceType {
+        self.resource_type
+    }
+
+    /// Deprecated, use `resource_type()` instead.
     #[inline]
     pub fn resource_ext(&self) -> String {
         self.resource_type.to_string()
     }
 
+    /// Add a resource to this table.
     #[inline]
     pub(crate) fn add(&mut self, res: DRSResource) -> &mut DRSResource {
         self.resources.push(res);
         self.num_resources += 1;
-        self.resources.last_mut().unwrap()
+        self.resources.last_mut().expect("last_mut returned None?")
     }
 }
 
@@ -329,27 +372,27 @@ mod tests {
     use std::fs::File;
 
     #[test]
-    fn it_works() {
-        let mut file = File::open("test.drs").unwrap();
-        let drs = DRSReader::new(&mut file).unwrap();
+    fn it_works() -> Result<(), Box<dyn std::error::Error>> {
+        let mut file = File::open("test.drs")?;
+        let drs = DRSReader::new(&mut file)?;
         let mut expected = vec![
             // (reversed_type, id, size)
-            ("js".parse().unwrap(), 1, 632),
-            ("js".parse().unwrap(), 2, 452),
-            ("js".parse().unwrap(), 3, 38),
-            ("json".parse().unwrap(), 4, 710),
+            ("js".parse()?, 1, 632),
+            ("js".parse()?, 2, 452),
+            ("js".parse()?, 3, 38),
+            ("json".parse()?, 4, 710),
         ];
 
         for table in drs.tables() {
             for resource in table.resources() {
-                let content = drs
-                    .read_resource(&mut file, table.resource_type, resource.id)
-                    .unwrap();
+                let content = drs.read_resource(&mut file, table.resource_type, resource.id)?;
                 assert_eq!(
                     expected.remove(0),
                     (table.resource_type, resource.id, content.len())
                 );
             }
         }
+
+        Ok(())
     }
 }
