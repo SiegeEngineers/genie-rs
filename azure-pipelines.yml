@@ -4,18 +4,18 @@ strategy:
     windows-stable:
       imageName: 'vs2017-win2016'
       rustup_toolchain: stable
-    mac-stable:
-      imageName: 'macos-10.13'
-      rustup_toolchain: stable
-    linux-stable:
-      imageName: 'ubuntu-16.04'
-      rustup_toolchain: stable
-    linux-beta:
-      imageName: 'ubuntu-16.04'
-      rustup_toolchain: beta
-    linux-nightly:
-      imageName: 'ubuntu-16.04'
-      rustup_toolchain: nightly
+    # mac-stable:
+    #   imageName: 'macos-10.13'
+    #   rustup_toolchain: stable
+    # linux-stable:
+    #   imageName: 'ubuntu-16.04'
+    #   rustup_toolchain: stable
+    # linux-beta:
+    #   imageName: 'ubuntu-16.04'
+    #   rustup_toolchain: beta
+    # linux-nightly:
+    #   imageName: 'ubuntu-16.04'
+    #   rustup_toolchain: nightly
 
 pool:
   vmImage: $(imageName)
@@ -37,6 +37,7 @@ steps:
   - script: cargo test --all
     displayName: Cargo test
   - script: |
+      cargo build -p cgenie --release
       mkdir -p artifact-release/libs
       cp -R c/include artifact-release
       cp target/release/*.dll artifact-release/libs
