@@ -36,3 +36,12 @@ steps:
     displayName: Cargo build
   - script: cargo test --all
     displayName: Cargo test
+  - script: |
+      mkdir -p artifact-release/libs
+      cp -R c/include artifact-release
+      cp target/release/*.dll artifact-release/libs
+    displayName: Prepare C API libraries
+    condition: eq( variables['Agent.OS'], 'Windows_NT' )
+  - publish: artifact-release
+    artifact: cgenie
+    condition: eq( variables['Agent.OS'], 'Windows_NT' )
