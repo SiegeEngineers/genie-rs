@@ -111,6 +111,10 @@ pub extern "C" fn cgscx_convert_to_wk(scenario: *mut Scenario) -> u32 {
 /// Save the scenario to a file.
 #[no_mangle]
 pub extern "C" fn cgscx_save(scenario: *mut Scenario, path: FfiStr<'_>) -> u32 {
+    if scenario.is_null() {
+        return 1;
+    }
+
     if let Some(path) = path.as_opt_str() {
         if let Ok(mut file) = File::create(path) {
             if let Ok(_) = unsafe { &*scenario }.write_to(&mut file) {
