@@ -214,6 +214,7 @@ impl UnitAttribute {
             flag: input.read_u8()?,
         })
     }
+
     pub fn write_to<W: Write>(self, output: &mut W) -> Result<()> {
         output.write_u16::<LE>(self.attribute_type)?;
         output.write_f32::<LE>(self.amount)?;
@@ -237,6 +238,7 @@ impl DamageSprite {
             flag: input.read_u8()?,
         })
     }
+
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u16::<LE>(self.sprite.into())?;
         output.write_u16::<LE>(self.damage_percent)?;
@@ -408,6 +410,7 @@ impl BaseUnitType {
         Ok(unit_type)
     }
 
+    /// Write this unit type to an output stream.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u16::<LE>(self.id.into())?;
         output.write_i16::<LE>((&self.string_id).try_into().unwrap())?;
@@ -538,6 +541,8 @@ impl TreeUnitType {
     pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         BaseUnitType::from(input, version).map(Self)
     }
+
+    /// Write this unit type to an output stream.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         self.0.write_to(output)
     }
@@ -556,6 +561,8 @@ impl AnimatedUnitType {
             speed: input.read_f32::<LE>()?,
         })
     }
+
+    /// Write this unit type to an output stream.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         self.superclass.write_to(output)?;
         output.write_f32::<LE>(self.speed)?;
@@ -570,6 +577,8 @@ impl DopplegangerUnitType {
     pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         AnimatedUnitType::from(input, version).map(Self)
     }
+
+    /// Write this unit type to an output stream.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         self.0.write_to(output)
     }
@@ -614,6 +623,8 @@ impl MovingUnitType {
         unit_type.maximum_yaw_per_second_stationary = input.read_f32::<LE>()?;
         Ok(unit_type)
     }
+
+    /// Write this unit type to an output stream.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         self.superclass.write_to(output)?;
         output.write_i16::<LE>(
@@ -679,6 +690,8 @@ impl ActionUnitType {
         unit_type.run_pattern = input.read_u8()?;
         Ok(unit_type)
     }
+
+    /// Write this unit type to an output stream.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         self.superclass.write_to(output)?;
         output.write_i16::<LE>(
@@ -802,6 +815,7 @@ impl BaseCombatUnitType {
         Ok(unit_type)
     }
 
+    /// Write this unit type to an output stream.
     pub fn write_to<W: Write>(&self, _output: &mut W) -> Result<()> {
         unimplemented!();
     }
@@ -819,6 +833,7 @@ pub struct MissileUnitType {
 }
 
 impl MissileUnitType {
+    /// Read this unit type from an input stream.
     pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let mut unit_type = Self {
             superclass: BaseCombatUnitType::from(input, version)?,
@@ -833,6 +848,7 @@ impl MissileUnitType {
         Ok(unit_type)
     }
 
+    /// Write this unit type to an output stream.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         self.superclass.write_to(output)?;
         output.write_u8(self.missile_type)?;
@@ -845,10 +861,16 @@ impl MissileUnitType {
     }
 }
 
+/// Resource cost for a unit.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct AttributeCost {
+    /// The player attribute type to give/take.
     pub attribute_type: i16,
+    /// The amount of that attribute that should be taken/given.
     pub amount: i16,
+    /// Flag determining how and when this cost is counted.
+    ///
+    /// TODO make this an enum
     pub flag: u8,
 }
 
@@ -874,12 +896,19 @@ impl AttributeCost {
 #[derive(Debug, Default, Clone)]
 pub struct CombatUnitType {
     superclass: BaseCombatUnitType,
+    /// The costs of creating a unit of this type.
     pub costs: ArrayVec<[AttributeCost; 3]>,
     pub create_time: u16,
+    /// Unit type ID of the building or unit where this unit can be created.
     pub create_at_building: Option<UnitTypeID>,
+    /// Button location index where the button to create this unit should be shown when a
+    /// `create_at_building` unit is selected.
     pub create_button: i8,
     pub rear_attack_modifier: f32,
     pub flank_attack_modifier: f32,
+    /// Is this unit a hero unit?
+    ///
+    /// TODO what is special about hero units? Does it just opt into the healing behaviour?
     pub hero_flag: u8,
     pub garrison_sprite: Option<SpriteID>,
     pub volley_fire_amount: f32,
@@ -893,6 +922,7 @@ pub struct CombatUnitType {
 }
 
 impl CombatUnitType {
+    /// Read this unit type from an input stream.
     pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let mut unit_type = Self {
             superclass: BaseCombatUnitType::from(input, version)?,
@@ -946,15 +976,22 @@ impl CombatUnitType {
         Ok(unit_type)
     }
 
+    /// Write this unit type to an output stream.
     pub fn write_to<W: Write>(&self, _output: &mut W) -> Result<()> {
         unimplemented!();
     }
 }
 
+/// A linked, or "Annex" building. These allow for buildings made up of multiple pieces
+/// with different behaviour, like the Town Centre with some walkable tiles and some non-walkable
+/// tiles.
 #[derive(Debug, Default, Clone)]
 pub struct LinkedBuilding {
+    /// Unit type ID for this linked building.
     pub unit_id: UnitTypeID,
+    /// X offset in tiles from the centre of the "owner" building.
     pub x_offset: f32,
+    /// Y offset in tiles from the centre of the "owner" building.
     pub y_offset: f32,
 }
 
@@ -974,18 +1011,31 @@ impl LinkedBuilding {
     }
 }
 
+/// Unit type class for buildings.
 #[derive(Debug, Default, Clone)]
 pub struct BuildingUnitType {
     superclass: CombatUnitType,
+    /// Sprite to use during construction.
     pub construction_sprite: Option<SpriteID>,
+    /// Sprite to use when this building is finished and built on snow.
     pub snow_sprite: Option<SpriteID>,
+    /// TODO document
     pub connect_flag: u8,
+    /// TODO document
     pub facet: i16,
+    /// Whether the building should be immediately destroyed on completion.
     pub destroy_on_build: bool,
+    /// Unit to spawn at the build site on completion.
     pub on_build_make_unit: Option<UnitTypeID>,
+    /// Change the underlying terrain to this terrain ID on completion.
     pub on_build_make_tile: Option<TerrainID>,
+    /// TODO document
     pub on_build_make_overlay: i16,
+    /// Research this tech on completion.
     pub on_build_make_tech: Option<TechID>,
+    /// Whether this building…can burn?
+    ///
+    /// TODO document the details
     pub can_burn: bool,
     pub linked_buildings: ArrayVec<[LinkedBuilding; 4]>,
     pub construction_unit: Option<UnitTypeID>,
@@ -1000,6 +1050,7 @@ pub struct BuildingUnitType {
 }
 
 impl BuildingUnitType {
+    /// Read this unit type from an input stream.
     pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let mut unit_type = Self {
             superclass: CombatUnitType::from(input, version)?,
@@ -1041,6 +1092,7 @@ impl BuildingUnitType {
         Ok(unit_type)
     }
 
+    /// Write the unit type to an output stream.
     pub fn write_to<W: Write>(&self, _output: &mut W) -> Result<()> {
         unimplemented!()
     }

@@ -124,15 +124,12 @@ impl SpriteDelta {
     pub fn from<R: Read>(input: &mut R) -> Result<Self> {
         let mut delta = SpriteDelta::default();
         delta.sprite_id = read_opt_u16(input)?.map_into();
-        // padding
-        input.read_i16::<LE>()?;
-        // pointer address to the parent sprite (overridden at load time by the game)
-        input.read_i32::<LE>()?;
+        let _padding = input.read_i16::<LE>()?;
+        let _parent_sprite_pointer = input.read_i32::<LE>()?;
         delta.offset_x = input.read_i16::<LE>()?;
         delta.offset_y = input.read_i16::<LE>()?;
         delta.display_angle = input.read_i16::<LE>()?;
-        // padding
-        input.read_i16::<LE>()?;
+        let _padding = input.read_i16::<LE>()?;
 
         Ok(delta)
     }
