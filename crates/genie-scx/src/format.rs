@@ -451,10 +451,33 @@ impl RGEScen {
 
         assert_eq!(self.player_files.len(), 16);
         for files in &self.player_files {
-            write_opt_i32_str(output, &files.build_list)?;
-            write_opt_i32_str(output, &files.city_plan)?;
+            if let Some(build_list) = &files.build_list {
+                output.write_u32::<LE>(build_list.len() as u32)?;
+            } else {
+                output.write_u32::<LE>(0)?;
+            }
+            if let Some(city_plan) = &files.city_plan {
+                output.write_u32::<LE>(city_plan.len() as u32)?;
+            } else {
+                output.write_u32::<LE>(0)?;
+            }
             if version >= 1.08 {
-                write_opt_i32_str(output, &files.ai_rules)?;
+                if let Some(ai_rules) = &files.ai_rules {
+                    output.write_u32::<LE>(ai_rules.len() as u32)?;
+                } else {
+                    output.write_u32::<LE>(0)?;
+                }
+            }
+            if let Some(build_list) = &files.build_list {
+                output.write_all(build_list.as_bytes())?;
+            }
+            if let Some(city_plan) = &files.city_plan {
+                output.write_all(city_plan.as_bytes())?;
+            }
+            if version >= 1.08 {
+                if let Some(ai_rules) = &files.ai_rules {
+                    output.write_all(ai_rules.as_bytes())?;
+                }
             }
         }
 
