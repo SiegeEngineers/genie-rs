@@ -1,10 +1,10 @@
 use super::ConvertError;
 use crate::{Scenario, ScenarioObject, Tile, Trigger};
-use std::collections::HashMap;
+use nohash_hasher::IntMap;
 
 pub struct AoCToWK {
-    object_ids_map: HashMap<i32, i32>,
-    terrain_ids_map: HashMap<i8, i8>,
+    object_ids_map: IntMap<i32, i32>,
+    terrain_ids_map: IntMap<i8, i8>,
 }
 
 impl Default for AoCToWK {
