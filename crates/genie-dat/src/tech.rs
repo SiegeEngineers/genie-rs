@@ -8,6 +8,7 @@ use std::{
     convert::TryInto,
     io::{Read, Result, Write},
 };
+use encoding_rs::WINDOWS_1252;
 
 /// An ID identifying a tech.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -118,12 +119,9 @@ impl TechEffect {
         let mut effect = Self::default();
         let mut bytes = [0; 31];
         input.read_exact(&mut bytes)?;
-        bytes
-            .iter()
-            .cloned()
-            .take_while(|b| *b != 0)
-            .map(char::from)
-            .for_each(|c| effect.name.push(c));
+        let bytes = &bytes[..bytes.iter().position(|&c| c == 0).unwrap_or(bytes.len())];
+        let (name, _encoding, _failed) = WINDOWS_1252.decode(&bytes);
+        effect.name = TechEffectName::from(&name).unwrap();
 
         let num_commands = input.read_u16::<LE>()?;
         for _ in 0..num_commands {
@@ -205,7 +203,9 @@ impl Tech {
             let name_len = input.read_u16::<LE>()?;
             let mut bytes = vec![0; name_len as usize];
             input.read_exact(&mut bytes)?;
-            String::from_utf8(bytes.iter().cloned().take_while(|b| *b != 0).collect()).unwrap()
+            let bytes = &bytes[..bytes.iter().position(|&c| c == 0).unwrap_or(bytes.len())];
+            let (name, _encoding, _failed) = WINDOWS_1252.decode(&bytes);
+            name.to_string()
         };
         Ok(tech)
     }
