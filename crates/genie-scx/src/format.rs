@@ -442,10 +442,33 @@ impl RGEScen {
 
         assert_eq!(self.player_files.len(), 16);
         for files in &self.player_files {
-            write_opt_i32_str(output, &files.build_list)?;
-            write_opt_i32_str(output, &files.city_plan)?;
+            if let Some(build_list) = &files.build_list {
+                output.write_u32::<LE>(build_list.len() as u32)?;
+            } else {
+                output.write_u32::<LE>(0)?;
+            }
+            if let Some(city_plan) = &files.city_plan {
+                output.write_u32::<LE>(city_plan.len() as u32)?;
+            } else {
+                output.write_u32::<LE>(0)?;
+            }
             if version >= 1.08 {
-                write_opt_i32_str(output, &files.ai_rules)?;
+                if let Some(ai_rules) = &files.ai_rules {
+                    output.write_u32::<LE>(ai_rules.len() as u32)?;
+                } else {
+                    output.write_u32::<LE>(0)?;
+                }
+            }
+            if let Some(build_list) = &files.build_list {
+                output.write_all(build_list.as_bytes())?;
+            }
+            if let Some(city_plan) = &files.city_plan {
+                output.write_all(city_plan.as_bytes())?;
+            }
+            if version >= 1.08 {
+                if let Some(ai_rules) = &files.ai_rules {
+                    output.write_all(ai_rules.as_bytes())?;
+                }
             }
         }
 
@@ -1149,7 +1172,7 @@ fn write_opt_string_key<W: Write>(output: &mut W, opt_key: &Option<StringKey>) -
 mod tests {
     use super::SCXFormat;
     use crate::VersionBundle;
-    use std::fs::File;
+    use std::{fs::File, io::Cursor};
 
     /// Source: http://aoe.heavengames.com/dl-php/showfile.php?fileid=42
     #[test]
@@ -1171,7 +1194,7 @@ mod tests {
             .write_to(&mut out, &format.version())
             .expect("failed to write");
 
-        let mut f = std::io::Cursor::new(out);
+        let mut f = Cursor::new(out);
         let format2 = SCXFormat::load_scenario(&mut f).expect("failed to read");
 
         assert_eq!(
@@ -1190,7 +1213,7 @@ mod tests {
             .write_to(&mut out, &VersionBundle::aoc())
             .expect("failed to write");
 
-        let mut f = std::io::Cursor::new(out);
+        let mut f = Cursor::new(out);
         let format2 = SCXFormat::load_scenario(&mut f).expect("failed to read");
         assert_eq!(
             format2.version(),
@@ -1241,6 +1264,24 @@ mod tests {
         format
             .write_to(&mut out, &format.version())
             .expect("failed to write");
+    }
+
+    #[test]
+    fn aoe1_ror_to_aoc() -> Result<(), Box<dyn std::error::Error>> {
+        let mut f = File::open("test/scenarios/El advenimiento de los hunos_.scx")?;
+        let format = SCXFormat::load_scenario(&mut f)?;
+
+        let mut out = vec![];
+        format.write_to(&mut out, &VersionBundle::aoc())?;
+
+        let format = SCXFormat::load_scenario(&mut Cursor::new(out))?;
+        assert_eq!(
+            format.version(),
+            VersionBundle::aoc(),
+            "should have converted to AoC versions"
+        );
+
+        Ok(())
     }
 
     /// Source: http://aok.heavengames.com/blacksmith/showfile.php?fileid=1271

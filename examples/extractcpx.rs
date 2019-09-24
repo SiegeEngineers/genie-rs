@@ -1,6 +1,5 @@
 use genie::Campaign;
-use std::fs::File;
-use std::path::PathBuf;
+use std::{cmp, fs::File, path::PathBuf};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -46,7 +45,7 @@ fn list(args: List) {
 
     for i in 0..campaign.len() {
         let bytes = campaign.by_index_raw(i).expect("missing scenario data");
-        println!("- {} ({} B)", names[i], bytes.len());
+        println!("- {} ({})", names[i], format_bytes(bytes.len() as u32));
     }
 }
 
@@ -68,6 +67,22 @@ fn extract(args: Extract) {
         println!("{}", names[i]);
         std::fs::write(dir.join(&names[i]), bytes).expect("failed to write");
     }
+}
+
+/// Derived from https://github.com/banyan/rust-pretty-bytes/blob/master/src/converter.rs
+fn format_bytes(num: u32) -> String {
+    let units = ["B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+    if num < 1 {
+        return format!("{} {}", num, "B");
+    }
+    let delimiter = 1000u32;
+    let exponent = cmp::min(
+        (f64::from(num).ln() / f64::from(delimiter).ln()).floor() as u32,
+        (units.len() - 1) as u32,
+    );
+    let pretty_bytes = num / delimiter.pow(exponent);
+    let unit = units[exponent as usize];
+    format!("{:.2} {}", pretty_bytes, unit)
 }
 
 fn main() {
