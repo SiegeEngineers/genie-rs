@@ -159,6 +159,11 @@ impl TechEffectRef {
 }
 
 impl Tech {
+    /// Get the name of this tech.
+    pub fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
     pub fn from<R: Read>(input: &mut R) -> Result<Self> {
         let mut tech = Self::default();
         for _ in 0..6 {

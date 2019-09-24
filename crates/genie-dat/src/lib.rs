@@ -431,6 +431,16 @@ mod tests {
     }
 
     #[test]
+    fn non_7bit_ascii_tech_name() {
+        let mut f = File::open("fixtures/age-of-chivalry.dat").unwrap();
+        let dat = DatFile::from(&mut f).unwrap();
+        let names = dat.techs.iter()
+            .map(|t| t.name())
+            .collect::<Vec<_>>();
+        assert_eq!(dat.techs[859].name(), "Székely (enable)");
+    }
+
+    #[test]
     fn hd_edition() {
         let mut f = File::open("fixtures/hd.dat").unwrap();
         let dat = DatFile::from(&mut f).unwrap();
