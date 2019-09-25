@@ -56,7 +56,7 @@ impl Civilization {
         self.name.as_str()
     }
 
-    pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let mut civ = Self::default();
         let mut bytes = [0; 20];
         input.read_exact(&mut bytes)?;
@@ -93,7 +93,7 @@ impl Civilization {
                 civ.unit_types.push(None);
                 continue;
             }
-            civ.unit_types.push(Some(UnitType::from(input, version)?));
+            civ.unit_types.push(Some(UnitType::read_from(input, version)?));
         }
 
         Ok(civ)

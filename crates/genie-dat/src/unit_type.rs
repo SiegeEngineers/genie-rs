@@ -101,19 +101,19 @@ impl UnitType {
         }
     }
 
-    pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let unit_type = input.read_u8()?;
         match unit_type {
-            10 => BaseUnitType::from(input, version).map_into(),
-            15 => TreeUnitType::from(input, version).map_into(),
-            20 => AnimatedUnitType::from(input, version).map_into(),
-            25 => DopplegangerUnitType::from(input, version).map_into(),
-            30 => MovingUnitType::from(input, version).map_into(),
-            40 => ActionUnitType::from(input, version).map_into(),
-            50 => BaseCombatUnitType::from(input, version).map_into(),
-            60 => MissileUnitType::from(input, version).map_into(),
-            70 => CombatUnitType::from(input, version).map_into(),
-            80 => BuildingUnitType::from(input, version).map_into(),
+            10 => BaseUnitType::read_from(input, version).map_into(),
+            15 => TreeUnitType::read_from(input, version).map_into(),
+            20 => AnimatedUnitType::read_from(input, version).map_into(),
+            25 => DopplegangerUnitType::read_from(input, version).map_into(),
+            30 => MovingUnitType::read_from(input, version).map_into(),
+            40 => ActionUnitType::read_from(input, version).map_into(),
+            50 => BaseCombatUnitType::read_from(input, version).map_into(),
+            60 => MissileUnitType::read_from(input, version).map_into(),
+            70 => CombatUnitType::read_from(input, version).map_into(),
+            80 => BuildingUnitType::read_from(input, version).map_into(),
             _ => panic!("unexpected unit type {}, this is probably a bug", unit_type),
         }
     }
@@ -207,7 +207,7 @@ pub struct UnitAttribute {
 }
 
 impl UnitAttribute {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         Ok(Self {
             attribute_type: input.read_u16::<LE>()?,
             amount: input.read_f32::<LE>()?,
@@ -231,7 +231,7 @@ pub struct DamageSprite {
 }
 
 impl DamageSprite {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         Ok(Self {
             sprite: input.read_u16::<LE>()?.into(),
             damage_percent: input.read_u16::<LE>()?,
@@ -314,7 +314,7 @@ pub struct BaseUnitType {
 }
 
 impl BaseUnitType {
-    pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let mut unit_type = Self::default();
         let name_len = input.read_u16::<LE>()?;
         unit_type.id = input.read_u16::<LE>()?.into();
@@ -383,7 +383,7 @@ impl BaseUnitType {
             input.read_f32::<LE>()?,
         );
         for _ in 0..3 {
-            let attr = UnitAttribute::from(input)?;
+            let attr = UnitAttribute::read_from(input)?;
             if attr.attribute_type != 0xFFFF {
                 unit_type.attributes.push(attr);
             }
@@ -392,7 +392,7 @@ impl BaseUnitType {
             let num_damage_sprites = input.read_u8()?;
             let mut damage_sprites = vec![];
             for _ in 0..num_damage_sprites {
-                damage_sprites.push(DamageSprite::from(input)?);
+                damage_sprites.push(DamageSprite::read_from(input)?);
             }
             damage_sprites
         };
@@ -538,8 +538,8 @@ impl BaseUnitType {
 pub struct TreeUnitType(BaseUnitType);
 
 impl TreeUnitType {
-    pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
-        BaseUnitType::from(input, version).map(Self)
+    pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+        BaseUnitType::read_from(input, version).map(Self)
     }
 
     /// Write this unit type to an output stream.
@@ -555,9 +555,9 @@ pub struct AnimatedUnitType {
 }
 
 impl AnimatedUnitType {
-    pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         Ok(Self {
-            superclass: BaseUnitType::from(input, version)?,
+            superclass: BaseUnitType::read_from(input, version)?,
             speed: input.read_f32::<LE>()?,
         })
     }
@@ -574,8 +574,8 @@ impl AnimatedUnitType {
 pub struct DopplegangerUnitType(AnimatedUnitType);
 
 impl DopplegangerUnitType {
-    pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
-        AnimatedUnitType::from(input, version).map(Self)
+    pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+        AnimatedUnitType::read_from(input, version).map(Self)
     }
 
     /// Write this unit type to an output stream.
@@ -603,9 +603,9 @@ pub struct MovingUnitType {
 }
 
 impl MovingUnitType {
-    pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let mut unit_type = Self {
-            superclass: AnimatedUnitType::from(input, version)?,
+            superclass: AnimatedUnitType::read_from(input, version)?,
             ..Default::default()
         };
         unit_type.move_sprite = read_opt_u16(input)?.map_into();
@@ -674,9 +674,9 @@ pub struct ActionUnitType {
 }
 
 impl ActionUnitType {
-    pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let mut unit_type = Self {
-            superclass: MovingUnitType::from(input, version)?,
+            superclass: MovingUnitType::read_from(input, version)?,
             ..Default::default()
         };
         unit_type.default_task = read_opt_u16(input)?;
@@ -734,7 +734,7 @@ pub struct WeaponInfo {
 }
 
 impl WeaponInfo {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         Ok(Self {
             weapon_type: input.read_i16::<LE>()?,
             value: input.read_i16::<LE>()?,
@@ -773,9 +773,9 @@ pub struct BaseCombatUnitType {
 }
 
 impl BaseCombatUnitType {
-    pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let mut unit_type = Self {
-            superclass: ActionUnitType::from(input, version)?,
+            superclass: ActionUnitType::read_from(input, version)?,
             ..Default::default()
         };
         unit_type.base_armor = if version.as_f32() < 11.52 {
@@ -785,11 +785,11 @@ impl BaseCombatUnitType {
         };
         let num_weapons = input.read_u16::<LE>()?;
         for _ in 0..num_weapons {
-            unit_type.weapons.push(WeaponInfo::from(input)?);
+            unit_type.weapons.push(WeaponInfo::read_from(input)?);
         }
         let num_armors = input.read_u16::<LE>()?;
         for _ in 0..num_armors {
-            unit_type.armors.push(WeaponInfo::from(input)?);
+            unit_type.armors.push(WeaponInfo::read_from(input)?);
         }
         unit_type.defense_terrain_bonus = read_opt_u16(input)?;
         unit_type.weapon_range_max = input.read_f32::<LE>()?;
@@ -834,9 +834,9 @@ pub struct MissileUnitType {
 
 impl MissileUnitType {
     /// Read this unit type from an input stream.
-    pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let mut unit_type = Self {
-            superclass: BaseCombatUnitType::from(input, version)?,
+            superclass: BaseCombatUnitType::read_from(input, version)?,
             ..Default::default()
         };
         unit_type.missile_type = input.read_u8()?;
@@ -875,7 +875,7 @@ pub struct AttributeCost {
 }
 
 impl AttributeCost {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let cost = Self {
             attribute_type: input.read_i16::<LE>()?,
             amount: input.read_i16::<LE>()?,
@@ -923,14 +923,14 @@ pub struct CombatUnitType {
 
 impl CombatUnitType {
     /// Read this unit type from an input stream.
-    pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let mut unit_type = Self {
-            superclass: BaseCombatUnitType::from(input, version)?,
+            superclass: BaseCombatUnitType::read_from(input, version)?,
             ..Default::default()
         };
 
         for _ in 0..3 {
-            let attr = AttributeCost::from(input)?;
+            let attr = AttributeCost::read_from(input)?;
             if attr.attribute_type >= 0 {
                 unit_type.costs.push(attr);
             }
@@ -996,7 +996,7 @@ pub struct LinkedBuilding {
 }
 
 impl LinkedBuilding {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         Ok(Self {
             unit_id: input.read_u16::<LE>()?.into(),
             x_offset: input.read_f32::<LE>()?,
@@ -1051,9 +1051,9 @@ pub struct BuildingUnitType {
 
 impl BuildingUnitType {
     /// Read this unit type from an input stream.
-    pub fn from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let mut unit_type = Self {
-            superclass: CombatUnitType::from(input, version)?,
+            superclass: CombatUnitType::read_from(input, version)?,
             ..Default::default()
         };
         unit_type.construction_sprite = read_opt_u16(input)?.map_into();
@@ -1071,7 +1071,7 @@ impl BuildingUnitType {
         unit_type.on_build_make_tech = read_opt_u16(input)?.map_into();
         unit_type.can_burn = input.read_u8()? != 0;
         for _ in 0..unit_type.linked_buildings.capacity() {
-            let link = LinkedBuilding::from(input)?;
+            let link = LinkedBuilding::read_from(input)?;
             if link.unit_id != 0xFFFF.into() {
                 unit_type.linked_buildings.push(link);
             }

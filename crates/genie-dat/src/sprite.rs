@@ -121,7 +121,7 @@ pub struct Sprite {
 }
 
 impl SpriteDelta {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let mut delta = SpriteDelta::default();
         delta.sprite_id = read_opt_u16(input)?.map_into();
         let _padding = input.read_i16::<LE>()?;
@@ -151,7 +151,7 @@ impl SpriteDelta {
 }
 
 impl SoundProp {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let sound_delay = input.read_i16::<LE>()?;
         let sound_id = input.read_u16::<LE>()?.into();
         Ok(Self {
@@ -168,10 +168,10 @@ impl SoundProp {
 }
 
 impl SpriteAttackSound {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let mut val = SpriteAttackSound::default();
         for _ in 0..val.sound_props.capacity() {
-            let prop = SoundProp::from(input)?;
+            let prop = SoundProp::read_from(input)?;
             if u16::from(prop.sound_id) != 0xFFFF {
                 val.sound_props.push(prop);
             }
@@ -189,7 +189,7 @@ impl SpriteAttackSound {
 }
 
 impl Sprite {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let mut sprite = Sprite::default();
         let mut name = [0u8; 21];
         input.read_exact(&mut name)?;
@@ -232,11 +232,11 @@ impl Sprite {
         sprite.other_flag = input.read_i8()?;
 
         for _ in 0..num_deltas {
-            sprite.deltas.push(SpriteDelta::from(input)?);
+            sprite.deltas.push(SpriteDelta::read_from(input)?);
         }
         if attack_sounds_used {
             for _ in 0..sprite.num_facets {
-                sprite.attack_sounds.push(SpriteAttackSound::from(input)?);
+                sprite.attack_sounds.push(SpriteAttackSound::read_from(input)?);
             }
         }
 

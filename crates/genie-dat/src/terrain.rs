@@ -134,7 +134,7 @@ pub struct TerrainBorder {
 }
 
 impl TerrainPassGraphic {
-    pub fn from<R: Read>(input: &mut R, version: FileVersion) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, version: FileVersion) -> Result<Self> {
         let mut pass = TerrainPassGraphic::default();
         pass.exit_tile_sprite = read_opt_u32(input)?.map(|v| v.try_into().unwrap());
         pass.enter_tile_sprite = read_opt_u32(input)?.map(|v| v.try_into().unwrap());
@@ -163,7 +163,7 @@ impl TerrainPassGraphic {
 }
 
 impl TerrainRestriction {
-    pub fn from<R: Read>(input: &mut R, version: FileVersion, num_terrains: u16) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, version: FileVersion, num_terrains: u16) -> Result<Self> {
         let mut passability = vec![0.0; num_terrains as usize];
         for value in passability.iter_mut() {
             *value = input.read_f32::<LE>()?;
@@ -172,7 +172,7 @@ impl TerrainRestriction {
         // Apparently AoK+ only
         let mut pass_graphics = Vec::with_capacity(num_terrains as usize);
         for _ in 0..num_terrains {
-            pass_graphics.push(TerrainPassGraphic::from(input, version)?);
+            pass_graphics.push(TerrainPassGraphic::read_from(input, version)?);
         }
 
         Ok(Self {
@@ -202,7 +202,7 @@ impl TerrainRestriction {
 }
 
 impl TileSize {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let width = input.read_i16::<LE>()?;
         let height = input.read_i16::<LE>()?;
         let delta_z = input.read_i16::<LE>()?;
@@ -223,7 +223,7 @@ impl TileSize {
 }
 
 impl TerrainAnimation {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let mut anim = TerrainAnimation::default();
         anim.enabled = input.read_u8()? != 0;
         anim.num_frames = input.read_i16::<LE>()?;
@@ -255,7 +255,7 @@ impl TerrainAnimation {
 }
 
 impl TerrainSpriteFrame {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let num_frames = input.read_i16::<LE>()?;
         let num_facets = input.read_i16::<LE>()?;
         let frame_id = input.read_i16::<LE>()?;
@@ -281,7 +281,7 @@ impl Terrain {
         self.name.as_str()
     }
 
-    pub fn from<R: Read>(input: &mut R, _version: FileVersion, num_terrains: u16) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, _version: FileVersion, num_terrains: u16) -> Result<Self> {
         let mut terrain = Terrain::default();
         terrain.enabled = input.read_u8()? != 0;
         terrain.random = input.read_u8()?;
@@ -319,11 +319,11 @@ impl Terrain {
             0xFF => None,
             id => Some(id),
         };
-        terrain.animation = TerrainAnimation::from(input)?;
+        terrain.animation = TerrainAnimation::read_from(input)?;
         for _ in 0..19 {
             terrain
                 .elevation_sprites
-                .push(TerrainSpriteFrame::from(input)?);
+                .push(TerrainSpriteFrame::read_from(input)?);
         }
         terrain.terrain_id_to_draw = read_opt_u16(input)?.map_into();
         terrain.rows = input.read_i16::<LE>()?;
@@ -413,7 +413,7 @@ impl Terrain {
 }
 
 impl TerrainBorder {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let mut border = TerrainBorder::default();
         border.enabled = input.read_u8()? != 0;
         border.random = input.read_u8()?;
@@ -437,11 +437,11 @@ impl TerrainBorder {
             }
         };
         border.color = (input.read_u8()?, input.read_u8()?, input.read_u8()?);
-        border.animation = TerrainAnimation::from(input)?;
+        border.animation = TerrainAnimation::read_from(input)?;
         for _ in 0..19 {
             let mut frames_list = vec![TerrainSpriteFrame::default(); 12];
             for frame in frames_list.iter_mut() {
-                *frame = TerrainSpriteFrame::from(input)?;
+                *frame = TerrainSpriteFrame::read_from(input)?;
             }
             border.frames.push(frames_list);
         }

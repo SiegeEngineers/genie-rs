@@ -21,7 +21,7 @@ pub struct ColorTable {
 }
 
 impl ColorTable {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let id = input.read_i32::<LE>()?;
         let base = input.read_i32::<LE>()?.try_into().unwrap();
         let unit_outline_color = input.read_i32::<LE>()?.try_into().unwrap();

@@ -45,13 +45,13 @@ impl Deref for TaskList {
 }
 
 impl TaskList {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let num_tasks = input.read_u16::<LE>()?;
         let mut tasks = vec![];
         for _ in 0..num_tasks {
             let task_type = input.read_u16::<LE>()?;
             assert_eq!(task_type, 1);
-            tasks.push(Task::from(input)?);
+            tasks.push(Task::read_from(input)?);
         }
 
         Ok(Self(tasks))
@@ -67,7 +67,7 @@ impl TaskList {
 }
 
 impl Task {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let mut task = Self::default();
         task.id = input.read_u16::<LE>()?;
         task.is_default = input.read_u8()? != 0;

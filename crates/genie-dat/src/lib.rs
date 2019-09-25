@@ -127,7 +127,7 @@ pub struct DatFile {
 
 impl DatFile {
     /// Read a data file from a compressed byte stream.
-    pub fn from(input: impl Read) -> Result<Self> {
+    pub fn read_from(input: impl Read) -> Result<Self> {
         let mut input = DeflateDecoder::new(input);
 
         let mut file_version = [0u8; 8];
@@ -172,14 +172,14 @@ impl DatFile {
         }
 
         let terrain_tables = read_array(num_terrain_tables.into(), || {
-            TerrainRestriction::from(&mut input, file_version, num_terrains)
+            TerrainRestriction::read_from(&mut input, file_version, num_terrains)
         })?;
 
         let num_color_tables = input.read_u16::<LE>()?;
-        let color_tables = read_array(num_color_tables.into(), || ColorTable::from(&mut input))?;
+        let color_tables = read_array(num_color_tables.into(), || ColorTable::read_from(&mut input))?;
 
         let num_sounds = input.read_u16::<LE>()?;
-        let sounds = read_array(num_sounds.into(), || Sound::from(&mut input, file_version))?;
+        let sounds = read_array(num_sounds.into(), || Sound::read_from(&mut input, file_version))?;
 
         let num_sprites = input.read_u16::<LE>()?;
         let sprites_exist = read_array(num_sprites.into(), || {
@@ -188,7 +188,7 @@ impl DatFile {
         let mut sprites = vec![];
         for exists in sprites_exist {
             sprites.push(if exists {
-                Some(Sprite::from(&mut input)?)
+                Some(Sprite::read_from(&mut input)?)
             } else {
                 None
             });
@@ -206,16 +206,16 @@ impl DatFile {
 
         let mut tile_sizes = vec![TileSize::default(); 19];
         for val in tile_sizes.iter_mut() {
-            *val = TileSize::from(&mut input)?;
+            *val = TileSize::read_from(&mut input)?;
         }
 
         // Padding
         input.read_i16::<LE>()?;
 
         let terrains = read_array(num_terrains_fixed.into(), || {
-            Terrain::from(&mut input, file_version, num_terrains_fixed)
+            Terrain::read_from(&mut input, file_version, num_terrains_fixed)
         })?;
-        let terrain_borders = read_array(16, || TerrainBorder::from(&mut input))?;
+        let terrain_borders = read_array(16, || TerrainBorder::read_from(&mut input))?;
 
         // Should just skip all this shit probably
         let _map_row_offset = input.read_i32::<LE>()?;
@@ -251,18 +251,18 @@ impl DatFile {
         let num_random_maps = input.read_u32::<LE>()? as usize;
         let _random_maps_pointer = input.read_u32::<LE>()?;
 
-        let mut random_maps = read_array(num_random_maps, || RandomMapInfo::from(&mut input))?;
+        let mut random_maps = read_array(num_random_maps, || RandomMapInfo::read_from(&mut input))?;
         for map in random_maps.iter_mut() {
             map.finish(&mut input)?;
         }
 
         let num_effects = input.read_u32::<LE>()? as usize;
-        let effects = read_array(num_effects, || TechEffect::from(&mut input))?;
+        let effects = read_array(num_effects, || TechEffect::read_from(&mut input))?;
 
         let num_task_lists = input.read_u32::<LE>()? as usize;
         let task_lists = read_array(num_task_lists, || {
             if input.read_u8()? != 0 {
-                TaskList::from(&mut input).map(Some)
+                TaskList::read_from(&mut input).map(Some)
             } else {
                 Ok(None)
             }
@@ -272,11 +272,11 @@ impl DatFile {
         let civilizations = read_array(num_civilizations.into(), || {
             let player_type = input.read_i8()?;
             assert_eq!(player_type, 1);
-            Civilization::from(&mut input, game_version)
+            Civilization::read_from(&mut input, game_version)
         })?;
 
         let num_techs = input.read_u16::<LE>()?;
-        let techs = read_array(num_techs.into(), || Tech::from(&mut input))?;
+        let techs = read_array(num_techs.into(), || Tech::read_from(&mut input))?;
 
         let _time_slice = input.read_u32::<LE>()?;
         let _unit_kill_rate = input.read_u32::<LE>()?;
@@ -509,28 +509,28 @@ mod tests {
     #[test]
     fn aok() {
         let mut f = File::open("fixtures/aok.dat").unwrap();
-        let dat = DatFile::from(&mut f).unwrap();
+        let dat = DatFile::read_from(&mut f).unwrap();
         assert_eq!(dat.civilizations.len(), 14);
     }
 
     #[test]
     fn aoc() {
         let mut f = File::open("fixtures/aoc1.0c.dat").unwrap();
-        let dat = DatFile::from(&mut f).unwrap();
+        let dat = DatFile::read_from(&mut f).unwrap();
         assert_eq!(dat.civilizations.len(), 19);
     }
 
     #[test]
     fn non_7bit_ascii_tech_name() {
         let mut f = File::open("fixtures/age-of-chivalry.dat").unwrap();
-        let dat = DatFile::from(&mut f).unwrap();
+        let dat = DatFile::read_from(&mut f).unwrap();
         assert_eq!(dat.techs[859].name(), "Székely (enable)");
     }
 
     #[test]
     fn hd_edition() {
         let mut f = File::open("fixtures/hd.dat").unwrap();
-        let dat = DatFile::from(&mut f).unwrap();
+        let dat = DatFile::read_from(&mut f).unwrap();
         assert_eq!(dat.civilizations.len(), 32);
     }
 
@@ -539,12 +539,12 @@ mod tests {
     fn reserialize() -> Result<()> {
         let original = std::fs::read("fixtures/aoc1.0c.dat")?;
         let mut cursor = Cursor::new(&original);
-        let dat = DatFile::from(&mut cursor)?;
+        let dat = DatFile::read_from(&mut cursor)?;
         let mut serialized = vec![];
         dat.write_to(&mut serialized)?;
 
         let mut cursor = Cursor::new(&serialized);
-        let dat2 = DatFile::from(&mut cursor)?;
+        let dat2 = DatFile::read_from(&mut cursor)?;
 
         let mut orig_hasher = DefaultHasher::new();
         let mut new_hasher = DefaultHasher::new();

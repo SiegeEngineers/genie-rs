@@ -85,7 +85,7 @@ pub struct Tech {
 }
 
 impl EffectCommand {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let command_type = input.read_u8()?;
         let params = (
             input.read_i16::<LE>()?,
@@ -115,7 +115,7 @@ impl TechEffect {
         self.name.as_str()
     }
 
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let mut effect = Self::default();
         let mut bytes = [0; 31];
         input.read_exact(&mut bytes)?;
@@ -125,7 +125,7 @@ impl TechEffect {
 
         let num_commands = input.read_u16::<LE>()?;
         for _ in 0..num_commands {
-            effect.commands.push(EffectCommand::from(input)?);
+            effect.commands.push(EffectCommand::read_from(input)?);
         }
 
         Ok(effect)
@@ -142,7 +142,7 @@ impl TechEffect {
 }
 
 impl TechEffectRef {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         Ok(Self {
             effect_type: input.read_u16::<LE>()?,
             amount: input.read_u16::<LE>()?,
@@ -164,14 +164,14 @@ impl Tech {
         self.name.as_str()
     }
 
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let mut tech = Self::default();
         for _ in 0..6 {
             // 4 on some versions
             tech.required_techs.push(input.read_i16::<LE>()?);
         }
         for _ in 0..3 {
-            let effect = TechEffectRef::from(input)?;
+            let effect = TechEffectRef::read_from(input)?;
             if effect.effect_type != 0xFFFF {
                 tech.effects.push(effect);
             }

@@ -66,7 +66,7 @@ pub struct SoundItem {
 
 impl SoundItem {
     /// Read this sound item from an input stream.
-    pub fn from<R: Read>(input: &mut R, _version: FileVersion) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, _version: FileVersion) -> Result<Self> {
         let mut item = SoundItem::default();
         let mut filename = [0u8; 13];
         input.read_exact(&mut filename)?;
@@ -94,14 +94,14 @@ impl SoundItem {
 
 impl Sound {
     /// Read this sound from an input stream.
-    pub fn from<R: Read>(input: &mut R, version: FileVersion) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, version: FileVersion) -> Result<Self> {
         let mut sound = Sound::default();
         sound.id = input.read_u16::<LE>()?.into();
         sound.play_delay = input.read_i16::<LE>()?;
         let num_items = input.read_u16::<LE>()?;
         sound.cache_time = input.read_i32::<LE>()?;
         for _ in 0..num_items {
-            sound.items.push(SoundItem::from(input, version)?);
+            sound.items.push(SoundItem::read_from(input, version)?);
         }
         Ok(sound)
     }
