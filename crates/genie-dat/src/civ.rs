@@ -9,6 +9,7 @@ use std::{
     convert::TryInto,
     io::{Read, Result, Write},
 };
+use encoding_rs::WINDOWS_1252;
 
 /// An ID identifying a civilization
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -59,12 +60,9 @@ impl Civilization {
         let mut civ = Self::default();
         let mut bytes = [0; 20];
         input.read_exact(&mut bytes)?;
-        bytes
-            .iter()
-            .cloned()
-            .take_while(|b| *b != 0)
-            .map(char::from)
-            .for_each(|c| civ.name.push(c));
+        let bytes = &bytes[..bytes.iter().position(|&c| c == 0).unwrap_or(bytes.len())];
+        let (name, _encoding, _failed) = WINDOWS_1252.decode(&bytes);
+        civ.name = CivName::from(&name).unwrap();
         let num_attributes = input.read_u16::<LE>()?;
         civ.civ_effect = input.read_u16::<LE>()?;
         civ.bonus_effect = {
@@ -101,7 +99,7 @@ impl Civilization {
         Ok(civ)
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    pub fn write_to<W: Write>(&self, output: &mut W, version: GameVersion) -> Result<()> {
         let mut name = [0; 20];
         (&mut name[..]).copy_from_slice(self.name.as_bytes());
         output.write_all(&name)?;
@@ -122,7 +120,7 @@ impl Civilization {
         }
         for opt in &self.unit_types {
             if let Some(unit_type) = opt {
-                unit_type.write_to(output)?;
+                unit_type.write_to(output, version)?;
             }
         }
         Ok(())

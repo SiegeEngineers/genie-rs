@@ -147,6 +147,7 @@ impl TerrainPassGraphic {
         Ok(pass)
     }
 
+    /// Serialize this object to a binary output stream.
     pub fn write_to<W: Write>(&self, output: &mut W, version: FileVersion) -> Result<()> {
         output.write_i32::<LE>(self.exit_tile_sprite.map_into().unwrap_or(-1))?;
         output.write_i32::<LE>(self.enter_tile_sprite.map_into().unwrap_or(-1))?;
@@ -180,6 +181,7 @@ impl TerrainRestriction {
         })
     }
 
+    /// Serialize this object to a binary output stream.
     pub fn write_to<W: Write>(
         &self,
         output: &mut W,
@@ -192,6 +194,7 @@ impl TerrainRestriction {
             output.write_f32::<LE>(*value)?;
         }
         for graphic in &self.pass_graphics {
+    /// Serialize this object to a binary output stream.
             graphic.write_to(output, version)?;
         }
         Ok(())
@@ -210,6 +213,7 @@ impl TileSize {
         })
     }
 
+    /// Serialize this object to a binary output stream.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_i16::<LE>(self.width)?;
         output.write_i16::<LE>(self.height)?;
@@ -234,6 +238,7 @@ impl TerrainAnimation {
         Ok(anim)
     }
 
+    /// Serialize this object to a binary output stream.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u8(if self.enabled { 1 } else { 0 })?;
         output.write_i16::<LE>(self.num_frames)?;
@@ -261,6 +266,7 @@ impl TerrainSpriteFrame {
         })
     }
 
+    /// Serialize this object to a binary output stream.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_i16::<LE>(self.num_frames)?;
         output.write_i16::<LE>(self.num_facets)?;
@@ -346,6 +352,64 @@ impl Terrain {
 
         Ok(terrain)
     }
+
+    /// Serialize this object to a binary output stream.
+    pub fn write_to<W: Write>(&self, output: &mut W, _version: FileVersion, num_terrains: u16) -> Result<()> {
+        assert_eq!(self.borders.len(), num_terrains as usize);
+        output.write_u8(if self.enabled { 1 } else { 0 })?;
+        output.write_u8(self.random)?;
+        write_terrain_name(output, &self.name)?;
+        write_terrain_name(output, &self.slp_name)?;
+        output.write_i32::<LE>(self.slp_id.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
+        output.write_i32::<LE>(0)?; // slp pointer
+        output.write_i32::<LE>(self.sound_id.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
+        output.write_i32::<LE>(self.blend_priority.unwrap_or(-1))?;
+        output.write_i32::<LE>(self.blend_mode.unwrap_or(-1))?;
+        output.write_u8(self.minimap_color_high)?;
+        output.write_u8(self.minimap_color_medium)?;
+        output.write_u8(self.minimap_color_low)?;
+        output.write_u8(self.minimap_color_cliff_lt)?;
+        output.write_u8(self.minimap_color_cliff_rt)?;
+        output.write_u8(self.passable_terrain_id.unwrap_or(0xFF))?;
+        output.write_u8(self.impassable_terrain_id.unwrap_or(0xFF))?;
+        self.animation.write_to(output)?;
+        for frame in &self.elevation_sprites {
+            frame.write_to(output)?;
+        }
+        output.write_i16::<LE>(self.terrain_id_to_draw.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
+        output.write_i16::<LE>(self.rows)?;
+        output.write_i16::<LE>(self.cols)?;
+        for border in &self.borders {
+            output.write_i16::<LE>(*border)?;
+        }
+
+        for index in 0..30 {
+            if let Some(object) = self.terrain_objects.get(index) {
+                output.write_u16::<LE>(object.object_id.into())?;
+            } else {
+                output.write_u16::<LE>(0)?;
+            }
+        }
+        for index in 0..30 {
+            if let Some(object) = self.terrain_objects.get(index) {
+                output.write_i16::<LE>(object.density)?;
+            } else {
+                output.write_i16::<LE>(0)?;
+            }
+        }
+        for index in 0..30 {
+            if let Some(object) = self.terrain_objects.get(index) {
+                output.write_i8(object.placement_flag)?;
+            } else {
+                output.write_i8(0)?;
+            }
+        }
+        output.write_u16::<LE>(self.terrain_objects.len() as u16)?;
+
+        output.write_u16::<LE>(0)?; // padding
+
+        Ok(())
+    }
 }
 
 impl TerrainBorder {
@@ -393,16 +457,48 @@ impl TerrainBorder {
 
         Ok(border)
     }
+
+    /// Serialize this object to a binary output stream.
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        output.write_u8(if self.enabled { 1 } else { 0 })?;
+        output.write_u8(self.random)?;
+        write_terrain_name(output, &self.name)?;
+        write_terrain_name(output, &self.slp_name)?;
+        output.write_i32::<LE>(self.slp_id.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
+        output.write_i32::<LE>(0)?; // slp pointer
+        output.write_i32::<LE>(self.sound_id.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
+        output.write_u8(self.color.0)?;
+        output.write_u8(self.color.1)?;
+        output.write_u8(self.color.2)?;
+        self.animation.write_to(output)?;
+        for frames_list in &self.frames {
+            for frame in frames_list {
+                frame.write_to(output)?;
+            }
+        }
+        output.write_i8(self.draw_tile)?;
+        output.write_u8(0)?; // padding
+        output.write_i16::<LE>(self.underlay_terrain.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
+        output.write_i16::<LE>(self.border_style)?;
+        Ok(())
+    }
 }
 
 fn read_terrain_name<R: Read>(input: &mut R, output: &mut TerrainName) -> Result<()> {
-    let mut bytes = [0; 13];
-    input.read_exact(&mut bytes)?;
+    let bytes = &mut [0; 13];
+    input.read_exact(bytes)?;
     bytes
         .iter()
         .cloned()
         .take_while(|b| *b != 0)
         .map(char::from)
         .for_each(|c| output.push(c));
+    Ok(())
+}
+
+fn write_terrain_name<W: Write>(output: &mut W, name: &TerrainName) -> Result<()> {
+    let bytes = &mut [0; 13];
+    bytes.copy_from_slice(name.as_bytes());
+    output.write_all(bytes)?;
     Ok(())
 }

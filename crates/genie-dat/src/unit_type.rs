@@ -118,21 +118,21 @@ impl UnitType {
         }
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    pub fn write_to<W: Write>(&self, output: &mut W, version: GameVersion) -> Result<()> {
         use UnitType::*;
         output.write_u8(self.type_id())?;
 
         match self {
-            Base(unit) => unit.write_to(output)?,
-            Tree(unit) => unit.write_to(output)?,
-            Animated(unit) => unit.write_to(output)?,
-            Doppleganger(unit) => unit.write_to(output)?,
-            Moving(unit) => unit.write_to(output)?,
-            Action(unit) => unit.write_to(output)?,
-            BaseCombat(unit) => unit.write_to(output)?,
-            Missile(unit) => unit.write_to(output)?,
-            Combat(unit) => unit.write_to(output)?,
-            Building(unit) => unit.write_to(output)?,
+            Base(unit) => unit.write_to(output, version)?,
+            Tree(unit) => unit.write_to(output, version)?,
+            Animated(unit) => unit.write_to(output, version)?,
+            Doppleganger(unit) => unit.write_to(output, version)?,
+            Moving(unit) => unit.write_to(output, version)?,
+            Action(unit) => unit.write_to(output, version)?,
+            BaseCombat(unit) => unit.write_to(output, version)?,
+            Missile(unit) => unit.write_to(output, version)?,
+            Combat(unit) => unit.write_to(output, version)?,
+            Building(unit) => unit.write_to(output, version)?,
         }
 
         Ok(())
@@ -411,7 +411,7 @@ impl BaseUnitType {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    pub fn write_to<W: Write>(&self, output: &mut W, version: GameVersion) -> Result<()> {
         output.write_u16::<LE>(self.id.into())?;
         output.write_i16::<LE>((&self.string_id).try_into().unwrap())?;
         write_opt_string_key(output, &self.string_id2)?;
@@ -543,8 +543,8 @@ impl TreeUnitType {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        self.0.write_to(output)
+    pub fn write_to<W: Write>(&self, output: &mut W, version: GameVersion) -> Result<()> {
+        self.0.write_to(output, version)
     }
 }
 
@@ -563,8 +563,8 @@ impl AnimatedUnitType {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        self.superclass.write_to(output)?;
+    pub fn write_to<W: Write>(&self, output: &mut W, version: GameVersion) -> Result<()> {
+        self.superclass.write_to(output, version)?;
         output.write_f32::<LE>(self.speed)?;
         Ok(())
     }
@@ -579,8 +579,8 @@ impl DopplegangerUnitType {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        self.0.write_to(output)
+    pub fn write_to<W: Write>(&self, output: &mut W, version: GameVersion) -> Result<()> {
+        self.0.write_to(output, version)
     }
 }
 
@@ -625,8 +625,8 @@ impl MovingUnitType {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        self.superclass.write_to(output)?;
+    pub fn write_to<W: Write>(&self, output: &mut W, version: GameVersion) -> Result<()> {
+        self.superclass.write_to(output, version)?;
         output.write_i16::<LE>(
             self.move_sprite
                 .map(|id| id.try_into().unwrap())
@@ -692,8 +692,8 @@ impl ActionUnitType {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        self.superclass.write_to(output)?;
+    pub fn write_to<W: Write>(&self, output: &mut W, version: GameVersion) -> Result<()> {
+        self.superclass.write_to(output, version)?;
         output.write_i16::<LE>(
             self.default_task
                 .map(|id| id.try_into().unwrap())
@@ -816,7 +816,7 @@ impl BaseCombatUnitType {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to<W: Write>(&self, _output: &mut W) -> Result<()> {
+    pub fn write_to<W: Write>(&self, _output: &mut W, version: GameVersion) -> Result<()> {
         unimplemented!();
     }
 }
@@ -849,8 +849,8 @@ impl MissileUnitType {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        self.superclass.write_to(output)?;
+    pub fn write_to<W: Write>(&self, output: &mut W, version: GameVersion) -> Result<()> {
+        self.superclass.write_to(output, version)?;
         output.write_u8(self.missile_type)?;
         output.write_u8(self.targetting_type)?;
         output.write_u8(self.missile_hit_info)?;
@@ -977,7 +977,7 @@ impl CombatUnitType {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to<W: Write>(&self, _output: &mut W) -> Result<()> {
+    pub fn write_to<W: Write>(&self, _output: &mut W, version: GameVersion) -> Result<()> {
         unimplemented!();
     }
 }
@@ -1093,7 +1093,7 @@ impl BuildingUnitType {
     }
 
     /// Write the unit type to an output stream.
-    pub fn write_to<W: Write>(&self, _output: &mut W) -> Result<()> {
+    pub fn write_to<W: Write>(&self, _output: &mut W, version: GameVersion) -> Result<()> {
         unimplemented!()
     }
 }

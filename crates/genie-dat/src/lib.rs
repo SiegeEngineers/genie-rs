@@ -107,6 +107,8 @@ pub struct DatFile {
     pub terrains: Vec<Terrain>,
     /// Terrain border data, specifying how different terrains blend.
     pub terrain_borders: Vec<TerrainBorder>,
+    /// Random map data from AoE1.
+    random_maps: Vec<RandomMapInfo>,
     /// Data about player colours.
     pub color_tables: Vec<ColorTable>,
     /// The available sounds.
@@ -291,6 +293,7 @@ impl DatFile {
             tile_sizes,
             terrains,
             terrain_borders,
+            random_maps,
             color_tables,
             sounds,
             sprites,
@@ -303,14 +306,15 @@ impl DatFile {
 
     /// Serialize this data file to an output stream. Compression is applied by this function.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        let mut output = DeflateEncoder::new(output, Compression::default());
-        output.write_all(&self.file_version.0)?;
-        output.write_u16::<LE>(self.terrain_tables.len().try_into().unwrap())?;
         let num_terrains = if self.game_version == GameVersion::AoC && self.terrains.len() == 42 {
             41
         } else {
             self.terrains.len()
         };
+
+        let mut output = DeflateEncoder::new(output, Compression::default());
+        output.write_all(&self.file_version.0)?;
+        output.write_u16::<LE>(self.terrain_tables.len().try_into().unwrap())?;
         output.write_u16::<LE>(num_terrains.try_into().unwrap())?;
 
         // Two lists of pointers
@@ -361,6 +365,92 @@ impl DatFile {
         for size in &self.tile_sizes {
             size.write_to(&mut output)?;
         }
+
+        // Padding
+        output.write_i16::<LE>(0)?;
+
+        for terrain in &self.terrains {
+            terrain.write_to(&mut output, self.file_version, self.terrains.len() as u16)?;
+        }
+        for border in &self.terrain_borders {
+            border.write_to(&mut output)?;
+        }
+
+        // TODO put correct values in
+        output.write_i32::<LE>(0)?;
+        output.write_f32::<LE>(0.0)?;
+        output.write_f32::<LE>(0.0)?;
+        output.write_f32::<LE>(0.0)?;
+        output.write_f32::<LE>(0.0)?;
+        output.write_f32::<LE>(0.0)?;
+        output.write_f32::<LE>(0.0)?;
+        output.write_u16::<LE>(0)?;
+        output.write_u16::<LE>(0)?;
+        output.write_u16::<LE>(0)?;
+        output.write_u16::<LE>(0)?;
+        output.write_u16::<LE>(0)?;
+        output.write_u16::<LE>(0)?;
+        output.write_u16::<LE>(0)?;
+        output.write_u16::<LE>(0)?;
+        output.write_u16::<LE>(0)?;
+        output.write_u16::<LE>(0)?;
+        output.write_u16::<LE>(0)?;
+        output.write_u16::<LE>(0)?;
+        output.write_u16::<LE>(0)?;
+        output.write_u16::<LE>(0)?;
+        output.write_i32::<LE>(0)?;
+        output.write_i32::<LE>(0)?;
+        output.write_u8(0)?;
+        output.write_u8(0)?;
+        output.write_u8(0)?;
+
+        // Lots more pointers and stuff
+        let nulls = [0; 21 + 157 * 4];
+        output.write_all(&nulls)?;
+
+        output.write_u32::<LE>(self.random_maps.len() as u32)?;
+        output.write_u32::<LE>(0)?; // pointer
+
+        for map in &self.random_maps {
+            map.write_to(&mut output)?;
+        }
+        for map in &self.random_maps {
+            map.write_commands_to(&mut output)?;
+        }
+
+        output.write_u32::<LE>(self.effects.len() as u32)?;
+        for effect in &self.effects {
+            effect.write_to(&mut output)?;
+        }
+
+        output.write_u32::<LE>(self.task_lists.len() as u32)?;
+        for task_list in &self.task_lists {
+            if let Some(task_list) = task_list {
+                output.write_u8(1)?;
+                task_list.write_to(&mut output)?;
+            } else {
+                output.write_u8(0)?;
+            }
+        }
+
+        output.write_u16::<LE>(self.civilizations.len() as u16)?;
+        for civilization in &self.civilizations {
+            output.write_i8(1)?; // player type
+            civilization.write_to(&mut output, self.game_version)?;
+        }
+
+        output.write_u32::<LE>(self.techs.len() as u32)?;
+        for tech in &self.techs {
+            tech.write_to(&mut output)?;
+        }
+
+        output.write_u32::<LE>(0)?;
+        output.write_u32::<LE>(0)?;
+        output.write_u32::<LE>(0)?;
+        output.write_u32::<LE>(0)?;
+        output.write_u32::<LE>(0)?;
+        output.write_u32::<LE>(0)?;
+        output.write_u32::<LE>(0)?;
 
         unimplemented!()
     }

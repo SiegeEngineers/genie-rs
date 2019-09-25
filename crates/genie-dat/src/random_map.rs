@@ -53,21 +53,25 @@ impl RandomMapInfo {
     }
 
     pub fn finish<R: Read>(&mut self, input: &mut R) -> Result<()> {
+        // duplicate data
         std::io::copy(&mut input.by_ref().take(44), &mut std::io::sink())?;
         for land in self.lands.iter_mut() {
             *land = RandomMapLand::from(input)?;
         }
 
+        // duplicate data
         std::io::copy(&mut input.by_ref().take(8), &mut std::io::sink())?;
         for terrain in self.terrains.iter_mut() {
             *terrain = RandomMapTerrain::from(input)?;
         }
 
+        // duplicate data
         std::io::copy(&mut input.by_ref().take(8), &mut std::io::sink())?;
         for object in self.objects.iter_mut() {
             *object = RandomMapObject::from(input)?;
         }
 
+        // duplicate data
         std::io::copy(&mut input.by_ref().take(8), &mut std::io::sink())?;
         for elevation in self.elevations.iter_mut() {
             *elevation = RandomMapElevation::from(input)?;
@@ -86,19 +90,47 @@ impl RandomMapInfo {
         output.write_i32::<LE>(self.base_terrain)?;
         output.write_i32::<LE>(self.land_percent)?;
 
+        output.write_i32::<LE>(0)?; // some id
         output.write_u32::<LE>(self.lands.len().try_into().unwrap())?;
+        output.write_u32::<LE>(0)?; // pointer
+        output.write_u32::<LE>(self.terrains.len().try_into().unwrap())?;
+        output.write_u32::<LE>(0)?; // pointer
+        output.write_u32::<LE>(self.objects.len().try_into().unwrap())?;
+        output.write_u32::<LE>(0)?; // pointer
+        output.write_u32::<LE>(self.elevations.len().try_into().unwrap())?;
+        output.write_u32::<LE>(0)?; // pointer
+
+        Ok(())
+    }
+
+    pub fn write_commands_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        output.write_i32::<LE>(self.borders.0)?;
+        output.write_i32::<LE>(self.borders.1)?;
+        output.write_i32::<LE>(self.borders.2)?;
+        output.write_i32::<LE>(self.borders.3)?;
+        output.write_i32::<LE>(self.border_fade)?;
+        output.write_i32::<LE>(self.water_border)?;
+        output.write_i32::<LE>(self.base_terrain)?;
+        output.write_i32::<LE>(self.land_percent)?;
+        output.write_u32::<LE>(0)?; // some id
+
+        output.write_u32::<LE>(self.lands.len().try_into().unwrap())?;
+        output.write_u32::<LE>(0)?; // pointer
         for land in &self.lands {
             land.write_to(output)?;
         }
         output.write_u32::<LE>(self.terrains.len().try_into().unwrap())?;
+        output.write_u32::<LE>(0)?; // pointer
         for terrain in &self.terrains {
             terrain.write_to(output)?;
         }
         output.write_u32::<LE>(self.objects.len().try_into().unwrap())?;
+        output.write_u32::<LE>(0)?; // pointer
         for object in &self.objects {
             object.write_to(output)?;
         }
         output.write_u32::<LE>(self.elevations.len().try_into().unwrap())?;
+        output.write_u32::<LE>(0)?; // pointer
         for elevation in &self.elevations {
             elevation.write_to(output)?;
         }
