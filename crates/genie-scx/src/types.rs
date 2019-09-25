@@ -262,7 +262,7 @@ pub struct VersionBundle {
     /// The version of the header.
     pub header: u32,
     /// The version of the HD Edition DLC Options, only if `header` >= 3.
-    pub dlc_options: i32,
+    pub dlc_options: Option<i32>,
     /// The compressed data version.
     pub data: f32,
     /// The version of embedded bitmaps.
@@ -270,7 +270,7 @@ pub struct VersionBundle {
     /// The version of the victory conditions data.
     pub victory: f32,
     /// The version of the trigger system.
-    pub triggers: f64,
+    pub triggers: Option<f64>,
 }
 
 impl VersionBundle {
@@ -281,12 +281,28 @@ impl VersionBundle {
 
     /// A version bundle with the parameters AoE1: Rise of Rome uses by default.
     pub fn ror() -> Self {
-        unimplemented!()
+        Self {
+            format: *b"1.11",
+            header: 2,
+            dlc_options: None,
+            data: 1.15,
+            picture: 1,
+            victory: 2.0,
+            triggers: None,
+        }
     }
 
     /// A version bundle with the parameters AoK uses by default.
     pub fn aok() -> Self {
-        unimplemented!()
+        Self {
+            format: *b"1.18",
+            header: 2,
+            dlc_options: None,
+            data: 1.2,
+            picture: 1,
+            victory: 2.0,
+            triggers: Some(1.6),
+        }
     }
 
     /// A version bundle with the parameters AoC uses by default
@@ -294,11 +310,11 @@ impl VersionBundle {
         Self {
             format: *b"1.21",
             header: 2,
-            dlc_options: -1,
+            dlc_options: None,
             data: 1.22,
             picture: 1,
             victory: 2.0,
-            triggers: 1.6,
+            triggers: Some(1.6),
         }
     }
 
@@ -317,11 +333,11 @@ impl VersionBundle {
         Self {
             format: *b"1.21",
             header: 3,
-            dlc_options: 1000,
+            dlc_options: Some(1000),
             data: 1.26,
             picture: 3,
             victory: 2.0,
-            triggers: 1.6,
+            triggers: Some(1.6),
         }
     }
 
