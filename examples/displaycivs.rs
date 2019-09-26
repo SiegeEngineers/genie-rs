@@ -16,7 +16,7 @@ struct DisplayCivs {
 fn main() -> Result<(), Box<dyn Error>> {
     let cli_input = DisplayCivs::from_args();
     let mut f = File::open(&cli_input.file_name)?;
-    let dat = DatFile::from(&mut f)?;
+    let dat = DatFile::read_from(&mut f)?;
     for civ in &dat.civilizations {
         println!("{}", civ.name());
     }
