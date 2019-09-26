@@ -1115,7 +1115,7 @@ impl SCXFormat {
                 Some(ref tr) => tr,
                 None => &def,
             };
-            triggers.write_to(&mut output, version.triggers)?;
+            triggers.write_to(&mut output, version.triggers.unwrap_or(1.6))?;
         }
 
         if cmp_scx_version(version.format, *b"1.17") == Ordering::Greater
