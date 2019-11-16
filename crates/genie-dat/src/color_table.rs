@@ -8,16 +8,16 @@ use std::{
 /// Player colour data.
 #[derive(Debug, Clone)]
 pub struct ColorTable {
-    id: i32,
+    pub id: i32,
     /// Base palette index for this player colour.
-    base: PaletteIndex,
+    pub base: PaletteIndex,
     /// The palette index to use for unit outlines when they are obscured by buildings or trees.
-    unit_outline_color: PaletteIndex,
-    unit_selection_colors: (PaletteIndex, PaletteIndex),
+    pub unit_outline_color: PaletteIndex,
+    pub unit_selection_colors: (PaletteIndex, PaletteIndex),
     /// Palette indices for this colour on the minimap.
-    minimap_colors: (PaletteIndex, PaletteIndex, PaletteIndex),
+    pub minimap_colors: (PaletteIndex, PaletteIndex, PaletteIndex),
     /// Color table to use for this player colour in the in-game statistics in the bottom right.
-    statistics_text_color: i32,
+    pub statistics_text_color: i32,
 }
 
 impl ColorTable {

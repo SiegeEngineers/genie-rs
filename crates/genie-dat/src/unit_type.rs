@@ -101,6 +101,7 @@ impl UnitType {
         }
     }
 
+    /// Read a unit type from an input stream.
     pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let unit_type = input.read_u8()?;
         match unit_type {
@@ -118,6 +119,7 @@ impl UnitType {
         }
     }
 
+    /// Write this unit type to an output stream.
     pub fn write_to<W: Write>(&self, output: &mut W, version: GameVersion) -> Result<()> {
         use UnitType::*;
         output.write_u8(self.type_id())?;
