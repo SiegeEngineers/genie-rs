@@ -94,10 +94,40 @@ fn read_variable_str<R: Read>(input: &mut R) -> Result<Option<String>> {
     decode_str(&bytes).map(Some)
 }
 
+fn read_nullterm_str<R: Read>(input: &mut R) -> Result<Option<String>> {
+    let mut string = vec![];
+    while let byte = input.read_u8()? {
+        if byte == 0 {
+            break;
+        }
+        string.push(byte);
+    };
+
+    let string = String::from_utf8(string).map_err(|_| ReadCampaignError::DecodeStringError)?;
+    Ok(if string.is_empty() {
+        None
+    } else {
+        Some(string)
+    })
+}
+
 fn read_campaign_header<R: Read>(input: &mut R) -> Result<CampaignHeader> {
     let mut version = [0; 4];
     input.read_exact(&mut version)?;
-    let (name, num_scenarios) = if version == *b"1.10" {
+    let (name, num_scenarios) = if version == *b"2.00" {
+        let num_dlcs = input.read_i32::<LE>()?;
+        for i in 0..num_dlcs {
+            let _ = input.read_i32::<LE>()?;
+        }
+
+        let name = read_nullterm_str(input)?;
+        let _ = input.read_i16::<LE>()?; // ?
+        let num_scenarios = input.read_i32::<LE>()? as usize;
+        (
+            read_variable_str(input)?.ok_or(ReadCampaignError::MissingNameError)?,
+            num_scenarios,
+        )
+    } else if version == *b"1.10" {
         let num_scenarios = input.read_i32::<LE>()? as usize;
         (
             read_variable_str(input)?.ok_or(ReadCampaignError::MissingNameError)?,
@@ -114,6 +144,20 @@ fn read_campaign_header<R: Read>(input: &mut R) -> Result<CampaignHeader> {
         version,
         name,
         num_scenarios,
+    })
+}
+
+fn read_scenario_meta_de2<R: Read>(input: &mut R) -> Result<ScenarioMeta> {
+    let size = input.read_u64::<LE>()? as usize;
+    let offset = input.read_u64::<LE>()? as usize;
+    let name = read_variable_str(input)?.ok_or(ReadCampaignError::MissingNameError)?;
+    let filename = read_variable_str(input)?.ok_or(ReadCampaignError::MissingNameError)?;
+
+    Ok(ScenarioMeta {
+        size,
+        offset,
+        name,
+        filename,
     })
 }
 
@@ -169,7 +213,9 @@ where
     pub fn from(mut input: R) -> Result<Self> {
         let header = read_campaign_header(&mut input)?;
         let mut entries = vec![];
-        let read_entry = if header.version == *b"1.10" {
+        let read_entry = if header.version == *b"2.00" {
+            read_scenario_meta_de2
+        } else if header.version == *b"1.10" {
             read_scenario_meta_de
         } else {
             read_scenario_meta
