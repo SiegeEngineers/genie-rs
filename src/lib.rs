@@ -16,7 +16,7 @@
 //! use genie::DatFile;
 //! let mut input = std::fs::File::open("./crates/genie-dat/fixtures/aok.dat")?;
 //!
-//! let dat = DatFile::from(&mut input)?;
+//! let dat = DatFile::read_from(&mut input)?;
 //! assert_eq!(dat.civilizations.len(), 14);
 //! assert_eq!(dat.civilizations[1].name(), "British");
 //! # Ok(()) }
