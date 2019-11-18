@@ -118,6 +118,8 @@ pub enum DLCPackage {
     AfricanKingdoms,
     /// The Rise of the Rajas expansion.
     RiseOfTheRajas,
+    /// The Last Khans expansion.
+    LastKhans,
 }
 
 impl TryFrom<i32> for DLCPackage {
@@ -129,6 +131,7 @@ impl TryFrom<i32> for DLCPackage {
             4 => Ok(DLCPackage::TheForgotten),
             5 => Ok(DLCPackage::AfricanKingdoms),
             6 => Ok(DLCPackage::RiseOfTheRajas),
+            7 => Ok(DLCPackage::LastKhans),
             n => Err(ParseDLCPackageError(n)),
         }
     }
@@ -142,6 +145,7 @@ impl From<DLCPackage> for i32 {
             DLCPackage::TheForgotten => 4,
             DLCPackage::AfricanKingdoms => 5,
             DLCPackage::RiseOfTheRajas => 6,
+            DLCPackage::LastKhans => 7,
         }
     }
 }
