@@ -10,14 +10,14 @@
 //! ```rust
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use genie_lang::{LangFileType::Dll, StringKey};
-//! use std::fs::File;
+//! use std::{convert::TryFrom, fs::File};
 //! let f = File::open("./test/dlls/language_x1_p1.dll")?;
 //! let lang_file = Dll.read_from(f)?;
 //! assert_eq!(
-//!     lang_file.get(&StringKey::from(30177)),
+//!     lang_file.get(&StringKey::try_from(30177).unwrap()),
 //!     Some(&String::from("Turbo Random Map - Buildings create units faster, villagers gather faster, build faster, and carry more.")));
 //! assert_eq!(
-//!     lang_file.get(&StringKey::from(20156)),
+//!     lang_file.get(&StringKey::try_from(20156).unwrap()),
 //!     Some(&String::from("<b>Byzantines<b> \n\
 //!           Defensive civilization \n\
 //!           · Buildings +10% HPs Dark, +20% Feudal, \n +30% Castle, +40% Imperial Age \n\
@@ -35,7 +35,7 @@
 //! ```rust
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use genie_lang::{LangFileType::Ini, StringKey};
-//! use std::io::Cursor;
+//! use std::{convert::TryFrom, io::Cursor};
 //! let text = br#"
 //! 46523=The Uighurs will join if you kill Ornlu the wolf and return to tell the tale.
 //! ; a comment
@@ -44,7 +44,7 @@
 //! let f = Cursor::new(&text[..]);
 //! let lang_file = Ini.read_from(f)?;
 //! assert_eq!(
-//!     lang_file.get(&StringKey::from(46523)),
+//!     lang_file.get(&StringKey::try_from(46523).unwrap()),
 //!     Some(&String::from("The Uighurs will join if you kill Ornlu the wolf and return to tell the tale.")));
 //! # Ok(()) }
 //! ```
@@ -53,7 +53,7 @@
 //! ```rust
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use genie_lang::{LangFileType::KeyValue, StringKey};
-//! use std::io::Cursor;
+//! use std::{convert::TryFrom, io::Cursor};
 //! let text = br#"
 //! 46523 "The Uighurs will join if you kill Ornlu the wolf and return to tell the tale."
 //! 46524 "Uighurs: Yes, that is the pelt of the great wolf. We will join you, Genghis Khan. And to seal the agreement, we will give you the gift of flaming arrows!"
@@ -63,7 +63,7 @@
 //! let f = Cursor::new(&text[..]);
 //! let lang_file = KeyValue.read_from(f)?;
 //! assert_eq!(
-//!     lang_file.get(&StringKey::from(46523)),
+//!     lang_file.get(&StringKey::try_from(46523).unwrap()),
 //!     Some(&String::from("The Uighurs will join if you kill Ornlu the wolf and return to tell the tale.")));
 //! assert_eq!(
 //!     lang_file.get(&StringKey::from("LOBBYBROWSER_DATMOD_TITLE_FORMAT")),
@@ -75,9 +75,9 @@
 //! ```rust
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use genie_lang::{LangFile, StringKey};
-//! use std::str;
+//! use std::{convert::TryFrom, str};
 //! let mut lang_file = LangFile::new();
-//! lang_file.insert(StringKey::from(46604), String::from("Kill the traitor, Kushluk.\n\n\
+//! lang_file.insert(StringKey::try_from(46604).unwrap(), String::from("Kill the traitor, Kushluk.\n\n\
 //!                       Prevent the tent of Genghis Khan (Wonder) from being destroyed."));
 //! let mut out = vec![];
 //! lang_file.write_to_ini(&mut out)?;
@@ -111,6 +111,7 @@
 use byteorder::{ReadBytesExt, LE};
 use encoding_rs::{UTF_16LE, WINDOWS_1252};
 use encoding_rs_io::DecodeReaderBytesBuilder;
+pub use genie_support::{StringKey, TryFromStringKeyError};
 use pelite::{
     pe32::{Pe, PeFile},
     resources::Name,
@@ -124,98 +125,6 @@ use std::iter::FromIterator;
 use std::num::ParseIntError;
 use std::ops::Index;
 use std::str::FromStr;
-
-/// A key in a language file.
-///
-/// A key may be either a nonnegative integer or an arbitrary string.
-///
-/// The original game supports only nonnegative integers.
-/// The HD Edition allows for integers as well as Strings to serve as keys in a
-/// key value file.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum StringKey {
-    /// An integer string key.
-    Num(u32),
-
-    /// A named string key.
-    /// The string must not represent a `u32` value (such keys must be `Num`).
-    Name(String),
-}
-
-impl StringKey {
-    /// Returns `true` if and only if this `StringKey` is a number.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use genie_lang::StringKey;
-    /// assert!(StringKey::from(0).is_numeric());
-    /// assert!(!StringKey::from("").is_numeric());
-    /// ```
-    pub fn is_numeric(&self) -> bool {
-        use StringKey::{Name, Num};
-        match self {
-            Num(_) => true,
-            Name(_) => false,
-        }
-    }
-
-    /// Returns `true` if and only if this `StringKey` is a string name.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use genie_lang::StringKey;
-    /// assert!(!StringKey::from(0).is_named());
-    /// assert!(StringKey::from("").is_named());
-    /// ```
-    pub fn is_named(&self) -> bool {
-        use StringKey::{Name, Num};
-        match self {
-            Num(_) => false,
-            Name(_) => true,
-        }
-    }
-}
-
-impl fmt::Display for StringKey {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use StringKey::{Name, Num};
-        match self {
-            Num(n) => write!(f, "{}", n),
-            Name(s) => write!(f, "{}", s),
-        }
-    }
-}
-
-impl From<u32> for StringKey {
-    fn from(n: u32) -> Self {
-        StringKey::Num(n)
-    }
-}
-
-impl From<i32> for StringKey {
-    fn from(n: i32) -> Self {
-        StringKey::from(n as u32)
-    }
-}
-
-impl From<&str> for StringKey {
-    fn from(s: &str) -> Self {
-        use StringKey::{Name, Num};
-        if let Ok(n) = s.parse() {
-            Num(n)
-        } else {
-            Name(String::from(s))
-        }
-    }
-}
-
-impl From<String> for StringKey {
-    fn from(s: String) -> Self {
-        StringKey::from(&s[..])
-    }
-}
 
 /// Errors that may occur when loading a language file.
 ///
@@ -522,10 +431,11 @@ impl LangFile {
     ///
     /// ```
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
     /// assert!(lang_file.is_empty());
-    /// lang_file.insert(StringKey::from(0), String::from(""));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from(""));
     /// assert!(!lang_file.is_empty());
     /// ```
     pub fn is_empty(&self) -> bool {
@@ -538,10 +448,11 @@ impl LangFile {
     ///
     /// ```
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
     /// assert_eq!(0, lang_file.len());
-    /// lang_file.insert(StringKey::from(0), String::from(""));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from(""));
     /// assert_eq!(1, lang_file.len());
     /// ```
     pub fn len(&self) -> usize {
@@ -554,9 +465,10 @@ impl LangFile {
     ///
     /// ```
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from(""));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from(""));
     /// lang_file.clear();
     /// assert!(lang_file.is_empty());
     /// ```
@@ -570,13 +482,14 @@ impl LangFile {
     ///
     /// ```
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from("a"));
-    /// lang_file.insert(StringKey::from(1), String::from("b"));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from("a"));
+    /// lang_file.insert(StringKey::try_from(1).unwrap(), String::from("b"));
     ///
     /// for (k, v) in lang_file.drain().take(1) {
-    ///     assert!(k == StringKey::from(0) || k == StringKey::from(1));
+    ///     assert!(k == StringKey::try_from(0).unwrap() || k == StringKey::try_from(1).unwrap());
     ///     assert!(v == "a" || v == "b");
     /// }
     /// assert!(lang_file.is_empty());
@@ -591,11 +504,12 @@ impl LangFile {
     ///
     /// ```
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from(""));
-    /// assert!(lang_file.contains_key(&StringKey::from(0)));
-    /// assert!(!lang_file.contains_key(&StringKey::from(1)));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from(""));
+    /// assert!(lang_file.contains_key(&StringKey::try_from(0).unwrap()));
+    /// assert!(!lang_file.contains_key(&StringKey::try_from(1).unwrap()));
     /// ```
     pub fn contains_key(&self, k: &StringKey) -> bool {
         self.0.contains_key(k)
@@ -607,11 +521,12 @@ impl LangFile {
     ///
     /// ```
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from(""));
-    /// assert_eq!(Some(&String::from("")), lang_file.get(&StringKey::from(0)));
-    /// assert_eq!(None, lang_file.get(&StringKey::from(1)));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from(""));
+    /// assert_eq!(Some(&String::from("")), lang_file.get(&StringKey::try_from(0).unwrap()));
+    /// assert_eq!(None, lang_file.get(&StringKey::try_from(1).unwrap()));
     /// ```
     pub fn get(&self, k: &StringKey) -> Option<&String> {
         self.0.get(k)
@@ -623,11 +538,12 @@ impl LangFile {
     ///
     /// ```
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from("a"));
-    /// if let Some(s) = lang_file.get_mut(&StringKey::from(0)) { s.push('A'); }
-    /// assert_eq!("aA", lang_file.get(&StringKey::from(0)).unwrap());
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from("a"));
+    /// if let Some(s) = lang_file.get_mut(&StringKey::try_from(0).unwrap()) { s.push('A'); }
+    /// assert_eq!("aA", lang_file.get(&StringKey::try_from(0).unwrap()).unwrap());
     /// ```
     pub fn get_mut(&mut self, k: &StringKey) -> Option<&mut String> {
         self.0.get_mut(k)
@@ -639,17 +555,18 @@ impl LangFile {
     ///
     /// ```
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from("a"));
-    /// let s0 = lang_file.entry(StringKey::from(0))
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from("a"));
+    /// let s0 = lang_file.entry(StringKey::try_from(0).unwrap())
     ///                   .or_insert(String::from("Hello"));
     /// s0.push('A');
-    /// let s1 = lang_file.entry(StringKey::from(1))
+    /// let s1 = lang_file.entry(StringKey::try_from(1).unwrap())
     ///                   .or_insert(String::from("Hello"));
     /// s1.push('A');
-    /// assert_eq!("aA", lang_file.get(&StringKey::from(0)).unwrap());
-    /// assert_eq!("HelloA", lang_file.get(&StringKey::from(1)).unwrap());
+    /// assert_eq!("aA", lang_file.get(&StringKey::try_from(0).unwrap()).unwrap());
+    /// assert_eq!("HelloA", lang_file.get(&StringKey::try_from(1).unwrap()).unwrap());
     /// ```
     pub fn entry(&mut self, key: StringKey) -> Entry<'_, StringKey, String> {
         self.0.entry(key)
@@ -666,14 +583,15 @@ impl LangFile {
     ///
     /// ```
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from("a"));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from("a"));
     /// assert!(!lang_file.is_empty());
     ///
-    /// lang_file.insert(StringKey::from(0), String::from("b"));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from("b"));
     /// assert_eq!(Some(String::from("b")),
-    ///            lang_file.insert(StringKey::from(0), String::from("c")));
+    ///            lang_file.insert(StringKey::try_from(0).unwrap(), String::from("c")));
     /// ```
     pub fn insert(&mut self, k: StringKey, v: String) -> Option<String> {
         self.0.insert(k, v)
@@ -687,12 +605,13 @@ impl LangFile {
     ///
     /// ```
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from(""));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from(""));
     /// assert_eq!(Some(String::from("")),
-    ///            lang_file.remove(&StringKey::from(0)));
-    /// assert_eq!(None, lang_file.remove(&StringKey::from(0)));
+    ///            lang_file.remove(&StringKey::try_from(0).unwrap()));
+    /// assert_eq!(None, lang_file.remove(&StringKey::try_from(0).unwrap()));
     /// ```
     pub fn remove(&mut self, k: &StringKey) -> Option<String> {
         self.0.remove(k)
@@ -707,11 +626,12 @@ impl LangFile {
     ///
     /// ```
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from("zero"));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from("zero"));
     /// lang_file.insert(StringKey::from("a"), String::from("a"));
-    /// lang_file.insert(StringKey::from(1), String::from("one"));
+    /// lang_file.insert(StringKey::try_from(1).unwrap(), String::from("one"));
     /// lang_file.insert(StringKey::from("2"), String::from("two"));
     /// lang_file.retain(|k, _| match k {
     ///     StringKey::Num(_) => true,
@@ -730,11 +650,12 @@ impl LangFile {
     ///
     /// ```no_run
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from("zero"));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from("zero"));
     /// lang_file.insert(StringKey::from("a"), String::from("a"));
-    /// lang_file.insert(StringKey::from(1), String::from("one"));
+    /// lang_file.insert(StringKey::try_from(1).unwrap(), String::from("one"));
     /// lang_file.insert(StringKey::from("2"), String::from("two"));
     ///
     /// for (k, v) in lang_file.iter() { println!("key: {}, val: {}", k, v); }
@@ -751,11 +672,12 @@ impl LangFile {
     ///
     /// ```no_run
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from("zero"));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from("zero"));
     /// lang_file.insert(StringKey::from("a"), String::from("a"));
-    /// lang_file.insert(StringKey::from(1), String::from("one"));
+    /// lang_file.insert(StringKey::try_from(1).unwrap(), String::from("one"));
     /// lang_file.insert(StringKey::from("2"), String::from("two"));
     ///
     /// for (_, v) in lang_file.iter_mut() { v.push('A'); }
@@ -772,11 +694,12 @@ impl LangFile {
     ///
     /// ```no_run
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from("zero"));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from("zero"));
     /// lang_file.insert(StringKey::from("a"), String::from("a"));
-    /// lang_file.insert(StringKey::from(1), String::from("one"));
+    /// lang_file.insert(StringKey::try_from(1).unwrap(), String::from("one"));
     /// lang_file.insert(StringKey::from("2"), String::from("two"));
     ///
     /// for k in lang_file.keys() { println!("key: {}", k); }
@@ -792,11 +715,12 @@ impl LangFile {
     ///
     /// ```no_run
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from("zero"));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from("zero"));
     /// lang_file.insert(StringKey::from("a"), String::from("a"));
-    /// lang_file.insert(StringKey::from(1), String::from("one"));
+    /// lang_file.insert(StringKey::try_from(1).unwrap(), String::from("one"));
     /// lang_file.insert(StringKey::from("2"), String::from("two"));
     ///
     /// for v in lang_file.values() { println!("value: {}", v); }
@@ -812,11 +736,12 @@ impl LangFile {
     ///
     /// ```no_run
     /// use genie_lang::{LangFile, StringKey};
+    /// use std::convert::TryFrom;
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(0), String::from("zero"));
+    /// lang_file.insert(StringKey::try_from(0).unwrap(), String::from("zero"));
     /// lang_file.insert(StringKey::from("a"), String::from("a"));
-    /// lang_file.insert(StringKey::from(1), String::from("one"));
+    /// lang_file.insert(StringKey::try_from(1).unwrap(), String::from("one"));
     /// lang_file.insert(StringKey::from("2"), String::from("two"));
     ///
     /// for v in lang_file.values_mut() { v.push('A'); }
@@ -926,41 +851,4 @@ fn escape(source: &str, quoted: bool) -> String {
         }
     }
     escaped
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Tests converting from an int to a string key.
-    #[test]
-    fn string_key_from_int() {
-        if let StringKey::Num(n) = StringKey::from(0) {
-            assert_eq!(0, n);
-        } else {
-            panic!();
-        }
-    }
-
-    /// Tests converting from a string representing an int to a string key.
-    #[test]
-    fn string_key_from_str_to_int() {
-        let s = "57329";
-        if let StringKey::Num(n) = StringKey::from(s) {
-            assert_eq!(57329, n);
-        } else {
-            panic!();
-        }
-    }
-
-    /// Tests converting from a string not representing an int to a string key.
-    #[test]
-    fn string_key_from_str_to_str() {
-        let s = "grassDaut";
-        if let StringKey::Name(n) = StringKey::from(s) {
-            assert_eq!(s, n);
-        } else {
-            panic!();
-        }
-    }
 }
