@@ -49,31 +49,30 @@ fallible_try_from!(SpriteID, u32);
 
 /// An ID identifying a string resource.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub struct GraphicID(u16);
+pub struct GraphicID(u32);
 
 impl From<u16> for GraphicID {
     fn from(n: u16) -> Self {
-        GraphicID(n)
+        GraphicID(n.into())
     }
 }
 
-impl TryFrom<u32> for GraphicID {
-    type Error = TryFromIntError;
-    fn try_from(n: u32) -> std::result::Result<Self, Self::Error> {
-        n.try_into().map(GraphicID)
+impl From<u32> for GraphicID {
+    fn from(n: u32) -> Self {
+        GraphicID(n)
     }
 }
 
 impl TryFrom<i32> for GraphicID {
     type Error = TryFromIntError;
     fn try_from(n: i32) -> std::result::Result<Self, Self::Error> {
-        n.try_into().and_then(|unsigned: u32| unsigned.try_into())
+        Ok(GraphicID(n.try_into()?))
     }
 }
 
 fallible_try_into!(GraphicID, i16);
 infallible_try_into!(GraphicID, u32);
-infallible_try_into!(GraphicID, i32);
+fallible_try_into!(GraphicID, i32);
 
 #[derive(Debug, Default, Clone)]
 pub struct SpriteDelta {
