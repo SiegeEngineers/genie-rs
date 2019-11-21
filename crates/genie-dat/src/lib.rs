@@ -37,7 +37,7 @@ pub use task::{Task, TaskList};
 pub use tech::{Tech, TechEffect, TechID};
 pub use tech_tree::{
     ParseTechTreeStatusError, ParseTechTreeTypeError, TechTree, TechTreeAge, TechTreeBuilding,
-    TechTreeDependencies, TechTreeStatus, TechTreeType,
+    TechTreeDependencies, TechTreeStatus, TechTreeTech, TechTreeType, TechTreeUnit,
 };
 pub use terrain::{
     Terrain, TerrainAnimation, TerrainBorder, TerrainID, TerrainObject, TerrainPassGraphic,
