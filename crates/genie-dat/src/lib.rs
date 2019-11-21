@@ -17,6 +17,7 @@ mod sound;
 mod sprite;
 mod task;
 mod tech;
+mod tech_tree;
 mod terrain;
 mod unit_type;
 
@@ -34,6 +35,10 @@ use std::{
 };
 pub use task::{Task, TaskList};
 pub use tech::{Tech, TechEffect, TechID};
+pub use tech_tree::{
+    ParseTechTreeStatusError, ParseTechTreeTypeError, TechTree, TechTreeAge, TechTreeBuilding,
+    TechTreeDependencies, TechTreeStatus, TechTreeType,
+};
 pub use terrain::{
     Terrain, TerrainAnimation, TerrainBorder, TerrainID, TerrainObject, TerrainPassGraphic,
     TerrainRestriction, TerrainSpriteFrame, TileSize,
@@ -123,6 +128,8 @@ pub struct DatFile {
     pub civilizations: Vec<Civilization>,
     /// Techs or researches.
     pub techs: Vec<Tech>,
+    /// Tech tree data.
+    pub tech_tree: TechTree,
 }
 
 impl DatFile {
@@ -176,10 +183,14 @@ impl DatFile {
         })?;
 
         let num_color_tables = input.read_u16::<LE>()?;
-        let color_tables = read_array(num_color_tables.into(), || ColorTable::read_from(&mut input))?;
+        let color_tables = read_array(num_color_tables.into(), || {
+            ColorTable::read_from(&mut input)
+        })?;
 
         let num_sounds = input.read_u16::<LE>()?;
-        let sounds = read_array(num_sounds.into(), || Sound::read_from(&mut input, file_version))?;
+        let sounds = read_array(num_sounds.into(), || {
+            Sound::read_from(&mut input, file_version)
+        })?;
 
         let num_sprites = input.read_u16::<LE>()?;
         let sprites_exist = read_array(num_sprites.into(), || {
@@ -286,6 +297,8 @@ impl DatFile {
         let _razing_kill_rate = input.read_u32::<LE>()?;
         let _razing_kill_total = input.read_u32::<LE>()?;
 
+        let tech_tree = TechTree::read_from(&mut input)?;
+
         Ok(Self {
             file_version,
             game_version,
@@ -301,6 +314,7 @@ impl DatFile {
             task_lists,
             civilizations,
             techs,
+            tech_tree,
         })
     }
 

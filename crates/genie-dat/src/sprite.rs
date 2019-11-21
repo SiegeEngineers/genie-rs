@@ -235,7 +235,9 @@ impl Sprite {
         }
         if attack_sounds_used {
             for _ in 0..sprite.num_facets {
-                sprite.attack_sounds.push(SpriteAttackSound::read_from(input)?);
+                sprite
+                    .attack_sounds
+                    .push(SpriteAttackSound::read_from(input)?);
             }
         }
 

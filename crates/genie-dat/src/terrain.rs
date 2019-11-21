@@ -163,7 +163,11 @@ impl TerrainPassGraphic {
 }
 
 impl TerrainRestriction {
-    pub fn read_from<R: Read>(input: &mut R, version: FileVersion, num_terrains: u16) -> Result<Self> {
+    pub fn read_from<R: Read>(
+        input: &mut R,
+        version: FileVersion,
+        num_terrains: u16,
+    ) -> Result<Self> {
         let mut passability = vec![0.0; num_terrains as usize];
         for value in passability.iter_mut() {
             *value = input.read_f32::<LE>()?;
@@ -194,7 +198,7 @@ impl TerrainRestriction {
             output.write_f32::<LE>(*value)?;
         }
         for graphic in &self.pass_graphics {
-    /// Serialize this object to a binary output stream.
+            /// Serialize this object to a binary output stream.
             graphic.write_to(output, version)?;
         }
         Ok(())
@@ -281,7 +285,11 @@ impl Terrain {
         self.name.as_str()
     }
 
-    pub fn read_from<R: Read>(input: &mut R, _version: FileVersion, num_terrains: u16) -> Result<Self> {
+    pub fn read_from<R: Read>(
+        input: &mut R,
+        _version: FileVersion,
+        num_terrains: u16,
+    ) -> Result<Self> {
         let mut terrain = Terrain::default();
         terrain.enabled = input.read_u8()? != 0;
         terrain.random = input.read_u8()?;
@@ -354,7 +362,12 @@ impl Terrain {
     }
 
     /// Serialize this object to a binary output stream.
-    pub fn write_to<W: Write>(&self, output: &mut W, _version: FileVersion, num_terrains: u16) -> Result<()> {
+    pub fn write_to<W: Write>(
+        &self,
+        output: &mut W,
+        _version: FileVersion,
+        num_terrains: u16,
+    ) -> Result<()> {
         assert_eq!(self.borders.len(), num_terrains as usize);
         output.write_u8(if self.enabled { 1 } else { 0 })?;
         output.write_u8(self.random)?;
@@ -376,7 +389,11 @@ impl Terrain {
         for frame in &self.elevation_sprites {
             frame.write_to(output)?;
         }
-        output.write_i16::<LE>(self.terrain_id_to_draw.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
+        output.write_i16::<LE>(
+            self.terrain_id_to_draw
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
         output.write_i16::<LE>(self.rows)?;
         output.write_i16::<LE>(self.cols)?;
         for border in &self.borders {
@@ -478,7 +495,11 @@ impl TerrainBorder {
         }
         output.write_i8(self.draw_tile)?;
         output.write_u8(0)?; // padding
-        output.write_i16::<LE>(self.underlay_terrain.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
+        output.write_i16::<LE>(
+            self.underlay_terrain
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
         output.write_i16::<LE>(self.border_style)?;
         Ok(())
     }

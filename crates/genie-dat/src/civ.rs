@@ -4,12 +4,12 @@ use crate::{
 };
 use arrayvec::ArrayString;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use encoding_rs::WINDOWS_1252;
 use genie_support::{fallible_try_from, fallible_try_into, infallible_try_into};
 use std::{
     convert::TryInto,
     io::{Read, Result, Write},
 };
-use encoding_rs::WINDOWS_1252;
 
 /// An ID identifying a civilization
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -93,7 +93,8 @@ impl Civilization {
                 civ.unit_types.push(None);
                 continue;
             }
-            civ.unit_types.push(Some(UnitType::read_from(input, version)?));
+            civ.unit_types
+                .push(Some(UnitType::read_from(input, version)?));
         }
 
         Ok(civ)
