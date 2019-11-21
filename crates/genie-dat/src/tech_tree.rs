@@ -337,7 +337,7 @@ impl TechTreeDependencies {
             *ty = input.read_i32::<LE>()?;
         }
 
-        for (&id, &ty) in ids.into_iter().zip(types.into_iter()).take(num as usize) {
+        for (&id, &ty) in ids.iter().zip(types.iter()).take(num as usize) {
             let dep_type: TechTreeDependencyType = ty.try_into().map_err(invalid_data)?;
             deps.0.push(match dep_type {
                 TechTreeDependencyType::Age => {
