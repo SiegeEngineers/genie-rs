@@ -1,7 +1,9 @@
-use crate::util::*;
-use crate::Result;
+use crate::{util::*, Result, UnitTypeID};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::io::{Read, Write};
+use std::{
+    convert::TryInto,
+    io::{Read, Write},
+};
 
 /// A trigger condition, describing when a trigger can fire.
 #[derive(Debug, Default, Clone)]
@@ -83,12 +85,20 @@ impl TriggerCondition {
         self.properties[3] = secondary_object;
     }
 
-    pub fn unit_type(&self) -> i32 {
+    pub fn raw_unit_type(&self) -> i32 {
         self.properties[4]
     }
 
-    pub fn set_unit_type(&mut self, unit_type: i32) {
+    pub fn set_raw_unit_type(&mut self, unit_type: i32) {
         self.properties[4] = unit_type;
+    }
+
+    pub fn unit_type(&self) -> UnitTypeID {
+        self.properties[4].try_into().unwrap()
+    }
+
+    pub fn set_unit_type(&mut self, unit_type: UnitTypeID) {
+        self.properties[4] = unit_type.try_into().unwrap();
     }
 
     pub fn player_id(&self) -> i32 {
@@ -147,12 +157,12 @@ impl TriggerCondition {
         self.properties[13] = unit_group;
     }
 
-    pub fn object_type(&self) -> i32 {
-        self.properties[14]
+    pub fn object_type(&self) -> UnitTypeID {
+        self.properties[14].try_into().unwrap()
     }
 
-    pub fn set_object_type(&mut self, object_type: i32) {
-        self.properties[14] = object_type;
+    pub fn set_object_type(&mut self, object_type: UnitTypeID) {
+        self.properties[14] = i32::from(object_type);
     }
 
     pub fn ai_signal(&self) -> i32 {
@@ -173,7 +183,7 @@ impl TriggerCondition {
 }
 
 /// A trigger effect, describing the response when a trigger fires.
-#[derive(Debug)]
+#[derive(Debug, Default, Clone)]
 pub struct TriggerEffect {
     effect_type: i32,
     properties: Vec<i32>,
@@ -283,12 +293,12 @@ impl TriggerEffect {
         self.properties[5] = object_id;
     }
 
-    pub fn unit_type(&self) -> i32 {
-        self.properties[6]
+    pub fn unit_type(&self) -> UnitTypeID {
+        self.properties[6].try_into().unwrap()
     }
 
-    pub fn set_unit_type(&mut self, unit_type: i32) {
-        self.properties[6] = unit_type;
+    pub fn set_unit_type(&mut self, unit_type: UnitTypeID) {
+        self.properties[6] = i32::from(unit_type);
     }
 
     pub fn source_player_id(&self) -> i32 {
@@ -380,12 +390,12 @@ impl TriggerEffect {
         self.properties[20] = object_group;
     }
 
-    pub fn object_type(&self) -> i32 {
-        self.properties[21]
+    pub fn object_type(&self) -> UnitTypeID {
+        self.properties[21].try_into().unwrap()
     }
 
-    pub fn set_object_type(&mut self, object_type: i32) {
-        self.properties[21] = object_type;
+    pub fn set_object_type(&mut self, object_type: UnitTypeID) {
+        self.properties[21] = i32::from(object_type);
     }
 
     pub fn line_id(&self) -> i32 {
@@ -406,7 +416,7 @@ impl TriggerEffect {
 }
 
 /// A trigger, describing automatic interactive behaviours in a scenario.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Trigger {
     enabled: bool,
     looping: bool,
@@ -474,6 +484,46 @@ impl Trigger {
         })
     }
 
+    /// Write this trigger condition to an output stream, with the given trigger system version.
+    pub fn write_to<W: Write>(&self, output: &mut W, version: f64) -> Result<()> {
+        output.write_i32::<LE>(if self.enabled { 1 } else { 0 })?;
+        output.write_i8(if self.looping { 1 } else { 0 })?;
+        output.write_i32::<LE>(self.name_id)?;
+        output.write_i8(if self.is_objective { 1 } else { 0 })?;
+        output.write_i32::<LE>(self.objective_order)?;
+        output.write_u32::<LE>(self.start_time)?;
+
+        if let Some(descr) = &self.description {
+            output.write_u32::<LE>(descr.len().try_into().unwrap())?;
+            write_str(output, descr)?;
+        } else {
+            output.write_u32::<LE>(0)?;
+        }
+        if let Some(name) = &self.name {
+            output.write_u32::<LE>(name.len().try_into().unwrap())?;
+            write_str(output, name)?;
+        } else {
+            output.write_u32::<LE>(0)?;
+        }
+
+        output.write_u32::<LE>(self.effects.len() as u32)?;
+        for effect in &self.effects {
+            effect.write_to(output)?;
+        }
+        for order in &self.effect_order {
+            output.write_i32::<LE>(*order)?;
+        }
+        output.write_u32::<LE>(self.conditions.len() as u32)?;
+        for condition in &self.conditions {
+            condition.write_to(output, version)?;
+        }
+        for order in &self.condition_order {
+            output.write_i32::<LE>(*order)?;
+        }
+
+        Ok(())
+    }
+
     pub fn conditions(&self) -> impl Iterator<Item = &TriggerCondition> {
         self.condition_order
             .iter()
@@ -496,7 +546,7 @@ impl Trigger {
 }
 
 /// The trigger system maintains an ordered list  of triggers.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TriggerSystem {
     version: f64,
     objectives_state: i8,
@@ -550,8 +600,15 @@ impl TriggerSystem {
         if version >= 1.5 {
             output.write_i8(self.objectives_state)?;
         }
-        // num triggers
-        output.write_u32::<LE>(0)?;
+        output.write_u32::<LE>(self.triggers.len().try_into().unwrap())?;
+        for trigger in &self.triggers {
+            trigger.write_to(output, version)?;
+        }
+        if version >= 1.4 {
+            for order in &self.trigger_order {
+                output.write_i32::<LE>(*order)?;
+            }
+        }
         Ok(())
     }
 

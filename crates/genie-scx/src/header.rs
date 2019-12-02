@@ -9,7 +9,7 @@ use std::{
     io::{Read, Write},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DLCOptions {
     pub version: i32,
     pub game_data_set: DataSet,
@@ -46,9 +46,9 @@ impl DLCOptions {
         };
 
         let num_dependencies = input.read_u32::<LE>()?;
-        let mut dependencies = vec![];
-        for _ in 0..num_dependencies {
-            dependencies.push(DLCPackage::try_from(input.read_i32::<LE>()?)?);
+        let mut dependencies = vec![DLCPackage::AgeOfKings; num_dependencies as usize];
+        for dependency in dependencies.iter_mut() {
+            *dependency = DLCPackage::try_from(input.read_i32::<LE>()?)?;
         }
 
         Ok(DLCOptions {
@@ -69,7 +69,7 @@ impl DLCOptions {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SCXHeader {
     /// Version of the header.
     ///
@@ -138,9 +138,7 @@ impl SCXHeader {
         intermediate.write_u32::<LE>(version)?;
 
         if version >= 2 {
-            let system_time = std::time::SystemTime::now();
-            let duration = system_time.duration_since(std::time::UNIX_EPOCH);
-            intermediate.write_u32::<LE>(duration.map(|d| d.as_secs() as u32).unwrap_or(0))?;
+            intermediate.write_u32::<LE>(self.timestamp)?;
         }
 
         let mut description_bytes = vec![];
@@ -178,6 +176,14 @@ impl SCXHeader {
         output.write_u32::<LE>(intermediate.len() as u32)?;
         output.write_all(&intermediate)?;
 
+        Ok(())
+    }
+
+    /// Update the timestamp.
+    pub fn touch(&mut self) -> std::result::Result<(), std::time::SystemTimeError> {
+        let system_time = std::time::SystemTime::now();
+        let duration = system_time.duration_since(std::time::UNIX_EPOCH)?;
+        self.timestamp = duration.as_secs() as u32;
         Ok(())
     }
 }

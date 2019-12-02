@@ -74,7 +74,7 @@ impl LegacyVictoryInfo {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VictoryEntry {
     command: i8,
     object_type: i32,
@@ -146,7 +146,7 @@ impl VictoryEntry {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VictoryPointEntry {
     command: i8,
     state: i8,
@@ -212,7 +212,7 @@ impl VictoryPointEntry {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VictoryConditions {
     version: f32,
     victory: bool,
@@ -301,7 +301,7 @@ impl VictoryConditions {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct VictoryInfo {
     pub(crate) conquest: i32,
     pub(crate) ruins: i32,

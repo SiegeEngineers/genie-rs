@@ -2,37 +2,11 @@
 
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use rgb::RGBA8;
 use std::io::{Read, Write};
 
-/// A colour in the bitmap palette.
-///
-/// Components are red, green, blue, (reserved).
-#[derive(Debug, Clone, Copy)]
-pub struct BitmapColor(pub u8, pub u8, pub u8, u8);
-
-impl BitmapColor {
-    /// Read a bitmap palette colour entry.
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
-        let r = input.read_u8()?;
-        let g = input.read_u8()?;
-        let b = input.read_u8()?;
-        let reserved = input.read_u8()?;
-        Ok(BitmapColor(r, g, b, reserved))
-    }
-
-    // Kinda wanna keep the contract the same between all structures.
-    #[allow(clippy::trivially_copy_pass_by_ref)]
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        output.write_u8(self.0)?;
-        output.write_u8(self.1)?;
-        output.write_u8(self.2)?;
-        output.write_u8(self.3)?;
-        Ok(())
-    }
-}
-
 /// Bitmap header info.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct BitmapInfo {
     size: u32,
     width: i32,
@@ -45,7 +19,7 @@ pub struct BitmapInfo {
     ypels_per_meter: i32,
     clr_used: u32,
     clr_important: u32,
-    colors: Vec<BitmapColor>,
+    colors: Vec<RGBA8>,
 }
 
 impl BitmapInfo {
@@ -64,7 +38,11 @@ impl BitmapInfo {
         bitmap.clr_used = input.read_u32::<LE>()?;
         bitmap.clr_important = input.read_u32::<LE>()?;
         for _ in 0..256 {
-            bitmap.colors.push(BitmapColor::from(input)?);
+            let r = input.read_u8()?;
+            let g = input.read_u8()?;
+            let b = input.read_u8()?;
+            let a = input.read_u8()?;
+            bitmap.colors.push(RGBA8 { r, g, b, a });
         }
 
         Ok(bitmap)
@@ -85,7 +63,10 @@ impl BitmapInfo {
         output.write_u32::<LE>(self.clr_used)?;
         output.write_u32::<LE>(self.clr_important)?;
         for color in &self.colors {
-            color.write_to(output)?;
+            output.write_u8(color.r)?;
+            output.write_u8(color.g)?;
+            output.write_u8(color.b)?;
+            output.write_u8(color.a)?;
         }
 
         Ok(())
