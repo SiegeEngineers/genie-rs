@@ -83,7 +83,9 @@ impl PartialEq<str> for ResourceType {
 
 impl AsRef<str> for ResourceType {
     fn as_ref(&self) -> &str {
-        str::from_utf8(&self.0[..]).expect("resource type must be utf-8").trim()
+        str::from_utf8(&self.0[..])
+            .expect("resource type must be utf-8")
+            .trim()
     }
 }
 

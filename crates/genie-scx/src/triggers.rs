@@ -1,9 +1,9 @@
-use crate::{util::*, Result, UnitTypeID};
+use crate::util::*;
+use crate::Result;
+use crate::UnitTypeID;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::{
-    convert::TryInto,
-    io::{Read, Write},
-};
+use std::convert::TryInto;
+use std::io::{Read, Write};
 
 /// A trigger condition, describing when a trigger can fire.
 #[derive(Debug, Default, Clone)]

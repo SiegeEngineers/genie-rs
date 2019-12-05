@@ -1,10 +1,8 @@
 use crate::FileVersion;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use genie_support::{fallible_try_from, fallible_try_into, infallible_try_into};
-use std::{
-    convert::TryInto,
-    io::{Read, Result, Write},
-};
+use std::convert::TryInto;
+use std::io::{Read, Result, Write};
 
 /// An ID identifying a sound.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]

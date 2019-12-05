@@ -1,19 +1,15 @@
-use crate::{
-    sound::SoundID,
-    sprite::{GraphicID, SpriteID},
-    task::TaskList,
-    tech::TechID,
-    terrain::TerrainID,
-    GameVersion,
-};
+use crate::sound::SoundID;
+use crate::sprite::{GraphicID, SpriteID};
+use crate::task::TaskList;
+use crate::tech::TechID;
+use crate::terrain::TerrainID;
+use crate::GameVersion;
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 pub use genie_support::UnitTypeID;
 use genie_support::{read_opt_u16, MapInto, StringKey};
-use std::{
-    convert::TryInto,
-    io::{self, Read, Result, Write},
-};
+use std::convert::TryInto;
+use std::io::{self, Read, Result, Write};
 
 pub type UnitClass = u16;
 

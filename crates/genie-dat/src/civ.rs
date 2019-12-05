@@ -1,15 +1,11 @@
-use crate::{
-    unit_type::{UnitType, UnitTypeID},
-    GameVersion,
-};
+use crate::unit_type::{UnitType, UnitTypeID};
+use crate::GameVersion;
 use arrayvec::ArrayString;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use encoding_rs::WINDOWS_1252;
 use genie_support::{fallible_try_from, fallible_try_into, infallible_try_into};
-use std::{
-    convert::TryInto,
-    io::{Read, Result, Write},
-};
+use std::convert::TryInto;
+use std::io::{Read, Result, Write};
 
 /// An ID identifying a civilization
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]

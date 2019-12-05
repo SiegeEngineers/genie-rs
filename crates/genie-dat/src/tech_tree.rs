@@ -1,10 +1,9 @@
-use crate::{tech::TechID, unit_type::UnitTypeID};
+use crate::tech::TechID;
+use crate::unit_type::UnitTypeID;
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::{
-    convert::{TryFrom, TryInto},
-    io::{self, Read, Result, Write},
-};
+use std::convert::{TryFrom, TryInto};
+use std::io::{self, Read, Result, Write};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TechTreeStatus {

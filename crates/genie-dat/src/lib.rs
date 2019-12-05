@@ -29,10 +29,8 @@ use genie_support::cmp_float;
 pub use random_map::*;
 pub use sound::{Sound, SoundID, SoundItem};
 pub use sprite::{GraphicID, SoundProp, Sprite, SpriteAttackSound, SpriteDelta, SpriteID};
-use std::{
-    convert::TryInto,
-    io::{Read, Result, Write},
-};
+use std::convert::TryInto;
+use std::io::{Read, Result, Write};
 pub use task::{Task, TaskList};
 pub use tech::{Tech, TechEffect, TechID};
 pub use tech_tree::{

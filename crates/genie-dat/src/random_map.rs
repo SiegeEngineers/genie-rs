@@ -1,9 +1,7 @@
 use crate::unit_type::UnitTypeID;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::{
-    convert::TryInto,
-    io::{Read, Result, Write},
-};
+use std::convert::TryInto;
+use std::io::{Read, Result, Write};
 
 #[derive(Debug, Default, Clone)]
 pub struct RandomMapInfo {

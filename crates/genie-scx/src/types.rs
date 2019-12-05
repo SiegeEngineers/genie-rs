@@ -1,7 +1,7 @@
 //! Contains pure types, no IO.
 //!
 //! Most of these are more descriptive wrappers around integers.
-use std::{convert::TryFrom, result::Result};
+use std::convert::TryFrom;
 
 /// SCX Format version.
 pub type SCXVersion = [u8; 4];
