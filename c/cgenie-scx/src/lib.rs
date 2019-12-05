@@ -29,11 +29,11 @@
 #![warn(unused)]
 
 use ffi_support::FfiStr;
-use genie_scx::{
-    convert::{AoCToWK, AutoToWK, HDToWK},
-    Scenario,
-};
-use std::{fs::File, io::Cursor, ptr};
+use genie_scx::convert::{AoCToWK, AutoToWK, HDToWK};
+use genie_scx::{Scenario, VersionBundle};
+use std::fs::File;
+use std::io::Cursor;
+use std::ptr;
 
 /// Open and read a scenario file.
 #[no_mangle]
@@ -110,14 +110,27 @@ pub extern "C" fn cgscx_convert_to_wk(scenario: *mut Scenario) -> u32 {
 
 /// Save the scenario to a file.
 #[no_mangle]
-pub extern "C" fn cgscx_save(scenario: *mut Scenario, path: FfiStr<'_>) -> u32 {
+pub extern "C" fn cgscx_save(
+    scenario: *mut Scenario,
+    version: FfiStr<'_>,
+    path: FfiStr<'_>,
+) -> u32 {
     if scenario.is_null() {
         return 1;
     }
 
+    let version = match version.as_opt_str() {
+        Some("aoe") => VersionBundle::aoe(),
+        Some("ror") => VersionBundle::ror(),
+        Some("aoc") => VersionBundle::aoc(),
+        Some("hd") => VersionBundle::hd_edition(),
+        Some("wk") => VersionBundle::userpatch_15(),
+        Some(_) => return 5,
+        None => unsafe { &*scenario }.version().clone(),
+    };
     if let Some(path) = path.as_opt_str() {
         if let Ok(mut file) = File::create(path) {
-            if let Ok(_) = unsafe { &*scenario }.write_to(&mut file) {
+            if let Ok(_) = unsafe { &*scenario }.write_to_version(&mut file, &version) {
                 0
             } else {
                 4
