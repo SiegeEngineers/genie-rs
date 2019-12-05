@@ -36,19 +36,17 @@
 #![warn(missing_docs)]
 #![warn(unused)]
 
-use nom::{
-    bytes::complete::tag,
-    character::complete::{digit1, one_of},
-    combinator::{map, map_res},
-    multi::many1,
-    IResult,
-};
+use nom::bytes::complete::tag;
+use nom::character::complete::{digit1, one_of};
+use nom::combinator::{map, map_res};
+use nom::multi::many1;
+use nom::IResult;
 use rgb::RGB;
-use std::{
-    fmt,
-    io::{Read, Write},
-    str::{self, FromStr},
-};
+use std::convert::{TryFrom, TryInto};
+use std::fmt;
+use std::io::{Read, Write};
+use std::num::TryFromIntError;
+use std::str::{self, FromStr};
 
 /// Represents an RGB colour.
 pub type Color = RGB<u8>;
@@ -70,10 +68,25 @@ impl From<u8> for PaletteIndex {
     }
 }
 
+impl TryFrom<i32> for PaletteIndex {
+    type Error = TryFromIntError;
+    #[inline]
+    fn try_from(n: i32) -> Result<Self, Self::Error> {
+        n.try_into().map(Self)
+    }
+}
+
 impl From<PaletteIndex> for u8 {
     #[inline]
     fn from(n: PaletteIndex) -> Self {
         n.0
+    }
+}
+
+impl From<PaletteIndex> for i32 {
+    #[inline]
+    fn from(n: PaletteIndex) -> Self {
+        n.0.into()
     }
 }
 

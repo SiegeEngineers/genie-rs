@@ -2,27 +2,22 @@
 
 #![allow(clippy::cognitive_complexity)]
 
-use crate::{
-    ai::AIInfo, bitmap::Bitmap, header::SCXHeader, map::Map, player::*, triggers::TriggerSystem,
-    types::*, util::*, victory::*, Error, Result, VersionBundle,
-};
+use crate::ai::AIInfo;
+use crate::bitmap::Bitmap;
+use crate::header::SCXHeader;
+use crate::map::Map;
+use crate::player::*;
+use crate::triggers::TriggerSystem;
+use crate::types::*;
+use crate::util::*;
+use crate::victory::*;
+use crate::{Error, Result, VersionBundle};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
-use std::{
-    cmp::Ordering,
-    convert::TryFrom,
-    io::{Read, Write},
-};
-
-/// Compare floats with some error.
-macro_rules! cmp_float {
-    ($id:ident == $val:expr) => {
-        ($id - $val).abs() < std::f32::EPSILON
-    };
-    ($id:ident != $val:expr) => {
-        ($id - $val).abs() > std::f32::EPSILON
-    };
-}
+use genie_support::{cmp_float, read_opt_u32, MapInto, StringKey, UnitTypeID};
+use std::cmp::Ordering;
+use std::convert::{TryFrom, TryInto};
+use std::io::{self, Read, Write};
 
 fn cmp_scx_version(a: SCXVersion, b: SCXVersion) -> Ordering {
     match a[0].cmp(&b[0]) {
@@ -43,6 +38,7 @@ fn cmp_scx_version(a: SCXVersion, b: SCXVersion) -> Ordering {
 //     MapType,
 // }
 
+/// An object placed in the scenario.
 #[derive(Debug, Clone, Default)]
 pub struct ScenarioObject {
     /// Position (x, y, z) of this object.
@@ -50,7 +46,7 @@ pub struct ScenarioObject {
     /// This object's unique ID.
     pub id: i32,
     /// The type ID of this object.
-    pub object_type: i16,
+    pub object_type: UnitTypeID,
     /// State value.
     pub state: u8,
     /// Radian angle this unit is facing.
@@ -70,7 +66,7 @@ impl ScenarioObject {
             input.read_f32::<LE>()?,
         );
         let id = input.read_i32::<LE>()?;
-        let object_type = input.read_i16::<LE>()?;
+        let object_type = input.read_u16::<LE>()?.into();
         let state = input.read_u8()?;
         let angle = input.read_f32::<LE>()?;
         let frame = if cmp_scx_version(version, *b"1.15") == Ordering::Less {
@@ -109,7 +105,7 @@ impl ScenarioObject {
         output.write_f32::<LE>(self.position.1)?;
         output.write_f32::<LE>(self.position.2)?;
         output.write_i32::<LE>(self.id)?;
-        output.write_i16::<LE>(self.object_type)?;
+        output.write_u16::<LE>(self.object_type.into())?;
         output.write_u8(self.state)?;
         output.write_f32::<LE>(self.angle)?;
         if cmp_scx_version(version, *b"1.14") == Ordering::Greater {
@@ -132,17 +128,17 @@ pub(crate) struct RGEScen {
     /// Names for each player.
     player_names: Vec<Option<String>>,
     /// Name IDs for each player.
-    player_string_table: Vec<i32>,
+    player_string_table: Vec<Option<StringKey>>,
     player_base_properties: Vec<PlayerBaseProperties>,
     victory_conquest: bool,
     /// File name of this scenario.
     pub(crate) name: String,
-    description_string_table: i32,
-    hints_string_table: i32,
-    win_message_string_table: i32,
-    loss_message_string_table: i32,
-    history_string_table: i32,
-    scout_string_table: i32,
+    description_string_table: Option<StringKey>,
+    hints_string_table: Option<StringKey>,
+    win_message_string_table: Option<StringKey>,
+    loss_message_string_table: Option<StringKey>,
+    history_string_table: Option<StringKey>,
+    scout_string_table: Option<StringKey>,
     description: Option<String>,
     hints: Option<String>,
     win_message: Option<String>,
@@ -170,10 +166,10 @@ impl RGEScen {
             }
         }
 
-        let mut player_string_table = vec![-1; 16];
+        let mut player_string_table = vec![None; 16];
         if version > 1.16 {
             for string_id in player_string_table.iter_mut() {
-                *string_id = input.read_i32::<LE>()?;
+                *string_id = read_opt_u32(input)?.map_into();
             }
         }
 
@@ -208,20 +204,20 @@ impl RGEScen {
             history_string_table,
         ) = if version >= 1.16 {
             (
-                input.read_i32::<LE>()?,
-                input.read_i32::<LE>()?,
-                input.read_i32::<LE>()?,
-                input.read_i32::<LE>()?,
-                input.read_i32::<LE>()?,
+                read_opt_u32(input)?.map_into(),
+                read_opt_u32(input)?.map_into(),
+                read_opt_u32(input)?.map_into(),
+                read_opt_u32(input)?.map_into(),
+                read_opt_u32(input)?.map_into(),
             )
         } else {
-            (-1, -1, -1, -1, -1)
+            Default::default()
         };
 
         let scout_string_table = if version >= 1.22 {
-            input.read_i32::<LE>()?
+            read_opt_u32(input)?.map_into()
         } else {
-            -1
+            Default::default()
         };
 
         let description_length = input.read_i16::<LE>()? as usize;
@@ -350,7 +346,7 @@ impl RGEScen {
         })
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W, version: f32) -> Result<()> {
+    pub fn write_to<W: Write>(&self, mut output: &mut W, version: f32) -> Result<()> {
         output.write_f32::<LE>(version)?;
 
         if version > 1.13 {
@@ -369,7 +365,7 @@ impl RGEScen {
         if version > 1.16 {
             assert_eq!(self.player_string_table.len(), 16);
             for id in &self.player_string_table {
-                output.write_i32::<LE>(*id)?;
+                write_opt_string_key(&mut output, id)?;
             }
         }
 
@@ -395,14 +391,14 @@ impl RGEScen {
         write_str(output, &self.name)?;
 
         if version >= 1.16 {
-            output.write_i32::<LE>(self.description_string_table)?;
-            output.write_i32::<LE>(self.hints_string_table)?;
-            output.write_i32::<LE>(self.win_message_string_table)?;
-            output.write_i32::<LE>(self.loss_message_string_table)?;
-            output.write_i32::<LE>(self.history_string_table)?;
+            write_opt_string_key(&mut output, &self.description_string_table)?;
+            write_opt_string_key(&mut output, &self.hints_string_table)?;
+            write_opt_string_key(&mut output, &self.win_message_string_table)?;
+            write_opt_string_key(&mut output, &self.loss_message_string_table)?;
+            write_opt_string_key(&mut output, &self.history_string_table)?;
         }
         if version >= 1.22 {
-            output.write_i32::<LE>(self.scout_string_table)?;
+            write_opt_string_key(&mut output, &self.scout_string_table)?;
         }
 
         write_opt_str(output, &self.description)?;
@@ -451,10 +447,33 @@ impl RGEScen {
 
         assert_eq!(self.player_files.len(), 16);
         for files in &self.player_files {
-            write_opt_i32_str(output, &files.build_list)?;
-            write_opt_i32_str(output, &files.city_plan)?;
+            if let Some(build_list) = &files.build_list {
+                output.write_u32::<LE>(build_list.len() as u32)?;
+            } else {
+                output.write_u32::<LE>(0)?;
+            }
+            if let Some(city_plan) = &files.city_plan {
+                output.write_u32::<LE>(city_plan.len() as u32)?;
+            } else {
+                output.write_u32::<LE>(0)?;
+            }
             if version >= 1.08 {
-                write_opt_i32_str(output, &files.ai_rules)?;
+                if let Some(ai_rules) = &files.ai_rules {
+                    output.write_u32::<LE>(ai_rules.len() as u32)?;
+                } else {
+                    output.write_u32::<LE>(0)?;
+                }
+            }
+            if let Some(build_list) = &files.build_list {
+                output.write_all(build_list.as_bytes())?;
+            }
+            if let Some(city_plan) = &files.city_plan {
+                output.write_all(city_plan.as_bytes())?;
+            }
+            if version >= 1.08 {
+                if let Some(ai_rules) = &files.ai_rules {
+                    output.write_all(ai_rules.as_bytes())?;
+                }
             }
         }
 
@@ -1101,7 +1120,7 @@ impl SCXFormat {
                 Some(ref tr) => tr,
                 None => &def,
             };
-            triggers.write_to(&mut output, version.triggers)?;
+            triggers.write_to(&mut output, version.triggers.unwrap_or(1.6))?;
         }
 
         if cmp_scx_version(version.format, *b"1.17") == Ordering::Greater
@@ -1144,11 +1163,21 @@ impl SCXFormat {
     }
 }
 
+fn write_opt_string_key<W: Write>(output: &mut W, opt_key: &Option<StringKey>) -> Result<()> {
+    output.write_i32::<LE>(if let Some(key) = opt_key {
+        key.try_into()
+            .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?
+    } else {
+        -1
+    })?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::SCXFormat;
     use crate::VersionBundle;
-    use std::fs::File;
+    use std::{fs::File, io::Cursor};
 
     /// Source: http://aoe.heavengames.com/dl-php/showfile.php?fileid=42
     #[test]
@@ -1170,7 +1199,7 @@ mod tests {
             .write_to(&mut out, &format.version())
             .expect("failed to write");
 
-        let mut f = std::io::Cursor::new(out);
+        let mut f = Cursor::new(out);
         let format2 = SCXFormat::load_scenario(&mut f).expect("failed to read");
 
         assert_eq!(
@@ -1189,7 +1218,7 @@ mod tests {
             .write_to(&mut out, &VersionBundle::aoc())
             .expect("failed to write");
 
-        let mut f = std::io::Cursor::new(out);
+        let mut f = Cursor::new(out);
         let format2 = SCXFormat::load_scenario(&mut f).expect("failed to read");
         assert_eq!(
             format2.version(),
@@ -1240,6 +1269,24 @@ mod tests {
         format
             .write_to(&mut out, &format.version())
             .expect("failed to write");
+    }
+
+    #[test]
+    fn aoe1_ror_to_aoc() -> Result<(), Box<dyn std::error::Error>> {
+        let mut f = File::open("test/scenarios/El advenimiento de los hunos_.scx")?;
+        let format = SCXFormat::load_scenario(&mut f)?;
+
+        let mut out = vec![];
+        format.write_to(&mut out, &VersionBundle::aoc())?;
+
+        let format = SCXFormat::load_scenario(&mut Cursor::new(out))?;
+        assert_eq!(
+            format.version(),
+            VersionBundle::aoc(),
+            "should have converted to AoC versions"
+        );
+
+        Ok(())
     }
 
     /// Source: http://aok.heavengames.com/blacksmith/showfile.php?fileid=1271

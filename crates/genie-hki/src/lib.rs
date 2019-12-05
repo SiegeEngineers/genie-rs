@@ -89,7 +89,7 @@ impl HotkeyInfoMetadata {
     /// use genie_lang::StringKey;
     ///
     /// let mut him = HotkeyInfoMetadata::new();
-    /// him.add(StringKey::from(0));
+    /// him.add(StringKey::from(0u32));
     /// ```
     pub fn add(&mut self, sk: StringKey) {
         self.0.push(sk)
@@ -105,7 +105,7 @@ impl HotkeyInfoMetadata {
     ///
     /// let mut him = HotkeyInfoMetadata::new();
     /// assert_eq!(0, him.len());
-    /// him.add(StringKey::from(0));
+    /// him.add(StringKey::from(0u32));
     /// assert_eq!(1, him.len());
     /// ```
     pub fn len(&self) -> usize {
@@ -122,7 +122,7 @@ impl HotkeyInfoMetadata {
     ///
     /// let mut him = HotkeyInfoMetadata::new();
     /// assert!(him.is_empty());
-    /// him.add(StringKey::from(0));
+    /// him.add(StringKey::from(0u32));
     /// assert!(!him.is_empty());
     /// ```
     pub fn is_empty(&self) -> bool {
@@ -142,8 +142,8 @@ impl HotkeyInfoMetadata {
     ///
     /// let mut him = HotkeyInfoMetadata::new();
     /// assert_eq!(None, him.get(0));
-    /// him.add(StringKey::from(0));
-    /// assert_eq!(Some(&StringKey::from(0)), him.get(0));
+    /// him.add(StringKey::from(0u32));
+    /// assert_eq!(Some(&StringKey::from(0u32)), him.get(0));
     /// ```
     pub fn get(&self, index: usize) -> Option<&StringKey> {
         self.0.get(index)
@@ -159,11 +159,11 @@ impl HotkeyInfoMetadata {
     /// use genie_lang::StringKey;
     ///
     /// let mut him = HotkeyInfoMetadata::new();
-    /// him.add(StringKey::from(0));
-    /// him.add(StringKey::from(1));
+    /// him.add(StringKey::from(0u32));
+    /// him.add(StringKey::from(1u32));
     /// let mut iter = him.iter();
-    /// assert_eq!(Some(&StringKey::from(0)), iter.next());
-    /// assert_eq!(Some(&StringKey::from(1)), iter.next());
+    /// assert_eq!(Some(&StringKey::from(0u32)), iter.next());
+    /// assert_eq!(Some(&StringKey::from(1u32)), iter.next());
     /// assert_eq!(None, iter.next());
     /// ```
     pub fn iter(&self) -> impl Iterator<Item = &StringKey> {
@@ -201,21 +201,21 @@ impl<'a> IntoIterator for &'a HotkeyInfoMetadata {
 /// the default Aoe2 hotkeys (both UserPatch and HD).
 pub fn default_him() -> HotkeyInfoMetadata {
     let mut hgm = HotkeyInfoMetadata::new();
-    hgm.add(StringKey::from(20000)); // UnitCommands
-    hgm.add(StringKey::from(20001)); // GameCommands
-    hgm.add(StringKey::from(20002)); // Scroll
-    hgm.add(StringKey::from(20003)); // Villager
-    hgm.add(StringKey::from(20004)); // TownCenter
-    hgm.add(StringKey::from(20007)); // Dock
-    hgm.add(StringKey::from(20008)); // Barracks
-    hgm.add(StringKey::from(20009)); // ArcheryRange
-    hgm.add(StringKey::from(20010)); // Stable
-    hgm.add(StringKey::from(20011)); // SiegeWorkshop
-    hgm.add(StringKey::from(20012)); // Monastery
-    hgm.add(StringKey::from(20013)); // Market
-    hgm.add(StringKey::from(20014)); // MilitaryUnits
-    hgm.add(StringKey::from(20015)); // Castle
-    hgm.add(StringKey::from(20017)); // Mill
+    hgm.add(StringKey::from(20000_u32)); // UnitCommands
+    hgm.add(StringKey::from(20001_u32)); // GameCommands
+    hgm.add(StringKey::from(20002_u32)); // Scroll
+    hgm.add(StringKey::from(20003_u32)); // Villager
+    hgm.add(StringKey::from(20004_u32)); // TownCenter
+    hgm.add(StringKey::from(20007_u32)); // Dock
+    hgm.add(StringKey::from(20008_u32)); // Barracks
+    hgm.add(StringKey::from(20009_u32)); // ArcheryRange
+    hgm.add(StringKey::from(20010_u32)); // Stable
+    hgm.add(StringKey::from(20011_u32)); // SiegeWorkshop
+    hgm.add(StringKey::from(20012_u32)); // Monastery
+    hgm.add(StringKey::from(20013_u32)); // Market
+    hgm.add(StringKey::from(20014_u32)); // MilitaryUnits
+    hgm.add(StringKey::from(20015_u32)); // Castle
+    hgm.add(StringKey::from(20017_u32)); // Mill
     hgm
 }
 
@@ -830,7 +830,7 @@ impl Hotkey {
     /// use genie_lang::{LangFile, StringKey};
     ///
     /// let mut lang_file = LangFile::new();
-    /// lang_file.insert(StringKey::from(5), String::from("A"));
+    /// lang_file.insert(StringKey::from(5u32), String::from("A"));
     /// let hotkey = Hotkey::default().key(65).string_id(5).ctrl(true);
     /// assert_eq!("A (5): ctrl-65", hotkey.to_string_lang(&lang_file));
     ///
@@ -842,7 +842,13 @@ impl Hotkey {
         let alt = if self.alt { "ctrl-" } else { "" };
         let shift = if self.shift { "ctrl-" } else { "" };
 
-        if let Some(s) = lang_file.get(&StringKey::from(self.string_id)) {
+        let name = if self.string_id > 0 {
+            lang_file.get(&StringKey::from(self.string_id as u32))
+        } else {
+            None
+        };
+
+        if let Some(s) = name {
             format!(
                 "{} ({}): {}{}{}{}",
                 s, self.string_id, ctrl, alt, shift, self.key

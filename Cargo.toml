@@ -11,6 +11,7 @@ readme = "README.md"
 
 [dependencies]
 genie-cpx = { version = "0.3.0", path = "crates/genie-cpx" }
+genie-dat = { version = "0.1.0", path = "crates/genie-dat" }
 genie-drs = { version = "0.2.0", path = "crates/genie-drs" }
 genie-hki = { version = "0.2.0", path = "crates/genie-hki" }
 genie-lang = { version = "0.2.0", path = "crates/genie-lang" }
@@ -23,10 +24,12 @@ structopt = "^0.2.0"
 [workspace]
 members = [
   "crates/genie-cpx",
+  "crates/genie-dat",
   "crates/genie-drs",
   "crates/genie-hki",
   "crates/genie-lang",
   "crates/genie-scx",
+  "crates/genie-support",
   "crates/jascpal",
 
   "c/cgenie",
