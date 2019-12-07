@@ -55,11 +55,11 @@ steps:
 
   - bash: |
       rustup toolchain install stable-i686-pc-windows-msvc
-      cargo build +i686-pc-windows-msvc -p cgenie-drs --release
-      cargo build +i686-pc-windows-msvc -p cgenie-hki --release
-      cargo build +i686-pc-windows-msvc -p cgenie-lang --release
-      cargo build +i686-pc-windows-msvc -p cgenie-scx --release
-      cargo build +i686-pc-windows-msvc -p cgenie --release
+      cargo build +stable-i686-pc-windows-msvc -p cgenie-drs --release
+      cargo build +stable-i686-pc-windows-msvc -p cgenie-hki --release
+      cargo build +stable-i686-pc-windows-msvc -p cgenie-lang --release
+      cargo build +stable-i686-pc-windows-msvc -p cgenie-scx --release
+      cargo build +stable-i686-pc-windows-msvc -p cgenie --release
       mkdir -p artifact-32bit/libs/
       cp -R c/include artifact-32bit/
       cp target/i686-pc-windows-msvc/release/*.dll artifact-32bit/libs/
