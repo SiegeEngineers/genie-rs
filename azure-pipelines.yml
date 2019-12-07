@@ -45,6 +45,7 @@ steps:
       mkdir -p artifact-release/libs/
       cp -R c/include artifact-release/
       cp target/release/*.dll artifact-release/libs/
+      cp target/release/*.lib artifact-release/libs/
     displayName: Prepare C API libraries
     condition: eq( variables['Agent.OS'], 'Windows_NT' )
   - publish: artifact-release
