@@ -93,12 +93,18 @@ impl TriggerCondition {
         self.properties[4] = unit_type;
     }
 
-    pub fn unit_type(&self) -> UnitTypeID {
-        self.properties[4].try_into().unwrap()
+    pub fn unit_type(&self) -> Option<UnitTypeID> {
+        match self.properties[4] {
+            -1 => None,
+            unit_type => Some(unit_type.try_into().unwrap()),
+        }
     }
 
-    pub fn set_unit_type(&mut self, unit_type: UnitTypeID) {
-        self.properties[4] = unit_type.try_into().unwrap();
+    pub fn set_unit_type(&mut self, unit_type: Option<UnitTypeID>) {
+        self.properties[4] = match unit_type {
+            Some(unit_type) => i32::from(unit_type),
+            None => -1,
+        };
     }
 
     pub fn player_id(&self) -> i32 {
@@ -157,12 +163,18 @@ impl TriggerCondition {
         self.properties[13] = unit_group;
     }
 
-    pub fn object_type(&self) -> UnitTypeID {
-        self.properties[14].try_into().unwrap()
+    pub fn object_type(&self) -> Option<UnitTypeID> {
+        match self.properties[14] {
+            -1 => None,
+            object_type => Some(object_type.try_into().unwrap()),
+        }
     }
 
-    pub fn set_object_type(&mut self, object_type: UnitTypeID) {
-        self.properties[14] = i32::from(object_type);
+    pub fn set_object_type(&mut self, object_type: Option<UnitTypeID>) {
+        self.properties[14] = match object_type {
+            Some(object_type) => i32::from(object_type),
+            None => -1,
+        };
     }
 
     pub fn ai_signal(&self) -> i32 {
@@ -293,12 +305,18 @@ impl TriggerEffect {
         self.properties[5] = object_id;
     }
 
-    pub fn unit_type(&self) -> UnitTypeID {
-        self.properties[6].try_into().unwrap()
+    pub fn unit_type(&self) -> Option<UnitTypeID> {
+        match self.properties[6] {
+            -1 => None,
+            unit_type => Some(unit_type.try_into().unwrap()),
+        }
     }
 
-    pub fn set_unit_type(&mut self, unit_type: UnitTypeID) {
-        self.properties[6] = i32::from(unit_type);
+    pub fn set_unit_type(&mut self, unit_type: Option<UnitTypeID>) {
+        self.properties[6] = match unit_type {
+            Some(unit_type) => i32::from(unit_type),
+            None => -1,
+        };
     }
 
     pub fn source_player_id(&self) -> i32 {
@@ -390,12 +408,18 @@ impl TriggerEffect {
         self.properties[20] = object_group;
     }
 
-    pub fn object_type(&self) -> UnitTypeID {
-        self.properties[21].try_into().unwrap()
+    pub fn object_type(&self) -> Option<UnitTypeID> {
+        match self.properties[21] {
+            -1 => None,
+            object_type => Some(object_type.try_into().unwrap()),
+        }
     }
 
-    pub fn set_object_type(&mut self, object_type: UnitTypeID) {
-        self.properties[21] = i32::from(object_type);
+    pub fn set_object_type(&mut self, object_type: Option<UnitTypeID>) {
+        self.properties[21] = match object_type {
+            Some(object_type) => i32::from(object_type),
+            None => -1,
+        };
     }
 
     pub fn line_id(&self) -> i32 {
