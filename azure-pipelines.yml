@@ -54,7 +54,7 @@ steps:
     condition: eq( variables['Agent.OS'], 'Windows_NT' )
 
   - bash: |
-      rustup toolchain install i686-pc-windows-msvc
+      rustup toolchain install stable-i686-pc-windows-msvc
       cargo build +i686-pc-windows-msvc -p cgenie-drs --release
       cargo build +i686-pc-windows-msvc -p cgenie-hki --release
       cargo build +i686-pc-windows-msvc -p cgenie-lang --release
