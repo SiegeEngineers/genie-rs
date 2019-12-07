@@ -22,7 +22,7 @@ pool:
 
 steps:
   - bash: |
-      curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain $RUSTUP_TOOLCHAIN
+      curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain $RUSTUP_TOOLCHAIN
       echo "##vso[task.setvariable variable=PATH;]$PATH:$HOME/.cargo/bin"
     displayName: Install rust
     condition: ne( variables['Agent.OS'], 'Windows_NT' )
@@ -54,11 +54,12 @@ steps:
     condition: eq( variables['Agent.OS'], 'Windows_NT' )
 
   - bash: |
-      cargo build --target i686-pc-windows-msvc -p cgenie-drs --release
-      cargo build --target i686-pc-windows-msvc -p cgenie-hki --release
-      cargo build --target i686-pc-windows-msvc -p cgenie-lang --release
-      cargo build --target i686-pc-windows-msvc -p cgenie-scx --release
-      cargo build --target i686-pc-windows-msvc -p cgenie --release
+      rustup toolchain install i686-pc-windows-msvc
+      cargo build +i686-pc-windows-msvc -p cgenie-drs --release
+      cargo build +i686-pc-windows-msvc -p cgenie-hki --release
+      cargo build +i686-pc-windows-msvc -p cgenie-lang --release
+      cargo build +i686-pc-windows-msvc -p cgenie-scx --release
+      cargo build +i686-pc-windows-msvc -p cgenie --release
       mkdir -p artifact-32bit/libs/
       cp -R c/include artifact-32bit/
       cp target/i686-pc-windows-msvc/release/*.dll artifact-32bit/libs/
