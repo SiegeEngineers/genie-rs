@@ -48,6 +48,7 @@ steps:
       cp target/release/*.dll artifact-64bit/libs/
       cp target/release/*.lib artifact-64bit/libs/
     displayName: Prepare 64 bit C API libraries
+    condition: eq( variables['Agent.OS'], 'Windows_NT' )
   - publish: artifact-64bit
     artifact: cgenie-x64
     condition: eq( variables['Agent.OS'], 'Windows_NT' )
