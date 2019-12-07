@@ -36,18 +36,34 @@ steps:
     displayName: Cargo build
   - bash: cargo test --all
     displayName: Cargo test
+
   - bash: |
       cargo build -p cgenie-drs --release
       cargo build -p cgenie-hki --release
       cargo build -p cgenie-lang --release
       cargo build -p cgenie-scx --release
       cargo build -p cgenie --release
-      mkdir -p artifact-release/libs/
-      cp -R c/include artifact-release/
-      cp target/release/*.dll artifact-release/libs/
-      cp target/release/*.lib artifact-release/libs/
-    displayName: Prepare C API libraries
+      mkdir -p artifact-64bit/libs/
+      cp -R c/include artifact-64bit/
+      cp target/release/*.dll artifact-64bit/libs/
+      cp target/release/*.lib artifact-64bit/libs/
+    displayName: Prepare 64 bit C API libraries
+  - publish: artifact-64bit
+    artifact: cgenie-x64
     condition: eq( variables['Agent.OS'], 'Windows_NT' )
-  - publish: artifact-release
-    artifact: cgenie
+
+  - bash: |
+      cargo build --target i686-pc-windows-msvc -p cgenie-drs --release
+      cargo build --target i686-pc-windows-msvc -p cgenie-hki --release
+      cargo build --target i686-pc-windows-msvc -p cgenie-lang --release
+      cargo build --target i686-pc-windows-msvc -p cgenie-scx --release
+      cargo build --target i686-pc-windows-msvc -p cgenie --release
+      mkdir -p artifact-32bit/libs/
+      cp -R c/include artifact-32bit/
+      cp target/release/*.dll artifact-32bit/libs/
+      cp target/release/*.lib artifact-32bit/libs/
+    displayName: Prepare 32 bit C API libraries
+    condition: eq( variables['Agent.OS'], 'Windows_NT' )
+  - publish: artifact-32bit
+    artifact: cgenie-x86
     condition: eq( variables['Agent.OS'], 'Windows_NT' )
