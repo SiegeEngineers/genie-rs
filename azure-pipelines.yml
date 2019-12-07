@@ -61,8 +61,8 @@ steps:
       cargo build --target i686-pc-windows-msvc -p cgenie --release
       mkdir -p artifact-32bit/libs/
       cp -R c/include artifact-32bit/
-      cp target/release/*.dll artifact-32bit/libs/
-      cp target/release/*.lib artifact-32bit/libs/
+      cp target/i686-pc-windows-msvc/release/*.dll artifact-32bit/libs/
+      cp target/i686-pc-windows-msvc/release/*.lib artifact-32bit/libs/
     displayName: Prepare 32 bit C API libraries
     condition: eq( variables['Agent.OS'], 'Windows_NT' )
   - publish: artifact-32bit
