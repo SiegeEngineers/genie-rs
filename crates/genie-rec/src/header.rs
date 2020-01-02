@@ -1,9 +1,8 @@
 use crate::string_table::StringTable;
+use crate::Result;
 use byteorder::{ReadBytesExt, LE};
-use std::{
-    fmt::{self, Debug},
-    io::{Read, Result},
-};
+use std::fmt::{self, Debug};
+use std::io::{Read};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct GameVersion([u8; 8]);

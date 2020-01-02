@@ -1,5 +1,6 @@
 use byteorder::{LittleEndian as LE, ReadBytesExt, WriteBytesExt};
-use std::io::{Error, Read, Write};
+use crate::Result;
+use std::io::{Read, Write};
 
 #[derive(Debug, Clone)]
 pub struct StringTable {
@@ -15,7 +16,7 @@ impl StringTable {
         }
     }
 
-    pub fn from<R: Read>(handle: &mut R) -> Result<Self, Error> {
+    pub fn from<R: Read>(handle: &mut R) -> Result<Self> {
         let max_strings = handle.read_u16::<LE>()?;
         let num_strings = handle.read_u16::<LE>()?;
         let _ptr = handle.read_u32::<LE>()?; // unsure why this is here
@@ -38,7 +39,7 @@ impl StringTable {
         })
     }
 
-    pub fn write_to<W: Write>(&self, handle: &mut W) -> Result<(), Error> {
+    pub fn write_to<W: Write>(&self, handle: &mut W) -> Result<()> {
         handle.write_u16::<LE>(self.max_strings)?;
         handle.write_u16::<LE>(self.num_strings())?;
         handle.write_u32::<LE>(0)?;
@@ -79,8 +80,6 @@ impl IntoIterator for StringTable {
 
 #[cfg(test)]
 mod tests {
-    use std::fs::File;
-
     #[test]
     fn read_strings() {
         assert_eq!(2 + 2, 4);
