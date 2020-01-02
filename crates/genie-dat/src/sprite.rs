@@ -4,11 +4,9 @@ use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use genie_support::{
     fallible_try_from, fallible_try_into, infallible_try_into, read_opt_u16, MapInto,
 };
-use std::{
-    convert::{TryFrom, TryInto},
-    io::{Read, Result, Write},
-    num::TryFromIntError,
-};
+use std::convert::{TryFrom, TryInto};
+use std::io::{Read, Result, Write};
+use std::num::TryFromIntError;
 
 /// An ID identifying a sprite.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]

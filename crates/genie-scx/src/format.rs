@@ -2,18 +2,22 @@
 
 #![allow(clippy::cognitive_complexity)]
 
-use crate::{
-    ai::AIInfo, bitmap::Bitmap, header::SCXHeader, map::Map, player::*, triggers::TriggerSystem,
-    types::*, util::*, victory::*, Error, Result, VersionBundle,
-};
+use crate::ai::AIInfo;
+use crate::bitmap::Bitmap;
+use crate::header::SCXHeader;
+use crate::map::Map;
+use crate::player::*;
+use crate::triggers::TriggerSystem;
+use crate::types::*;
+use crate::util::*;
+use crate::victory::*;
+use crate::{Error, Result, VersionBundle};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 use genie_support::{cmp_float, read_opt_u32, MapInto, StringKey, UnitTypeID};
-use std::{
-    cmp::Ordering,
-    convert::{TryFrom, TryInto},
-    io::{self, Read, Write},
-};
+use std::cmp::Ordering;
+use std::convert::{TryFrom, TryInto};
+use std::io::{self, Read, Write};
 
 fn cmp_scx_version(a: SCXVersion, b: SCXVersion) -> Ordering {
     match a[0].cmp(&b[0]) {
@@ -34,6 +38,7 @@ fn cmp_scx_version(a: SCXVersion, b: SCXVersion) -> Ordering {
 //     MapType,
 // }
 
+/// An object placed in the scenario.
 #[derive(Debug, Clone, Default)]
 pub struct ScenarioObject {
     /// Position (x, y, z) of this object.

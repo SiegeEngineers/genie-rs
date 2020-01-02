@@ -1,14 +1,13 @@
-use crate::{civ::CivilizationID, unit_type::UnitTypeID};
+use crate::civ::CivilizationID;
+use crate::unit_type::UnitTypeID;
 use arrayvec::{ArrayString, ArrayVec};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use encoding_rs::WINDOWS_1252;
 use genie_support::{
     fallible_try_from, fallible_try_into, infallible_try_into, read_opt_u16, MapInto, StringKey,
 };
-use std::{
-    convert::TryInto,
-    io::{Read, Result, Write},
-};
+use std::convert::TryInto;
+use std::io::{Read, Result, Write};
 
 /// An ID identifying a tech.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]

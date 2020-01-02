@@ -1,15 +1,14 @@
-use crate::{
-    sound::SoundID, sprite::GraphicID, sprite::SpriteID, unit_type::UnitTypeID, FileVersion,
-};
+use crate::sound::SoundID;
+use crate::sprite::{GraphicID, SpriteID};
+use crate::unit_type::UnitTypeID;
+use crate::FileVersion;
 use arrayvec::ArrayString;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use genie_support::{
     fallible_try_from, fallible_try_into, infallible_try_into, read_opt_u16, read_opt_u32, MapInto,
 };
-use std::{
-    convert::TryInto,
-    io::{Read, Result, Write},
-};
+use std::convert::TryInto;
+use std::io::{Read, Result, Write};
 
 /// An ID identifying a terrain.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]

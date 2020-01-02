@@ -1,8 +1,6 @@
 use byteorder::{ReadBytesExt, LE};
-use std::{
-    convert::TryInto,
-    io::{Error, ErrorKind, Read, Result},
-};
+use std::convert::TryInto;
+use std::io::{Error, ErrorKind, Read, Result};
 
 /// Read a 2-byte integer that uses -1 as an "absent" value.
 ///

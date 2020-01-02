@@ -1,11 +1,11 @@
-use crate::{sound::SoundID, sprite::SpriteID, unit_type::UnitTypeID};
+use crate::sound::SoundID;
+use crate::sprite::SpriteID;
+use crate::unit_type::UnitTypeID;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use genie_support::{read_opt_u16, MapInto};
-use std::{
-    convert::TryInto,
-    io::{Read, Result, Write},
-    ops::Deref,
-};
+use std::convert::TryInto;
+use std::io::{Read, Result, Write};
+use std::ops::Deref;
 
 #[derive(Debug, Default, Clone)]
 pub struct TaskList(Vec<Task>);

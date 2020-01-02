@@ -1,9 +1,7 @@
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 pub use jascpal::PaletteIndex;
-use std::{
-    convert::TryInto,
-    io::{Read, Result, Write},
-};
+use std::convert::TryInto;
+use std::io::{Read, Result, Write};
 
 /// Player colour data.
 #[derive(Debug, Clone)]

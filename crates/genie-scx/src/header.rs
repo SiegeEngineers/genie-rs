@@ -1,18 +1,17 @@
-use crate::{
-    types::{DLCPackage, DataSet, SCXVersion},
-    util::*,
-    Result,
-};
+use crate::types::{DLCPackage, DataSet, SCXVersion};
+use crate::util::*;
+use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::{
-    convert::TryFrom,
-    io::{Read, Write},
-};
+use std::convert::TryFrom;
+use std::io::{Read, Write};
 
 #[derive(Debug, Clone)]
 pub struct DLCOptions {
+    /// Version of the DLC options structure.
     pub version: i32,
+    /// The base data set.
     pub game_data_set: DataSet,
+    /// The DLCs that are required by this scenario.
     pub dependencies: Vec<DLCPackage>,
 }
 
