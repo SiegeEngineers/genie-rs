@@ -54,6 +54,26 @@ impl ObjectsList {
             Ok(ObjectsList::SameAsLast)
         }
     }
+
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        if let ObjectsList::List(list) = self {
+            for entry in list {
+                output.write_u32::<LE>(entry.into())?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn len(&self) -> usize {
+        match self {
+            ObjectsList::SameAsLast => 0,
+            ObjectsList::List(list) => list.len(),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -68,7 +88,7 @@ pub struct OrderCommand {
 impl OrderCommand {
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let mut command = Self::default();
-        command.player_id = input.read_i8()?.try_into().unwrap();
+        command.player_id = input.read_u8()?.into();
         skip(input, 2)?;
         command.target_id = input.read_i32::<LE>()?.try_into().unwrap();
         let selected_count = input.read_i32::<LE>()?;
@@ -76,6 +96,17 @@ impl OrderCommand {
         command.y = input.read_f32::<LE>()?;
         command.objects = ObjectsList::read_from(input, selected_count)?;
         Ok(command)
+    }
+
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        output.write_u8(self.player_id)?;
+        output.write_all(&[0, 0])?;
+        output.write_u32::<LE>(self.target_id.into())?;
+        output.write_u32::<LE>(self.objects.len())?;
+        output.write_f32::<LE>(self.x)?;
+        output.write_f32::<LE>(self.y)?;
+        self.objects.write_to(output)?;
+        Ok(())
     }
 }
 
@@ -90,6 +121,12 @@ impl StopCommand {
         let selected_count = input.read_i8()?;
         command.objects = ObjectsList::read_from(input, selected_count as i32)?;
         Ok(command)
+    }
+
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        output.write_i8(self.objects.len().try_into().unwrap())?;
+        self.objects.write_to(output)?;
+        Ok(())
     }
 }
 
@@ -116,6 +153,17 @@ impl WorkCommand {
         command.objects = ObjectsList::read_from(input, selected_count as i32)?;
         Ok(command)
     }
+
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        output.write_all(&[0, 0, 0])?;
+        output.write_i32::<LE>(self.target_id.map(|u| u as i32).unwrap_or(-1))?;
+        output.write_i8(self.objects.len().try_into().unwrap())?;
+        output.write_all(&[0, 0, 0])?;
+        output.write_f32::<LE>(self.x)?;
+        output.write_f32::<LE>(self.y)?;
+        self.objects.write_to(output)?;
+        Ok(())
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -139,6 +187,17 @@ impl CreateCommand {
         command.z = input.read_f32::<LE>()?;
         Ok(command)
     }
+
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        output.write_u8()?;
+        output.write_u16::<LE>(self.unit_type_id.into())?;
+        output.write_u8(self.player_id.into())?;
+        output.write_u8()?;
+        output.write_f32::<LE>(self.x)?;
+        output.write_f32::<LE>(self.y)?;
+        output.write_f32::<LE>(self.z)?;
+        Ok(())
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -159,6 +218,14 @@ impl AddAttributeCommand {
             attribute,
             amount,
         })
+    }
+
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        output.write_u8(self.player_id.into())?;
+        output.write_u8(self.attribute)?;
+        output.write_u8(0)?;
+        output.write_f32::<LE>(self.amount)?;
+        Ok(())
     }
 }
 
@@ -212,6 +279,38 @@ impl AIOrderCommand {
         };
         Ok(command)
     }
+
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        output.write_i8(self.objects.len().try_into().unwrap())?;
+        output.write_u8(self.player_id.into());
+        output.write_u8(self.issuer.into());
+        match self.objects {
+            ObjectsList::List(list) if list.len() == 1 => {
+                output.write_u32::<LE>(list[0].into());
+            }
+            _ => output.write_i32::<LE>(-1)?,
+        }
+        output.write_u16::<LE>(self.order_type)?;
+        output.write_u8(self.order_priority)?;
+        output.write_u8(0)?;
+        output.write_i32::<LE>(match self.target_id {
+            Some(id) => id.try_into().unwrap(),
+            None => -1,
+        })?;
+        output.write_u8(self.player_id.into())?;
+        output.write_all(&[0, 0, 0])?;
+        output.write_f32::<LE>(self.target_location.0)?;
+        output.write_f32::<LE>(self.target_location.1)?;
+        output.write_f32::<LE>(self.target_location.2)?;
+        output.write_f32::<LE>(self.range)?;
+        output.write_u8(if self.immediate { 1 } else { 0 })?;
+        output.write_u8(if self.add_to_front { 1 } else { 0 })?;
+        output.write_all(&[0, 0])?;
+        if self.objects.len() > 1 {
+            self.objects.write_to(output)?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -234,6 +333,15 @@ impl GroupWaypointCommand {
             waypoints,
         })
     }
+
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        output.write_u8(self.player_id.into())?;
+        output.write_all(&[0, 0])?;
+        output.write_u32::<LE>(self.object_id.into())?;
+        output.write_i8(self.waypoints)?;
+        output.write_u8(0)?;
+        Ok(())
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -248,6 +356,13 @@ impl UnitAIStateCommand {
         let state = input.read_i8()?;
         let objects = ObjectsList::read_from(input, i32::from(selected_count))?;
         Ok(Self { state, objects })
+    }
+
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        output.write_u8(self.objects.len().try_into().unwrap())?;
+        output.write_i8(self.state)?;
+        self.objects.write_to(output)?;
+        Ok(())
     }
 }
 
@@ -294,6 +409,15 @@ impl UserPatchAICommand {
             params,
         })
     }
+
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        output.write_u8(self.ai_action)?;
+        output.write_u16::<LE>(self.player_id.into())?;
+        for p in &self.params {
+            output.write_u32::<LE>(p)?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -322,6 +446,19 @@ impl MakeCommand {
             target_id,
         })
     }
+
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        output.write_all(&[0, 0, 0])?;
+        output.write_u32::<LE>(self.building_id.into())?;
+        output.write_u8(self.player_id.into())?;
+        output.write_u8(0)?;
+        output.write_u16::<LE>(self.unit_type_id.into())?;
+        output.write_i32::<LE>(match self.target_id {
+            None => -1,
+            Some(id) => id.try_into().unwrap(),
+        })?;
+        Ok(())
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -349,6 +486,19 @@ impl ResearchCommand {
             tech_id,
             target_id,
         })
+    }
+
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        output.write_all(&[0, 0, 0])?;
+        output.write_u32::<LE>(self.building_id.into())?;
+        output.write_u8(self.player_id.into())?;
+        output.write_u8(0)?;
+        output.write_u16::<LE>(self.tech_id.into())?;
+        output.write_i32::<LE>(match self.target_id {
+            None => -1,
+            Some(id) => id.try_into().unwrap(),
+        })?;
+        Ok(())
     }
 }
 
