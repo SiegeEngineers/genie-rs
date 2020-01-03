@@ -5,8 +5,8 @@ pub mod string_table;
 use crate::actions::{Action, Meta};
 use byteorder::{ReadBytesExt, LE};
 use flate2::read::DeflateDecoder;
-use genie_support::{fallible_try_from, infallible_try_into};
 use genie_scx::DLCOptions;
+use genie_support::{fallible_try_from, infallible_try_into};
 use header::Header;
 use std::fmt;
 use std::io::{self, Read, Seek, SeekFrom};
@@ -86,7 +86,9 @@ where
 }
 
 impl<'r, R> BodyActions<'r, R>
-where R:Read {
+where
+    R: Read,
+{
     pub fn new(input: &'r mut R) -> Result<Self> {
         assert_eq!(input.read_u32::<LE>()?, 4);
         let meta = Meta::read_from(input)?;
@@ -114,10 +116,17 @@ where
                 if includes_checksum {
                     self.remaining_syncs_until_checksum = self.meta.checksum_interval;
                 }
-                Some(actions::Sync::read_from(self.input, self.meta.use_sequence_numbers, includes_checksum).map(Action::Sync))
+                Some(
+                    actions::Sync::read_from(
+                        self.input,
+                        self.meta.use_sequence_numbers,
+                        includes_checksum,
+                    )
+                    .map(Action::Sync),
+                )
             }
             Ok(0x03) => Some(actions::ViewLock::read_from(&mut self.input).map(Action::ViewLock)),
-            // 0x04 => actions::Chat::read_from(self.input).map(Action::Chat),
+            Ok(0x04) => Some(actions::Chat::read_from(self.input).map(Action::Chat)),
             Ok(id) => panic!("unsupported action type {:#x}", id),
             Err(err) if err.kind() == io::ErrorKind::UnexpectedEof => None,
             Err(err) => Some(Err(err.into())),
@@ -211,8 +220,7 @@ where
     }
 
     fn seek_to_body(&mut self) -> Result<()> {
-        self.inner
-            .seek(SeekFrom::Start(self.header_len))?;
+        self.inner.seek(SeekFrom::Start(self.header_len))?;
 
         Ok(())
     }

@@ -1,5 +1,5 @@
-use byteorder::{LittleEndian as LE, ReadBytesExt, WriteBytesExt};
 use crate::Result;
+use byteorder::{LittleEndian as LE, ReadBytesExt, WriteBytesExt};
 use std::io::{Read, Write};
 
 #[derive(Debug, Clone)]

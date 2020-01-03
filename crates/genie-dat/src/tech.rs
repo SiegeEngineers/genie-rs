@@ -3,38 +3,9 @@ use crate::unit_type::UnitTypeID;
 use arrayvec::{ArrayString, ArrayVec};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use encoding_rs::WINDOWS_1252;
-use genie_support::{
-    fallible_try_from, fallible_try_into, infallible_try_into, read_opt_u16, MapInto, StringKey,
-};
+use genie_support::{read_opt_u16, MapInto, StringKey, TechID};
 use std::convert::TryInto;
 use std::io::{Read, Result, Write};
-
-/// An ID identifying a tech.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub struct TechID(u16);
-
-impl From<u16> for TechID {
-    fn from(n: u16) -> Self {
-        TechID(n)
-    }
-}
-
-impl From<TechID> for u16 {
-    fn from(n: TechID) -> Self {
-        n.0
-    }
-}
-
-impl From<TechID> for usize {
-    fn from(n: TechID) -> Self {
-        n.0.into()
-    }
-}
-
-fallible_try_into!(TechID, i16);
-infallible_try_into!(TechID, u32);
-fallible_try_from!(TechID, i32);
-fallible_try_from!(TechID, u32);
 
 /// An effect command specifies an attribute change when a tech effect is triggered.
 #[derive(Debug, Default, Clone)]

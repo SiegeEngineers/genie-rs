@@ -46,6 +46,33 @@ fallible_try_into!(UnitTypeID, i16);
 fallible_try_from!(UnitTypeID, i32);
 fallible_try_from!(UnitTypeID, u32);
 
+/// An ID identifying a tech.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct TechID(u16);
+
+impl From<u16> for TechID {
+    fn from(n: u16) -> Self {
+        TechID(n)
+    }
+}
+
+impl From<TechID> for u16 {
+    fn from(n: TechID) -> Self {
+        n.0
+    }
+}
+
+impl From<TechID> for usize {
+    fn from(n: TechID) -> Self {
+        n.0.into()
+    }
+}
+
+fallible_try_into!(TechID, i16);
+infallible_try_into!(TechID, u32);
+fallible_try_from!(TechID, i32);
+fallible_try_from!(TechID, u32);
+
 /// A key in a language file.
 ///
 /// A key may be either a nonnegative integer or an arbitrary string.
