@@ -1,7 +1,7 @@
-use crate::tech::TechID;
-use crate::unit_type::UnitTypeID;
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use crate::unit_type::UnitTypeID;
+use genie_support::TechID;
 use std::convert::{TryFrom, TryInto};
 use std::io::{self, Read, Result, Write};
 

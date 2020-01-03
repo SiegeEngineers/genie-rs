@@ -47,7 +47,7 @@ fallible_try_from!(UnitTypeID, i32);
 fallible_try_from!(UnitTypeID, u32);
 
 /// An ID identifying a tech.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Hash, Default, Clone, Copy, PartialEq, Eq)]
 pub struct TechID(u16);
 
 impl From<u16> for TechID {

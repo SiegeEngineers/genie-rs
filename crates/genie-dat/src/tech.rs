@@ -3,7 +3,8 @@ use crate::unit_type::UnitTypeID;
 use arrayvec::{ArrayString, ArrayVec};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use encoding_rs::WINDOWS_1252;
-use genie_support::{read_opt_u16, MapInto, StringKey, TechID};
+pub use genie_support::TechID;
+use genie_support::{read_opt_u16, MapInto, StringKey};
 use std::convert::TryInto;
 use std::io::{Read, Result, Write};
 
