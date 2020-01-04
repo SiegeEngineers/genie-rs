@@ -1,26 +1,41 @@
 use crate::{ObjectID, PlayerID, Result};
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{TechID, UnitTypeID};
+use genie_support::{cmp_float, TechID, UnitTypeID};
 use std::convert::TryInto;
 use std::io::{Read, Write};
 
+/// A location with an X and Y coordinate.
+pub type Location2 = (f32, f32);
+/// A location with an X, Y, and Z coordinate.
+///
+/// The Z coordinate is usually meaningless.
+pub type Location3 = (f32, f32, f32);
+
+/// A viewpoint update, recording where the player is currently looking.
+///
+/// This is used for the View Lock feature when watching a game.
 #[derive(Debug, Default, Clone)]
 pub struct ViewLock {
+    /// The X coordinate the player is looking at.
     pub x: f32,
+    /// The Y coordinate the player is looking at.
     pub y: f32,
+    /// The ID of the POV player.
     pub player: PlayerID,
 }
 
 impl ViewLock {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+    /// Read a view lock action from an input stream.
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let x = input.read_f32::<LE>()?;
         let y = input.read_f32::<LE>()?;
         let player = input.read_i32::<LE>()?.try_into().unwrap();
         Ok(Self { x, y, player })
     }
 
-    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+    /// Write a view lock action to an output stream.
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_f32::<LE>(self.x)?;
         output.write_f32::<LE>(self.y)?;
         output.write_i32::<LE>(self.player.try_into().unwrap())?;
@@ -28,6 +43,11 @@ impl ViewLock {
     }
 }
 
+/// A list of objects that a command applies to.
+///
+/// The game uses a special value if a command applies to the same objects as the previous command.
+/// That way it does not have to resend 40 object IDs every time a player moves their army. It's
+/// encoded as `ObjectsList::SameAsLast` here.
 #[derive(Debug, Clone)]
 pub enum ObjectsList {
     /// Use the same objects as the previous command.
@@ -64,6 +84,9 @@ impl ObjectsList {
         Ok(())
     }
 
+    /// The amount of objects contained in this list.
+    ///
+    /// For `ObjectsList::SameAsLast` this returns 0.
     pub fn len(&self) -> usize {
         match self {
             ObjectsList::SameAsLast => 0,
@@ -71,6 +94,7 @@ impl ObjectsList {
         }
     }
 
+    /// Does this list contain 0 objects?
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -78,10 +102,12 @@ impl ObjectsList {
 
 #[derive(Debug, Default, Clone)]
 pub struct OrderCommand {
+    /// The ID of the player executing this command.
     pub player_id: PlayerID,
+    /// The target object of this order.
     pub target_id: ObjectID,
-    pub x: f32,
-    pub y: f32,
+    /// The target location of this order.
+    pub location: Location2,
     pub objects: ObjectsList,
 }
 
@@ -92,8 +118,10 @@ impl OrderCommand {
         skip(input, 2)?;
         command.target_id = input.read_i32::<LE>()?.try_into().unwrap();
         let selected_count = input.read_i32::<LE>()?;
-        command.x = input.read_f32::<LE>()?;
-        command.y = input.read_f32::<LE>()?;
+        command.location = (
+            input.read_f32::<LE>()?,
+            input.read_f32::<LE>()?,
+        );
         command.objects = ObjectsList::read_from(input, selected_count)?;
         Ok(command)
     }
@@ -103,8 +131,8 @@ impl OrderCommand {
         output.write_all(&[0, 0])?;
         output.write_u32::<LE>(self.target_id.into())?;
         output.write_u32::<LE>(self.objects.len().try_into().unwrap())?;
-        output.write_f32::<LE>(self.x)?;
-        output.write_f32::<LE>(self.y)?;
+        output.write_f32::<LE>(self.location.0)?;
+        output.write_f32::<LE>(self.location.1)?;
         self.objects.write_to(output)?;
         Ok(())
     }
@@ -112,6 +140,7 @@ impl OrderCommand {
 
 #[derive(Debug, Default, Clone)]
 pub struct StopCommand {
+    /// The objects to stop.
     pub objects: ObjectsList,
 }
 
@@ -132,9 +161,11 @@ impl StopCommand {
 
 #[derive(Debug, Default, Clone)]
 pub struct WorkCommand {
+    /// The target object of this command.
     pub target_id: Option<ObjectID>,
-    pub x: f32,
-    pub y: f32,
+    /// The target location of this command.
+    pub location: Location2,
+    /// The objects being tasked.
     pub objects: ObjectsList,
 }
 
@@ -148,8 +179,10 @@ impl WorkCommand {
         };
         let selected_count = input.read_i8()?;
         skip(input, 3)?;
-        command.x = input.read_f32::<LE>()?;
-        command.y = input.read_f32::<LE>()?;
+        command.location = (
+            input.read_f32::<LE>()?,
+            input.read_f32::<LE>()?,
+        );
         command.objects = ObjectsList::read_from(input, selected_count as i32)?;
         Ok(command)
     }
@@ -159,8 +192,8 @@ impl WorkCommand {
         output.write_i32::<LE>(self.target_id.map(|u| u32::from(u) as i32).unwrap_or(-1))?;
         output.write_i8(self.objects.len().try_into().unwrap())?;
         output.write_all(&[0, 0, 0])?;
-        output.write_f32::<LE>(self.x)?;
-        output.write_f32::<LE>(self.y)?;
+        output.write_f32::<LE>(self.location.0)?;
+        output.write_f32::<LE>(self.location.1)?;
         self.objects.write_to(output)?;
         Ok(())
     }
@@ -168,8 +201,11 @@ impl WorkCommand {
 
 #[derive(Debug, Default, Clone)]
 pub struct CreateCommand {
-    pub unit_type_id: UnitTypeID,
+    /// The ID of the player issuing this command.
     pub player_id: PlayerID,
+    /// The type of unit to create.
+    pub unit_type_id: UnitTypeID,
+    /// The location.
     pub x: f32,
     pub y: f32,
     pub z: f32,
@@ -201,28 +237,31 @@ impl CreateCommand {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct AddAttributeCommand {
+pub struct AddResourceCommand {
+    /// The player this command applies to.
     pub player_id: PlayerID,
-    pub attribute: u8,
+    /// The resource to add.
+    pub resource: u8,
+    /// The amount to add to this resource. May be negative for subtracting.
     pub amount: f32,
 }
 
-impl AddAttributeCommand {
+impl AddResourceCommand {
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let player_id = input.read_u8()?.into();
-        let attribute = input.read_u8()?;
+        let resource = input.read_u8()?;
         let _padding = input.read_u8()?;
         let amount = input.read_f32::<LE>()?;
         Ok(Self {
             player_id,
-            attribute,
+            resource,
             amount,
         })
     }
 
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u8(self.player_id.into())?;
-        output.write_u8(self.attribute)?;
+        output.write_u8(self.resource)?;
         output.write_u8(0)?;
         output.write_f32::<LE>(self.amount)?;
         Ok(())
@@ -238,7 +277,7 @@ pub struct AIOrderCommand {
     pub order_priority: i8,
     pub target_id: Option<ObjectID>,
     pub target_player_id: Option<PlayerID>,
-    pub target_location: (f32, f32, f32),
+    pub target_location: Location3,
     pub range: f32,
     pub immediate: bool,
     pub add_to_front: bool,
@@ -314,6 +353,32 @@ impl AIOrderCommand {
 }
 
 #[derive(Debug, Default, Clone)]
+pub struct ResignCommand {
+    /// The ID of the player that is resigning.
+    pub player_id: PlayerID,
+    /// The multiplayer ID of the player that is resigning.
+    pub comm_player_id: PlayerID,
+    /// Is this "resignation" because the player dropped from the game?
+    pub dropped: bool,
+}
+
+impl ResignCommand {
+    pub fn read_from<R: Read>(input: &mut R)->Result<Self> {
+        let player_id = input.read_u8()?.into();
+        let comm_player_id = input.read_u8()?.into();
+        let dropped = input.read_u8()? != 0;
+        Ok(Self { player_id, comm_player_id, dropped })
+    }
+
+    pub fn write_to<W:Write>(&self, output: &mut W)-> Result<()> {
+        output.write_u8(self.player_id.into())?;
+        output.write_u8(self.comm_player_id.into())?;
+        output.write_u8(if self.dropped { 1 } else { 0 })?;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Default, Clone)]
 pub struct GroupWaypointCommand {
     pub player_id: PlayerID,
     pub object_id: ObjectID,
@@ -361,6 +426,78 @@ impl UnitAIStateCommand {
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u8(self.objects.len().try_into().unwrap())?;
         output.write_i8(self.state)?;
+        self.objects.write_to(output)?;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct PatrolCommand {
+    /// The waypoints that this patrol should pass through.
+    pub waypoints: ArrayVec<[Location2; 10]>,
+    /// The objects to include in this formation.
+    pub objects: ObjectsList,
+}
+
+impl PatrolCommand {
+    pub fn read_from<R: Read>(input: &mut R)->Result<Self> {
+        let mut command = Self::default();
+        let selected_count = input.read_i8()?;
+        let waypoint_count = input.read_u8()?;
+        let _padding = input.read_u8()?;
+        let mut raw_waypoints = [(0.0, 0.0); 10];
+        for i in 0..10 {
+            raw_waypoints[i].0 = input.read_f32::<LE>()?;
+        }
+        for i in 0..10 {
+            raw_waypoints[i].1 = input.read_f32::<LE>()?;
+        }
+        command.waypoints.try_extend_from_slice(&raw_waypoints[0..usize::from(waypoint_count)]).unwrap();
+        command.objects = ObjectsList::read_from(input, i32::from(selected_count))?;
+        Ok(command)
+    }
+
+    pub fn write_to<W: Write>(&self, output: &mut W)->Result<()> {
+        output.write_i8(self.objects.len().try_into().unwrap())?;
+        output.write_u8(self.waypoints.len().try_into().unwrap())?;
+        output.write_u8(0)?;
+        for i in 0..10 {
+            output.write_f32::<LE>(self.waypoints.get(i).cloned().unwrap_or_default().0)?;
+        }
+        for i in 0..10 {
+            output.write_f32::<LE>(self.waypoints.get(i).cloned().unwrap_or_default().1)?;
+        }
+        self.objects.write_to(output)?;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct FormFormationCommand {
+    /// The ID of the player issuing this command.
+    pub player_id: PlayerID,
+    /// The type of formation to form.
+    pub formation_type: i32,
+    /// The objects to include in this formation.
+    pub objects: ObjectsList,
+}
+
+impl FormFormationCommand {
+    pub fn read_from<R: Read>(input: &mut R)->Result<Self> {
+        let mut command = Self::default();
+        let selected_count = input.read_i8()?;
+        command.player_id = input.read_u8()?.into();
+        let _padding = input.read_u8()?;
+        command.formation_type = input.read_i32::<LE>()?;
+        command.objects = ObjectsList::read_from(input, i32::from(selected_count))?;
+        Ok(command)
+    }
+
+    pub fn write_to<W: Write>(&self, output: &mut W)->Result<()> {
+        output.write_i8(self.objects.len().try_into().unwrap())?;
+        output.write_u8(self.player_id.into())?;
+        output.write_u8(0)?;
+        output.write_i32::<LE>(self.formation_type)?;
         self.objects.write_to(output)?;
         Ok(())
     }
@@ -511,7 +648,7 @@ pub struct BuildCommand {
     /// The type of building to place.
     pub unit_type_id: UnitTypeID,
     /// The location of the new building foundation.
-    pub location: (f32, f32),
+    pub location: Location2,
     /// The index of the frame to use, for buildings with multiple graphics like houses.
     pub frame: u8,
     /// The IDs of the villagers that are tasked to build this building.
@@ -654,10 +791,34 @@ impl BuildWallCommand {
 }
 
 #[derive(Debug, Default, Clone)]
+pub struct CancelBuildCommand {
+    /// The ID of the player issuing this command.
+    pub player_id: PlayerID,
+    /// The ID of the building to cancel.
+    pub building_id: ObjectID,
+}
+
+impl CancelBuildCommand {
+    pub fn read_from<R: Read>(input: &mut R)->Result<Self> {
+        skip(input, 3)?;
+        let building_id = input.read_u32::<LE>()?.into();
+        let player_id = input.read_u32::<LE>()?.try_into().unwrap();
+        Ok(Self { player_id, building_id })
+    }
+
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        output.write_all(&[0, 0, 0])?;
+        output.write_u32::<LE>(self.building_id.into())?;
+        output.write_u32::<LE>(self.player_id.try_into().unwrap())?;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Default, Clone)]
 pub struct UngarrisonCommand {
     pub ungarrison_type: i8,
     pub unit_type_id: Option<ObjectID>,
-    pub location: Option<(f32, f32)>,
+    pub location: Option<Location2>,
     pub objects: ObjectsList,
 }
 
@@ -668,7 +829,7 @@ impl UngarrisonCommand {
         let _padding = input.read_u16::<LE>()?;
         let x = input.read_f32::<LE>()?;
         let y = input.read_f32::<LE>()?;
-        command.location = if x != -1.0 && y != -1.0 {
+        command.location = if cmp_float!(x != -1.0) && cmp_float!(y != -1.0) {
             Some((x, y))
         } else {
             None
@@ -689,7 +850,7 @@ pub struct FlareCommand {
     pub player_id: PlayerID,
     pub comm_player_id: PlayerID,
     pub recipients: [bool; 9],
-    pub location: (f32, f32),
+    pub location: Location2,
 }
 
 impl FlareCommand {
@@ -718,7 +879,7 @@ pub struct UnitOrderCommand {
     pub target_id: Option<ObjectID>,
     pub action: i8,
     pub param: Option<u8>,
-    pub location: Option<(f32, f32)>,
+    pub location: Option<Location2>,
     pub unique_id: Option<u32>,
     pub objects: ObjectsList,
 }
@@ -740,7 +901,7 @@ impl UnitOrderCommand {
         let _padding = input.read_u16::<LE>()?;
         let x = input.read_f32::<LE>()?;
         let y = input.read_f32::<LE>()?;
-        command.location = if x != -1.0 && y != -1.0 {
+        command.location = if cmp_float!(x != -1.0) && cmp_float!(y != -1.0) {
             Some((x, y))
         } else {
             None
@@ -753,6 +914,61 @@ impl UnitOrderCommand {
         Ok(command)
     }
 }
+
+/// Read and write impl for market buying/selling commands, which are different commands but have
+/// the same shape.
+macro_rules! buy_sell_impl {
+    ($name:ident) => {
+        impl $name {
+            pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+                let mut command = Self::default();
+                command.player_id = input.read_u8()?.into();
+                command.resource = input.read_u8()?;
+                command.amount = input.read_i8()?;
+                command.market_id = input.read_u32::<LE>()?.into();
+                Ok(command)
+            }
+
+            pub fn write_to<W:Write>(&self, output: &mut W)->Result<()> {
+                output.write_u8(self.player_id.into())?;
+                output.write_u8(self.resource)?;
+                output.write_i8(self.amount)?;
+                output.write_u32::<LE>(self.market_id.into())?;
+                Ok(())
+            }
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct SellResourceCommand {
+    /// The ID of the player issuing this command.
+    pub player_id: PlayerID,
+    /// The resource being sold.
+    pub resource: u8,
+    /// The amount being sold, in 100s. Typically this is 1 for selling 100 of a resource, or 5 for
+    /// selling 500 (with Shift-click).
+    pub amount: i8,
+    /// The ID of the building where this resource is being bought.
+    pub market_id: ObjectID,
+}
+
+buy_sell_impl!(SellResourceCommand);
+
+#[derive(Debug, Default, Clone)]
+pub struct BuyResourceCommand {
+    /// The ID of the player issuing this command.
+    pub player_id: PlayerID,
+    /// The resource being bought.
+    pub resource: u8,
+    /// The amount being bought, in 100s. Typically this is 1 for buying 100 of a resource, or 5 for
+    /// buying 500 (with Shift-click).
+    pub amount: i8,
+    /// The ID of the building where this resource is being bought.
+    pub market_id: ObjectID,
+}
+
+buy_sell_impl!(BuyResourceCommand);
 
 #[derive(Debug, Default, Clone)]
 pub struct BackToWorkCommand {
@@ -773,19 +989,25 @@ pub enum Command {
     Stop(StopCommand),
     Work(WorkCommand),
     Create(CreateCommand),
-    AddAttribute(AddAttributeCommand),
+    AddResource(AddResourceCommand),
     AIOrder(AIOrderCommand),
+    Resign(ResignCommand),
     GroupWaypoint(GroupWaypointCommand),
     UnitAIState(UnitAIStateCommand),
+    Patrol(PatrolCommand),
+    FormFormation(FormFormationCommand),
     UserPatchAI(UserPatchAICommand),
     Make(MakeCommand),
     Research(ResearchCommand),
     Build(BuildCommand),
     Game(GameCommand),
     BuildWall(BuildWallCommand),
+    CancelBuild(CancelBuildCommand),
     Ungarrison(UngarrisonCommand),
     Flare(FlareCommand),
     UnitOrder(UnitOrderCommand),
+    SellResource(SellResourceCommand),
+    BuyResource(BuyResourceCommand),
     BackToWork(BackToWorkCommand),
 }
 
@@ -797,19 +1019,25 @@ impl Command {
             0x01 => StopCommand::read_from(input).map(Command::Stop),
             0x02 => WorkCommand::read_from(input).map(Command::Work),
             0x04 => CreateCommand::read_from(input).map(Command::Create),
-            0x05 => AddAttributeCommand::read_from(input).map(Command::AddAttribute),
+            0x05 => AddResourceCommand::read_from(input).map(Command::AddResource),
             0x0a => AIOrderCommand::read_from(input).map(Command::AIOrder),
+            0x0b => ResignCommand::read_from(input).map(Command::Resign),
             0x10 => GroupWaypointCommand::read_from(input).map(Command::GroupWaypoint),
             0x12 => UnitAIStateCommand::read_from(input).map(Command::UnitAIState),
+            0x15 => PatrolCommand::read_from(input).map(Command::Patrol),
+            0x17 => FormFormationCommand::read_from(input).map(Command::FormFormation),
             0x35 => UserPatchAICommand::read_from(input, len).map(Command::UserPatchAI),
             0x64 => MakeCommand::read_from(input).map(Command::Make),
             0x65 => ResearchCommand::read_from(input).map(Command::Research),
             0x66 => BuildCommand::read_from(input).map(Command::Build),
             0x67 => GameCommand::read_from(input).map(Command::Game),
             0x69 => BuildWallCommand::read_from(input).map(Command::BuildWall),
+            0x6a => CancelBuildCommand::read_from(input).map(Command::CancelBuild),
             0x6f => UngarrisonCommand::read_from(input).map(Command::Ungarrison),
             0x73 => FlareCommand::read_from(input).map(Command::Flare),
             0x75 => UnitOrderCommand::read_from(input).map(Command::UnitOrder),
+            0x7a => SellResourceCommand::read_from(input).map(Command::SellResource),
+            0x7b => BuyResourceCommand::read_from(input).map(Command::BuyResource),
             0x80 => BackToWorkCommand::read_from(input).map(Command::BackToWork),
             id => panic!("unsupported command type {:#x}", id),
         };
