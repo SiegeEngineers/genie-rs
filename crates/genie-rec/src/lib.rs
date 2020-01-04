@@ -6,7 +6,7 @@ use crate::actions::{Action, Meta};
 use byteorder::{ReadBytesExt, LE};
 use flate2::read::DeflateDecoder;
 use genie_scx::DLCOptions;
-use genie_support::{fallible_try_from, infallible_try_into};
+use genie_support::{fallible_try_from, fallible_try_into, infallible_try_into};
 use header::Header;
 use std::fmt;
 use std::io::{self, Read, Seek, SeekFrom};
@@ -23,8 +23,8 @@ impl From<u8> for PlayerID {
 
 impl From<PlayerID> for u8 {
     #[inline]
-    fn from(object_id: PlayerID) -> Self {
-        object_id.0
+    fn from(player_id: PlayerID) -> Self {
+        player_id.0
     }
 }
 
@@ -48,9 +48,24 @@ impl From<u32> for ObjectID {
     }
 }
 
-fallible_try_from!(ObjectID, i32);
+impl From<u16> for ObjectID {
+    #[inline]
+    fn from(n: u16) -> Self {
+        Self(n.into())
+    }
+}
+
+impl From<ObjectID> for u32 {
+    #[inline]
+    fn from(n: ObjectID) -> Self {
+        n.0
+    }
+}
+
 fallible_try_from!(ObjectID, i16);
-infallible_try_into!(ObjectID, u32);
+fallible_try_from!(ObjectID, i32);
+fallible_try_into!(ObjectID, i16);
+fallible_try_into!(ObjectID, i32);
 
 #[derive(Debug)]
 pub enum Error {
