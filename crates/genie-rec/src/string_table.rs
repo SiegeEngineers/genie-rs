@@ -1,5 +1,5 @@
 use crate::Result;
-use byteorder::{LittleEndian as LE, ReadBytesExt, WriteBytesExt};
+use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::io::{Read, Write};
 
 #[derive(Debug, Clone)]
@@ -16,21 +16,17 @@ impl StringTable {
         }
     }
 
-    pub fn from<R: Read>(handle: &mut R) -> Result<Self> {
-        let max_strings = handle.read_u16::<LE>()?;
-        let num_strings = handle.read_u16::<LE>()?;
-        let _ptr = handle.read_u32::<LE>()?; // unsure why this is here
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
+        let max_strings = input.read_u16::<LE>()?;
+        let num_strings = input.read_u16::<LE>()?;
+        let _ptr = input.read_u32::<LE>()?;
 
         let mut strings = Vec::with_capacity(max_strings as usize);
         for _ in 0..num_strings {
-            let length = handle.read_u32::<LE>()?;
-            let mut string = String::with_capacity(length as usize);
-            unsafe {
-                handle
-                    .take(length as u64)
-                    .read_to_end(&mut string.as_mut_vec())?;
-            }
-            strings.push(string);
+            let length = input.read_u32::<LE>()?;
+            let mut bytes = vec![0; length as usize];
+            input.read_exact(&mut bytes)?;
+            strings.push(String::from_utf8(bytes).unwrap());
         }
 
         Ok(StringTable {

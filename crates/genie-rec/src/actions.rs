@@ -118,10 +118,7 @@ impl OrderCommand {
         skip(input, 2)?;
         command.target_id = input.read_i32::<LE>()?.try_into().unwrap();
         let selected_count = input.read_i32::<LE>()?;
-        command.location = (
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-        );
+        command.location = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
         command.objects = ObjectsList::read_from(input, selected_count)?;
         Ok(command)
     }
@@ -179,10 +176,7 @@ impl WorkCommand {
         };
         let selected_count = input.read_i8()?;
         skip(input, 3)?;
-        command.location = (
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-        );
+        command.location = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
         command.objects = ObjectsList::read_from(input, selected_count as i32)?;
         Ok(command)
     }
@@ -363,14 +357,18 @@ pub struct ResignCommand {
 }
 
 impl ResignCommand {
-    pub fn read_from<R: Read>(input: &mut R)->Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let player_id = input.read_u8()?.into();
         let comm_player_id = input.read_u8()?.into();
         let dropped = input.read_u8()? != 0;
-        Ok(Self { player_id, comm_player_id, dropped })
+        Ok(Self {
+            player_id,
+            comm_player_id,
+            dropped,
+        })
     }
 
-    pub fn write_to<W:Write>(&self, output: &mut W)-> Result<()> {
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u8(self.player_id.into())?;
         output.write_u8(self.comm_player_id.into())?;
         output.write_u8(if self.dropped { 1 } else { 0 })?;
@@ -440,7 +438,7 @@ pub struct PatrolCommand {
 }
 
 impl PatrolCommand {
-    pub fn read_from<R: Read>(input: &mut R)->Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let mut command = Self::default();
         let selected_count = input.read_i8()?;
         let waypoint_count = input.read_u8()?;
@@ -452,12 +450,15 @@ impl PatrolCommand {
         for i in 0..10 {
             raw_waypoints[i].1 = input.read_f32::<LE>()?;
         }
-        command.waypoints.try_extend_from_slice(&raw_waypoints[0..usize::from(waypoint_count)]).unwrap();
+        command
+            .waypoints
+            .try_extend_from_slice(&raw_waypoints[0..usize::from(waypoint_count)])
+            .unwrap();
         command.objects = ObjectsList::read_from(input, i32::from(selected_count))?;
         Ok(command)
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W)->Result<()> {
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_i8(self.objects.len().try_into().unwrap())?;
         output.write_u8(self.waypoints.len().try_into().unwrap())?;
         output.write_u8(0)?;
@@ -483,7 +484,7 @@ pub struct FormFormationCommand {
 }
 
 impl FormFormationCommand {
-    pub fn read_from<R: Read>(input: &mut R)->Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let mut command = Self::default();
         let selected_count = input.read_i8()?;
         command.player_id = input.read_u8()?.into();
@@ -493,7 +494,7 @@ impl FormFormationCommand {
         Ok(command)
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W)->Result<()> {
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_i8(self.objects.len().try_into().unwrap())?;
         output.write_u8(self.player_id.into())?;
         output.write_u8(0)?;
@@ -799,11 +800,14 @@ pub struct CancelBuildCommand {
 }
 
 impl CancelBuildCommand {
-    pub fn read_from<R: Read>(input: &mut R)->Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         skip(input, 3)?;
         let building_id = input.read_u32::<LE>()?.into();
         let player_id = input.read_u32::<LE>()?.try_into().unwrap();
-        Ok(Self { player_id, building_id })
+        Ok(Self {
+            player_id,
+            building_id,
+        })
     }
 
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
@@ -929,7 +933,7 @@ macro_rules! buy_sell_impl {
                 Ok(command)
             }
 
-            pub fn write_to<W:Write>(&self, output: &mut W)->Result<()> {
+            pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
                 output.write_u8(self.player_id.into())?;
                 output.write_u8(self.resource)?;
                 output.write_i8(self.amount)?;
@@ -937,7 +941,7 @@ macro_rules! buy_sell_impl {
                 Ok(())
             }
         }
-    }
+    };
 }
 
 #[derive(Debug, Default, Clone)]

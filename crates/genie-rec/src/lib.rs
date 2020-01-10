@@ -1,5 +1,6 @@
 pub mod actions;
 pub mod header;
+pub mod map;
 pub mod string_table;
 
 use crate::actions::{Action, Meta};
@@ -149,63 +150,83 @@ where
     }
 }
 
-enum Difficulty {}
-
-enum MapSize {}
-
-enum MapType {}
-
-enum Visibility {}
-
-enum ResourceLevel {}
-
-enum Age {}
-
-enum GameMode {}
-
-enum GameSpeed {}
-
-pub struct HDGameOptions {
-    dlc_options: DLCOptions,
-    difficulty: Difficulty,
-    map_size: MapSize,
-    map_type: MapType,
-    visibility: Visibility,
-    starting_resources: ResourceLevel,
-    starting_age: Age,
-    ending_age: Age,
-    game_mode: GameMode,
-    // if version < 1001
-    random_map_name: Option<String>,
-    // if version < 1001
-    scenario_name: Option<String>,
-    game_speed: GameSpeed,
-    treaty_length: i32,
-    population_limit: i32,
-    num_players: i32,
-    victory_amount: i32,
-    trading_enabled: bool,
-    team_bonuses_enabled: bool,
-    randomize_positions_enabled: bool,
-    full_tech_tree_enabled: bool,
-    num_starting_units: i8,
-    teams_locked: bool,
-    speed_locked: bool,
-    multiplayer: bool,
-    cheats_enabled: bool,
-    record_game: bool,
-    animals_enabled: bool,
-    predators_enabled: bool,
-    // if version > 1.16 && version < 1002
-    scenario_player_indices: Vec<i32>,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Difficulty {
+    Easiest,
+    Easy,
+    Standard,
+    Hard,
+    Hardest,
+    /// Age of Empires 2: Definitive Edition only.
+    Extreme,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum MapSize {}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum MapType {}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Visibility {}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ResourceLevel {}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Age {}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum GameMode {}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum GameSpeed {}
+
+#[derive(Debug, Clone)]
+pub struct HDGameOptions {
+    pub dlc_options: DLCOptions,
+    pub difficulty: Difficulty,
+    pub map_size: MapSize,
+    pub map_type: MapType,
+    pub visibility: Visibility,
+    pub starting_resources: ResourceLevel,
+    pub starting_age: Age,
+    pub ending_age: Age,
+    pub game_mode: GameMode,
+    // if version < 1001
+    pub random_map_name: Option<String>,
+    // if version < 1001
+    pub scenario_name: Option<String>,
+    pub game_speed: GameSpeed,
+    pub treaty_length: i32,
+    pub population_limit: i32,
+    pub num_players: i32,
+    pub victory_amount: i32,
+    pub trading_enabled: bool,
+    pub team_bonuses_enabled: bool,
+    pub randomize_positions_enabled: bool,
+    pub full_tech_tree_enabled: bool,
+    pub num_starting_units: i8,
+    pub teams_locked: bool,
+    pub speed_locked: bool,
+    pub multiplayer: bool,
+    pub cheats_enabled: bool,
+    pub record_game: bool,
+    pub animals_enabled: bool,
+    pub predators_enabled: bool,
+    // if version > 1.16 && version < 1002
+    pub scenario_player_indices: Vec<i32>,
+}
+
+/// Recorded game reader.
 pub struct RecordedGame<R>
 where
     R: Read + Seek,
 {
     inner: R,
+    /// Size of the compressed header.
     header_len: u64,
+    /// Offset of the next header, for saved chapters.
     next_header: Option<u64>,
 }
 
@@ -244,7 +265,7 @@ where
         self.seek_to_header()?;
         let reader = (&mut self.inner).take(self.header_len);
         let deflate = DeflateDecoder::new(reader);
-        let header = Header::from(deflate)?;
+        let header = Header::read_from(deflate)?;
         Ok(header)
     }
 
@@ -269,7 +290,7 @@ mod tests {
         let mut r = RecordedGame::new(f).unwrap();
         r.header().unwrap();
         for act in r.actions().unwrap() {
-            println!("{:?}", act.unwrap());
+            // println!("{:?}", act.unwrap());
         }
     }
 }

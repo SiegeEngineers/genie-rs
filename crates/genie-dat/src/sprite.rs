@@ -4,46 +4,10 @@ use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use genie_support::{
     fallible_try_from, fallible_try_into, infallible_try_into, read_opt_u16, MapInto,
 };
+pub use genie_support::SpriteID;
 use std::convert::{TryFrom, TryInto};
 use std::io::{Read, Result, Write};
 use std::num::TryFromIntError;
-
-/// An ID identifying a sprite.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub struct SpriteID(u16);
-impl From<u16> for SpriteID {
-    fn from(n: u16) -> Self {
-        SpriteID(n)
-    }
-}
-
-impl From<SpriteID> for u16 {
-    fn from(n: SpriteID) -> Self {
-        n.0
-    }
-}
-
-impl From<SpriteID> for i32 {
-    fn from(n: SpriteID) -> Self {
-        n.0.into()
-    }
-}
-
-impl From<SpriteID> for u32 {
-    fn from(n: SpriteID) -> Self {
-        n.0.into()
-    }
-}
-
-impl From<SpriteID> for usize {
-    fn from(n: SpriteID) -> Self {
-        n.0.into()
-    }
-}
-
-fallible_try_into!(SpriteID, i16);
-fallible_try_from!(SpriteID, i32);
-fallible_try_from!(SpriteID, u32);
 
 /// An ID identifying a string resource.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]

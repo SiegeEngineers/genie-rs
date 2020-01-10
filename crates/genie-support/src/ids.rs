@@ -73,6 +73,43 @@ infallible_try_into!(TechID, u32);
 fallible_try_from!(TechID, i32);
 fallible_try_from!(TechID, u32);
 
+/// An ID identifying a sprite.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct SpriteID(u16);
+impl From<u16> for SpriteID {
+    fn from(n: u16) -> Self {
+        SpriteID(n)
+    }
+}
+
+impl From<SpriteID> for u16 {
+    fn from(n: SpriteID) -> Self {
+        n.0
+    }
+}
+
+impl From<SpriteID> for i32 {
+    fn from(n: SpriteID) -> Self {
+        n.0.into()
+    }
+}
+
+impl From<SpriteID> for u32 {
+    fn from(n: SpriteID) -> Self {
+        n.0.into()
+    }
+}
+
+impl From<SpriteID> for usize {
+    fn from(n: SpriteID) -> Self {
+        n.0.into()
+    }
+}
+
+fallible_try_into!(SpriteID, i16);
+fallible_try_from!(SpriteID, i32);
+fallible_try_from!(SpriteID, u32);
+
 /// A key in a language file.
 ///
 /// A key may be either a nonnegative integer or an arbitrary string.
