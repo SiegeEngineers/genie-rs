@@ -269,7 +269,7 @@ pub struct Header {
     game_version: GameVersion,
     save_version: f32,
     ai_scripts: Option<AIScripts>,
-    map: MapData,
+    map: Map,
     particle_system: ParticleSystem,
 }
 
@@ -313,9 +313,9 @@ impl Header {
             *time_delta = input.read_u32::<LE>()?;
         }
 
-        header.map = Map::read_from(&mut input);
+        header.map = Map::read_from(&mut input)?;
 
-        header.particle_system = ParticleSystem::read_from(&mut input);
+        header.particle_system = ParticleSystem::read_from(&mut input)?;
         let _identifier = dbg!(input.read_u32::<LE>()?);
 
         let players = Vec::with_capacity(num_players.try_into().unwrap());
