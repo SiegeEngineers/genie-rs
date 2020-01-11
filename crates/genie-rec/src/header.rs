@@ -1,4 +1,5 @@
 use crate::map::Map;
+use crate::player::Player;
 use crate::string_table::StringTable;
 use crate::Result;
 use byteorder::{ReadBytesExt, LE};
@@ -318,7 +319,8 @@ impl Header {
         header.particle_system = ParticleSystem::read_from(&mut input)?;
         let _identifier = dbg!(input.read_u32::<LE>()?);
 
-        let players = Vec::with_capacity(num_players.try_into().unwrap());
+        let mut players = Vec::with_capacity(num_players.try_into().unwrap());
+        players.push(Player::read_from(&mut input, header.save_version, num_players as u8)?);
 
         Ok(header)
     }

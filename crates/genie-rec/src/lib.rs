@@ -1,6 +1,7 @@
 pub mod actions;
 pub mod header;
 pub mod map;
+pub mod player;
 pub mod string_table;
 
 use crate::actions::{Action, Meta};
