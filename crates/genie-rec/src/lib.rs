@@ -71,6 +71,7 @@ fallible_try_into!(ObjectID, i32);
 #[derive(Debug)]
 pub enum Error {
     IoError(io::Error),
+    DecodeStringError(genie_support::DecodeStringError),
 }
 
 impl From<io::Error> for Error {
@@ -79,10 +80,26 @@ impl From<io::Error> for Error {
     }
 }
 
+impl From<genie_support::DecodeStringError> for Error {
+    fn from(err: genie_support::DecodeStringError) -> Self {
+        Self::DecodeStringError(err)
+    }
+}
+
+impl From<genie_support::ReadStringError> for Error {
+    fn from(err: genie_support::ReadStringError) -> Self {
+        match err {
+            genie_support::ReadStringError::DecodeStringError(inner) => inner.into(),
+            genie_support::ReadStringError::IoError(inner) => inner.into(),
+        }
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::IoError(err) => write!(f, "{}", err),
+            Self::DecodeStringError(err) => write!(f, "{}", err),
         }
     }
 }

@@ -19,20 +19,20 @@ mod map;
 mod player;
 mod triggers;
 mod types;
-mod util;
 mod victory;
 
 use format::SCXFormat;
+use genie_support::{ReadStringError, WriteStringError};
 use std::io::{self, Read, Write};
 
 pub use ai::ParseAIErrorCodeError;
 pub use format::ScenarioObject;
+pub use genie_support::{DecodeStringError, EncodeStringError};
 pub use genie_support::{StringKey, UnitTypeID};
 pub use header::{DLCOptions, SCXHeader};
 pub use map::{Map, Tile};
 pub use triggers::{Trigger, TriggerCondition, TriggerEffect, TriggerSystem};
 pub use types::*;
-pub use util::{DecodeStringError, EncodeStringError};
 
 /// Error type for SCX methods, containing all types of errors that may occur while reading or
 /// writing scenario files.
@@ -81,20 +81,20 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<util::ReadStringError> for Error {
-    fn from(err: util::ReadStringError) -> Error {
+impl From<ReadStringError> for Error {
+    fn from(err: ReadStringError) -> Error {
         match err {
-            util::ReadStringError::IoError(err) => Error::IoError(err),
-            util::ReadStringError::DecodeStringError(err) => Error::DecodeStringError(err),
+            ReadStringError::IoError(err) => Error::IoError(err),
+            ReadStringError::DecodeStringError(err) => Error::DecodeStringError(err),
         }
     }
 }
 
-impl From<util::WriteStringError> for Error {
-    fn from(err: util::WriteStringError) -> Error {
+impl From<WriteStringError> for Error {
+    fn from(err: WriteStringError) -> Error {
         match err {
-            util::WriteStringError::IoError(err) => Error::IoError(err),
-            util::WriteStringError::EncodeStringError(err) => Error::EncodeStringError(err),
+            WriteStringError::IoError(err) => Error::IoError(err),
+            WriteStringError::EncodeStringError(err) => Error::EncodeStringError(err),
         }
     }
 }

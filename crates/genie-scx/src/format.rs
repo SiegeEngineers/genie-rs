@@ -9,12 +9,13 @@ use crate::map::Map;
 use crate::player::*;
 use crate::triggers::TriggerSystem;
 use crate::types::*;
-use crate::util::*;
 use crate::victory::*;
 use crate::{Error, Result, VersionBundle};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
-use genie_support::{cmp_float, read_opt_u32, MapInto, StringKey, UnitTypeID};
+use genie_support::{
+    cmp_float, read_opt_u32, read_str, write_opt_str, write_str, MapInto, StringKey, UnitTypeID,
+};
 use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
 use std::io::{self, Read, Write};

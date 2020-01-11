@@ -1,7 +1,7 @@
-use crate::util::*;
 use crate::Result;
 use crate::UnitTypeID;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use genie_support::{read_str, write_str};
 use std::convert::TryInto;
 use std::io::{Read, Write};
 
