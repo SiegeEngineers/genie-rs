@@ -26,7 +26,9 @@ pub struct Player {
     pub history_info: HistoryInfo,
     pub tech_tree: Option<TechTree>,
     pub gaia: Option<GaiaData>,
+    pub unit_types: Vec<Option<CompactUnitType>>,
     pub visible_map: VisibleMap,
+    pub visible_resources: VisibleResources,
 }
 
 impl Player {
@@ -395,6 +397,11 @@ impl Player {
         }
 
         player.visible_map = VisibleMap::read_from(&mut input, version)?;
+        player.visible_resources = VisibleResources::read_from(&mut input)?;
+
+        if version >= 10.55 {
+            assert_eq!(input.read_u8()?, 11);
+        }
 
         Ok(player)
     }
@@ -423,6 +430,53 @@ impl VisibleMap {
             *v = input.read_i8()?;
         }
         Ok(map)
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct VisibleResource {
+    pub object_id: ObjectID,
+    pub distance: u8,
+    pub zone: i8,
+    pub location: (u8, u8),
+}
+
+impl VisibleResource {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
+        let mut vis = Self::default();
+        vis.object_id = input.read_u32::<LE>()?.into();
+        vis.distance = input.read_u8()?;
+        vis.zone = input.read_i8()?;
+        vis.location = (
+            input.read_u8()?,
+            input.read_u8()?,
+        );
+        Ok(vis)
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct VisibleResources {
+    lists: Vec<Vec<VisibleResource>>,
+}
+
+impl VisibleResources {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
+        let num_lists = input.read_u32::<LE>()?;
+        let mut sizes = vec![];
+        for _ in 0..num_lists {
+            let _capacity = input.read_u32::<LE>()?;
+            sizes.push(input.read_u32::<LE>()?);
+        }
+        let mut lists = Vec::with_capacity(sizes.len());
+        for size in sizes {
+            let mut list = Vec::with_capacity(size.try_into().unwrap());
+            for _ in 0..size {
+                list.push(VisibleResource::read_from(&mut input)?);
+            }
+            lists.push(list);
+        }
+        Ok(Self { lists })
     }
 }
 
