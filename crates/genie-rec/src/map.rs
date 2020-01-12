@@ -3,15 +3,21 @@ use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::convert::TryInto;
 use std::io::{Read, Write};
 
+/// Data about a map tile.
 #[derive(Debug, Default, Clone)]
 pub struct Tile {
+    /// The terrain type of this tile.
     pub terrain: u8,
+    /// The elevation level of this tile.
     pub elevation: u8,
+    /// The original terrain type of this tile, if it was later replaced, for example by placing a
+    /// Farm. UserPatch 1.5 only.
     pub original_terrain: Option<u8>,
 }
 
 impl Tile {
-    fn read_from(mut input: impl Read) -> Result<Self> {
+    /// Read a tile from an input stream.
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let terrain = input.read_u8()?;
         let (terrain, elevation, original_terrain) = if terrain == 0xFF {
             (input.read_u8()?, input.read_u8()?, Some(input.read_u8()?))
@@ -25,7 +31,8 @@ impl Tile {
         })
     }
 
-    fn write_to(&self, mut output: impl Write) -> Result<()> {
+    /// Write a tile to an output stream.
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
         match self.original_terrain {
             Some(t) => {
                 output.write_u8(0xFF)?;
@@ -44,6 +51,8 @@ impl Tile {
 
 #[derive(Debug, Clone)]
 pub struct MapZone {
+    /// Zone information—this is a Vec<> of a fixed size, and can only be accessed as a slice
+    /// through the `info()` accessors to prevent modifications to the size.
     info: Vec<i8>,
     tiles: Vec<i32>,
     pub zone_map: Vec<i8>,
@@ -109,24 +118,31 @@ impl MapZone {
         assert_eq!(self.info.len(), 255);
         &self.info
     }
+
     pub fn info_mut(&mut self) -> &mut [i8] {
         assert_eq!(self.info.len(), 255);
         &mut self.info
     }
+
     pub fn tiles(&self) -> &[i32] {
         assert_eq!(self.tiles.len(), 255);
         &self.tiles
     }
+
     pub fn tiles_mut(&mut self) -> &mut [i32] {
         assert_eq!(self.tiles.len(), 255);
         &mut self.tiles
     }
 }
 
+///
 #[derive(Debug, Default, Clone)]
 pub struct VisibilityMap {
+    /// Width of the visibility map.
     pub width: u32,
+    /// Height of the visibility map.
     pub height: u32,
+    /// Visibility flags for each tile.
     pub visibility: Vec<u32>,
 }
 
@@ -155,18 +171,27 @@ impl VisibilityMap {
     }
 }
 
+/// Information about the map being played.
 #[derive(Debug, Default, Clone)]
 pub struct Map {
+    /// Width of the map.
     pub width: u32,
+    /// Height of the map.
     pub height: u32,
+    /// Map zones.
     pub zones: Vec<MapZone>,
+    /// Is the "All Visible" flag set?
     pub all_visible: bool,
+    /// Is fog of war enabled?
     pub fog_of_war: bool,
-    pub terrain: Vec<Tile>,
+    /// The tiles in this map, containing terrain and elevation data.
+    pub tiles: Vec<Tile>,
+    /// The visibility map, containing line of sight data for each player.
     pub visibility: VisibilityMap,
 }
 
 impl Map {
+    /// Read map data from an input stream.
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut map = Self::default();
         map.width = input.read_u32::<LE>()?;
@@ -179,9 +204,9 @@ impl Map {
         }
         map.all_visible = input.read_u8()? != 0;
         map.fog_of_war = input.read_u8()? != 0;
-        map.terrain = Vec::with_capacity((map.width * map.height).try_into().unwrap());
+        map.tiles = Vec::with_capacity((map.width * map.height).try_into().unwrap());
         for _ in 0..(map.width * map.height) {
-            map.terrain.push(Tile::read_from(&mut input)?);
+            map.tiles.push(Tile::read_from(&mut input)?);
         }
 
         let _umv = {
@@ -200,11 +225,13 @@ impl Map {
         Ok(map)
     }
 
-    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+    /// Write map data to an output stream.
+    pub fn write_to(&self, _output: impl Write) -> Result<()> {
         unimplemented!()
     }
 }
 
+/// Skip over a number of bytes in an input stream.
 fn skip<R: Read>(input: &mut R, bytes: u64) -> std::io::Result<()> {
     std::io::copy(&mut input.by_ref().take(bytes), &mut std::io::sink())?;
     Ok(())

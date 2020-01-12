@@ -4,8 +4,8 @@ use std::io::{Read, Write};
 use std::cmp;
 use std::fmt;
 use arrayvec::ArrayVec;
-use genie_support::{StringKey, UnitTypeID};
-use genie_dat::AttributeCost;
+pub use genie_support::{StringKey, UnitTypeID};
+pub use genie_dat::AttributeCost;
 use byteorder::{LE, ReadBytesExt, WriteBytesExt};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -48,12 +48,12 @@ impl cmp::PartialOrd for UnitBaseClass {
                 _ => None,
             },
             _ => match other {
-                Self::Doppelganger => if self_n > other_n {
+                Self::Doppelganger => if self_n < other_n {
                     Some(cmp::Ordering::Less)
                 } else {
                     None
                 },
-                Self::Missile => if self_n > other_n {
+                Self::Missile => if self_n < other_n {
                     Some(cmp::Ordering::Less)
                 } else {
                     None
@@ -444,3 +444,17 @@ impl BuildingUnitAttributes {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cmp_unit_base_class() {
+        assert!(UnitBaseClass::Static == UnitBaseClass::Static);
+        assert!(UnitBaseClass::Static < UnitBaseClass::Animated);
+        assert!(UnitBaseClass::Static < UnitBaseClass::Doppelganger);
+        assert!(UnitBaseClass::Animated < UnitBaseClass::Doppelganger);
+        assert!(!(UnitBaseClass::Moving < UnitBaseClass::Doppelganger));
+        assert!(!(UnitBaseClass::Moving > UnitBaseClass::Doppelganger));
+    }
+}

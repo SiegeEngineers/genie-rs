@@ -108,6 +108,7 @@ impl From<SpriteID> for usize {
 }
 
 fallible_try_into!(SpriteID, i16);
+fallible_try_from!(SpriteID, i16);
 fallible_try_from!(SpriteID, i32);
 fallible_try_from!(SpriteID, u32);
 

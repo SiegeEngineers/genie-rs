@@ -105,7 +105,7 @@ impl Civilization {
                 continue;
             }
             civ.unit_types
-                .push(Some(UnitType::read_from(input, version)?));
+                .push(Some(UnitType::read_from(input, version.as_f32())?));
         }
 
         Ok(civ)
@@ -132,7 +132,7 @@ impl Civilization {
         }
         for opt in &self.unit_types {
             if let Some(unit_type) = opt {
-                unit_type.write_to(output, version)?;
+                unit_type.write_to(output, version.as_f32())?;
             }
         }
         Ok(())

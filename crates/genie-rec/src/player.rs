@@ -1,5 +1,6 @@
 use crate::{ObjectID, PlayerID, Result};
 use crate::unit_type::CompactUnitType;
+use crate::unit::Unit;
 use std::convert::TryInto;
 use std::io::{Read, Write};
 use genie_dat::{CivilizationID, TechTree};
@@ -29,6 +30,9 @@ pub struct Player {
     pub unit_types: Vec<Option<CompactUnitType>>,
     pub visible_map: VisibleMap,
     pub visible_resources: VisibleResources,
+    pub units: Vec<Unit>,
+    pub sleeping_units: Vec<Unit>,
+    pub doppelganger_units: Vec<Unit>,
 }
 
 impl Player {
@@ -398,6 +402,48 @@ impl Player {
 
         player.visible_map = VisibleMap::read_from(&mut input, version)?;
         player.visible_resources = VisibleResources::read_from(&mut input)?;
+
+        if version >= 10.55 {
+            assert_eq!(input.read_u8()?, 11);
+        }
+
+        player.units = {
+            let _list_size = input.read_u32::<LE>()?;
+            let _grow_size = input.read_u32::<LE>()?;
+            let mut units = vec![];
+            while let Some(unit) = Unit::read_from(&mut input, version)? {
+                units.push(unit);
+            }
+            units
+        };
+
+        if version >= 10.55 {
+            assert_eq!(input.read_u8()?, 11);
+        }
+
+        player.sleeping_units = {
+            let _list_size = input.read_u32::<LE>()?;
+            let _grow_size = input.read_u32::<LE>()?;
+            let mut units = vec![];
+            while let Some(unit) = Unit::read_from(&mut input, version)? {
+                units.push(unit);
+            }
+            units
+        };
+
+        if version >= 10.55 {
+            assert_eq!(input.read_u8()?, 11);
+        }
+
+        player.doppelganger_units = {
+            let _list_size = input.read_u32::<LE>()?;
+            let _grow_size = input.read_u32::<LE>()?;
+            let mut units = vec![];
+            while let Some(unit) = Unit::read_from(&mut input, version)? {
+                units.push(unit);
+            }
+            units
+        };
 
         if version >= 10.55 {
             assert_eq!(input.read_u8()?, 11);

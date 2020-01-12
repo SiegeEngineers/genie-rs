@@ -2,7 +2,6 @@ use crate::sound::SoundID;
 use crate::sprite::{GraphicID, SpriteID};
 use crate::task::TaskList;
 use crate::terrain::TerrainID;
-use crate::GameVersion;
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 pub use genie_support::UnitTypeID;
@@ -97,7 +96,7 @@ impl UnitType {
     }
 
     /// Read a unit type from an input stream.
-    pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, version: f32) -> Result<Self> {
         let unit_type = input.read_u8()?;
         match unit_type {
             10 => BaseUnitType::read_from(input, version).map_into(),
@@ -115,7 +114,7 @@ impl UnitType {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to<W: Write>(&self, output: &mut W, version: GameVersion) -> Result<()> {
+    pub fn write_to<W: Write>(&self, output: &mut W, version: f32) -> Result<()> {
         use UnitType::*;
         output.write_u8(self.type_id())?;
 
@@ -311,7 +310,7 @@ pub struct BaseUnitType {
 }
 
 impl BaseUnitType {
-    pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, version: f32) -> Result<Self> {
         let mut unit_type = Self::default();
         let name_len = input.read_u16::<LE>()?;
         unit_type.id = input.read_u16::<LE>()?.into();
@@ -367,7 +366,7 @@ impl BaseUnitType {
         unit_type.occlusion_mask = input.read_u8()?;
         unit_type.obstruction_type = input.read_u8()?;
         unit_type.selection_shape = input.read_u8()?;
-        unit_type.object_flags = if version.as_f32() < 11.55 {
+        unit_type.object_flags = if version < 11.55 {
             0
         } else {
             input.read_u32::<LE>()?
@@ -408,7 +407,7 @@ impl BaseUnitType {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to<W: Write>(&self, output: &mut W, version: GameVersion) -> Result<()> {
+    pub fn write_to<W: Write>(&self, output: &mut W, version: f32) -> Result<()> {
         output.write_u16::<LE>(self.id.into())?;
         output.write_i16::<LE>((&self.string_id).try_into().unwrap())?;
         write_opt_string_key(output, &self.string_id2)?;
@@ -535,12 +534,12 @@ impl BaseUnitType {
 pub struct TreeUnitType(BaseUnitType);
 
 impl TreeUnitType {
-    pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, version: f32) -> Result<Self> {
         BaseUnitType::read_from(input, version).map(Self)
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to<W: Write>(&self, output: &mut W, version: GameVersion) -> Result<()> {
+    pub fn write_to<W: Write>(&self, output: &mut W, version: f32) -> Result<()> {
         self.0.write_to(output, version)
     }
 }
@@ -552,7 +551,7 @@ pub struct AnimatedUnitType {
 }
 
 impl AnimatedUnitType {
-    pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, version: f32) -> Result<Self> {
         Ok(Self {
             superclass: BaseUnitType::read_from(input, version)?,
             speed: input.read_f32::<LE>()?,
@@ -560,7 +559,7 @@ impl AnimatedUnitType {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to<W: Write>(&self, output: &mut W, version: GameVersion) -> Result<()> {
+    pub fn write_to<W: Write>(&self, output: &mut W, version: f32) -> Result<()> {
         self.superclass.write_to(output, version)?;
         output.write_f32::<LE>(self.speed)?;
         Ok(())
@@ -571,12 +570,12 @@ impl AnimatedUnitType {
 pub struct DopplegangerUnitType(AnimatedUnitType);
 
 impl DopplegangerUnitType {
-    pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, version: f32) -> Result<Self> {
         AnimatedUnitType::read_from(input, version).map(Self)
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to<W: Write>(&self, output: &mut W, version: GameVersion) -> Result<()> {
+    pub fn write_to<W: Write>(&self, output: &mut W, version: f32) -> Result<()> {
         self.0.write_to(output, version)
     }
 }
@@ -600,7 +599,7 @@ pub struct MovingUnitType {
 }
 
 impl MovingUnitType {
-    pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, version: f32) -> Result<Self> {
         let mut unit_type = Self {
             superclass: AnimatedUnitType::read_from(input, version)?,
             ..Default::default()
@@ -622,7 +621,7 @@ impl MovingUnitType {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to<W: Write>(&self, output: &mut W, version: GameVersion) -> Result<()> {
+    pub fn write_to<W: Write>(&self, output: &mut W, version: f32) -> Result<()> {
         self.superclass.write_to(output, version)?;
         output.write_i16::<LE>(
             self.move_sprite
@@ -671,7 +670,7 @@ pub struct ActionUnitType {
 }
 
 impl ActionUnitType {
-    pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, version: f32) -> Result<Self> {
         let mut unit_type = Self {
             superclass: MovingUnitType::read_from(input, version)?,
             ..Default::default()
@@ -689,7 +688,7 @@ impl ActionUnitType {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to<W: Write>(&self, output: &mut W, version: GameVersion) -> Result<()> {
+    pub fn write_to<W: Write>(&self, output: &mut W, version: f32) -> Result<()> {
         self.superclass.write_to(output, version)?;
         output.write_i16::<LE>(
             self.default_task
@@ -770,12 +769,12 @@ pub struct BaseCombatUnitType {
 }
 
 impl BaseCombatUnitType {
-    pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, version: f32) -> Result<Self> {
         let mut unit_type = Self {
             superclass: ActionUnitType::read_from(input, version)?,
             ..Default::default()
         };
-        unit_type.base_armor = if version.as_f32() < 11.52 {
+        unit_type.base_armor = if version < 11.52 {
             input.read_u8()?.into()
         } else {
             input.read_u16::<LE>()?
@@ -813,7 +812,7 @@ impl BaseCombatUnitType {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to<W: Write>(&self, _output: &mut W, version: GameVersion) -> Result<()> {
+    pub fn write_to<W: Write>(&self, _output: &mut W, version: f32) -> Result<()> {
         unimplemented!();
     }
 }
@@ -831,7 +830,7 @@ pub struct MissileUnitType {
 
 impl MissileUnitType {
     /// Read this unit type from an input stream.
-    pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, version: f32) -> Result<Self> {
         let mut unit_type = Self {
             superclass: BaseCombatUnitType::read_from(input, version)?,
             ..Default::default()
@@ -846,7 +845,7 @@ impl MissileUnitType {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to<W: Write>(&self, output: &mut W, version: GameVersion) -> Result<()> {
+    pub fn write_to<W: Write>(&self, output: &mut W, version: f32) -> Result<()> {
         self.superclass.write_to(output, version)?;
         output.write_u8(self.missile_type)?;
         output.write_u8(self.targetting_type)?;
@@ -920,7 +919,7 @@ pub struct CombatUnitType {
 
 impl CombatUnitType {
     /// Read this unit type from an input stream.
-    pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, version: f32) -> Result<Self> {
         let mut unit_type = Self {
             superclass: BaseCombatUnitType::read_from(input, version)?,
             ..Default::default()
@@ -974,7 +973,7 @@ impl CombatUnitType {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to<W: Write>(&self, _output: &mut W, version: GameVersion) -> Result<()> {
+    pub fn write_to<W: Write>(&self, _output: &mut W, version: f32) -> Result<()> {
         unimplemented!();
     }
 }
@@ -1048,13 +1047,13 @@ pub struct BuildingUnitType {
 
 impl BuildingUnitType {
     /// Read this unit type from an input stream.
-    pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, version: f32) -> Result<Self> {
         let mut unit_type = Self {
             superclass: CombatUnitType::read_from(input, version)?,
             ..Default::default()
         };
         unit_type.construction_sprite = read_opt_u16(input)?.map_into();
-        unit_type.snow_sprite = if version.as_f32() < 11.53 {
+        unit_type.snow_sprite = if version < 11.53 {
             None
         } else {
             read_opt_u16(input)?.map_into()
@@ -1090,7 +1089,7 @@ impl BuildingUnitType {
     }
 
     /// Write the unit type to an output stream.
-    pub fn write_to<W: Write>(&self, _output: &mut W, version: GameVersion) -> Result<()> {
+    pub fn write_to<W: Write>(&self, _output: &mut W, version: f32) -> Result<()> {
         unimplemented!()
     }
 }
