@@ -9,5 +9,6 @@ license = "GPL-3.0"
 arrayvec = "0.5"
 byteorder = "^1.3.1"
 flate2 = { version = "^1.0.0", features = ["rust_backend"], default-features = false }
+genie-dat = { version = "0.1.0", path = "../genie-dat" }
 genie-scx = { version = "2.0.0", path = "../genie-scx" }
 genie-support = { version = "0.0.0", path = "../genie-support", features = ["strings"] }

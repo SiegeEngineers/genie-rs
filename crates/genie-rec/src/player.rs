@@ -2,30 +2,49 @@ use crate::ObjectID;
 use crate::Result;
 use std::convert::TryInto;
 use std::io::{Read, Write};
+use genie_dat::{CivilizationID, TechTree};
 use byteorder::{LE, ReadBytesExt, WriteBytesExt};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct Player {
+    player_type: u8,
+    relations: Vec<u8>,
+    diplomacy: [u32; 9],
+    allied_los: bool,
+    allied_victory: bool,
+    name: String,
+    pub attributes: Vec<f32>,
+    initial_view: (f32, f32),
+    saved_views: Vec<(f32, f32)>,
+    spawn_location: (u16, u16),
+    culture_id: u8,
+    pub civilization_id: CivilizationID,
+    game_status: u8,
+    resigned: bool,
+    pub userpatch_data: Option<UserPatchData>,
+    pub tech_state: PlayerTech,
+    pub tech_tree: Option<TechTree>,
 }
 
 impl Player {
     pub fn read_from(mut input: impl Read, version: f32, num_players: u8) -> Result<Self> {
-        let ty = input.read_u8()?;
+        let mut player = Self::default();
+
+        player.player_type = input.read_u8()?;
         if version >= 10.55 {
             assert_eq!(input.read_u8()?, 11);
         }
-        let mut relations = vec![0; usize::from(num_players)];
-        for r in relations.iter_mut() {
+        player.relations = vec![0; usize::from(num_players)];
+        for r in player.relations.iter_mut() {
             *r = input.read_u8()?;
         }
-        let mut diplomacy = vec![0; 9];
-        for r in diplomacy.iter_mut() {
+        for r in player.diplomacy.iter_mut() {
             *r = input.read_u32::<LE>()?;
         }
-        let allied_los = input.read_u32::<LE>()? != 0;
-        let allied_victory = input.read_u8()? != 0;
+        player.allied_los = input.read_u32::<LE>()? != 0;
+        player.allied_victory = input.read_u8()? != 0;
         let name_len = input.read_u16::<LE>()?;
-        let name = genie_support::read_str(&mut input, usize::from(name_len))?;
+        player.name = genie_support::read_str(&mut input, usize::from(name_len))?.unwrap_or_else(String::new);
         if version >= 10.55 {
             assert_eq!(input.read_u8()?, 22);
         }
@@ -33,25 +52,25 @@ impl Player {
         if version >= 10.55 {
             assert_eq!(input.read_u8()?, 33);
         }
-        let mut attributes = vec![0.0; num_attributes.try_into().unwrap()];
-        for v in attributes.iter_mut() {
+        player.attributes = vec![0.0; num_attributes.try_into().unwrap()];
+        for v in player.attributes.iter_mut() {
             *v = input.read_f32::<LE>()?;
         }
         if version >= 10.55 {
             assert_eq!(input.read_u8()?, 11);
         }
-        let view = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
+        player.initial_view = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
         let num_saved_views = input.read_i32::<LE>()?;
         // saved view count can be negative
-        let mut saved_views = vec![(0.0, 0.0); num_saved_views.try_into().unwrap_or(0)];
-        for sv in saved_views.iter_mut() {
+        player.saved_views = vec![(0.0, 0.0); num_saved_views.try_into().unwrap_or(0)];
+        for sv in player.saved_views.iter_mut() {
             *sv = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
         }
-        let spawn_location = (input.read_u16::<LE>()?, input.read_u16::<LE>()?);
-        let culture = input.read_u8()?;
-        let civilization_id = input.read_u8()?;
-        let game_status = input.read_u8()?;
-        let resigned = input.read_u8()? != 0;
+        player.spawn_location = (input.read_u16::<LE>()?, input.read_u16::<LE>()?);
+        player.culture_id = input.read_u8()?;
+        player.civilization_id = input.read_u8()?.into();
+        player.game_status = input.read_u8()?;
+        player.resigned = input.read_u8()? != 0;
         if version >= 10.55 {
             assert_eq!(input.read_u8()?, 11);
         }
@@ -106,7 +125,7 @@ impl Player {
             0.0
         };
 
-        // Escrow
+        // escrow
         let pending_debits = (
             input.read_f32::<LE>()?,
             input.read_f32::<LE>()?,
@@ -171,6 +190,7 @@ impl Player {
         let update_count = input.read_u32::<LE>()?;
         let update_count_need_help = input.read_u32::<LE>()?;
 
+        // ai attack data
         if version >= 10.02 {
             let alerted_enemy_count = input.read_u32::<LE>()?;
             let regular_attack_count = input.read_u32::<LE>()?;
@@ -191,12 +211,295 @@ impl Player {
         let update_time = input.read_f32::<LE>()?;
 
         // if is userpatch
-        let up_data = UserPatchData::read_from(&mut input)?;
+        player.userpatch_data = Some(UserPatchData::read_from(&mut input)?);
 
-        let tech = PlayerTech::read_from(&mut input)?;
-        dbg!(tech);
+        player.tech_state = PlayerTech::read_from(&mut input)?;
 
-        Ok(Player {})
+        let update_history_count = input.read_u32::<LE>()?;
+        let history_info = HistoryInfo::read_from(&mut input, version)?;
+
+        if version >= 5.30 {
+            let ruin_held_time = input.read_u32::<LE>()?;
+            let artifact_held_time = input.read_u32::<LE>()?;
+        }
+
+        if version >= 10.55 {
+            assert_eq!(input.read_u8()?, 11);
+        }
+
+        // diplomacy
+        if version >= 9.13 {
+            let mut diplomacy = [0; 9];
+            let mut intelligence = [0; 9];
+            let mut trade = [0; 9];
+            let mut offer = vec![];
+            for i in 0..9 {
+                diplomacy[i] = input.read_u8()?;
+                intelligence[i] = input.read_u8()?;
+                trade[i] = input.read_u8()?;
+
+                offer.push(DiplomacyOffer::read_from(&mut input)?);
+            }
+            let fealty = input.read_u16::<LE>()?;
+        }
+
+        if version >= 10.55 {
+            assert_eq!(input.read_u8()?, 11);
+        }
+
+        // off-map trade
+        if version >= 9.17 {
+            let mut off_map_trade_route_explored = [0; 20];
+            for v in off_map_trade_route_explored.iter_mut() {
+                *v = input.read_u8()?;
+            }
+        }
+
+        if version >= 9.18 {
+            let mut off_map_trade_route_being_explored = [0; 20];
+            for v in off_map_trade_route_being_explored.iter_mut() {
+                *v = input.read_u8()?;
+            }
+        }
+
+        if version >= 10.55 {
+            assert_eq!(input.read_u8()?, 11);
+        }
+
+        // market trading
+        if version >= 9.22 {
+            let max_trade_amount = input.read_u32::<LE>()?;
+            let old_max_trade_amount = input.read_u32::<LE>()?;
+            let max_trade_limit = input.read_u32::<LE>()?;
+            let current_wood_limit = input.read_u32::<LE>()?;
+            let current_food_limit = input.read_u32::<LE>()?;
+            let current_stone_limit = input.read_u32::<LE>()?;
+            let current_ore_limit = input.read_u32::<LE>()?;
+            let commodity_volume_delta = input.read_i32::<LE>()?;
+            let trade_vig_rate = input.read_f32::<LE>()?;
+            let trade_refresh_timer = input.read_u32::<LE>()?;
+            let trade_refresh_rate = input.read_u32::<LE>()?;
+        }
+
+        let prod_queue_enabled = if version >= 9.67 {
+            input.read_u8()? != 0
+        } else {
+            true
+        };
+
+        // ai dodging ability
+        if version >= 9.90 {
+            let chance_to_dodge_missiles = input.read_u8()?;
+            let chance_for_archers_to_maintain_distance = input.read_u8()?;
+        }
+
+        let open_gates_for_pathing_count = if version >= 11.42 {
+            input.read_u32::<LE>()?
+        } else {
+            0
+        };
+        let farm_queue_count = if version >= 11.57 {
+            input.read_u32::<LE>()?
+        } else {
+            0
+        };
+        let nomad_build_lock = if version >= 11.75 {
+            input.read_u32::<LE>()? != 0
+        } else {
+            false
+        };
+
+        if version >= 9.30 {
+            let old_kills = input.read_u32::<LE>()?;
+            let old_razings = input.read_u32::<LE>()?;
+            let battle_mode = input.read_u32::<LE>()?;
+            let razings_mode = input.read_u32::<LE>()?;
+            let total_kills = input.read_u32::<LE>()?;
+            let total_razings = input.read_u32::<LE>()?;
+        }
+
+        if version >= 9.31 {
+            let old_hit_points = input.read_u32::<LE>()?;
+            let total_hit_points = input.read_u32::<LE>()?;
+        }
+
+        if version >= 9.32 {
+            let mut old_player_kills = [0; 9];
+            for v in old_player_kills.iter_mut() {
+                *v = input.read_u32::<LE>()?;
+            }
+        }
+
+        player.tech_tree = if version >= 9.38 {
+            Some(TechTree::read_from(&mut input)?)
+        } else {
+            None
+        };
+
+        if version >= 10.55 {
+            assert_eq!(input.read_u8()?, 11);
+        }
+
+        let player_ai = if player.player_type == 3 && input.read_u32::<LE>()? == 1 {
+            todo!();
+            Some(0)
+        } else {
+            None
+        };
+
+        Ok(player)
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+struct DiplomacyOffer {
+    sequence: u8,
+    started_by: u8,
+    actual_time: u32,
+    game_time: u32,
+    declare: u8,
+    old_diplomacy: u8,
+    new_diplomacy: u8,
+    old_intelligence: u8,
+    new_intelligence: u8,
+    old_trade: u8,
+    new_trade: u8,
+    demand: u8,
+    gold: u32,
+    message: Option<String>,
+    status: u8,
+}
+
+impl DiplomacyOffer {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
+        let mut offer = Self::default();
+        offer.sequence = input.read_u8()?;
+        offer.started_by = input.read_u8()?;
+        offer.actual_time = 0;
+        offer.game_time = input.read_u32::<LE>()?;
+        offer.declare = input.read_u8()?;
+        offer.old_diplomacy = input.read_u8()?;
+        offer.new_diplomacy = input.read_u8()?;
+        offer.old_intelligence = input.read_u8()?;
+        offer.new_intelligence = input.read_u8()?;
+        offer.old_trade = input.read_u8()?;
+        offer.new_trade = input.read_u8()?;
+        offer.demand = input.read_u8()?;
+        offer.gold = input.read_u32::<LE>()?;
+        let message_len = input.read_u8()?;
+        offer.message = genie_support::read_str(&mut input, usize::from(message_len))?;
+        offer.status = input.read_u8()?;
+        Ok(offer)
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct HistoryInfo {
+    entries: Vec<HistoryEntry>,
+    events: Vec<HistoryEvent>,
+}
+
+impl HistoryInfo {
+    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+        let _padding = input.read_u8()?;
+        let num_entries = input.read_u32::<LE>()?;
+        let _num_events = input.read_u32::<LE>()?;
+        let entries_capacity = input.read_u32::<LE>()?;
+        let mut entries = Vec::with_capacity(entries_capacity.try_into().unwrap());
+        for _ in 0..num_entries {
+            entries.push(HistoryEntry::read_from(&mut input, version)?);
+        }
+
+        let _padding = input.read_u8()?;
+
+        let num_events = input.read_u32::<LE>()?;
+        let mut events = Vec::with_capacity(num_events.try_into().unwrap());
+        for _ in 0..num_events {
+            events.push(HistoryEvent::read_from(&mut input)?);
+        }
+
+        let razings = input.read_i32::<LE>()?;
+        let hit_points_razed = input.read_i32::<LE>()?;
+        let razed_by_others = input.read_i32::<LE>()?;
+        let hit_points_razed_by_others = input.read_i32::<LE>()?;
+        let kills = input.read_i32::<LE>()?;
+        let hit_points_killed = input.read_i32::<LE>()?;
+        let killed_by_others = input.read_i32::<LE>()?;
+        let hit_points_killed_by_others = input.read_i32::<LE>()?;
+        let razings_weight = input.read_i32::<LE>()?;
+        let kills_weight = input.read_i32::<LE>()?;
+        let razings_percent = input.read_i32::<LE>()?;
+        let kills_percent = input.read_i32::<LE>()?;
+        let razing_mode = input.read_i32::<LE>()?;
+        let battle_mode = input.read_i32::<LE>()?;
+        let update_count = input.read_i32::<LE>()?;
+        let old_current_units_created = input.read_i32::<LE>()?;
+        let old_current_buildings_built = input.read_i32::<LE>()?;
+        let mut old_kills = [0; 8];
+        for v in old_kills.iter_mut() {
+            *v = input.read_u16::<LE>()?;
+        }
+        let mut old_kill_bvs = [0; 8];
+        for v in old_kill_bvs.iter_mut() {
+            *v = input.read_u32::<LE>()?;
+        }
+        let mut old_razings = [0; 8];
+        for v in old_razings.iter_mut() {
+            *v = input.read_u16::<LE>()?;
+        }
+        let mut old_razing_bvs = [0; 8];
+        for v in old_razing_bvs.iter_mut() {
+            *v = input.read_u32::<LE>()?;
+        }
+        let running_average_bv_percent = input.read_i32::<LE>()?;
+        let running_total_bv_kills = input.read_i32::<LE>()?;
+        let running_total_bv_razings = input.read_i32::<LE>()?;
+        let running_total_kills = input.read_i16::<LE>()?;
+        let running_total_razings = input.read_i16::<LE>()?;
+
+        let _padding = input.read_u8()?;
+
+        Ok(Self {
+            entries,
+            events,
+        })
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct HistoryEvent {
+    pub event_type: i8,
+    pub time_slice: u32,
+    pub world_time: u32,
+    pub params: (f32, f32, f32),
+}
+
+impl HistoryEvent {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
+        let mut event = Self::default();
+        event.event_type = input.read_i8()?;
+        event.time_slice = input.read_u32::<LE>()?;
+        event.world_time = input.read_u32::<LE>()?;
+        event.params = (
+            input.read_f32::<LE>()?,
+            input.read_f32::<LE>()?,
+            input.read_f32::<LE>()?,
+        );
+        Ok(event)
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct HistoryEntry {
+    pub civilian_population: u16,
+    pub military_population: u16,
+}
+
+impl HistoryEntry {
+    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+        let civilian_population = input.read_u16::<LE>()?;
+        let military_population = input.read_u16::<LE>()?;
+        Ok(HistoryEntry { civilian_population, military_population })
     }
 }
 
@@ -223,7 +526,7 @@ impl TechState {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct PlayerTech {
     pub techs: Vec<TechState>,
 }

@@ -9,17 +9,29 @@ use std::io::{Read, Result, Write};
 
 /// An ID identifying a civilization
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub struct CivilizationID(u16);
+pub struct CivilizationID(u8);
 
-impl From<u16> for CivilizationID {
-    fn from(n: u16) -> Self {
+impl From<u8> for CivilizationID {
+    fn from(n: u8) -> Self {
         CivilizationID(n)
+    }
+}
+
+impl From<CivilizationID> for u8 {
+    fn from(n: CivilizationID) -> Self {
+        n.0
     }
 }
 
 impl From<CivilizationID> for u16 {
     fn from(n: CivilizationID) -> Self {
-        n.0
+        n.0.into()
+    }
+}
+
+impl From<CivilizationID> for u32 {
+    fn from(n: CivilizationID) -> Self {
+        n.0.into()
     }
 }
 
@@ -29,8 +41,11 @@ impl From<CivilizationID> for usize {
     }
 }
 
-fallible_try_into!(CivilizationID, i16);
-infallible_try_into!(CivilizationID, u32);
+infallible_try_into!(CivilizationID, i16);
+infallible_try_into!(CivilizationID, i32);
+fallible_try_from!(CivilizationID, i8);
+fallible_try_from!(CivilizationID, i16);
+fallible_try_from!(CivilizationID, u16);
 fallible_try_from!(CivilizationID, i32);
 fallible_try_from!(CivilizationID, u32);
 
