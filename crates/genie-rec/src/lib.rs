@@ -3,6 +3,7 @@ pub mod header;
 pub mod map;
 pub mod player;
 pub mod string_table;
+pub mod unit_type;
 
 use crate::actions::{Action, Meta};
 use byteorder::{ReadBytesExt, LE};

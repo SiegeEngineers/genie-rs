@@ -1,5 +1,5 @@
-use crate::ObjectID;
-use crate::Result;
+use crate::{ObjectID, Result};
+use crate::unit_type::CompactUnitType;
 use std::convert::TryInto;
 use std::io::{Read, Write};
 use genie_dat::{CivilizationID, TechTree};
@@ -23,7 +23,9 @@ pub struct Player {
     resigned: bool,
     pub userpatch_data: Option<UserPatchData>,
     pub tech_state: PlayerTech,
+    pub history_info: HistoryInfo,
     pub tech_tree: Option<TechTree>,
+    pub gaia: Option<GaiaData>,
 }
 
 impl Player {
@@ -216,7 +218,7 @@ impl Player {
         player.tech_state = PlayerTech::read_from(&mut input)?;
 
         let update_history_count = input.read_u32::<LE>()?;
-        let history_info = HistoryInfo::read_from(&mut input, version)?;
+        player.history_info = HistoryInfo::read_from(&mut input, version)?;
 
         if version >= 5.30 {
             let ruin_held_time = input.read_u32::<LE>()?;
@@ -347,7 +349,152 @@ impl Player {
             None
         };
 
+        if version >= 10.55 {
+            assert_eq!(input.read_u8()?, 11);
+        }
+
+        player.gaia = if player.player_type == 2 {
+            Some(GaiaData::read_from(&mut input)?)
+        } else {
+            None
+        };
+
+        if version >= 10.55 {
+            assert_eq!(input.read_u8()?, 11);
+        }
+
+        let num_object_types = input.read_u32::<LE>()?;
+        let mut available_object_types = vec![false; num_object_types.try_into().unwrap()];
+        for available in available_object_types.iter_mut() {
+            *available = input.read_u32::<LE>()? != 0;
+        }
+
+        if version >= 10.55 {
+            assert_eq!(input.read_u8()?, 11);
+        }
+
+        let mut object_types = Vec::with_capacity(available_object_types.len());
+        for available in available_object_types {
+            object_types.push(if !available {
+                None
+            } else {
+                if version >= 10.55 {
+                    assert_eq!(input.read_u8()?, 22);
+                }
+                let ty = CompactUnitType::read_from(&mut input, version)?;
+                if version >= 10.55 {
+                    assert_eq!(input.read_u8()?, 33);
+                }
+                Some(ty)
+            });
+        }
+
         Ok(player)
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct GaiaData {
+    update_time: u32,
+    update_nature: u32,
+    creatures: [GaiaCreature; 5],
+    next_wolf_attack_update_time: u32,
+    wolf_attack_update_interval: u32,
+    wolf_attack_stop_time: u32,
+    min_villager_distance: f32,
+    tc_positions: [(f32, f32); 9],
+    wolf_current_player: u32,
+    wolf_current_villagers: [u32; 10],
+    wolf_current_villager: Option<ObjectID>,
+    wolf_villager_count: u32,
+    wolves: [GaiaWolfInfo; 25],
+    current_wolf: Option<ObjectID>,
+    wolf_counts: [u32; 10],
+}
+
+impl GaiaData {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
+        let mut gaia = Self::default();
+        gaia.update_time = input.read_u32::<LE>()?;
+        gaia.update_nature = input.read_u32::<LE>()?;
+        for creature in gaia.creatures.iter_mut() {
+            *creature = GaiaCreature::read_from(&mut input)?;
+        }
+        gaia.next_wolf_attack_update_time = input.read_u32::<LE>()?;
+        gaia.wolf_attack_update_interval = input.read_u32::<LE>()?;
+        gaia.wolf_attack_stop_time = input.read_u32::<LE>()?;
+        gaia.min_villager_distance = input.read_f32::<LE>()?;
+        for pos in gaia.tc_positions.iter_mut() {
+            pos.0 = input.read_f32::<LE>()?;
+        }
+        for pos in gaia.tc_positions.iter_mut() {
+            pos.1 = input.read_f32::<LE>()?;
+        }
+        gaia.wolf_current_player = input.read_u32::<LE>()?;
+        for v in gaia.wolf_current_villagers.iter_mut() {
+            *v = input.read_u32::<LE>()?;
+        }
+        gaia.wolf_current_villager = match input.read_i32::<LE>()? {
+            -1 => None,
+            id => Some(id.try_into().unwrap()),
+        };
+        gaia.wolf_villager_count = input.read_u32::<LE>()?;
+        for wolf in gaia.wolves.iter_mut() {
+            *wolf = GaiaWolfInfo::read_from(&mut input)?;
+        }
+        gaia.current_wolf = match input.read_i32::<LE>()? {
+            -1 => None,
+            id => Some(id.try_into().unwrap()),
+        };
+        for v in gaia.wolf_counts.iter_mut() {
+            *v = input.read_u32::<LE>()?;
+        }
+        Ok(gaia)
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct GaiaCreature {
+    pub growth_rate: f32,
+    pub remainder: f32,
+    pub max: u32,
+}
+
+impl GaiaCreature {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
+        let mut creature = Self::default();
+        creature.growth_rate = input.read_f32::<LE>()?;
+        creature.remainder = input.read_f32::<LE>()?;
+        creature.max = input.read_u32::<LE>()?;
+        Ok(creature)
+    }
+
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+        output.write_f32::<LE>(self.growth_rate)?;
+        output.write_f32::<LE>(self.remainder)?;
+        output.write_u32::<LE>(self.max)?;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct GaiaWolfInfo {
+    pub id: u32,
+    pub distance: f32,
+}
+
+impl GaiaWolfInfo {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
+        let mut wolf = Self::default();
+        wolf.id = input.read_u32::<LE>()?;
+        wolf.distance = input.read_f32::<LE>()?;
+        Ok(wolf)
+    }
+
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+        output.write_u32::<LE>(self.id)?;
+        output.write_f32::<LE>(self.distance)?;
+        Ok(())
     }
 }
 
@@ -528,17 +675,17 @@ impl TechState {
 
 #[derive(Debug, Default, Clone)]
 pub struct PlayerTech {
-    pub techs: Vec<TechState>,
+    pub tech_states: Vec<TechState>,
 }
 
 impl PlayerTech {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let num_techs = input.read_u16::<LE>()?;
-        let mut techs = Vec::with_capacity(usize::from(num_techs));
+        let mut tech_states = Vec::with_capacity(usize::from(num_techs));
         for _ in 0..num_techs {
-            techs.push(TechState::read_from(&mut input)?);
+            tech_states.push(TechState::read_from(&mut input)?);
         }
-        Ok(Self { techs })
+        Ok(Self { tech_states })
     }
 }
 

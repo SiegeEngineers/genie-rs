@@ -43,6 +43,7 @@ impl From<UnitTypeID> for usize {
 }
 
 fallible_try_into!(UnitTypeID, i16);
+fallible_try_from!(UnitTypeID, i16);
 fallible_try_from!(UnitTypeID, i32);
 fallible_try_from!(UnitTypeID, u32);
 
