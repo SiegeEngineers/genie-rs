@@ -1,4 +1,4 @@
-use crate::{ObjectID, Result};
+use crate::{ObjectID, PlayerID, Result};
 use crate::unit_type::CompactUnitType;
 use std::convert::TryInto;
 use std::io::{Read, Write};
@@ -26,6 +26,7 @@ pub struct Player {
     pub history_info: HistoryInfo,
     pub tech_tree: Option<TechTree>,
     pub gaia: Option<GaiaData>,
+    pub visible_map: VisibleMap,
 }
 
 impl Player {
@@ -363,9 +364,9 @@ impl Player {
             assert_eq!(input.read_u8()?, 11);
         }
 
-        let num_object_types = input.read_u32::<LE>()?;
-        let mut available_object_types = vec![false; num_object_types.try_into().unwrap()];
-        for available in available_object_types.iter_mut() {
+        let num_unit_types = input.read_u32::<LE>()?;
+        let mut available_unit_types = vec![false; num_unit_types.try_into().unwrap()];
+        for available in available_unit_types.iter_mut() {
             *available = input.read_u32::<LE>()? != 0;
         }
 
@@ -373,9 +374,9 @@ impl Player {
             assert_eq!(input.read_u8()?, 11);
         }
 
-        let mut object_types = Vec::with_capacity(available_object_types.len());
-        for available in available_object_types {
-            object_types.push(if !available {
+        player.unit_types.reserve(available_unit_types.len());
+        for available in available_unit_types {
+            player.unit_types.push(if !available {
                 None
             } else {
                 if version >= 10.55 {
@@ -389,7 +390,39 @@ impl Player {
             });
         }
 
+        if version >= 10.55 {
+            assert_eq!(input.read_u8()?, 11);
+        }
+
+        player.visible_map = VisibleMap::read_from(&mut input, version)?;
+
         Ok(player)
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct VisibleMap {
+    pub width: u32,
+    pub height: u32,
+    pub explored_tiles_count: u32,
+    pub player_id: PlayerID,
+    pub tiles: Vec<i8>,
+}
+
+impl VisibleMap {
+    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+        let mut map = Self::default();
+        map.width = input.read_u32::<LE>()?;
+        map.height = input.read_u32::<LE>()?;
+        if version >= 6.70 {
+            map.explored_tiles_count = input.read_u32::<LE>()?;
+        }
+        map.player_id = input.read_u16::<LE>()?.try_into().unwrap();
+        map.tiles = vec![0; (map.width * map.height).try_into().unwrap()];
+        for v in map.tiles.iter_mut() {
+            *v = input.read_i8()?;
+        }
+        Ok(map)
     }
 }
 
