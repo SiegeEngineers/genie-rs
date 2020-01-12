@@ -34,7 +34,7 @@ use std::io::{Read, Result, Write};
 pub use task::{Task, TaskList};
 pub use tech::{Tech, TechEffect};
 pub use tech_tree::{
-    ParseTechTreeStatusError, ParseTechTreeTypeError, TechTree, TechTreeAge, TechTreeBuilding,
+    ParseTechTreeTypeError, TechTree, TechTreeAge, TechTreeBuilding,
     TechTreeDependencies, TechTreeStatus, TechTreeTech, TechTreeType, TechTreeUnit,
 };
 pub use terrain::{
