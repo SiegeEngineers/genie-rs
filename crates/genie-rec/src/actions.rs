@@ -476,11 +476,11 @@ impl PatrolCommand {
         let waypoint_count = input.read_u8()?;
         let _padding = input.read_u8()?;
         let mut raw_waypoints = [(0.0, 0.0); 10];
-        for i in 0..10 {
-            raw_waypoints[i].0 = input.read_f32::<LE>()?;
+        for w in raw_waypoints.iter_mut() {
+            w.0 = input.read_f32::<LE>()?;
         }
-        for i in 0..10 {
-            raw_waypoints[i].1 = input.read_f32::<LE>()?;
+        for w in raw_waypoints.iter_mut() {
+            w.1 = input.read_f32::<LE>()?;
         }
         command
             .waypoints

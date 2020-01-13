@@ -36,6 +36,7 @@ pub struct Player {
 }
 
 impl Player {
+    #[allow(clippy::cognitive_complexity)]
     pub fn read_from(mut input: impl Read, version: f32, num_players: u8) -> Result<Self> {
         let mut player = Self::default();
 
@@ -83,12 +84,12 @@ impl Player {
         if version >= 10.55 {
             assert_eq!(input.read_u8()?, 11);
         }
-        let color = input.read_u8()?;
+        let _color = input.read_u8()?;
         if version >= 10.55 {
             assert_eq!(input.read_u8()?, 11);
         }
-        let pathing_attempt_cap = input.read_u32::<LE>()?;
-        let pathing_delay_cap = input.read_u32::<LE>()?;
+        let _pathing_attempt_cap = input.read_u32::<LE>()?;
+        let _pathing_delay_cap = input.read_u32::<LE>()?;
 
         // Unit counts
         let counts = if version >= 11.65 {
@@ -116,38 +117,38 @@ impl Player {
             *count = input.read_u16::<LE>()?;
         }
 
-        let total_units_count = input.read_u16::<LE>()?;
-        let total_buildings_count = input.read_u16::<LE>()?;
-        let built_units_count = input.read_u16::<LE>()?;
-        let built_buildings_count = input.read_u16::<LE>()?;
+        let _total_units_count = input.read_u16::<LE>()?;
+        let _total_buildings_count = input.read_u16::<LE>()?;
+        let _built_units_count = input.read_u16::<LE>()?;
+        let _built_buildings_count = input.read_u16::<LE>()?;
 
         // formations
-        let line_ratio = input.read_u32::<LE>()?;
-        let column_ratio = input.read_u32::<LE>()?;
-        let min_column_distance = input.read_u32::<LE>()?;
-        let column_to_line_distance = input.read_u32::<LE>()?;
-        let auto_formations = input.read_u32::<LE>()?;
-        let formations_influence_distance = input.read_f32::<LE>()?;
-        let break_auto_formations_by_speed = if version >= 10.81 {
+        let _line_ratio = input.read_u32::<LE>()?;
+        let _column_ratio = input.read_u32::<LE>()?;
+        let _min_column_distance = input.read_u32::<LE>()?;
+        let _column_to_line_distance = input.read_u32::<LE>()?;
+        let _auto_formations = input.read_u32::<LE>()?;
+        let _formations_influence_distance = input.read_f32::<LE>()?;
+        let _break_auto_formations_by_speed = if version >= 10.81 {
             input.read_f32::<LE>()?
         } else {
             0.0
         };
 
         // escrow
-        let pending_debits = (
+        let _pending_debits = (
             input.read_f32::<LE>()?,
             input.read_f32::<LE>()?,
             input.read_f32::<LE>()?,
             input.read_f32::<LE>()?,
         );
-        let escrow_amounts = (
+        let _escrow_amounts = (
             input.read_f32::<LE>()?,
             input.read_f32::<LE>()?,
             input.read_f32::<LE>()?,
             input.read_f32::<LE>()?,
         );
-        let escrow_percents = (
+        let _escrow_percents = (
             input.read_f32::<LE>()?,
             input.read_f32::<LE>()?,
             input.read_f32::<LE>()?,
@@ -156,24 +157,24 @@ impl Player {
 
         // view scrolling
         if version >= 10.51 {
-            let scroll_vector = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
-            let scroll_end = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
-            let scroll_start = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
-            let scroll_total_distance = input.read_f32::<LE>()?;
-            let scroll_distance = input.read_f32::<LE>()?;
+            let _scroll_vector = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
+            let _scroll_end = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
+            let _scroll_start = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
+            let _scroll_total_distance = input.read_f32::<LE>()?;
+            let _scroll_distance = input.read_f32::<LE>()?;
         }
 
         // AI state
         if version >= 11.45 {
-            let easiest_reaction_percent = input.read_f32::<LE>()?;
-            let easier_reaction_percent = input.read_f32::<LE>()?;
-            let task_ungrouped_soldiers = input.read_u8()? != 0;
+            let _easiest_reaction_percent = input.read_f32::<LE>()?;
+            let _easier_reaction_percent = input.read_f32::<LE>()?;
+            let _task_ungrouped_soldiers = input.read_u8()? != 0;
         }
 
         // selected units
         if version >= 11.72 {
             let num_selections = input.read_u32::<LE>()?;
-            let selection = if num_selections > 0 {
+            let _selection = if num_selections > 0 {
                 let object_id: ObjectID = input.read_u32::<LE>()?.into();
                 let object_properties = input.read_u32::<LE>()?;
                 let mut selected_ids = vec![ObjectID(0); num_selections.try_into().unwrap()];
@@ -195,41 +196,41 @@ impl Player {
             assert_eq!(input.read_u8()?, 11);
         }
 
-        let ty = input.read_u8()?;
-        let update_count = input.read_u32::<LE>()?;
-        let update_count_need_help = input.read_u32::<LE>()?;
+        let _ty = input.read_u8()?;
+        let _update_count = input.read_u32::<LE>()?;
+        let _update_count_need_help = input.read_u32::<LE>()?;
 
         // ai attack data
         if version >= 10.02 {
-            let alerted_enemy_count = input.read_u32::<LE>()?;
-            let regular_attack_count = input.read_u32::<LE>()?;
-            let regular_attack_mode = input.read_u8()?;
-            let regular_attack_location = (
+            let _alerted_enemy_count = input.read_u32::<LE>()?;
+            let _regular_attack_count = input.read_u32::<LE>()?;
+            let _regular_attack_mode = input.read_u8()?;
+            let _regular_attack_location = (
                 input.read_f32::<LE>()?,
                 input.read_f32::<LE>()?,
             );
-            let town_attack_count = input.read_u32::<LE>()?;
-            let town_attack_mode = input.read_u8()?;
-            let town_attack_location = (
+            let _town_attack_count = input.read_u32::<LE>()?;
+            let _town_attack_mode = input.read_u8()?;
+            let _town_attack_location = (
                 input.read_f32::<LE>()?,
                 input.read_f32::<LE>()?,
             );
         }
 
-        let fog_update = input.read_u32::<LE>()?;
-        let update_time = input.read_f32::<LE>()?;
+        let _fog_update = input.read_u32::<LE>()?;
+        let _update_time = input.read_f32::<LE>()?;
 
         // if is userpatch
         player.userpatch_data = Some(UserPatchData::read_from(&mut input)?);
 
         player.tech_state = PlayerTech::read_from(&mut input)?;
 
-        let update_history_count = input.read_u32::<LE>()?;
+        let _update_history_count = input.read_u32::<LE>()?;
         player.history_info = HistoryInfo::read_from(&mut input, version)?;
 
         if version >= 5.30 {
-            let ruin_held_time = input.read_u32::<LE>()?;
-            let artifact_held_time = input.read_u32::<LE>()?;
+            let _ruin_held_time = input.read_u32::<LE>()?;
+            let _artifact_held_time = input.read_u32::<LE>()?;
         }
 
         if version >= 10.55 {
@@ -249,7 +250,7 @@ impl Player {
 
                 offer.push(DiplomacyOffer::read_from(&mut input)?);
             }
-            let fealty = input.read_u16::<LE>()?;
+            let _fealty = input.read_u16::<LE>()?;
         }
 
         if version >= 10.55 {
@@ -277,20 +278,20 @@ impl Player {
 
         // market trading
         if version >= 9.22 {
-            let max_trade_amount = input.read_u32::<LE>()?;
-            let old_max_trade_amount = input.read_u32::<LE>()?;
-            let max_trade_limit = input.read_u32::<LE>()?;
-            let current_wood_limit = input.read_u32::<LE>()?;
-            let current_food_limit = input.read_u32::<LE>()?;
-            let current_stone_limit = input.read_u32::<LE>()?;
-            let current_ore_limit = input.read_u32::<LE>()?;
-            let commodity_volume_delta = input.read_i32::<LE>()?;
-            let trade_vig_rate = input.read_f32::<LE>()?;
-            let trade_refresh_timer = input.read_u32::<LE>()?;
-            let trade_refresh_rate = input.read_u32::<LE>()?;
+            let _max_trade_amount = input.read_u32::<LE>()?;
+            let _old_max_trade_amount = input.read_u32::<LE>()?;
+            let _max_trade_limit = input.read_u32::<LE>()?;
+            let _current_wood_limit = input.read_u32::<LE>()?;
+            let _current_food_limit = input.read_u32::<LE>()?;
+            let _current_stone_limit = input.read_u32::<LE>()?;
+            let _current_ore_limit = input.read_u32::<LE>()?;
+            let _commodity_volume_delta = input.read_i32::<LE>()?;
+            let _trade_vig_rate = input.read_f32::<LE>()?;
+            let _trade_refresh_timer = input.read_u32::<LE>()?;
+            let _trade_refresh_rate = input.read_u32::<LE>()?;
         }
 
-        let prod_queue_enabled = if version >= 9.67 {
+        let _prod_queue_enabled = if version >= 9.67 {
             input.read_u8()? != 0
         } else {
             true
@@ -298,38 +299,38 @@ impl Player {
 
         // ai dodging ability
         if version >= 9.90 {
-            let chance_to_dodge_missiles = input.read_u8()?;
-            let chance_for_archers_to_maintain_distance = input.read_u8()?;
+            let _chance_to_dodge_missiles = input.read_u8()?;
+            let _chance_for_archers_to_maintain_distance = input.read_u8()?;
         }
 
-        let open_gates_for_pathing_count = if version >= 11.42 {
+        let _open_gates_for_pathing_count = if version >= 11.42 {
             input.read_u32::<LE>()?
         } else {
             0
         };
-        let farm_queue_count = if version >= 11.57 {
+        let _farm_queue_count = if version >= 11.57 {
             input.read_u32::<LE>()?
         } else {
             0
         };
-        let nomad_build_lock = if version >= 11.75 {
+        let _nomad_build_lock = if version >= 11.75 {
             input.read_u32::<LE>()? != 0
         } else {
             false
         };
 
         if version >= 9.30 {
-            let old_kills = input.read_u32::<LE>()?;
-            let old_razings = input.read_u32::<LE>()?;
-            let battle_mode = input.read_u32::<LE>()?;
-            let razings_mode = input.read_u32::<LE>()?;
-            let total_kills = input.read_u32::<LE>()?;
-            let total_razings = input.read_u32::<LE>()?;
+            let _old_kills = input.read_u32::<LE>()?;
+            let _old_razings = input.read_u32::<LE>()?;
+            let _battle_mode = input.read_u32::<LE>()?;
+            let _razings_mode = input.read_u32::<LE>()?;
+            let _total_kills = input.read_u32::<LE>()?;
+            let _total_razings = input.read_u32::<LE>()?;
         }
 
         if version >= 9.31 {
-            let old_hit_points = input.read_u32::<LE>()?;
-            let total_hit_points = input.read_u32::<LE>()?;
+            let _old_hit_points = input.read_u32::<LE>()?;
+            let _total_hit_points = input.read_u32::<LE>()?;
         }
 
         if version >= 9.32 {
@@ -624,7 +625,7 @@ impl GaiaWolfInfo {
         Ok(wolf)
     }
 
-    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+    pub fn write_to(self, mut output: impl Write) -> Result<()> {
         output.write_u32::<LE>(self.id)?;
         output.write_f32::<LE>(self.distance)?;
         Ok(())
@@ -675,8 +676,8 @@ impl DiplomacyOffer {
 
 #[derive(Debug, Default, Clone)]
 pub struct HistoryInfo {
-    entries: Vec<HistoryEntry>,
-    events: Vec<HistoryEvent>,
+    pub entries: Vec<HistoryEntry>,
+    pub events: Vec<HistoryEvent>,
 }
 
 impl HistoryInfo {
@@ -698,23 +699,23 @@ impl HistoryInfo {
             events.push(HistoryEvent::read_from(&mut input)?);
         }
 
-        let razings = input.read_i32::<LE>()?;
-        let hit_points_razed = input.read_i32::<LE>()?;
-        let razed_by_others = input.read_i32::<LE>()?;
-        let hit_points_razed_by_others = input.read_i32::<LE>()?;
-        let kills = input.read_i32::<LE>()?;
-        let hit_points_killed = input.read_i32::<LE>()?;
-        let killed_by_others = input.read_i32::<LE>()?;
-        let hit_points_killed_by_others = input.read_i32::<LE>()?;
-        let razings_weight = input.read_i32::<LE>()?;
-        let kills_weight = input.read_i32::<LE>()?;
-        let razings_percent = input.read_i32::<LE>()?;
-        let kills_percent = input.read_i32::<LE>()?;
-        let razing_mode = input.read_i32::<LE>()?;
-        let battle_mode = input.read_i32::<LE>()?;
-        let update_count = input.read_i32::<LE>()?;
-        let old_current_units_created = input.read_i32::<LE>()?;
-        let old_current_buildings_built = input.read_i32::<LE>()?;
+        let _razings = input.read_i32::<LE>()?;
+        let _hit_points_razed = input.read_i32::<LE>()?;
+        let _razed_by_others = input.read_i32::<LE>()?;
+        let _hit_points_razed_by_others = input.read_i32::<LE>()?;
+        let _kills = input.read_i32::<LE>()?;
+        let _hit_points_killed = input.read_i32::<LE>()?;
+        let _killed_by_others = input.read_i32::<LE>()?;
+        let _hit_points_killed_by_others = input.read_i32::<LE>()?;
+        let _razings_weight = input.read_i32::<LE>()?;
+        let _kills_weight = input.read_i32::<LE>()?;
+        let _razings_percent = input.read_i32::<LE>()?;
+        let _kills_percent = input.read_i32::<LE>()?;
+        let _razing_mode = input.read_i32::<LE>()?;
+        let _battle_mode = input.read_i32::<LE>()?;
+        let _update_count = input.read_i32::<LE>()?;
+        let _old_current_units_created = input.read_i32::<LE>()?;
+        let _old_current_buildings_built = input.read_i32::<LE>()?;
         let mut old_kills = [0; 8];
         for v in old_kills.iter_mut() {
             *v = input.read_u16::<LE>()?;
@@ -731,11 +732,11 @@ impl HistoryInfo {
         for v in old_razing_bvs.iter_mut() {
             *v = input.read_u32::<LE>()?;
         }
-        let running_average_bv_percent = input.read_i32::<LE>()?;
-        let running_total_bv_kills = input.read_i32::<LE>()?;
-        let running_total_bv_razings = input.read_i32::<LE>()?;
-        let running_total_kills = input.read_i16::<LE>()?;
-        let running_total_razings = input.read_i16::<LE>()?;
+        let _running_average_bv_percent = input.read_i32::<LE>()?;
+        let _running_total_bv_kills = input.read_i32::<LE>()?;
+        let _running_total_bv_razings = input.read_i32::<LE>()?;
+        let _running_total_kills = input.read_i16::<LE>()?;
+        let _running_total_razings = input.read_i16::<LE>()?;
 
         let _padding = input.read_u8()?;
 

@@ -217,7 +217,6 @@ impl Map {
                 let count = input.read_u32::<LE>()?;
                 skip(&mut input, u64::from(count) * 8)?;
             }
-            ()
         };
 
         map.visibility = VisibilityMap::read_from(&mut input)?;

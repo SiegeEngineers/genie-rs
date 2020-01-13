@@ -231,17 +231,17 @@ impl AIFactState {
 
 #[derive(Debug, Clone)]
 pub struct AIScripts {
-    string_table: StringTable,
-    lists: Vec<AIList>,
-    groups: Vec<AIGroupTable>,
-    fact_state: AIFactState,
+    pub string_table: StringTable,
+    pub lists: Vec<AIList>,
+    pub groups: Vec<AIGroupTable>,
+    pub fact_state: AIFactState,
 }
 
 impl AIScripts {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let string_table = StringTable::read_from(&mut input)?;
-        let max_facts = input.read_u16::<LE>()?;
-        let max_actions = input.read_u16::<LE>()?;
+        let _max_facts = input.read_u16::<LE>()?;
+        let _max_actions = input.read_u16::<LE>()?;
         let max_lists = input.read_u16::<LE>()?;
 
         let mut lists = vec![];
@@ -291,24 +291,24 @@ impl Header {
         let _world_time_delta = input.read_u32::<LE>()?;
         let _world_time_delta_seconds = input.read_f32::<LE>()?;
         let _timer = input.read_f32::<LE>()?;
-        let game_speed = input.read_f32::<LE>()?;
+        let _game_speed = input.read_f32::<LE>()?;
         let _temp_pause = input.read_i8()?;
-        let next_object_id = input.read_u32::<LE>()?;
-        let next_reusable_object_id = input.read_i32::<LE>()?;
-        let random_seed = input.read_u32::<LE>()?;
-        let random_seed2 = input.read_u32::<LE>()?;
-        let current_player = input.read_u16::<LE>()?;
+        let _next_object_id = input.read_u32::<LE>()?;
+        let _next_reusable_object_id = input.read_i32::<LE>()?;
+        let _random_seed = input.read_u32::<LE>()?;
+        let _random_seed2 = input.read_u32::<LE>()?;
+        let _current_player = input.read_u16::<LE>()?;
         let num_players = input.read_u16::<LE>()?;
-        let aegis_enabled = input.read_u8()? != 0;
-        let cheats_enabled = input.read_u8()? != 0;
-        let game_mode = input.read_u8()?;
-        let campaign = input.read_u32::<LE>()?;
-        let campaign_player = input.read_u32::<LE>()?;
-        let campaign_scenario = input.read_u32::<LE>()?;
-        let king_campaign = input.read_u32::<LE>()?;
-        let king_campaign_player = input.read_u8()?;
-        let king_campaign_scenario = input.read_u8()?;
-        let player_turn = input.read_u32::<LE>()?;
+        let _aegis_enabled = input.read_u8()? != 0;
+        let _cheats_enabled = input.read_u8()? != 0;
+        let _game_mode = input.read_u8()?;
+        let _campaign = input.read_u32::<LE>()?;
+        let _campaign_player = input.read_u32::<LE>()?;
+        let _campaign_scenario = input.read_u32::<LE>()?;
+        let _king_campaign = input.read_u32::<LE>()?;
+        let _king_campaign_player = input.read_u8()?;
+        let _king_campaign_scenario = input.read_u8()?;
+        let _player_turn = input.read_u32::<LE>()?;
         let mut player_time_delta = [0; 9];
         for time_delta in player_time_delta.iter_mut() {
             *time_delta = input.read_u32::<LE>()?;

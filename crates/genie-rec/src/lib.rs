@@ -270,7 +270,7 @@ where
         })
     }
 
-    fn seek_to_header(&mut self) -> Result<()> {
+    fn seek_to_first_header(&mut self) -> Result<()> {
         self.inner.seek(SeekFrom::Start(8))?;
 
         Ok(())
@@ -283,7 +283,7 @@ where
     }
 
     pub fn header(&mut self) -> Result<Header> {
-        self.seek_to_header()?;
+        self.seek_to_first_header()?;
         let reader = (&mut self.inner).take(self.header_len);
         let deflate = DeflateDecoder::new(reader);
         let header = Header::read_from(deflate)?;

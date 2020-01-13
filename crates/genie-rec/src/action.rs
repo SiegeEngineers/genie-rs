@@ -1,10 +1,7 @@
 use crate::Result;
-use crate::{ObjectID, PlayerID};
-use std::convert::{TryFrom, TryInto};
+use crate::{ObjectID};
+use std::convert::TryInto;
 use std::io::{Read, Write};
-use std::cmp;
-use std::fmt;
-use arrayvec::ArrayVec;
 pub use genie_support::UnitTypeID;
 pub use genie_dat::SpriteID;
 use byteorder::{LE, ReadBytesExt, WriteBytesExt};
@@ -105,7 +102,7 @@ pub enum ActionType {
 }
 
 impl ActionType {
-    pub fn read_from(mut input: impl Read, action_type: u16) -> Result<Self> {
+    pub fn read_from(input: impl Read, action_type: u16) -> Result<Self> {
         let data = match action_type {
             1 => Self::MoveTo(ActionMoveTo::read_from(input)?),
             3 => Self::Enter(ActionEnter::read_from(input)?),

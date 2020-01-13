@@ -332,7 +332,7 @@ impl BaseCombatUnitAttributes {
         Ok(attrs)
     }
 
-    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+    pub fn write_to(&self, _output: impl Write) -> Result<()> {
         todo!()
     }
 }
@@ -406,9 +406,8 @@ impl CombatUnitAttributes {
         Ok(attrs)
     }
 
-    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
-        todo!();
-        Ok(())
+    pub fn write_to(&self, _output: impl Write) -> Result<()> {
+        todo!()
     }
 }
 
@@ -438,9 +437,8 @@ impl BuildingUnitAttributes {
         Ok(attrs)
     }
 
-    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
-        todo!();
-        Ok(())
+    pub fn write_to(&self, _output: impl Write) -> Result<()> {
+        todo!()
     }
 }
 
