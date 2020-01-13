@@ -63,6 +63,7 @@ impl Default for ObjectsList {
 }
 
 impl ObjectsList {
+    /// Read a list of objects from an input stream.
     pub fn read_from<R: Read>(input: &mut R, count: i32) -> Result<Self> {
         if count < 0xFF {
             let mut list = vec![];
@@ -75,6 +76,7 @@ impl ObjectsList {
         }
     }
 
+    /// Write a list of objects to an output stream.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         if let ObjectsList::List(list) = self {
             for entry in list.iter().cloned() {
@@ -100,6 +102,7 @@ impl ObjectsList {
     }
 }
 
+/// Task an object to a target object or a target location.
 #[derive(Debug, Default, Clone)]
 pub struct OrderCommand {
     /// The ID of the player executing this command.
@@ -108,10 +111,12 @@ pub struct OrderCommand {
     pub target_id: ObjectID,
     /// The target location of this order.
     pub location: Location2,
+    /// The objects this command applies to.
     pub objects: ObjectsList,
 }
 
 impl OrderCommand {
+    /// Read an Order command from an input stream.
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let mut command = Self::default();
         command.player_id = input.read_u8()?.into();
@@ -123,6 +128,7 @@ impl OrderCommand {
         Ok(command)
     }
 
+    /// Write an Order command to an output stream.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u8(self.player_id.into())?;
         output.write_all(&[0, 0])?;
@@ -135,6 +141,7 @@ impl OrderCommand {
     }
 }
 
+/// Task objects to stop.
 #[derive(Debug, Default, Clone)]
 pub struct StopCommand {
     /// The objects to stop.
@@ -142,6 +149,7 @@ pub struct StopCommand {
 }
 
 impl StopCommand {
+    /// Read a Stop command from an input stream.
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let mut command = Self::default();
         let selected_count = input.read_i8()?;
@@ -149,6 +157,7 @@ impl StopCommand {
         Ok(command)
     }
 
+    /// Write this Stop command to an output stream.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_i8(self.objects.len().try_into().unwrap())?;
         self.objects.write_to(output)?;
@@ -156,6 +165,7 @@ impl StopCommand {
     }
 }
 
+/// Task an object to work.
 #[derive(Debug, Default, Clone)]
 pub struct WorkCommand {
     /// The target object of this command.
@@ -167,6 +177,7 @@ pub struct WorkCommand {
 }
 
 impl WorkCommand {
+    /// Read a Work command from an input stream.
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let mut command = Self::default();
         skip(input, 3)?;
@@ -181,6 +192,7 @@ impl WorkCommand {
         Ok(command)
     }
 
+    /// Write this Work command to an output stream.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_all(&[0, 0, 0])?;
         output.write_i32::<LE>(self.target_id.map(|u| u32::from(u) as i32).unwrap_or(-1))?;
@@ -193,6 +205,9 @@ impl WorkCommand {
     }
 }
 
+/// A command that instantly places a unit type at a given location.
+///
+/// Typically used for cheats and the like.
 #[derive(Debug, Default, Clone)]
 pub struct CreateCommand {
     /// The ID of the player issuing this command.
@@ -200,36 +215,41 @@ pub struct CreateCommand {
     /// The type of unit to create.
     pub unit_type_id: UnitTypeID,
     /// The location.
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
+    pub location: Location3,
 }
 
 impl CreateCommand {
+    /// Read a Create command from an input stream.
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let mut command = Self::default();
         let _padding = input.read_u8()?;
         command.unit_type_id = input.read_u16::<LE>()?.into();
         command.player_id = input.read_u8()?.into();
         let _padding = input.read_u8()?;
-        command.x = input.read_f32::<LE>()?;
-        command.y = input.read_f32::<LE>()?;
-        command.z = input.read_f32::<LE>()?;
+        command.location = (
+            input.read_f32::<LE>()?,
+            input.read_f32::<LE>()?,
+            input.read_f32::<LE>()?,
+        );
         Ok(command)
     }
 
+    /// Write this Create command to an output stream.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u8(0)?;
         output.write_u16::<LE>(self.unit_type_id.into())?;
         output.write_u8(self.player_id.into())?;
         output.write_u8(0)?;
-        output.write_f32::<LE>(self.x)?;
-        output.write_f32::<LE>(self.y)?;
-        output.write_f32::<LE>(self.z)?;
+        output.write_f32::<LE>(self.location.0)?;
+        output.write_f32::<LE>(self.location.1)?;
+        output.write_f32::<LE>(self.location.2)?;
         Ok(())
     }
 }
 
+/// Add resources to a player's stockpile.
+///
+/// Typically used for cheats.
 #[derive(Debug, Default, Clone)]
 pub struct AddResourceCommand {
     /// The player this command applies to.
@@ -241,6 +261,7 @@ pub struct AddResourceCommand {
 }
 
 impl AddResourceCommand {
+    /// Read an AddResource command from an input stream.
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let player_id = input.read_u8()?.into();
         let resource = input.read_u8()?;
@@ -253,6 +274,7 @@ impl AddResourceCommand {
         })
     }
 
+    /// Write this AddResource command to an output stream.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u8(self.player_id.into())?;
         output.write_u8(self.resource)?;
@@ -262,6 +284,7 @@ impl AddResourceCommand {
     }
 }
 
+///
 #[derive(Debug, Default, Clone)]
 pub struct AIOrderCommand {
     pub player_id: PlayerID,
@@ -346,6 +369,7 @@ impl AIOrderCommand {
     }
 }
 
+/// A player resigns or drops from the game.
 #[derive(Debug, Default, Clone)]
 pub struct ResignCommand {
     /// The ID of the player that is resigning.
@@ -357,6 +381,7 @@ pub struct ResignCommand {
 }
 
 impl ResignCommand {
+    /// Read a Resign command from an input stream.
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let player_id = input.read_u8()?.into();
         let comm_player_id = input.read_u8()?.into();
@@ -368,6 +393,7 @@ impl ResignCommand {
         })
     }
 
+    /// Write this Resign command to an output stream.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u8(self.player_id.into())?;
         output.write_u8(self.comm_player_id.into())?;
@@ -407,13 +433,17 @@ impl GroupWaypointCommand {
     }
 }
 
+/// Set a group of objects's "AI State" (usually known as "stance").
 #[derive(Debug, Default, Clone)]
 pub struct UnitAIStateCommand {
+    /// The new state. Aggressive/Defensive/No Attack/ etc.
     pub state: i8,
+    /// The objects whose AI state is being changed.
     pub objects: ObjectsList,
 }
 
 impl UnitAIStateCommand {
+    /// Read a UnitAIState command from an input stream.
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let selected_count = input.read_u8()?;
         let state = input.read_i8()?;
@@ -421,6 +451,7 @@ impl UnitAIStateCommand {
         Ok(Self { state, objects })
     }
 
+    /// Write this UnitAIState command to an output stream.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u8(self.objects.len().try_into().unwrap())?;
         output.write_i8(self.state)?;
@@ -429,6 +460,7 @@ impl UnitAIStateCommand {
     }
 }
 
+/// Task a group of objects to patrol along a given path.
 #[derive(Debug, Default, Clone)]
 pub struct PatrolCommand {
     /// The waypoints that this patrol should pass through.
@@ -473,6 +505,7 @@ impl PatrolCommand {
     }
 }
 
+/// Task a group of objects to form a formation.
 #[derive(Debug, Default, Clone)]
 pub struct FormFormationCommand {
     /// The ID of the player issuing this command.
@@ -504,6 +537,7 @@ impl FormFormationCommand {
     }
 }
 
+/// Meta-command for UserPatch's new AI commands.
 #[derive(Debug, Default, Clone)]
 pub struct UserPatchAICommand {
     pub player_id: PlayerID,
@@ -601,11 +635,16 @@ impl MakeCommand {
     }
 }
 
+/// Start a research.
 #[derive(Debug, Default, Clone)]
 pub struct ResearchCommand {
+    /// The ID of the player starting the research.
     pub player_id: PlayerID,
+    /// The building where the research is taking place.
     pub building_id: ObjectID,
+    /// The tech ID of the research.
     pub tech_id: TechID,
+    /// TODO
     pub target_id: Option<ObjectID>,
 }
 
@@ -642,6 +681,7 @@ impl ResearchCommand {
     }
 }
 
+/// Place a building foundation and task a group of villagers to start building.
 #[derive(Debug, Default, Clone)]
 pub struct BuildCommand {
     /// The ID of the player issuing this command.
@@ -680,6 +720,7 @@ impl BuildCommand {
     }
 }
 
+/// Commands affecting the game.
 #[derive(Debug, Clone)]
 pub enum GameCommand {
     SetGameSpeed {
@@ -746,6 +787,7 @@ impl GameCommand {
     }
 }
 
+/// Task a group of villagers to build a wall from point A to point B.
 #[derive(Debug, Default, Clone)]
 pub struct BuildWallCommand {
     pub player_id: PlayerID,
@@ -791,6 +833,7 @@ impl BuildWallCommand {
     }
 }
 
+/// Delete a building or cancel a building that's not fully built yet.
 #[derive(Debug, Default, Clone)]
 pub struct CancelBuildCommand {
     /// The ID of the player issuing this command.
@@ -818,6 +861,7 @@ impl CancelBuildCommand {
     }
 }
 
+/// Ungarrison objects from a given list of objects.
 #[derive(Debug, Default, Clone)]
 pub struct UngarrisonCommand {
     pub ungarrison_type: i8,
@@ -849,6 +893,7 @@ impl UngarrisonCommand {
     }
 }
 
+/// Send a flare at the given location.
 #[derive(Debug, Default, Clone)]
 pub struct FlareCommand {
     pub player_id: PlayerID,
@@ -878,6 +923,7 @@ impl FlareCommand {
     }
 }
 
+///
 #[derive(Debug, Default, Clone)]
 pub struct UnitOrderCommand {
     pub target_id: Option<ObjectID>,
@@ -944,6 +990,7 @@ macro_rules! buy_sell_impl {
     };
 }
 
+/// Sell a resource at the market.
 #[derive(Debug, Default, Clone)]
 pub struct SellResourceCommand {
     /// The ID of the player issuing this command.
@@ -959,6 +1006,7 @@ pub struct SellResourceCommand {
 
 buy_sell_impl!(SellResourceCommand);
 
+/// Buy a resource at the market.
 #[derive(Debug, Default, Clone)]
 pub struct BuyResourceCommand {
     /// The ID of the player issuing this command.
@@ -974,6 +1022,7 @@ pub struct BuyResourceCommand {
 
 buy_sell_impl!(BuyResourceCommand);
 
+/// Send villagers back to work after they've been garrisoned into the Town Center.
 #[derive(Debug, Default, Clone)]
 pub struct BackToWorkCommand {
     pub building_id: ObjectID,
@@ -1091,6 +1140,7 @@ impl Sync {
     }
 }
 
+/// Action at the start of the game, contains settings affecting the rec format.
 #[derive(Debug, Default, Clone)]
 pub struct Meta {
     pub checksum_interval: u32,
@@ -1120,6 +1170,7 @@ impl Meta {
     }
 }
 
+/// A chat message sent during the game.
 #[derive(Debug, Clone)]
 pub struct Chat {
     message: String,
@@ -1139,6 +1190,7 @@ impl Chat {
     }
 }
 
+/// An action: TODO
 #[derive(Debug, Clone)]
 pub enum Action {
     Command(Command),
