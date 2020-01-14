@@ -60,6 +60,31 @@ impl Unit {
         }
         Ok(Some(unit))
     }
+
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+        let raw_class = self.unit_base_class as u8;
+        output.write_u8(raw_class)?;
+        self.static_.write_to(&mut output, version)?;
+        if let Some(animated) = &self.animated {
+            animated.write_to(&mut output)?;
+        }
+        if let Some(moving) = &self.moving {
+            moving.write_to(&mut output)?;
+        }
+        if let Some(action) = &self.action {
+            action.write_to(&mut output, version)?;
+        }
+        if let Some(base_combat) = &self.base_combat {
+            base_combat.write_to(&mut output, version)?;
+        }
+        if let Some(missile) = &self.missile {
+            missile.write_to(&mut output, version)?;
+        }
+        if let Some(combat) = &self.combat {
+            combat.write_to(&mut output, version)?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -84,6 +109,17 @@ impl SpriteNodeAnimation {
         animation.animate_flag = input.read_u8()?;
         animation.last_speed = input.read_f32::<LE>()?;
         Ok(animation)
+    }
+
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+        output.write_u32::<LE>(self.animate_interval)?;
+        output.write_u32::<LE>(self.animate_last)?;
+        output.write_u16::<LE>(self.last_frame)?;
+        output.write_u8(self.frame_changed)?;
+        output.write_u8(self.frame_looped)?;
+        output.write_u8(self.animate_flag)?;
+        output.write_f32::<LE>(self.last_speed)?;
+        Ok(())
     }
 }
 
@@ -121,11 +157,28 @@ impl SpriteNode {
         node.count = input.read_u8()?;
         Ok(Some(node))
     }
+
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+        let ty = if self.animation.is_some() { 2 } else { 1 };
+        output.write_u8(ty)?;
+        output.write_u16::<LE>(self.id.into())?;
+        output.write_u32::<LE>(self.x)?;
+        output.write_u32::<LE>(self.y)?;
+        output.write_u16::<LE>(self.frame)?;
+        output.write_u8(if self.invisible { 1 } else { 0 })?;
+        if let Some(animation) = &self.animation {
+            animation.write_to(&mut output)?;
+        }
+        output.write_u8(self.order)?;
+        output.write_u8(self.flag)?;
+        output.write_u8(self.count)?;
+        Ok(())
+    }
 }
 
 #[derive(Debug, Default, Clone)]
 pub struct SpriteList {
-    sprites: Vec<SpriteNode>,
+    pub sprites: Vec<SpriteNode>,
 }
 
 impl SpriteList {
@@ -135,6 +188,14 @@ impl SpriteList {
             sprites.push(node);
         }
         Ok(Self { sprites })
+    }
+
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+        for sprite in &self.sprites {
+            sprite.write_to(&mut output)?;
+        }
+        output.write_u8(0)?;
+        Ok(())
     }
 }
 
@@ -227,6 +288,13 @@ impl StaticUnitAttributes {
         }
         Ok(attrs)
     }
+
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+        output.write_u8(self.owner_id.into())?;
+        output.write_u16::<LE>(self.unit_type_id.into())?;
+        output.write_u16::<LE>(self.sprite_id.into())?;
+        todo!()
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -284,6 +352,10 @@ impl PathData {
         path.continue_counter = input.read_u32::<LE>()?;
         path.flags = input.read_u32::<LE>()?;
         Ok(path)
+    }
+
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+        todo!()
     }
 }
 
@@ -448,6 +520,10 @@ impl ActionUnitAttributes {
         attrs.actions = UnitAction::read_list_from(input)?;
         Ok(attrs)
     }
+
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+        todo!()
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -475,6 +551,10 @@ impl BaseCombatUnitAttributes {
         attrs.attack_count = input.read_u32::<LE>()?;
         Ok(attrs)
     }
+
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+        todo!()
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -497,6 +577,10 @@ impl MissileUnitAttributes {
             }
         };
         Ok(attrs)
+    }
+
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+        todo!()
     }
 }
 
@@ -527,6 +611,10 @@ impl UnitAIOrder {
         order.range = input.read_f32::<LE>()?;
         Ok(order)
     }
+
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+        todo!()
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -549,6 +637,10 @@ impl UnitAINotification {
             input.read_u32::<LE>()?,
         );
         Ok(notify)
+    }
+
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+        todo!()
     }
 }
 
@@ -583,6 +675,10 @@ impl UnitAIOrderHistory {
         );
         Ok(order)
     }
+
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+        todo!()
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -596,6 +692,10 @@ impl UnitAIRetargetEntry {
         let target_id = input.read_u32::<LE>()?.into();
         let retarget_timeout = input.read_u32::<LE>()?;
         Ok(Self { target_id, retarget_timeout })
+    }
+
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+        todo!()
     }
 }
 
@@ -619,6 +719,10 @@ impl Waypoint {
         let _padding = input.read_u8()?;
         Ok(waypoint)
     }
+
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+        todo!()
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -627,6 +731,10 @@ pub struct PatrolPath {
 
 impl PatrolPath {
     pub fn read_from(_input: impl Read) -> Result<Self> {
+        todo!()
+    }
+
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
         todo!()
     }
 }
@@ -794,6 +902,10 @@ impl UnitAI {
         ai.formation_type = input.read_u8()?;
         Ok(ai)
     }
+
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+        todo!()
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -871,5 +983,9 @@ impl CombatUnitAttributes {
         attrs.num_builders = input.read_u8()?;
         attrs.num_healers = input.read_u8()?;
         Ok(attrs)
+    }
+
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+        todo!()
     }
 }
