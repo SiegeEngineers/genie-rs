@@ -1,4 +1,3 @@
-pub mod action;
 pub mod actions;
 pub mod ai;
 pub mod header;
@@ -6,6 +5,7 @@ pub mod map;
 pub mod player;
 pub mod string_table;
 pub mod unit;
+pub mod unit_action;
 pub mod unit_type;
 
 use crate::actions::{Action, Meta};
