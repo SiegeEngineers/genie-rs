@@ -1,7 +1,7 @@
 use crate::{ObjectID, PlayerID, Result};
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{cmp_float, TechID, UnitTypeID, ReadSkipExt};
+use genie_support::{cmp_float, ReadSkipExt, TechID, UnitTypeID};
 use std::convert::TryInto;
 use std::io::{Read, Write};
 

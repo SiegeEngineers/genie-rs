@@ -1,11 +1,11 @@
 //! Read and write player AI state.
 
-use crate::{ObjectID, PlayerID, Result};
 use crate::unit::Waypoint;
-use genie_support::{UnitTypeID, ReadSkipExt};
+use crate::{ObjectID, PlayerID, Result};
+use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use genie_support::{ReadSkipExt, UnitTypeID};
 use std::convert::TryInto;
 use std::io::{Read, Write};
-use byteorder::{LE, ReadBytesExt, WriteBytesExt};
 
 /// The main AI module.
 #[derive(Debug, Default, Clone)]
@@ -67,10 +67,7 @@ impl BuildItem {
         item.build_attempts = input.read_u32::<LE>()?;
         item.build_from = input.read_u32::<LE>()?;
         item.terrain_set = input.read_u32::<LE>()?;
-        item.terrain_adjacency = (
-            input.read_u32::<LE>()?,
-            input.read_u32::<LE>()?,
-        );
+        item.terrain_adjacency = (input.read_u32::<LE>()?, input.read_u32::<LE>()?);
         item.place_on_elevation = input.read_u32::<LE>()?;
         let _v27 = input.read_u32::<LE>()?;
         let _v12 = input.read_u32::<LE>()?;
@@ -125,7 +122,8 @@ impl BuildAI {
 
         let num_build_items = input.read_u32::<LE>()?;
         for _ in 0..num_build_items {
-            ai.build_queue.push(BuildItem::read_from(&mut input, version)?);
+            ai.build_queue
+                .push(BuildItem::read_from(&mut input, version)?);
         }
 
         for _ in 0..600 {
@@ -197,16 +195,15 @@ impl ConstructionAI {
             input.read_f32::<LE>()?,
             input.read_f32::<LE>()?,
         );
-        ai.map_size = (
-            input.read_u32::<LE>()?,
-            input.read_u32::<LE>()?,
-        );
+        ai.map_size = (input.read_u32::<LE>()?, input.read_u32::<LE>()?);
         for _ in 0..num_lots {
-            ai.construction_lots.push(ConstructionItem::read_from(&mut input, version)?);
+            ai.construction_lots
+                .push(ConstructionItem::read_from(&mut input, version)?);
         }
         let num_lots = input.read_u32::<LE>()?;
         for _ in 0..num_lots {
-            ai.random_construction_lots.push(ConstructionItem::read_from(&mut input, version)?);
+            ai.random_construction_lots
+                .push(ConstructionItem::read_from(&mut input, version)?);
         }
         Ok(ai)
     }
@@ -280,11 +277,7 @@ impl ImportantObjectMemory {
             -1 => None,
             id => Some(id.try_into().unwrap()),
         };
-        object.location = (
-            input.read_u8()?,
-            input.read_u8()?,
-            input.read_u8()?,
-        );
+        object.location = (input.read_u8()?, input.read_u8()?, input.read_u8()?);
         object.owner = input.read_u8()?.into();
         object.hit_points = input.read_u16::<LE>()?;
         object.attack_attempts = input.read_u32::<LE>()?;
@@ -358,14 +351,8 @@ impl WallLine {
         if version >= 11.29 {
             line.unfinished_segment_count = input.read_u32::<LE>()?;
         }
-        line.line_start = (
-            input.read_u32::<LE>()?,
-            input.read_u32::<LE>()?,
-        );
-        line.line_end = (
-            input.read_u32::<LE>()?,
-            input.read_u32::<LE>()?,
-        );
+        line.line_start = (input.read_u32::<LE>()?, input.read_u32::<LE>()?);
+        line.line_end = (input.read_u32::<LE>()?, input.read_u32::<LE>()?);
         Ok(line)
     }
 }
@@ -489,10 +476,7 @@ impl ResourceMemory {
     pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
         let mut mem = Self::default();
         mem.id = input.read_u32::<LE>()?.into();
-        mem.location = (
-            input.read_u8()?,
-            input.read_u8()?,
-        );
+        mem.location = (input.read_u8()?, input.read_u8()?);
         mem.gather_attempts = input.read_u8()?;
         mem.gather = input.read_u32::<LE>()?;
         mem.valid = input.read_u8()? != 0;
@@ -524,12 +508,10 @@ impl InfluenceMap {
         let mut map = Self::default();
         map.width = input.read_u32::<LE>()?;
         map.height = input.read_u32::<LE>()?;
-        map.reference_point = (
-            input.read_u32::<LE>()?,
-            input.read_u32::<LE>()?,
-        );
+        map.reference_point = (input.read_u32::<LE>()?, input.read_u32::<LE>()?);
         map.unchangeable_limit = input.read_u8()?;
-        map.values.resize((map.width * map.height).try_into().unwrap(), 0);
+        map.values
+            .resize((map.width * map.height).try_into().unwrap(), 0);
         for v in map.values.iter_mut() {
             *v = input.read_i8()?;
         }
@@ -616,10 +598,7 @@ impl InformationAI {
             }
         }
 
-        ai.map_size = (
-            input.read_u32::<LE>()?,
-            input.read_u32::<LE>()?,
-        );
+        ai.map_size = (input.read_u32::<LE>()?, input.read_u32::<LE>()?);
 
         let _last_update_row = input.read_u32::<LE>()?;
         ai.important_objects = {
@@ -692,14 +671,8 @@ impl InformationAI {
         let _building_count = input.read_u32::<LE>()?;
 
         ai.path_map = InfluenceMap::read_from(&mut input)?;
-        let _last_wall_position = (
-            input.read_i32::<LE>()?,
-            input.read_i32::<LE>()?,
-        );
-        let _last_wall_position_2 = (
-            input.read_i32::<LE>()?,
-            input.read_i32::<LE>()?,
-        );
+        let _last_wall_position = (input.read_i32::<LE>()?, input.read_i32::<LE>()?);
+        let _last_wall_position_2 = (input.read_i32::<LE>()?, input.read_i32::<LE>()?);
 
         if version < 10.78 {
             input.skip(4 + 4 * 16)?;
@@ -788,7 +761,13 @@ impl InformationAI {
             let have_seen_gold = input.read_u32::<LE>()?;
             let have_seen_stone = input.read_u32::<LE>()?;
             let have_seen_forest = input.read_u32::<LE>()?;
-            dbg!(should_farm,have_seen_forage, have_seen_gold, have_seen_stone, have_seen_forest);
+            dbg!(
+                should_farm,
+                have_seen_forage,
+                have_seen_gold,
+                have_seen_stone,
+                have_seen_forest
+            );
         }
 
         todo!()

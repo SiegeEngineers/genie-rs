@@ -1,14 +1,14 @@
+use crate::action::UnitAction;
+use crate::unit_type::UnitBaseClass;
 use crate::Result;
 use crate::{ObjectID, PlayerID};
-use std::convert::TryInto;
-use std::io::{Read, Write};
-pub use genie_support::{StringKey, UnitTypeID};
+use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use genie_dat::UnitType;
 pub use genie_dat::{AttributeCost, SpriteID};
 use genie_support::read_opt_u32;
-use genie_dat::UnitType;
-use byteorder::{LE, ReadBytesExt, WriteBytesExt};
-use crate::unit_type::UnitBaseClass;
-use crate::action::UnitAction;
+pub use genie_support::{StringKey, UnitTypeID};
+use std::convert::TryInto;
+use std::io::{Read, Write};
 
 #[derive(Debug, Clone)]
 pub struct Unit {
@@ -250,14 +250,8 @@ impl StaticUnitAttributes {
             input.read_f32::<LE>()?,
             input.read_f32::<LE>()?,
         );
-        attrs.screen_offset = (
-            input.read_u16::<LE>()?,
-            input.read_u16::<LE>()?,
-        );
-        attrs.shadow_offset = (
-            input.read_u16::<LE>()?,
-            input.read_u16::<LE>()?,
-        );
+        attrs.screen_offset = (input.read_u16::<LE>()?, input.read_u16::<LE>()?);
+        attrs.shadow_offset = (input.read_u16::<LE>()?, input.read_u16::<LE>()?);
         if version < 11.58 {
             attrs.selected_group = match input.read_i8()? {
                 -1 => None,
@@ -377,7 +371,10 @@ impl MovementData {
             input.read_f32::<LE>()?,
             input.read_f32::<LE>()?,
         );
-        Ok(Self { velocity, acceleration })
+        Ok(Self {
+            velocity,
+            acceleration,
+        })
     }
 
     pub fn write_to(&self, mut output: impl Write) -> Result<()> {
@@ -619,10 +616,10 @@ impl UnitAIOrder {
 
 #[derive(Debug, Default, Clone)]
 pub struct UnitAINotification {
-  pub caller: u32,
-  pub recipient: u32,
-  pub notification_type: u32,
-  pub params: (u32, u32, u32),
+    pub caller: u32,
+    pub recipient: u32,
+    pub notification_type: u32,
+    pub params: (u32, u32, u32),
 }
 
 impl UnitAINotification {
@@ -691,7 +688,10 @@ impl UnitAIRetargetEntry {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let target_id = input.read_u32::<LE>()?.into();
         let retarget_timeout = input.read_u32::<LE>()?;
-        Ok(Self { target_id, retarget_timeout })
+        Ok(Self {
+            target_id,
+            retarget_timeout,
+        })
     }
 
     pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
@@ -726,8 +726,7 @@ impl Waypoint {
 }
 
 #[derive(Debug, Default, Clone, Copy)]
-pub struct PatrolPath {
-}
+pub struct PatrolPath {}
 
 impl PatrolPath {
     pub fn read_from(_input: impl Read) -> Result<Self> {
@@ -858,10 +857,7 @@ impl UnitAI {
         };
         ai.stop_after_target_killed = input.read_u8()? != 0;
         ai.state = input.read_u8()?;
-        ai.state_position = (
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-        );
+        ai.state_position = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
         ai.time_since_enemy_sighting = input.read_u32::<LE>()?;
         ai.alert_mode = input.read_u8()?;
         ai.alert_mode_object_id = match input.read_i32::<LE>()? {
@@ -963,10 +959,7 @@ impl CombatUnitAttributes {
             id => Some(id.try_into().unwrap()),
         };
         attrs.town_bell_target_location = {
-            let location = (
-                input.read_f32::<LE>()?,
-                input.read_f32::<LE>()?,
-            );
+            let location = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
             if location.0 >= 0.0 {
                 Some(location)
             } else {

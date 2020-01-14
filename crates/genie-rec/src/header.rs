@@ -321,7 +321,11 @@ impl Header {
 
         let mut players = Vec::with_capacity(num_players.try_into().unwrap());
         for _ in 0..num_players {
-            players.push(Player::read_from(&mut input, header.save_version, num_players as u8)?);
+            players.push(Player::read_from(
+                &mut input,
+                header.save_version,
+                num_players as u8,
+            )?);
         }
         // dbg!(players.last().unwrap());
 

@@ -1,12 +1,12 @@
 use crate::Result;
-use std::convert::{TryFrom, TryInto};
-use std::io::{Read, Write};
-use std::cmp;
-use std::fmt;
 use arrayvec::ArrayVec;
-pub use genie_support::{StringKey, UnitTypeID};
+use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 pub use genie_dat::AttributeCost;
-use byteorder::{LE, ReadBytesExt, WriteBytesExt};
+pub use genie_support::{StringKey, UnitTypeID};
+use std::cmp;
+use std::convert::{TryFrom, TryInto};
+use std::fmt;
+use std::io::{Read, Write};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnitBaseClass {
@@ -33,37 +33,45 @@ impl cmp::PartialOrd for UnitBaseClass {
 
         // handle weird leaves specially
         match self {
-            Self::Doppelganger => if self_n > other_n {
-                Some(cmp::Ordering::Greater)
-            } else {
-                None
-            },
-            Self::Missile => if self_n > other_n {
-                Some(cmp::Ordering::Greater)
-            } else {
-                None
-            },
+            Self::Doppelganger => {
+                if self_n > other_n {
+                    Some(cmp::Ordering::Greater)
+                } else {
+                    None
+                }
+            }
+            Self::Missile => {
+                if self_n > other_n {
+                    Some(cmp::Ordering::Greater)
+                } else {
+                    None
+                }
+            }
             Self::Tree => match other {
                 Self::Static => Some(cmp::Ordering::Greater),
                 _ => None,
             },
             _ => match other {
-                Self::Doppelganger => if self_n < other_n {
-                    Some(cmp::Ordering::Less)
-                } else {
-                    None
-                },
-                Self::Missile => if self_n < other_n {
-                    Some(cmp::Ordering::Less)
-                } else {
-                    None
-                },
+                Self::Doppelganger => {
+                    if self_n < other_n {
+                        Some(cmp::Ordering::Less)
+                    } else {
+                        None
+                    }
+                }
+                Self::Missile => {
+                    if self_n < other_n {
+                        Some(cmp::Ordering::Less)
+                    } else {
+                        None
+                    }
+                }
                 Self::Tree => match self {
                     Self::Static => Some(cmp::Ordering::Less),
                     _ => None,
                 },
-                _ => Some(self_n.cmp(&other_n))
-            }
+                _ => Some(self_n.cmp(&other_n)),
+            },
         }
     }
 }
@@ -260,7 +268,10 @@ impl ActionUnitAttributes {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let search_radius = input.read_f32::<LE>()?;
         let work_rate = input.read_f32::<LE>()?;
-        Ok(Self { search_radius, work_rate })
+        Ok(Self {
+            search_radius,
+            work_rate,
+        })
     }
 
     pub fn write_to(&self, mut output: impl Write) -> Result<()> {

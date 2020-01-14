@@ -1,11 +1,11 @@
-use crate::{ObjectID, PlayerID, Result};
 use crate::ai::PlayerAI;
-use crate::unit_type::CompactUnitType;
 use crate::unit::Unit;
+use crate::unit_type::CompactUnitType;
+use crate::{ObjectID, PlayerID, Result};
+use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use genie_dat::{CivilizationID, TechTree};
 use std::convert::TryInto;
 use std::io::{Read, Write};
-use genie_dat::{CivilizationID, TechTree};
-use byteorder::{LE, ReadBytesExt, WriteBytesExt};
 
 #[derive(Debug, Default, Clone)]
 pub struct Player {
@@ -55,7 +55,8 @@ impl Player {
         player.allied_los = input.read_u32::<LE>()? != 0;
         player.allied_victory = input.read_u8()? != 0;
         let name_len = input.read_u16::<LE>()?;
-        player.name = genie_support::read_str(&mut input, usize::from(name_len))?.unwrap_or_else(String::new);
+        player.name =
+            genie_support::read_str(&mut input, usize::from(name_len))?.unwrap_or_else(String::new);
         if version >= 10.55 {
             assert_eq!(input.read_u8()?, 22);
         }
@@ -182,11 +183,7 @@ impl Player {
                 for id in selected_ids.iter_mut() {
                     *id = input.read_u32::<LE>()?.into();
                 }
-                Some((
-                    object_id,
-                    object_properties,
-                    selected_ids,
-                ))
+                Some((object_id, object_properties, selected_ids))
             } else {
                 None
             };
@@ -206,16 +203,10 @@ impl Player {
             let _alerted_enemy_count = input.read_u32::<LE>()?;
             let _regular_attack_count = input.read_u32::<LE>()?;
             let _regular_attack_mode = input.read_u8()?;
-            let _regular_attack_location = (
-                input.read_f32::<LE>()?,
-                input.read_f32::<LE>()?,
-            );
+            let _regular_attack_location = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
             let _town_attack_count = input.read_u32::<LE>()?;
             let _town_attack_mode = input.read_u8()?;
-            let _town_attack_location = (
-                input.read_f32::<LE>()?,
-                input.read_f32::<LE>()?,
-            );
+            let _town_attack_location = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
         }
 
         let _fog_update = input.read_u32::<LE>()?;
@@ -494,10 +485,7 @@ impl VisibleResource {
         vis.object_id = input.read_u32::<LE>()?.into();
         vis.distance = input.read_u8()?;
         vis.zone = input.read_i8()?;
-        vis.location = (
-            input.read_u8()?,
-            input.read_u8()?,
-        );
+        vis.location = (input.read_u8()?, input.read_u8()?);
         Ok(vis)
     }
 }
@@ -740,10 +728,7 @@ impl HistoryInfo {
 
         let _padding = input.read_u8()?;
 
-        Ok(Self {
-            entries,
-            events,
-        })
+        Ok(Self { entries, events })
     }
 }
 
@@ -780,7 +765,10 @@ impl HistoryEntry {
     pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
         let civilian_population = input.read_u16::<LE>()?;
         let military_population = input.read_u16::<LE>()?;
-        Ok(HistoryEntry { civilian_population, military_population })
+        Ok(HistoryEntry {
+            civilian_population,
+            military_population,
+        })
     }
 }
 
@@ -824,8 +812,7 @@ impl PlayerTech {
 }
 
 #[derive(Debug, Clone)]
-pub struct UserPatchData {
-}
+pub struct UserPatchData {}
 
 impl UserPatchData {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
@@ -850,7 +837,6 @@ impl UserPatchData {
             input.read_exact(&mut bytes)?;
         }
 
-        Ok(Self {
-        })
+        Ok(Self {})
     }
 }

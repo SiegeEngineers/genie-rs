@@ -1,10 +1,10 @@
+use crate::ObjectID;
 use crate::Result;
-use crate::{ObjectID};
+use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+pub use genie_dat::SpriteID;
+pub use genie_support::UnitTypeID;
 use std::convert::TryInto;
 use std::io::{Read, Write};
-pub use genie_support::UnitTypeID;
-pub use genie_dat::SpriteID;
-use byteorder::{LE, ReadBytesExt, WriteBytesExt};
 
 #[derive(Debug, Clone)]
 pub struct UnitAction {
@@ -119,7 +119,7 @@ impl ActionType {
     }
 }
 
-#[derive(Debug, Default ,Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct ActionMoveTo {
     pub range: f32,
 }
@@ -136,7 +136,7 @@ impl ActionMoveTo {
     }
 }
 
-#[derive(Debug, Default ,Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct ActionEnter {
     pub first_time: u32,
 }
@@ -153,7 +153,7 @@ impl ActionEnter {
     }
 }
 
-#[derive(Debug, Default ,Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct ActionAttack {
     range: f32,
     min_range: f32,
@@ -199,7 +199,7 @@ impl ActionAttack {
     }
 }
 
-#[derive(Debug, Default ,Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct ActionMake {
     pub work_timer: f32,
 }
@@ -215,4 +215,3 @@ impl ActionMake {
         Ok(())
     }
 }
-
