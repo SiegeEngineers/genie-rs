@@ -1,5 +1,6 @@
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use genie_support::ReadSkipExt;
 use std::convert::TryInto;
 use std::io::{Read, Write};
 
@@ -212,10 +213,10 @@ impl Map {
         let _umv = {
             let data_count = input.read_u32::<LE>()?;
             let _capacity = input.read_u32::<LE>()?;
-            skip(&mut input, u64::from(data_count) * 4)?;
+            input.skip(u64::from(data_count) * 4)?;
             for _ in 0..data_count {
                 let count = input.read_u32::<LE>()?;
-                skip(&mut input, u64::from(count) * 8)?;
+                input.skip(u64::from(count) * 8)?;
             }
         };
 
@@ -228,10 +229,4 @@ impl Map {
     pub fn write_to(&self, _output: impl Write) -> Result<()> {
         unimplemented!()
     }
-}
-
-/// Skip over a number of bytes in an input stream.
-fn skip<R: Read>(input: &mut R, bytes: u64) -> std::io::Result<()> {
-    std::io::copy(&mut input.by_ref().take(bytes), &mut std::io::sink())?;
-    Ok(())
 }

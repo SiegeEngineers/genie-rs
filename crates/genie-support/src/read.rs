@@ -1,6 +1,6 @@
 use byteorder::{ReadBytesExt, LE};
 use std::convert::TryInto;
-use std::io::{Error, ErrorKind, Read, Result};
+use std::io::{self, Error, ErrorKind, Read, Result};
 
 /// Read a 2-byte integer that uses -1 as an "absent" value.
 ///
@@ -48,4 +48,17 @@ pub fn read_opt_u32<R: Read>(input: &mut R) -> Result<Option<u32>> {
     Ok(Some(
         v.try_into().map_err(|e| Error::new(ErrorKind::Other, e))?,
     ))
+}
+
+/// Extension trait that adds a `skip()` method to `Read` instances.
+pub trait ReadSkipExt {
+    /// Read and discard a number of bytes.
+    fn skip(&mut self, dist: u64) -> Result<()>;
+}
+
+impl<T: Read> ReadSkipExt for T {
+    fn skip(&mut self, dist: u64) -> Result<()> {
+        io::copy(&mut self.by_ref().take(dist), &mut io::sink())?;
+        Ok(())
+    }
 }

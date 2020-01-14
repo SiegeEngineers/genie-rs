@@ -1,7 +1,7 @@
 use crate::{ObjectID, PlayerID, Result};
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{cmp_float, TechID, UnitTypeID};
+use genie_support::{cmp_float, TechID, UnitTypeID, ReadSkipExt};
 use std::convert::TryInto;
 use std::io::{Read, Write};
 
@@ -120,7 +120,7 @@ impl OrderCommand {
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let mut command = Self::default();
         command.player_id = input.read_u8()?.into();
-        skip(input, 2)?;
+        input.skip(2)?;
         command.target_id = input.read_i32::<LE>()?.try_into().unwrap();
         let selected_count = input.read_i32::<LE>()?;
         command.location = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
@@ -180,13 +180,13 @@ impl WorkCommand {
     /// Read a Work command from an input stream.
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let mut command = Self::default();
-        skip(input, 3)?;
+        input.skip(3)?;
         command.target_id = match input.read_i32::<LE>()? {
             -1 => None,
             id => Some(id.try_into().unwrap()),
         };
         let selected_count = input.read_i8()?;
-        skip(input, 3)?;
+        input.skip(3)?;
         command.location = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
         command.objects = ObjectsList::read_from(input, selected_count as i32)?;
         Ok(command)
@@ -318,7 +318,7 @@ impl AIOrderCommand {
             -1 => None,
             id => Some(id.try_into().unwrap()),
         };
-        skip(input, 3)?;
+        input.skip(3)?;
         command.target_location = (
             input.read_f32::<LE>()?,
             input.read_f32::<LE>()?,
@@ -412,10 +412,10 @@ pub struct GroupWaypointCommand {
 impl GroupWaypointCommand {
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let player_id = input.read_u8()?.into();
-        skip(input, 2)?;
+        input.skip(2)?;
         let object_id = input.read_u32::<LE>()?.into();
         let waypoints = input.read_i8()?;
-        skip(input, 1)?;
+        input.skip(1)?;
         Ok(Self {
             player_id,
             object_id,
@@ -604,7 +604,7 @@ pub struct MakeCommand {
 
 impl MakeCommand {
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
-        skip(input, 3)?;
+        input.skip(3)?;
         let building_id = input.read_u32::<LE>()?.into();
         let player_id = input.read_u8()?.into();
         let _padding = input.read_u8()?;
@@ -650,7 +650,7 @@ pub struct ResearchCommand {
 
 impl ResearchCommand {
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
-        skip(input, 3)?;
+        input.skip(3)?;
         let building_id = input.read_u32::<LE>()?.into();
         let player_id = input.read_u8()?.into();
         let _padding = input.read_u8()?;
@@ -714,7 +714,7 @@ impl BuildCommand {
             id => Some(id.try_into().unwrap()),
         };
         command.frame = input.read_u8()?;
-        skip(input, 3)?;
+        input.skip(3)?;
         command.builders = ObjectsList::read_from(input, i32::from(selected_count))?;
         Ok(command)
     }
@@ -844,7 +844,7 @@ pub struct CancelBuildCommand {
 
 impl CancelBuildCommand {
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
-        skip(input, 3)?;
+        input.skip(3)?;
         let building_id = input.read_u32::<LE>()?.into();
         let player_id = input.read_u32::<LE>()?.try_into().unwrap();
         Ok(Self {
@@ -883,7 +883,7 @@ impl UngarrisonCommand {
             None
         };
         command.ungarrison_type = input.read_i8()?;
-        skip(input, 3)?;
+        input.skip(3)?;
         command.unit_type_id = match input.read_i32::<LE>()? {
             -1 => None,
             id => Some(id.try_into().unwrap()),
@@ -905,7 +905,7 @@ pub struct FlareCommand {
 impl FlareCommand {
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let mut command = Self::default();
-        skip(input, 3)?;
+        input.skip(3)?;
         assert_eq!(
             input.read_i32::<LE>()?,
             -1,
@@ -914,11 +914,11 @@ impl FlareCommand {
         for receive in command.recipients.iter_mut() {
             *receive = input.read_u8()? != 0;
         }
-        skip(input, 3)?;
+        input.skip(3)?;
         command.location = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
         command.player_id = input.read_u8()?.into();
         command.comm_player_id = input.read_u8()?.into();
-        skip(input, 2)?;
+        input.skip(2)?;
         Ok(command)
     }
 }
@@ -1030,7 +1030,7 @@ pub struct BackToWorkCommand {
 
 impl BackToWorkCommand {
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
-        skip(input, 3)?;
+        input.skip(3)?;
         let building_id = input.read_u32::<LE>()?.into();
         Ok(Self { building_id })
     }
@@ -1197,9 +1197,4 @@ pub enum Action {
     Sync(Sync),
     ViewLock(ViewLock),
     Chat(Chat),
-}
-
-fn skip<R: Read>(input: &mut R, bytes: u64) -> Result<()> {
-    std::io::copy(&mut input.by_ref().take(bytes), &mut std::io::sink())?;
-    Ok(())
 }
