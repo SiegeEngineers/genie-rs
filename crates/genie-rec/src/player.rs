@@ -1,4 +1,5 @@
 use crate::{ObjectID, PlayerID, Result};
+use crate::ai::PlayerAI;
 use crate::unit_type::CompactUnitType;
 use crate::unit::Unit;
 use std::convert::TryInto;
@@ -350,9 +351,8 @@ impl Player {
             assert_eq!(input.read_u8()?, 11);
         }
 
-        let player_ai = if player.player_type == 3 && input.read_u32::<LE>()? == 1 {
-            todo!();
-            Some(0)
+        let _player_ai = if player.player_type == 3 && input.read_u32::<LE>()? == 1 {
+            Some(PlayerAI::read_from(&mut input, version)?)
         } else {
             None
         };

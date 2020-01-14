@@ -1,5 +1,6 @@
 pub mod actions;
 pub mod action;
+pub mod ai;
 pub mod header;
 pub mod map;
 pub mod player;
