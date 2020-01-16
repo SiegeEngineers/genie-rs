@@ -27,6 +27,8 @@ pub type CPXVersion = [u8; 4];
 pub const AOE_AOK: CPXVersion = *b"1.00";
 /// Version identifier for AoE1: Definitive Edition campaign files.
 pub const AOE1_DE: CPXVersion = *b"1.10";
+/// Version identifier for AoE2: Definitive Edition campaign files.
+pub const AOE2_DE: CPXVersion = *b"2.00";
 
 /// Campaign header.
 #[derive(Debug, Clone)]

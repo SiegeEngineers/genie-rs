@@ -143,7 +143,7 @@ impl<W: Write> CampaignWriter<W> {
 
     /// Set the file version to output.
     pub fn version(mut self, version: CPXVersion) -> Self {
-        debug_assert!([AOE_AOK, AOE1_DE].contains(&version), "unknown version");
+        debug_assert!([AOE_AOK, AOE1_DE].contains(&version), "unknown or unsupported version");
         self.header.version = version;
         self
     }

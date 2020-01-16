@@ -120,11 +120,19 @@ fn read_campaign_header<R: Read>(input: &mut R) -> Result<CampaignHeader> {
             let _ = input.read_i32::<LE>()?;
         }
 
-        let name = read_nullterm_str(input)?;
-        let _ = input.read_i16::<LE>()?; // ?
+        let name = read_nullterm_str(input)?.ok_or(ReadCampaignError::MissingNameError)?;
+
+        // unknown data
+        {
+            let sample_start_offset = 38;
+            let sample_end_offset = 288;
+            let mut unknown_bytes = vec![0; sample_end_offset - sample_start_offset];
+            input.read_exact(&mut unknown_bytes)?;
+        }
+
         let num_scenarios = input.read_i32::<LE>()? as usize;
         (
-            read_variable_str(input)?.ok_or(ReadCampaignError::MissingNameError)?,
+            name,
             num_scenarios,
         )
     } else if version == *b"1.10" {
@@ -148,8 +156,8 @@ fn read_campaign_header<R: Read>(input: &mut R) -> Result<CampaignHeader> {
 }
 
 fn read_scenario_meta_de2<R: Read>(input: &mut R) -> Result<ScenarioMeta> {
-    let size = input.read_u64::<LE>()? as usize;
-    let offset = input.read_u64::<LE>()? as usize;
+    let size = input.read_u32::<LE>()? as usize;
+    let offset = input.read_u32::<LE>()? as usize;
     let name = read_variable_str(input)?.ok_or(ReadCampaignError::MissingNameError)?;
     let filename = read_variable_str(input)?.ok_or(ReadCampaignError::MissingNameError)?;
 
@@ -221,7 +229,7 @@ where
             read_scenario_meta
         };
         for _ in 0..header.num_scenarios {
-            entries.push(dbg!(read_entry(&mut input)?));
+            entries.push(read_entry(&mut input)?);
         }
 
         Ok(Self {
@@ -321,7 +329,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{AOE1_DE, AOE_AOK};
+    use crate::{AOE1_DE, AOE2_DE, AOE_AOK};
     use std::fs::File;
 
     /// Try to parse a file with an encoding that is not compatible with UTF-8.
@@ -406,6 +414,54 @@ mod tests {
         );
 
         /* Enable when genie_scx supports DE1 scenarios better
+        let mut c = c;
+        for i in 0..c.len() {
+            let _scen = c.by_index(i)?;
+        }
+        */
+
+        Ok(())
+    }
+
+    #[test]
+    fn aoe_de2() -> Result<()> {
+        let f = File::open("test/campaigns/acam1.aoe2campaign")?;
+        let c = Campaign::from(f)?;
+
+        assert_eq!(c.version(), AOE2_DE);
+        assert_eq!(c.name(), "acam1");
+        assert_eq!(c.len(), 5);
+        let filenames: Vec<_> = c.entries().map(|e| &e.filename).collect();
+        assert_eq!(
+            filenames,
+            vec![
+                "A1_Tariq1.aoe2scenario",
+                "A1_Tariq2.aoe2scenario",
+                "A1_Tariq3.aoe2scenario",
+                "A1_Tariq4.aoe2scenario",
+                "A1_Tariq5.aoe2scenario",
+            ]
+        );
+
+        let f = File::open("test/campaigns/rcam3.aoe2campaign")?;
+        let c = Campaign::from(f)?;
+
+        assert_eq!(c.version(), AOE2_DE);
+        assert_eq!(c.name(), "rcam3");
+        assert_eq!(c.len(), 5);
+        let filenames: Vec<_> = c.entries().map(|e| &e.filename).collect();
+        assert_eq!(
+            filenames,
+            vec![
+                "R3_Bayinnaung_1.aoe2scenario",
+                "R3_Bayinnaung_2.aoe2scenario",
+                "R3_Bayinnaung_3.aoe2scenario",
+                "R3_Bayinnaung_4.aoe2scenario",
+                "R3_Bayinnaung_5.aoe2scenario",
+            ]
+        );
+
+        /* Enable when genie_scx supports DE2 scenarios better
         let mut c = c;
         for i in 0..c.len() {
             let _scen = c.by_index(i)?;
