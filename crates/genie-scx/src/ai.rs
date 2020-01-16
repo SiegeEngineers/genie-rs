@@ -1,10 +1,9 @@
-use crate::{util::*, Result};
+use crate::util::*;
+use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::{
-    convert::TryFrom,
-    io::{Read, Write},
-    mem,
-};
+use std::convert::TryFrom;
+use std::io::{Read, Write};
+use std::mem;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
@@ -58,12 +57,12 @@ impl TryFrom<u32> for AIErrorCode {
             // I really don't want to write a 27 branch match statement
             // or depend on num_derive _just_ for this, because it needs a proc macro
             // Just keep the above check in sync with the possible values of the AIErrorCode enum
-            Ok(
+            Ok({
                 #[allow(unsafe_code)]
                 unsafe {
                     mem::transmute(n)
-                },
-            )
+                }
+            })
         } else {
             Err(ParseAIErrorCodeError(n))
         }

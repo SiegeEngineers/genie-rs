@@ -1,9 +1,9 @@
 use super::ConvertError;
-use crate::{Scenario, ScenarioObject, Tile, Trigger};
+use crate::{Scenario, ScenarioObject, Tile, Trigger, UnitTypeID};
 use nohash_hasher::IntMap;
 
 pub struct AoCToWK {
-    object_ids_map: IntMap<i32, i32>,
+    object_ids_map: IntMap<i32, UnitTypeID>,
     terrain_ids_map: IntMap<i8, i8>,
 }
 
@@ -17,7 +17,7 @@ impl Default for AoCToWK {
             (527, 1104), // Demolition Ship, Demolition Raft
         ]
         .iter()
-        .map(|(a, b)| (*a, *b))
+        .map(|(a, b)| (*a, UnitTypeID::from(*b)))
         .collect();
 
         let terrain_ids_map = [
@@ -41,8 +41,8 @@ impl AoCToWK {
     ///
     /// This updates the object type IDs.
     fn convert_object(&self, object: &mut ScenarioObject) {
-        if let Some(new_type) = self.object_ids_map.get(&i32::from(object.object_type)) {
-            object.object_type = (*new_type) as i16;
+        if let Some(new_type) = self.object_ids_map.get(&object.object_type.into()) {
+            object.object_type = *new_type;
         }
     }
 
@@ -51,18 +51,18 @@ impl AoCToWK {
     /// This updates the object type IDs in trigger conditions and effects.
     fn convert_trigger(&self, trigger: &mut Trigger) {
         trigger.conditions_unordered_mut().for_each(|cond| {
-            if let Some(new_type) = self.object_ids_map.get(&cond.unit_type()) {
+            if let Some(new_type) = self.object_ids_map.get(&cond.unit_type().into()) {
                 cond.set_unit_type(*new_type);
             }
-            if let Some(new_type) = self.object_ids_map.get(&cond.object_type()) {
+            if let Some(new_type) = self.object_ids_map.get(&cond.object_type().into()) {
                 cond.set_object_type(*new_type);
             }
         });
         trigger.effects_unordered_mut().for_each(|effect| {
-            if let Some(new_type) = self.object_ids_map.get(&effect.unit_type()) {
+            if let Some(new_type) = self.object_ids_map.get(&effect.unit_type().into()) {
                 effect.set_unit_type(*new_type);
             }
-            if let Some(new_type) = self.object_ids_map.get(&effect.object_type()) {
+            if let Some(new_type) = self.object_ids_map.get(&effect.object_type().into()) {
                 effect.set_object_type(*new_type);
             }
         });

@@ -320,8 +320,8 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{AOE1_DE, AOE_AOK};
     use super::*;
+    use crate::{AOE1_DE, AOE_AOK};
     use std::fs::File;
 
     /// Try to parse a file with an encoding that is not compatible with UTF-8.
