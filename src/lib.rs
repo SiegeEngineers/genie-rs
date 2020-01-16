@@ -87,6 +87,7 @@ pub use genie_dat as dat;
 pub use genie_drs as drs;
 pub use genie_hki as hki;
 pub use genie_lang as lang;
+pub use genie_rec as rec;
 pub use genie_scx as scx;
 pub use jascpal as pal;
 
@@ -95,5 +96,6 @@ pub use genie_dat::DatFile;
 pub use genie_drs::{DRSReader, DRSWriter};
 pub use genie_hki::HotkeyInfo;
 pub use genie_lang::LangFile;
+pub use genie_rec::RecordedGame;
 pub use genie_scx::Scenario;
 pub use jascpal::Palette;
