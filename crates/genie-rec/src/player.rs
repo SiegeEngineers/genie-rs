@@ -72,11 +72,13 @@ impl Player {
             assert_eq!(input.read_u8()?, 11);
         }
         player.initial_view = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
-        let num_saved_views = input.read_i32::<LE>()?;
-        // saved view count can be negative
-        player.saved_views = vec![(0.0, 0.0); num_saved_views.try_into().unwrap_or(0)];
-        for sv in player.saved_views.iter_mut() {
-            *sv = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
+        if version >= 11.62 {
+            let num_saved_views = input.read_i32::<LE>()?;
+            // saved view count can be negative
+            player.saved_views = vec![(0.0, 0.0); num_saved_views.try_into().unwrap_or(0)];
+            for sv in player.saved_views.iter_mut() {
+                *sv = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
+            }
         }
         player.spawn_location = (input.read_u16::<LE>()?, input.read_u16::<LE>()?);
         player.culture_id = input.read_u8()?;
@@ -213,7 +215,9 @@ impl Player {
         let _update_time = input.read_f32::<LE>()?;
 
         // if is userpatch
-        player.userpatch_data = Some(UserPatchData::read_from(&mut input)?);
+        if genie_support::cmp_float!(version == 11.97) {
+            player.userpatch_data = Some(UserPatchData::read_from(&mut input)?);
+        }
 
         player.tech_state = PlayerTech::read_from(&mut input)?;
 

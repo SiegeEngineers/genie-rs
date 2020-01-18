@@ -648,12 +648,12 @@ pub struct UnitAIOrderHistory {
     time: u32,
     position: (f32, f32, f32),
     target_id: ObjectID,
-    target_attack_category: u32,
+    target_attack_category: Option<u32>,
     target_position: (f32, f32, f32),
 }
 
 impl UnitAIOrderHistory {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
         let mut order = Self::default();
         order.order = input.read_u32::<LE>()?;
         order.action = input.read_u32::<LE>()?;
@@ -664,7 +664,12 @@ impl UnitAIOrderHistory {
             input.read_f32::<LE>()?,
         );
         order.target_id = input.read_u32::<LE>()?.into();
-        order.target_attack_category = input.read_u32::<LE>()?;
+        if version >= 10.50 {
+            order.target_attack_category = match input.read_i32::<LE>()? {
+                -1 => None,
+                id => Some(id.try_into().unwrap()),
+            };
+        }
         order.target_position = (
             input.read_f32::<LE>()?,
             input.read_f32::<LE>()?,
@@ -873,29 +878,41 @@ impl UnitAI {
             }
         };
         ai.patrol_current_waypoint = input.read_u32::<LE>()?;
-        ai.order_history = {
-            let num_orders = input.read_u32::<LE>()?;
-            let mut orders = vec![];
-            for _ in 0..num_orders {
-                orders.push(UnitAIOrderHistory::read_from(&mut input)?);
-            }
-            orders
-        };
-        ai.last_retarget_time = input.read_u32::<LE>()?;
-        ai.randomized_retarget_timer = input.read_u32::<LE>()?;
-        ai.retarget_entries = {
-            let num_entries = input.read_u32::<LE>()?;
-            let mut entries = vec![];
-            for _ in 0..num_entries {
-                entries.push(UnitAIRetargetEntry::read_from(&mut input)?);
-            }
-            entries
-        };
-        ai.best_unit_to_attack = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
-        ai.formation_type = input.read_u8()?;
+        if version >= 10.48 {
+            ai.order_history = {
+                let num_orders = input.read_u32::<LE>()?;
+                let mut orders = vec![];
+                for _ in 0..num_orders {
+                    orders.push(UnitAIOrderHistory::read_from(&mut input, version)?);
+                }
+                orders
+            };
+        }
+        if version >= 10.50 {
+            ai.last_retarget_time = input.read_u32::<LE>()?;
+        }
+        if version >= 11.04 {
+            ai.randomized_retarget_timer = input.read_u32::<LE>()?;
+        }
+        if version >= 11.05 {
+            ai.retarget_entries = {
+                let num_entries = input.read_u32::<LE>()?;
+                let mut entries = vec![];
+                for _ in 0..num_entries {
+                    entries.push(UnitAIRetargetEntry::read_from(&mut input)?);
+                }
+                entries
+            };
+        }
+        if version >= 11.14 {
+            ai.best_unit_to_attack = match input.read_i32::<LE>()? {
+                -1 => None,
+                id => Some(id.try_into().unwrap()),
+            };
+        }
+        if version >= 11.44 {
+            ai.formation_type = input.read_u8()?;
+        }
         Ok(ai)
     }
 

@@ -299,15 +299,19 @@ impl Header {
         let _random_seed2 = input.read_u32::<LE>()?;
         let _current_player = input.read_u16::<LE>()?;
         let num_players = input.read_u16::<LE>()?;
-        let _aegis_enabled = input.read_u8()? != 0;
-        let _cheats_enabled = input.read_u8()? != 0;
+        if header.save_version >= 11.76 {
+            let _aegis_enabled = input.read_u8()? != 0;
+            let _cheats_enabled = input.read_u8()? != 0;
+        }
         let _game_mode = input.read_u8()?;
         let _campaign = input.read_u32::<LE>()?;
         let _campaign_player = input.read_u32::<LE>()?;
         let _campaign_scenario = input.read_u32::<LE>()?;
-        let _king_campaign = input.read_u32::<LE>()?;
-        let _king_campaign_player = input.read_u8()?;
-        let _king_campaign_scenario = input.read_u8()?;
+        if header.save_version >= 10.13 {
+            let _king_campaign = input.read_u32::<LE>()?;
+            let _king_campaign_player = input.read_u8()?;
+            let _king_campaign_scenario = input.read_u8()?;
+        }
         let _player_turn = input.read_u32::<LE>()?;
         let mut player_time_delta = [0; 9];
         for time_delta in player_time_delta.iter_mut() {
@@ -316,8 +320,13 @@ impl Header {
 
         header.map = Map::read_from(&mut input)?;
 
+        // TODO is there another num_players here for restored games?
+
         header.particle_system = ParticleSystem::read_from(&mut input)?;
-        let _identifier = dbg!(input.read_u32::<LE>()?);
+
+        if header.save_version >= 11.07 {
+            let _identifier = input.read_u32::<LE>()?;
+        }
 
         let mut players = Vec::with_capacity(num_players.try_into().unwrap());
         for _ in 0..num_players {
