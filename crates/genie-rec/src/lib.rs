@@ -14,7 +14,7 @@ use flate2::read::DeflateDecoder;
 use genie_scx::DLCOptions;
 use genie_support::{fallible_try_from, fallible_try_into, infallible_try_into};
 use header::Header;
-use std::fmt;
+use std::fmt::{self, Debug, Display};
 use std::io::{self, Read, Seek, SeekFrom};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -73,6 +73,35 @@ fallible_try_from!(ObjectID, i32);
 fallible_try_into!(ObjectID, i16);
 fallible_try_into!(ObjectID, i32);
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct GameVersion([u8; 8]);
+
+impl Default for GameVersion {
+    fn default() -> Self {
+        Self([0; 8])
+    }
+}
+
+impl Debug for GameVersion {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", std::str::from_utf8(&self.0).unwrap())
+    }
+}
+
+impl Display for GameVersion {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", std::str::from_utf8(&self.0).unwrap())
+    }
+}
+
+impl GameVersion {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
+        let mut game_version = [0; 8];
+        input.read_exact(&mut game_version)?;
+        Ok(Self(game_version))
+    }
+}
+
 #[derive(Debug)]
 pub enum Error {
     IoError(io::Error),
@@ -119,6 +148,7 @@ where
     R: Read,
 {
     input: &'r mut R,
+    version: f32,
     meta: Meta,
     remaining_syncs_until_checksum: u32,
 }
@@ -127,12 +157,15 @@ impl<'r, R> BodyActions<'r, R>
 where
     R: Read,
 {
-    pub fn new(input: &'r mut R) -> Result<Self> {
-        assert_eq!(input.read_u32::<LE>()?, 4);
+    pub fn new(input: &'r mut R, version: f32) -> Result<Self> {
+        if version >= 11.97 {
+            assert_eq!(input.read_u32::<LE>()?, 4);
+        }
         let meta = Meta::read_from(input)?;
         let remaining_syncs_until_checksum = meta.checksum_interval;
         Ok(Self {
             input,
+            version,
             meta,
             remaining_syncs_until_checksum,
         })
@@ -246,10 +279,14 @@ where
     R: Read + Seek,
 {
     inner: R,
+    /// Offset of the main compressed header.
+    header_start: u64,
     /// Size of the compressed header.
-    header_len: u64,
+    header_end: u64,
     /// Offset of the next header, for saved chapters.
     next_header: Option<u64>,
+    game_version: GameVersion,
+    save_version: f32,
 }
 
 impl<R> RecordedGame<R>
@@ -257,35 +294,60 @@ where
     R: Read + Seek,
 {
     pub fn new(mut input: R) -> Result<Self> {
-        let header_len = u64::from(input.read_u32::<LE>()?);
+        let file_size = {
+            let size = input.seek(SeekFrom::End(0))?;
+            input.seek(SeekFrom::Start(0))?;
+            size
+        };
+
+        let header_end = u64::from(input.read_u32::<LE>()?);
         let next_header = u64::from(input.read_u32::<LE>()?);
+
+        let header_start = if next_header > file_size {
+            4
+        } else {
+            8
+        };
+
+        let next_header = if next_header > 0 && next_header < file_size {
+            Some(next_header)
+        } else {
+            None
+        };
+
+        let (game_version, save_version) = {
+            input.seek(SeekFrom::Start(header_start))?;
+            let mut deflate = DeflateDecoder::new(&mut input);
+            let game_version = GameVersion::read_from(&mut deflate)?;
+            let save_version = deflate.read_f32::<LE>()?;
+            (game_version, save_version)
+        };
 
         Ok(Self {
             inner: input,
-            header_len,
-            next_header: if next_header == 0 {
-                None
-            } else {
-                Some(next_header)
-            },
+            header_start,
+            header_end,
+            next_header,
+            game_version,
+            save_version,
         })
     }
 
     fn seek_to_first_header(&mut self) -> Result<()> {
-        self.inner.seek(SeekFrom::Start(8))?;
+        self.inner.seek(SeekFrom::Start(self.header_start))?;
 
         Ok(())
     }
 
     fn seek_to_body(&mut self) -> Result<()> {
-        self.inner.seek(SeekFrom::Start(self.header_len))?;
+        self.inner.seek(SeekFrom::Start(self.header_end))?;
 
         Ok(())
     }
 
     pub fn header(&mut self) -> Result<Header> {
         self.seek_to_first_header()?;
-        let reader = (&mut self.inner).take(self.header_len);
+        let reader = (&mut self.inner).take(self.header_end - self.header_start);
         let deflate = DeflateDecoder::new(reader);
         let header = Header::read_from(deflate)?;
         Ok(header)
@@ -293,7 +355,7 @@ where
 
     pub fn actions(&mut self) -> Result<BodyActions<R>> {
         self.seek_to_body()?;
-        BodyActions::new(&mut self.inner)
+        BodyActions::new(&mut self.inner, self.save_version)
     }
 
     pub fn into_inner(self) -> R {
@@ -307,12 +369,22 @@ mod tests {
     use std::fs::File;
 
     #[test]
-    fn it_works() {
+    fn up_15_rec() {
         let f = File::open("test/rec.20181208-195117.mgz").unwrap();
         let mut r = RecordedGame::new(f).unwrap();
         r.header().unwrap();
         for act in r.actions().unwrap() {
             // println!("{:?}", act.unwrap());
+        }
+    }
+
+    #[test]
+    fn aok_rec() {
+        let f = File::open("test/aok.mgl").unwrap();
+        let mut r = RecordedGame::new(f).unwrap();
+        // r.header().unwrap();
+        for act in r.actions().unwrap() {
+            println!("{:?}", act.unwrap());
         }
     }
 }

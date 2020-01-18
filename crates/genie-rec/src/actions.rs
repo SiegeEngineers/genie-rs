@@ -1148,11 +1148,11 @@ pub struct Meta {
     pub use_sequence_numbers: bool,
     pub local_player_id: PlayerID,
     pub header_position: u32,
-    pub num_chapters: u32,
+    pub num_chapters: Option<u32>,
 }
 
 impl Meta {
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R, version: f32) -> Result<Self> {
         let checksum_interval = input.read_u32::<LE>()?;
         let is_multiplayer = input.read_u32::<LE>()? != 0;
         let local_player_id = input.read_u32::<LE>()?.try_into().unwrap();

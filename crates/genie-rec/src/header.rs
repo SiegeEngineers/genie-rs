@@ -1,41 +1,12 @@
 use crate::map::Map;
 use crate::player::Player;
 use crate::string_table::StringTable;
-use crate::Result;
+use crate::{GameVersion, Result};
 use byteorder::{ReadBytesExt, LE};
 pub use genie_support::SpriteID;
 use std::convert::TryInto;
-use std::fmt::{self, Debug, Display};
+use std::fmt::{self, Debug};
 use std::io::Read;
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub struct GameVersion([u8; 8]);
-
-impl Default for GameVersion {
-    fn default() -> Self {
-        Self([0; 8])
-    }
-}
-
-impl Debug for GameVersion {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", std::str::from_utf8(&self.0).unwrap())
-    }
-}
-
-impl Display for GameVersion {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", std::str::from_utf8(&self.0).unwrap())
-    }
-}
-
-impl GameVersion {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let mut game_version = [0; 8];
-        input.read_exact(&mut game_version)?;
-        Ok(Self(game_version))
-    }
-}
 
 #[derive(Debug, Default, Clone)]
 pub struct AICommand {
