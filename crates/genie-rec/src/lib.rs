@@ -303,11 +303,7 @@ where
         let header_end = u64::from(input.read_u32::<LE>()?);
         let next_header = u64::from(input.read_u32::<LE>()?);
 
-        let header_start = if next_header > file_size {
-            4
-        } else {
-            8
-        };
+        let header_start = if next_header > file_size { 4 } else { 8 };
 
         let next_header = if next_header > 0 && next_header < file_size {
             Some(next_header)
