@@ -215,7 +215,7 @@ impl Player {
         let _update_time = input.read_f32::<LE>()?;
 
         // if is userpatch
-        if genie_support::cmp_float!(version == 11.97) {
+        if genie_support::cmp_float!(version == 11.76) {
             player.userpatch_data = Some(UserPatchData::read_from(&mut input)?);
         }
 
