@@ -965,6 +965,36 @@ impl UnitOrderCommand {
     }
 }
 
+///
+#[derive(Debug, Default, Clone)]
+pub struct QueueCommand {
+    /// The ID of the building where this unit is being queued.
+    pub building_id: ObjectID,
+    /// The ID of the unit type being queued.
+    pub unit_type_id: UnitTypeID,
+    /// The amount of units to queue.
+    pub amount: u16,
+}
+
+impl QueueCommand {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+        let mut command = Self::default();
+        input.skip(3)?;
+        command.building_id = input.read_u32::<LE>()?.into();
+        command.unit_type_id = input.read_u16::<LE>()?.into();
+        command.amount = input.read_u16::<LE>()?;
+        Ok(command)
+    }
+
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        output.write_all(&[0, 0, 0])?;
+        output.write_u32::<LE>(self.building_id.into())?;
+        output.write_u16::<LE>(self.unit_type_id.into())?;
+        output.write_u16::<LE>(self.amount)?;
+        Ok(())
+    }
+}
+
 /// Read and write impl for market buying/selling commands, which are different commands but have
 /// the same shape.
 macro_rules! buy_sell_impl {
@@ -1059,6 +1089,7 @@ pub enum Command {
     Ungarrison(UngarrisonCommand),
     Flare(FlareCommand),
     UnitOrder(UnitOrderCommand),
+    Queue(QueueCommand),
     SellResource(SellResourceCommand),
     BuyResource(BuyResourceCommand),
     BackToWork(BackToWorkCommand),
@@ -1089,6 +1120,7 @@ impl Command {
             0x6f => UngarrisonCommand::read_from(input).map(Command::Ungarrison),
             0x73 => FlareCommand::read_from(input).map(Command::Flare),
             0x75 => UnitOrderCommand::read_from(input).map(Command::UnitOrder),
+            0x77 => QueueCommand::read_from(input).map(Command::Queue),
             0x7a => SellResourceCommand::read_from(input).map(Command::SellResource),
             0x7b => BuyResourceCommand::read_from(input).map(Command::BuyResource),
             0x80 => BackToWorkCommand::read_from(input).map(Command::BackToWork),
@@ -1148,10 +1180,13 @@ pub struct Meta {
     pub use_sequence_numbers: bool,
     pub local_player_id: PlayerID,
     pub header_position: u32,
+    /// The amount of saved chapters in this rec / save game. This is only set if the game version
+    /// that generated the file supports saved chapters (i.e. The Conquerors and up).
     pub num_chapters: Option<u32>,
 }
 
 impl Meta {
+    /// Read the chunk of recorded game body metadata that's the same across all versions.
     fn read_from_inner(mut input: impl Read) -> Result<Self> {
         let checksum_interval = input.read_u32::<LE>()?;
         let is_multiplayer = input.read_u32::<LE>()? != 0;
@@ -1168,8 +1203,8 @@ impl Meta {
         })
     }
 
-    /// Read game metadata from a recorded game body in the `mgl` format used by Age of Empires 2:
-    /// The Age Of Kings.
+    /// Read recorded game body metadata in the `mgl` format used by Age of Empires 2: The
+    /// Age Of Kings.
     pub fn read_from_mgl(mut input: impl Read) -> Result<Self> {
         let mut meta = Self::read_from_inner(&mut input)?;
         let _exe_file_size = input.read_u64::<LE>()?;
@@ -1182,6 +1217,8 @@ impl Meta {
         Ok(meta)
     }
 
+    /// Read recorded game body metadata in the `mgx` format used by Age of Empires 2: The
+    /// Conquerors and all subsequent versions.
     pub fn read_from_mgx(mut input: impl Read) -> Result<Self> {
         let mut meta = Self::read_from_inner(&mut input)?;
         meta.num_chapters = Some(input.read_u32::<LE>()?);
