@@ -1152,21 +1152,40 @@ pub struct Meta {
 }
 
 impl Meta {
-    pub fn read_from<R: Read>(input: &mut R, version: f32) -> Result<Self> {
+    fn read_from_inner(mut input: impl Read) -> Result<Self> {
         let checksum_interval = input.read_u32::<LE>()?;
         let is_multiplayer = input.read_u32::<LE>()? != 0;
         let local_player_id = input.read_u32::<LE>()?.try_into().unwrap();
         let header_position = input.read_u32::<LE>()?;
         let use_sequence_numbers = input.read_u32::<LE>()? != 0;
-        let num_chapters = input.read_u32::<LE>()?;
         Ok(Self {
             checksum_interval,
             is_multiplayer,
             use_sequence_numbers,
             local_player_id,
             header_position,
-            num_chapters,
+            ..Default::default()
         })
+    }
+
+    /// Read game metadata from a recorded game body in the `mgl` format used by Age of Empires 2:
+    /// The Age Of Kings.
+    pub fn read_from_mgl(mut input: impl Read) -> Result<Self> {
+        let mut meta = Self::read_from_inner(&mut input)?;
+        let _exe_file_size = input.read_u64::<LE>()?;
+        let _unknown = input.read_f32::<LE>()?;
+        let _unknown = input.read_f32::<LE>()?;
+
+        // TODO if `is_multiplayer` flag contains 2 or 3, the `remaining_syncs_until_checksum`
+        // value is stored here as u32
+
+        Ok(meta)
+    }
+
+    pub fn read_from_mgx(mut input: impl Read) -> Result<Self> {
+        let mut meta = Self::read_from_inner(&mut input)?;
+        meta.num_chapters = Some(input.read_u32::<LE>()?);
+        Ok(meta)
     }
 }
 
