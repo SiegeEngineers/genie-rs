@@ -46,12 +46,8 @@ impl Player {
             assert_eq!(input.read_u8()?, 11);
         }
         player.relations = vec![0; usize::from(num_players)];
-        for r in player.relations.iter_mut() {
-            *r = input.read_u8()?;
-        }
-        for r in player.diplomacy.iter_mut() {
-            *r = input.read_u32::<LE>()?;
-        }
+        input.read_exact(&mut player.relations)?;
+        input.read_u32_into::<LE>(&mut player.diplomacy)?;
         player.allied_los = input.read_u32::<LE>()? != 0;
         player.allied_victory = input.read_u8()? != 0;
         let name_len = input.read_u16::<LE>()?;
@@ -65,9 +61,7 @@ impl Player {
             assert_eq!(input.read_u8()?, 33);
         }
         player.attributes = vec![0.0; num_attributes.try_into().unwrap()];
-        for v in player.attributes.iter_mut() {
-            *v = input.read_f32::<LE>()?;
-        }
+        input.read_f32_into::<LE>(&mut player.attributes)?;
         if version >= 10.55 {
             assert_eq!(input.read_u8()?, 11);
         }
@@ -104,22 +98,14 @@ impl Player {
             (750, 100, 750, 100)
         };
         let mut object_categories_count = vec![0; counts.0];
-        for count in object_categories_count.iter_mut() {
-            *count = input.read_u16::<LE>()?;
-        }
+        input.read_u16_into::<LE>(&mut object_categories_count)?;
         let mut object_groups_count = vec![0; counts.1];
-        for count in object_groups_count.iter_mut() {
-            *count = input.read_u16::<LE>()?;
-        }
+        input.read_u16_into::<LE>(&mut object_groups_count)?;
 
         let mut built_object_categories_count = vec![0; counts.2];
-        for count in built_object_categories_count.iter_mut() {
-            *count = input.read_u16::<LE>()?;
-        }
+        input.read_u16_into::<LE>(&mut built_object_categories_count)?;
         let mut built_object_groups_count = vec![0; counts.3];
-        for count in built_object_groups_count.iter_mut() {
-            *count = input.read_u16::<LE>()?;
-        }
+        input.read_u16_into::<LE>(&mut built_object_groups_count)?;
 
         let _total_units_count = input.read_u16::<LE>()?;
         let _total_buildings_count = input.read_u16::<LE>()?;
@@ -256,16 +242,12 @@ impl Player {
         // off-map trade
         if version >= 9.17 {
             let mut off_map_trade_route_explored = [0; 20];
-            for v in off_map_trade_route_explored.iter_mut() {
-                *v = input.read_u8()?;
-            }
+            input.read_exact(&mut off_map_trade_route_explored)?;
         }
 
         if version >= 9.18 {
             let mut off_map_trade_route_being_explored = [0; 20];
-            for v in off_map_trade_route_being_explored.iter_mut() {
-                *v = input.read_u8()?;
-            }
+            input.read_exact(&mut off_map_trade_route_being_explored)?;
         }
 
         if version >= 10.55 {
@@ -331,9 +313,7 @@ impl Player {
 
         if version >= 9.32 {
             let mut old_player_kills = [0; 9];
-            for v in old_player_kills.iter_mut() {
-                *v = input.read_u32::<LE>()?;
-            }
+            input.read_u32_into::<LE>(&mut old_player_kills)?;
         }
 
         player.tech_tree = if version >= 9.38 {
