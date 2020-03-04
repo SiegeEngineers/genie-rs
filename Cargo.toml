@@ -19,7 +19,7 @@ genie-scx = { version = "2.0.0", path = "crates/genie-scx" }
 jascpal = { version = "0.1.0", path = "crates/jascpal" }
 
 [dev-dependencies]
-structopt = "^0.2.0"
+structopt = "^0.3.11"
 
 [workspace]
 members = [
