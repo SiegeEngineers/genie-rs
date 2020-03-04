@@ -108,7 +108,7 @@ pub struct Sprite {
     /// dependend on their map positions.
     ///
     /// Draw Level
-    /// ```
+    /// ```txt
     /// 0   Terrain
     /// 5   Shadows, farms
     /// 6   Rubble
