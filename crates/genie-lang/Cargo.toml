@@ -13,4 +13,4 @@ byteorder = "^1.3.1"
 encoding_rs = "^0.8.17"
 encoding_rs_io = "^0.1.5"
 genie-support = { version = "0.0.0", path = "../genie-support" }
-pelite = "^0.8.0"
+pelite = { version = "^0.8.0", default-features = false, features = ["mmap"] }
