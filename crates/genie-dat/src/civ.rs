@@ -36,6 +36,7 @@ fallible_try_from!(CivilizationID, u32);
 
 type CivName = ArrayString<[u8; 20]>;
 
+/// Information about a civilization.
 #[derive(Debug, Default, Clone)]
 pub struct Civilization {
     name: CivName,
@@ -52,6 +53,7 @@ impl Civilization {
         self.name.as_str()
     }
 
+    /// Read civilization data from an input stream.
     pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
         let mut civ = Self::default();
         let mut bytes = [0; 20];
@@ -96,6 +98,7 @@ impl Civilization {
         Ok(civ)
     }
 
+    /// Write civilization data to an output stream.
     pub fn write_to<W: Write>(&self, output: &mut W, version: GameVersion) -> Result<()> {
         let mut name = [0; 20];
         (&mut name[..]).copy_from_slice(self.name.as_bytes());
