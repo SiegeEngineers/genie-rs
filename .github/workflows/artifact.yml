@@ -37,13 +37,13 @@ jobs:
         with:
           profile: minimal
           toolchain: stable
-          target: x86-pc-windows-msvc
+          target: i686-pc-windows-msvc
           override: true
       - name: Build cgenie libraries
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --target x86-pc-windows-msvc --release -p cgenie-drs -p cgenie-hki -p cgenie-lang -p cgenie-scx -p cgenie
+          args: --target i686-pc-windows-msvc --release -p cgenie-drs -p cgenie-hki -p cgenie-lang -p cgenie-scx -p cgenie
       - name: Prepare artifact
         run: |
           mkdir -p artifact/libs/
