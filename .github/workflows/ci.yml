@@ -66,3 +66,29 @@ jobs:
         with:
           command: clippy
           # args: -- -D warnings
+
+  libraries:
+    name: Build 64 bit C Libraries
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Build cgenie libraries
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release -p cgenie-drs -p cgenie-hki -p cgenie-lang -p cgenie-scx -p cgenie
+      - name: Prepare artifact
+        run: |
+          mkdir -p artifact/libs/
+          cp target/release/*.dll artifact/libs/
+          cp target/release/*.lib artifact/libs/
+          cp -R c/include artifact/
+      - uses: actions/upload-artifact@v1
+        with:
+          name: cgenie-x64-win
+          path: artifact
