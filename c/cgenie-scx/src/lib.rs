@@ -36,6 +36,20 @@ use std::io::Cursor;
 use std::ptr;
 
 /// Open and read a scenario file.
+///
+/// # Examples
+/// ```c
+/// #include <cgenie/scx.h>
+///
+/// int main () {
+///   cgenie_scx_t scenario = cgscx_load("filename.scx");
+///   if (scenario == NULL) {
+///     return 1;
+///   }
+///   cgscx_free(scenario);
+///   return 0;
+/// }
+/// ```
 #[no_mangle]
 pub extern "C" fn cgscx_load(path: FfiStr<'_>) -> *mut Scenario {
     if let Some(path) = path.as_opt_str() {
@@ -53,6 +67,27 @@ pub extern "C" fn cgscx_load(path: FfiStr<'_>) -> *mut Scenario {
 }
 
 /// Read a scenario file from a byte array.
+///
+/// # Examples
+/// ```c
+/// #include <cgenie/scx.h>
+///
+/// int main () {
+///   FILE* file = fopen("filename.scx", "rb");
+///   fseek(file, 0L, SEEK_END);
+///   long size = ftell(file);
+///   fseek(file, 0L, SEEK_SET);
+///   unsigned char* bytes = calloc(1, size);
+///   fread(bytes, 1, size, file);
+///
+///   cgenie_scx_t scenario = cgscx_load_mem(bytes);
+///   if (scenario == NULL) {
+///     return 1;
+///   }
+///   cgscx_free(scenario);
+///   return 0;
+/// }
+/// ```
 #[no_mangle]
 pub extern "C" fn cgscx_load_mem(input: *const u8, size: usize) -> *mut Scenario {
     let slice = unsafe { std::slice::from_raw_parts(input, size) };
@@ -69,9 +104,10 @@ pub extern "C" fn cgscx_convert_aoc_to_wk(scenario: *mut Scenario) -> u32 {
     if scenario.is_null() {
         return 1;
     }
+    let scenario = unsafe { &mut *scenario };
 
     let converter = AoCToWK::default();
-    if let Err(_) = converter.convert(unsafe { &mut *scenario }) {
+    if let Err(_) = converter.convert(scenario) {
         return 3;
     }
 
@@ -84,9 +120,10 @@ pub extern "C" fn cgscx_convert_hd_to_wk(scenario: *mut Scenario) -> u32 {
     if scenario.is_null() {
         return 1;
     }
+    let scenario = unsafe { &mut *scenario };
 
     let converter = HDToWK::default();
-    if let Err(_) = converter.convert(unsafe { &mut *scenario }) {
+    if let Err(_) = converter.convert(scenario) {
         return 3;
     }
 
@@ -99,9 +136,10 @@ pub extern "C" fn cgscx_convert_to_wk(scenario: *mut Scenario) -> u32 {
     if scenario.is_null() {
         return 1;
     }
+    let scenario = unsafe { &mut *scenario };
 
     let converter = AutoToWK::default();
-    if let Err(_) = converter.convert(unsafe { &mut *scenario }) {
+    if let Err(_) = converter.convert(scenario) {
         return 3;
     }
 
@@ -118,6 +156,7 @@ pub extern "C" fn cgscx_save(
     if scenario.is_null() {
         return 1;
     }
+    let scenario = unsafe { &*scenario };
 
     let version = match version.as_opt_str() {
         Some("aoe") => VersionBundle::aoe(),
@@ -126,11 +165,11 @@ pub extern "C" fn cgscx_save(
         Some("hd") => VersionBundle::hd_edition(),
         Some("wk") => VersionBundle::userpatch_15(),
         Some(_) => return 5,
-        None => unsafe { &*scenario }.version().clone(),
+        None => scenario.version().clone(),
     };
     if let Some(path) = path.as_opt_str() {
         if let Ok(mut file) = File::create(path) {
-            if let Ok(_) = unsafe { &*scenario }.write_to_version(&mut file, &version) {
+            if let Ok(_) = scenario.write_to_version(&mut file, &version) {
                 0
             } else {
                 4
