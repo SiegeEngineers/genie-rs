@@ -1,3 +1,4 @@
+use crate::civ::CivilizationID;
 use crate::unit_type::UnitTypeID;
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
@@ -19,7 +20,7 @@ pub enum TechTreeStatus {
     /// This building/unit/technology is available to the player if someone on their team is this
     /// civilization.
     AvailableTeam {
-        civilization_id: u8,
+        civilization_id: CivilizationID,
     },
 }
 
@@ -51,7 +52,7 @@ impl TryFrom<u8> for TechTreeStatus {
             4 => Ok(Self::Researching),
             5 => Ok(Self::ResearchedCompleted),
             10..=255 => Ok(Self::AvailableTeam {
-                civilization_id: n - 10,
+                civilization_id: (n - 10).into(),
             }),
             n => Err(ParseTechTreeStatusError(n as u8)),
         }
@@ -66,7 +67,7 @@ impl From<TechTreeStatus> for u8 {
             TechTreeStatus::NotAvailablePlayer => 3,
             TechTreeStatus::Researching => 4,
             TechTreeStatus::ResearchedCompleted => 5,
-            TechTreeStatus::AvailableTeam { civilization_id } => civilization_id + 10,
+            TechTreeStatus::AvailableTeam { civilization_id } => u8::from(civilization_id) + 10,
         }
     }
 }
