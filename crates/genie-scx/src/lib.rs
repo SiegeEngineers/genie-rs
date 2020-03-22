@@ -167,8 +167,7 @@ pub struct Scenario {
 
 impl Scenario {
     /// Read a scenario file.
-    #[inline]
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(input: impl Read) -> Result<Self> {
         let format = SCXFormat::load_scenario(input)?;
         let version = format.version();
 
@@ -178,8 +177,7 @@ impl Scenario {
     /// Write the scenario file to an output stream.
     ///
     /// Equivalent to `scen.write_to_version(scen.version())`.
-    #[inline]
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    pub fn write_to(&self, output: impl Write) -> Result<()> {
         self.format.write_to(output, self.version())
     }
 

@@ -48,7 +48,7 @@ impl Default for PlayerStartResources {
 }
 
 impl PlayerStartResources {
-    pub fn from<R: Read>(input: &mut R, version: f32) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
         Ok(Self {
             gold: input.read_i32::<LE>()?,
             wood: input.read_i32::<LE>()?,
@@ -72,7 +72,7 @@ impl PlayerStartResources {
         })
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W, version: f32) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
         output.write_i32::<LE>(self.gold)?;
         output.write_i32::<LE>(self.wood)?;
         output.write_i32::<LE>(self.food)?;
@@ -112,9 +112,9 @@ impl ScenarioPlayerData {
     }
 
     /// Read player data from an input stream.
-    pub fn from<R: Read>(input: &mut R, version: f32) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
         let len = input.read_u16::<LE>()?;
-        let name = read_str(input, len as usize)?;
+        let name = read_str(&mut input, len as usize)?;
 
         let view = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
 
@@ -154,7 +154,7 @@ impl ScenarioPlayerData {
             None
         };
 
-        let victory = VictoryConditions::from(input, version >= 1.09)?;
+        let victory = VictoryConditions::read_from(&mut input, version >= 1.09)?;
 
         Ok(ScenarioPlayerData {
             name,
@@ -169,13 +169,13 @@ impl ScenarioPlayerData {
     }
 
     /// Write player data to an output stream.
-    pub fn write_to<W: Write>(
+    pub fn write_to(
         &self,
-        output: &mut W,
+        mut output: impl Write,
         version: f32,
         victory_version: f32,
     ) -> Result<()> {
-        write_opt_str(output, &self.name)?;
+        write_opt_str(&mut output, &self.name)?;
 
         output.write_f32::<LE>(self.view.0)?;
         output.write_f32::<LE>(self.view.1)?;
@@ -209,7 +209,7 @@ impl ScenarioPlayerData {
         }
 
         self.victory.write_to(
-            output,
+            &mut output,
             if version >= 1.09 {
                 Some(victory_version)
             } else {
@@ -255,7 +255,7 @@ impl Default for WorldPlayerData {
 }
 
 impl WorldPlayerData {
-    pub fn from<R: Read>(input: &mut R, version: f32) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
         Ok(Self {
             food: if version > 1.06 {
                 input.read_f32::<LE>()?
@@ -295,7 +295,7 @@ impl WorldPlayerData {
         })
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W, version: f32) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
         if version > 1.06 {
             output.write_f32::<LE>(self.food)?;
             output.write_f32::<LE>(self.wood)?;

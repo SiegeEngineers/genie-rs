@@ -39,11 +39,11 @@
 //!
 //! /// Read an AoE1 scenario file
 //! let infile = "./crates/genie-scx/test/scenarios/Dawn of a New Age.scn";
-//! let mut input = std::fs::File::open(infile)?;
-//! let mut output = std::fs::File::create("converted.scx")?;
+//! let input = std::fs::File::open(infile)?;
+//! let output = std::fs::File::create("converted.scx")?;
 //!
-//! let scen = Scenario::from(&mut input)?;
-//! scen.write_to_version(&mut output, &VersionBundle::aoc())?;
+//! let scen = Scenario::read_from(input)?;
+//! scen.write_to_version(output, &VersionBundle::aoc())?;
 //!
 //! # std::fs::remove_file("converted.scx")?;
 //! # Ok(()) }

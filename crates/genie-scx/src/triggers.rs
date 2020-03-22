@@ -14,7 +14,7 @@ pub struct TriggerCondition {
 
 impl TriggerCondition {
     /// Read a trigger condition from an input stream, with the given trigger system version.
-    pub fn from<R: Read>(input: &mut R, version: f64) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, version: f64) -> Result<Self> {
         let condition_type = input.read_i32::<LE>()?;
         let num_properties = if version > 1.0 {
             input.read_i32::<LE>()?
@@ -37,7 +37,7 @@ impl TriggerCondition {
     }
 
     /// Write this trigger condition to an output stream, with the given trigger system version.
-    pub fn write_to<W: Write>(&self, output: &mut W, version: f64) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write, version: f64) -> Result<()> {
         output.write_i32::<LE>(self.condition_type)?;
         if version > 1.0 {
             output.write_i32::<LE>(self.properties.len() as i32)?;
@@ -194,7 +194,7 @@ pub struct TriggerEffect {
 
 impl TriggerEffect {
     /// Read a trigger effect from an input stream, with the given trigger system version.
-    pub fn from<R: Read>(input: &mut R, version: f64) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, version: f64) -> Result<Self> {
         let effect_type = input.read_i32::<LE>()?;
         let num_properties = if version > 1.0 {
             input.read_i32::<LE>()?
@@ -211,9 +211,9 @@ impl TriggerEffect {
         }
 
         let len = input.read_i32::<LE>()? as usize;
-        let chat_text = read_str(input, len)?;
+        let chat_text = read_str(&mut input, len)?;
         let len = input.read_i32::<LE>()? as usize;
-        let audio_file = read_str(input, len)?;
+        let audio_file = read_str(&mut input, len)?;
         let mut objects = vec![];
 
         if version > 1.1 {
@@ -235,7 +235,7 @@ impl TriggerEffect {
     }
 
     /// Write a trigger effect to an output stream, with the given trigger system version.
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
         output.write_i32::<LE>(self.effect_type)?;
         output.write_i32::<LE>(self.properties.len() as i32)?;
         for value in &self.properties {
@@ -434,7 +434,7 @@ pub struct Trigger {
 
 impl Trigger {
     /// Read a trigger from an input stream, with the given trigger system version.
-    pub fn from<R: Read>(input: &mut R, version: f64) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, version: f64) -> Result<Self> {
         let enabled = input.read_i32::<LE>()? != 0;
         let looping = input.read_i8()? != 0;
         let name_id = input.read_i32::<LE>()?;
@@ -443,16 +443,16 @@ impl Trigger {
         let start_time = input.read_u32::<LE>()?;
 
         let description_length = input.read_u32::<LE>()? as usize;
-        let description = read_str(input, description_length)?;
+        let description = read_str(&mut input, description_length)?;
 
         let name_length = input.read_u32::<LE>()? as usize;
-        let name = read_str(input, name_length)?;
+        let name = read_str(&mut input, name_length)?;
 
         let num_effects = input.read_i32::<LE>()?;
         let mut effects = vec![];
         let mut effect_order = vec![];
         for _ in 0..num_effects {
-            effects.push(TriggerEffect::from(input, version)?);
+            effects.push(TriggerEffect::read_from(&mut input, version)?);
         }
         for _ in 0..num_effects {
             effect_order.push(input.read_i32::<LE>()?);
@@ -462,7 +462,7 @@ impl Trigger {
         let mut conditions = vec![];
         let mut condition_order = vec![];
         for _ in 0..num_conditions {
-            conditions.push(TriggerCondition::from(input, version)?);
+            conditions.push(TriggerCondition::read_from(&mut input, version)?);
         }
         for _ in 0..num_conditions {
             condition_order.push(input.read_i32::<LE>()?);
@@ -485,7 +485,7 @@ impl Trigger {
     }
 
     /// Write this trigger condition to an output stream, with the given trigger system version.
-    pub fn write_to<W: Write>(&self, output: &mut W, version: f64) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write, version: f64) -> Result<()> {
         output.write_i32::<LE>(if self.enabled { 1 } else { 0 })?;
         output.write_i8(if self.looping { 1 } else { 0 })?;
         output.write_i32::<LE>(self.name_id)?;
@@ -495,27 +495,27 @@ impl Trigger {
 
         if let Some(descr) = &self.description {
             output.write_u32::<LE>(descr.len().try_into().unwrap())?;
-            write_str(output, descr)?;
+            write_str(&mut output, descr)?;
         } else {
             output.write_u32::<LE>(0)?;
         }
         if let Some(name) = &self.name {
             output.write_u32::<LE>(name.len().try_into().unwrap())?;
-            write_str(output, name)?;
+            write_str(&mut output, name)?;
         } else {
             output.write_u32::<LE>(0)?;
         }
 
         output.write_u32::<LE>(self.effects.len() as u32)?;
         for effect in &self.effects {
-            effect.write_to(output)?;
+            effect.write_to(&mut output)?;
         }
         for order in &self.effect_order {
             output.write_i32::<LE>(*order)?;
         }
         output.write_u32::<LE>(self.conditions.len() as u32)?;
         for condition in &self.conditions {
-            condition.write_to(output, version)?;
+            condition.write_to(&mut output, version)?;
         }
         for order in &self.condition_order {
             output.write_i32::<LE>(*order)?;
@@ -566,7 +566,7 @@ impl Default for TriggerSystem {
 }
 
 impl TriggerSystem {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let version = input.read_f64::<LE>()?;
         let objectives_state = if version >= 1.5 { input.read_i8()? } else { 0 };
 
@@ -575,7 +575,7 @@ impl TriggerSystem {
         let mut triggers = vec![];
         let mut trigger_order = vec![];
         for _ in 0..num_triggers {
-            triggers.push(Trigger::from(input, version)?);
+            triggers.push(Trigger::read_from(&mut input, version)?);
         }
         if version >= 1.4 {
             for _ in 0..num_triggers {
@@ -595,14 +595,14 @@ impl TriggerSystem {
         })
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W, version: f64) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write, version: f64) -> Result<()> {
         output.write_f64::<LE>(version)?;
         if version >= 1.5 {
             output.write_i8(self.objectives_state)?;
         }
         output.write_u32::<LE>(self.triggers.len().try_into().unwrap())?;
         for trigger in &self.triggers {
-            trigger.write_to(output, version)?;
+            trigger.write_to(&mut output, version)?;
         }
         if version >= 1.4 {
             for order in &self.trigger_order {

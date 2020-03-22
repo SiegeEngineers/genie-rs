@@ -48,7 +48,7 @@ impl Map {
         }
     }
 
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let width = input.read_u32::<LE>()?;
         let height = input.read_u32::<LE>()?;
 
@@ -70,7 +70,7 @@ impl Map {
         })
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
         output.write_u32::<LE>(self.width)?;
         output.write_u32::<LE>(self.height)?;
 
