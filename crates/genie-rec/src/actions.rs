@@ -505,6 +505,72 @@ impl UnitAIStateCommand {
     }
 }
 
+/// Task units to guard an object.
+#[derive(Debug, Default, Clone)]
+pub struct GuardCommand {
+    /// The target object of this order.
+    pub target_id: Option<ObjectID>,
+    /// The objects this command applies to.
+    pub objects: ObjectsList,
+}
+
+impl GuardCommand {
+    /// Read a Guard command from an input stream.
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
+        let mut command = Self::default();
+        let selected_count = i32::from(input.read_u8()?);
+        input.skip(2)?;
+        command.target_id = match input.read_i32::<LE>()? {
+            -1 => None,
+            id => Some(id.try_into().unwrap()),
+        };
+        command.objects = ObjectsList::read_from(input, selected_count)?;
+        Ok(command)
+    }
+
+    /// Write a Guard command to an output stream.
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        output.write_u8(self.objects.len().try_into().unwrap())?;
+        output.write_all(&[0, 0])?;
+        output.write_i32::<LE>(self.target_id.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
+        self.objects.write_to(output)?;
+        Ok(())
+    }
+}
+
+/// Task units to follow an object.
+#[derive(Debug, Default, Clone)]
+pub struct FollowCommand {
+    /// The target object of this order.
+    pub target_id: Option<ObjectID>,
+    /// The objects this command applies to.
+    pub objects: ObjectsList,
+}
+
+impl FollowCommand {
+    /// Read a Follow command from an input stream.
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
+        let mut command = Self::default();
+        let selected_count = i32::from(input.read_u8()?);
+        input.skip(2)?;
+        command.target_id = match input.read_i32::<LE>()? {
+            -1 => None,
+            id => Some(id.try_into().unwrap()),
+        };
+        command.objects = ObjectsList::read_from(input, selected_count)?;
+        Ok(command)
+    }
+
+    /// Write a Follow command to an output stream.
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        output.write_u8(self.objects.len().try_into().unwrap())?;
+        output.write_all(&[0, 0])?;
+        output.write_i32::<LE>(self.target_id.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
+        self.objects.write_to(output)?;
+        Ok(())
+    }
+}
+
 /// Task a group of objects to patrol along a given path.
 #[derive(Debug, Default, Clone)]
 pub struct PatrolCommand {
@@ -1163,6 +1229,8 @@ pub enum Command {
     Resign(ResignCommand),
     GroupWaypoint(GroupWaypointCommand),
     UnitAIState(UnitAIStateCommand),
+    Guard(GuardCommand),
+    Follow(FollowCommand),
     Patrol(PatrolCommand),
     FormFormation(FormFormationCommand),
     UserPatchAI(UserPatchAICommand),
@@ -1208,6 +1276,8 @@ impl Command {
             0x0b => ResignCommand::read_from(cursor).map(Command::Resign),
             0x10 => GroupWaypointCommand::read_from(cursor).map(Command::GroupWaypoint),
             0x12 => UnitAIStateCommand::read_from(cursor).map(Command::UnitAIState),
+            0x13 => GuardCommand::read_from(cursor).map(Command::Guard),
+            0x14 => FollowCommand::read_from(cursor).map(Command::Follow),
             0x15 => PatrolCommand::read_from(cursor).map(Command::Patrol),
             0x17 => FormFormationCommand::read_from(cursor).map(Command::FormFormation),
             0x35 => UserPatchAICommand::read_from(cursor, len).map(Command::UserPatchAI),
