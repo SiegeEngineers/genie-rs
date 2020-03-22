@@ -108,7 +108,7 @@ pub struct OrderCommand {
     /// The ID of the player executing this command.
     pub player_id: PlayerID,
     /// The target object of this order.
-    pub target_id: ObjectID,
+    pub target_id: Option<ObjectID>,
     /// The target location of this order.
     pub location: Location2,
     /// The objects this command applies to.
@@ -121,7 +121,10 @@ impl OrderCommand {
         let mut command = Self::default();
         command.player_id = input.read_u8()?.into();
         input.skip(2)?;
-        command.target_id = input.read_i32::<LE>()?.try_into().unwrap();
+        command.target_id = match input.read_i32::<LE>()? {
+            -1 => None,
+            id => Some(id.try_into().unwrap()),
+        };
         let selected_count = input.read_i32::<LE>()?;
         command.location = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
         command.objects = ObjectsList::read_from(input, selected_count)?;
@@ -132,7 +135,7 @@ impl OrderCommand {
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u8(self.player_id.into())?;
         output.write_all(&[0, 0])?;
-        output.write_u32::<LE>(self.target_id.into())?;
+        output.write_i32::<LE>(self.target_id.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
         output.write_u32::<LE>(self.objects.len().try_into().unwrap())?;
         output.write_f32::<LE>(self.location.0)?;
         output.write_f32::<LE>(self.location.1)?;
