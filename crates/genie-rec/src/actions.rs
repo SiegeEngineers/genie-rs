@@ -1188,12 +1188,12 @@ impl SetGatherPointCommand {
         let mut command = Self::default();
         let selected_count = i32::from(input.read_i8()?);
         input.skip(2)?;
-        command.target_id = match input.read_i16::<LE>()? {
+        command.target_id = match input.read_i32::<LE>()? {
             -1 => None,
             id => Some(id.try_into().unwrap()),
         };
-        command.target_type_id = match input.read_i16::<LE>()? {
-            -1 => None,
+        command.target_type_id = match input.read_u16::<LE>()? {
+            0xFFFF => None,
             id => Some(id.try_into().unwrap()),
         };
         input.skip(2)?;
