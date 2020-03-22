@@ -27,7 +27,7 @@ pub struct ViewLock {
 
 impl ViewLock {
     /// Read a view lock action from an input stream.
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let x = input.read_f32::<LE>()?;
         let y = input.read_f32::<LE>()?;
         let player = input.read_i32::<LE>()?.try_into().unwrap();
@@ -64,7 +64,7 @@ impl Default for ObjectsList {
 
 impl ObjectsList {
     /// Read a list of objects from an input stream.
-    pub fn read_from<R: Read>(input: &mut R, count: i32) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, count: i32) -> Result<Self> {
         if count < 0xFF {
             let mut list = vec![];
             for _ in 0..count {
@@ -117,7 +117,7 @@ pub struct OrderCommand {
 
 impl OrderCommand {
     /// Read an Order command from an input stream.
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut command = Self::default();
         command.player_id = input.read_u8()?.into();
         input.skip(2)?;
@@ -150,7 +150,7 @@ pub struct StopCommand {
 
 impl StopCommand {
     /// Read a Stop command from an input stream.
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut command = Self::default();
         let selected_count = input.read_i8()?;
         command.objects = ObjectsList::read_from(input, selected_count as i32)?;
@@ -178,7 +178,7 @@ pub struct WorkCommand {
 
 impl WorkCommand {
     /// Read a Work command from an input stream.
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut command = Self::default();
         input.skip(3)?;
         command.target_id = match input.read_i32::<LE>()? {
@@ -220,7 +220,7 @@ pub struct CreateCommand {
 
 impl CreateCommand {
     /// Read a Create command from an input stream.
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut command = Self::default();
         let _padding = input.read_u8()?;
         command.unit_type_id = input.read_u16::<LE>()?.into();
@@ -262,7 +262,7 @@ pub struct AddResourceCommand {
 
 impl AddResourceCommand {
     /// Read an AddResource command from an input stream.
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let player_id = input.read_u8()?.into();
         let resource = input.read_u8()?;
         let _padding = input.read_u8()?;
@@ -301,7 +301,7 @@ pub struct AIOrderCommand {
 }
 
 impl AIOrderCommand {
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut command = Self::default();
         let selected_count = i32::from(input.read_i8()?);
         command.player_id = input.read_u8()?.into();
@@ -382,7 +382,7 @@ pub struct ResignCommand {
 
 impl ResignCommand {
     /// Read a Resign command from an input stream.
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let player_id = input.read_u8()?.into();
         let comm_player_id = input.read_u8()?.into();
         let dropped = input.read_u8()? != 0;
@@ -410,7 +410,7 @@ pub struct GroupWaypointCommand {
 }
 
 impl GroupWaypointCommand {
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let player_id = input.read_u8()?.into();
         input.skip(2)?;
         let object_id = input.read_u32::<LE>()?.into();
@@ -444,7 +444,7 @@ pub struct UnitAIStateCommand {
 
 impl UnitAIStateCommand {
     /// Read a UnitAIState command from an input stream.
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let selected_count = input.read_u8()?;
         let state = input.read_i8()?;
         let objects = ObjectsList::read_from(input, i32::from(selected_count))?;
@@ -470,7 +470,7 @@ pub struct PatrolCommand {
 }
 
 impl PatrolCommand {
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut command = Self::default();
         let selected_count = input.read_i8()?;
         let waypoint_count = input.read_u8()?;
@@ -517,7 +517,7 @@ pub struct FormFormationCommand {
 }
 
 impl FormFormationCommand {
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut command = Self::default();
         let selected_count = input.read_i8()?;
         command.player_id = input.read_u8()?.into();
@@ -562,7 +562,7 @@ pub struct UserPatchAICommand {
 }
 
 impl UserPatchAICommand {
-    pub fn read_from<R: Read>(input: &mut R, size: u32) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, size: u32) -> Result<Self> {
         let num_params = (size - 4) / 4;
         assert!(
             num_params < 4,
@@ -603,7 +603,7 @@ pub struct MakeCommand {
 }
 
 impl MakeCommand {
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         input.skip(3)?;
         let building_id = input.read_u32::<LE>()?.into();
         let player_id = input.read_u8()?.into();
@@ -649,7 +649,7 @@ pub struct ResearchCommand {
 }
 
 impl ResearchCommand {
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         input.skip(3)?;
         let building_id = input.read_u32::<LE>()?.into();
         let player_id = input.read_u8()?.into();
@@ -699,7 +699,7 @@ pub struct BuildCommand {
 }
 
 impl BuildCommand {
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut command = Self::default();
         let selected_count = input.read_i8()?;
         command.player_id = input.read_u8()?.into();
@@ -744,7 +744,7 @@ struct RawGameCommand {
 }
 
 impl RawGameCommand {
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let game_command = input.read_u8()?;
         let var1 = input.read_i16::<LE>()?;
         let var2 = input.read_i16::<LE>()?;
@@ -762,7 +762,7 @@ impl RawGameCommand {
 }
 
 impl GameCommand {
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let RawGameCommand {
             game_command,
             var1,
@@ -798,7 +798,7 @@ pub struct BuildWallCommand {
 }
 
 impl BuildWallCommand {
-    fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    fn read_from(mut input: impl Read) -> Result<Self> {
         let selected_count = input.read_i8()?;
         let player_id = input.read_u8()?.into();
         let start = (input.read_u8()?, input.read_u8()?);
@@ -843,7 +843,7 @@ pub struct CancelBuildCommand {
 }
 
 impl CancelBuildCommand {
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         input.skip(3)?;
         let building_id = input.read_u32::<LE>()?.into();
         let player_id = input.read_u32::<LE>()?.try_into().unwrap();
@@ -871,7 +871,7 @@ pub struct UngarrisonCommand {
 }
 
 impl UngarrisonCommand {
-    fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    fn read_from(mut input: impl Read) -> Result<Self> {
         let mut command = Self::default();
         let selected_count = input.read_i8()?;
         let _padding = input.read_u16::<LE>()?;
@@ -903,7 +903,7 @@ pub struct FlareCommand {
 }
 
 impl FlareCommand {
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut command = Self::default();
         input.skip(3)?;
         assert_eq!(
@@ -935,7 +935,7 @@ pub struct UnitOrderCommand {
 }
 
 impl UnitOrderCommand {
-    fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    fn read_from(mut input: impl Read) -> Result<Self> {
         let mut command = Self::default();
         let selected_count = input.read_i8()?;
         let _padding = input.read_u16::<LE>()?;
@@ -977,7 +977,7 @@ pub struct QueueCommand {
 }
 
 impl QueueCommand {
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut command = Self::default();
         input.skip(3)?;
         command.building_id = input.read_u32::<LE>()?.into();
@@ -1000,7 +1000,7 @@ impl QueueCommand {
 macro_rules! buy_sell_impl {
     ($name:ident) => {
         impl $name {
-            pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+            pub fn read_from(mut input: impl Read) -> Result<Self> {
                 let mut command = Self::default();
                 command.player_id = input.read_u8()?.into();
                 command.resource = input.read_u8()?;
@@ -1059,7 +1059,7 @@ pub struct BackToWorkCommand {
 }
 
 impl BackToWorkCommand {
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         input.skip(3)?;
         let building_id = input.read_u32::<LE>()?.into();
         Ok(Self { building_id })
@@ -1098,34 +1098,47 @@ pub enum Command {
 impl Command {
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let len = input.read_u32::<LE>()?;
-        let command = match input.read_u8()? {
-            0x00 => OrderCommand::read_from(input).map(Command::Order),
-            0x01 => StopCommand::read_from(input).map(Command::Stop),
-            0x02 => WorkCommand::read_from(input).map(Command::Work),
-            0x04 => CreateCommand::read_from(input).map(Command::Create),
-            0x05 => AddResourceCommand::read_from(input).map(Command::AddResource),
-            0x0a => AIOrderCommand::read_from(input).map(Command::AIOrder),
-            0x0b => ResignCommand::read_from(input).map(Command::Resign),
-            0x10 => GroupWaypointCommand::read_from(input).map(Command::GroupWaypoint),
-            0x12 => UnitAIStateCommand::read_from(input).map(Command::UnitAIState),
-            0x15 => PatrolCommand::read_from(input).map(Command::Patrol),
-            0x17 => FormFormationCommand::read_from(input).map(Command::FormFormation),
-            0x35 => UserPatchAICommand::read_from(input, len).map(Command::UserPatchAI),
-            0x64 => MakeCommand::read_from(input).map(Command::Make),
-            0x65 => ResearchCommand::read_from(input).map(Command::Research),
-            0x66 => BuildCommand::read_from(input).map(Command::Build),
-            0x67 => GameCommand::read_from(input).map(Command::Game),
-            0x69 => BuildWallCommand::read_from(input).map(Command::BuildWall),
-            0x6a => CancelBuildCommand::read_from(input).map(Command::CancelBuild),
-            0x6f => UngarrisonCommand::read_from(input).map(Command::Ungarrison),
-            0x73 => FlareCommand::read_from(input).map(Command::Flare),
-            0x75 => UnitOrderCommand::read_from(input).map(Command::UnitOrder),
-            0x77 => QueueCommand::read_from(input).map(Command::Queue),
-            0x7a => SellResourceCommand::read_from(input).map(Command::SellResource),
-            0x7b => BuyResourceCommand::read_from(input).map(Command::BuyResource),
-            0x80 => BackToWorkCommand::read_from(input).map(Command::BackToWork),
+        let mut small_buffer;
+        let mut big_buffer;
+        let buffer: &mut [u8] = if len > 512 {
+            small_buffer = [0; 512];
+            &mut small_buffer
+        } else {
+            big_buffer = vec![0; len as usize];
+            &mut big_buffer
+        };
+
+        input.read_exact(buffer)?;
+        let mut cursor = std::io::Cursor::new(buffer);
+        let command = match cursor.read_u8()? {
+            0x00 => OrderCommand::read_from(cursor).map(Command::Order),
+            0x01 => StopCommand::read_from(cursor).map(Command::Stop),
+            0x02 => WorkCommand::read_from(cursor).map(Command::Work),
+            0x04 => CreateCommand::read_from(cursor).map(Command::Create),
+            0x05 => AddResourceCommand::read_from(cursor).map(Command::AddResource),
+            0x0a => AIOrderCommand::read_from(cursor).map(Command::AIOrder),
+            0x0b => ResignCommand::read_from(cursor).map(Command::Resign),
+            0x10 => GroupWaypointCommand::read_from(cursor).map(Command::GroupWaypoint),
+            0x12 => UnitAIStateCommand::read_from(cursor).map(Command::UnitAIState),
+            0x15 => PatrolCommand::read_from(cursor).map(Command::Patrol),
+            0x17 => FormFormationCommand::read_from(cursor).map(Command::FormFormation),
+            0x35 => UserPatchAICommand::read_from(cursor, len).map(Command::UserPatchAI),
+            0x64 => MakeCommand::read_from(cursor).map(Command::Make),
+            0x65 => ResearchCommand::read_from(cursor).map(Command::Research),
+            0x66 => BuildCommand::read_from(cursor).map(Command::Build),
+            0x67 => GameCommand::read_from(cursor).map(Command::Game),
+            0x69 => BuildWallCommand::read_from(cursor).map(Command::BuildWall),
+            0x6a => CancelBuildCommand::read_from(cursor).map(Command::CancelBuild),
+            0x6f => UngarrisonCommand::read_from(cursor).map(Command::Ungarrison),
+            0x73 => FlareCommand::read_from(cursor).map(Command::Flare),
+            0x75 => UnitOrderCommand::read_from(cursor).map(Command::UnitOrder),
+            0x77 => QueueCommand::read_from(cursor).map(Command::Queue),
+            0x7a => SellResourceCommand::read_from(cursor).map(Command::SellResource),
+            0x7b => BuyResourceCommand::read_from(cursor).map(Command::BuyResource),
+            0x80 => BackToWorkCommand::read_from(cursor).map(Command::BackToWork),
             id => panic!("unsupported command type {:#x}", id),
         };
+
         let _world_time = input.read_u32::<LE>()?;
         command
     }
