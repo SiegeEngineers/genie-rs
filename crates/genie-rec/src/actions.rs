@@ -972,6 +972,37 @@ impl CancelBuildCommand {
     }
 }
 
+/// Task an object to attack ground.
+#[derive(Debug, Default, Clone)]
+pub struct AttackGroundCommand {
+    /// The target location of this command.
+    pub location: Location2,
+    /// The objects being tasked.
+    pub objects: ObjectsList,
+}
+
+impl AttackGroundCommand {
+    /// Read a AttackGround command from an input stream.
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
+        let mut command = Self::default();
+        let selected_count = i32::from(input.read_i8()?);
+        input.skip(2)?;
+        command.location = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
+        command.objects = ObjectsList::read_from(input, selected_count as i32)?;
+        Ok(command)
+    }
+
+    /// Write this AttackGround command to an output stream.
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        output.write_i8(self.objects.len().try_into().unwrap())?;
+        output.write_all(&[0, 0])?;
+        output.write_f32::<LE>(self.location.0)?;
+        output.write_f32::<LE>(self.location.1)?;
+        self.objects.write_to(output)?;
+        Ok(())
+    }
+}
+
 /// Task units to repair an object.
 #[derive(Debug, Default, Clone)]
 pub struct RepairCommand {
@@ -1273,6 +1304,7 @@ pub enum Command {
     Game(GameCommand),
     BuildWall(BuildWallCommand),
     CancelBuild(CancelBuildCommand),
+    AttackGround(AttackGroundCommand),
     Repair(RepairCommand),
     Ungarrison(UngarrisonCommand),
     Flare(FlareCommand),
@@ -1321,6 +1353,7 @@ impl Command {
             0x67 => GameCommand::read_from(cursor).map(Command::Game),
             0x69 => BuildWallCommand::read_from(cursor).map(Command::BuildWall),
             0x6a => CancelBuildCommand::read_from(cursor).map(Command::CancelBuild),
+            0x6b => AttackGroundCommand::read_from(cursor).map(Command::AttackGround),
             0x6e => RepairCommand::read_from(cursor).map(Command::Repair),
             0x6f => UngarrisonCommand::read_from(cursor).map(Command::Ungarrison),
             0x73 => FlareCommand::read_from(cursor).map(Command::Flare),
