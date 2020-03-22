@@ -90,17 +90,28 @@ impl PlayerStartResources {
 
 #[derive(Debug, Clone)]
 pub struct ScenarioPlayerData {
-    name: Option<String>,
-    view: (f32, f32),
-    location: (i16, i16),
-    allied_victory: bool,
-    relations: Vec<i8>,
-    unit_diplomacy: Vec<i32>,
-    color: Option<i32>,
-    victory: VictoryConditions,
+    pub name: Option<String>,
+    pub view: (f32, f32),
+    pub location: (i16, i16),
+    pub allied_victory: bool,
+    pub relations: Vec<i8>,
+    pub unit_diplomacy: Vec<i32>,
+    pub color: Option<i32>,
+    pub victory: VictoryConditions,
 }
 
 impl ScenarioPlayerData {
+    /// Get the default player name.
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_ref().map(|string| string.as_ref())
+    }
+
+    /// Set the default player name.
+    pub fn set_name(&mut self, name: impl Into<String>) {
+        self.name = Some(name.into());
+    }
+
+    /// Read player data from an input stream.
     pub fn from<R: Read>(input: &mut R, version: f32) -> Result<Self> {
         let len = input.read_u16::<LE>()?;
         let name = read_str(input, len as usize)?;
@@ -157,6 +168,7 @@ impl ScenarioPlayerData {
         })
     }
 
+    /// Write player data to an output stream.
     pub fn write_to<W: Write>(
         &self,
         output: &mut W,

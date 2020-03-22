@@ -1,5 +1,6 @@
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use crate::types::VictoryCondition;
 use std::io::{Read, Write};
 
 /// AoE1's victory info.
@@ -76,7 +77,7 @@ impl LegacyVictoryInfo {
 
 #[derive(Debug, Clone)]
 pub struct VictoryEntry {
-    command: i8,
+    command: VictoryCondition,
     object_type: i32,
     player_id: i32,
     x0: f32,
@@ -94,7 +95,7 @@ pub struct VictoryEntry {
 
 impl VictoryEntry {
     pub fn from<R: Read>(input: &mut R) -> Result<Self> {
-        let command = input.read_i8()?;
+        let command = input.read_u8()?.into();
         let object_type = input.read_i32::<LE>()?;
         let player_id = input.read_i32::<LE>()?;
         let x0 = input.read_f32::<LE>()?;
@@ -128,7 +129,7 @@ impl VictoryEntry {
     }
 
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        output.write_i8(self.command)?;
+        output.write_u8(self.command.into())?;
         output.write_i32::<LE>(self.object_type)?;
         output.write_i32::<LE>(self.player_id)?;
         output.write_f32::<LE>(self.x0)?;

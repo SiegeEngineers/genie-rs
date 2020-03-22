@@ -244,18 +244,59 @@ impl StartingAge {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VictoryCondition {
-    Capture = 0,
-    Create = 1,
-    Destroy = 2,
-    DestroyMultiple = 3,
-    BringToArea = 4,
-    BringToObject = 5,
-    Attribute = 6,
-    Explore = 7,
-    CreateInArea = 8,
-    DestroyAll = 9,
-    DestroyPlayer = 10,
-    Points = 11,
+    Capture,
+    Create,
+    Destroy,
+    DestroyMultiple,
+    BringToArea,
+    BringToObject,
+    Attribute,
+    Explore,
+    CreateInArea,
+    DestroyAll,
+    DestroyPlayer,
+    Points,
+    Other(u8),
+}
+
+impl From<u8> for VictoryCondition {
+    fn from(n: u8) -> Self {
+        match n {
+            0 => VictoryCondition::Capture,
+            1 => VictoryCondition::Create,
+            2 => VictoryCondition::Destroy,
+            3 => VictoryCondition::DestroyMultiple,
+            4 => VictoryCondition::BringToArea,
+            5 => VictoryCondition::BringToObject,
+            6 => VictoryCondition::Attribute,
+            7 => VictoryCondition::Explore,
+            8 => VictoryCondition::CreateInArea,
+            9 => VictoryCondition::DestroyAll,
+            10 => VictoryCondition::DestroyPlayer,
+            11 => VictoryCondition::Points,
+            n => VictoryCondition::Other(n),
+        }
+    }
+}
+
+impl From<VictoryCondition> for u8 {
+    fn from(condition: VictoryCondition) -> Self {
+        match condition {
+            VictoryCondition::Capture => 0,
+            VictoryCondition::Create => 1,
+            VictoryCondition::Destroy => 2,
+            VictoryCondition::DestroyMultiple => 3,
+            VictoryCondition::BringToArea => 4,
+            VictoryCondition::BringToObject => 5,
+            VictoryCondition::Attribute => 6,
+            VictoryCondition::Explore => 7,
+            VictoryCondition::CreateInArea => 8,
+            VictoryCondition::DestroyAll => 9,
+            VictoryCondition::DestroyPlayer => 10,
+            VictoryCondition::Points => 11,
+            VictoryCondition::Other(n) => n,
+        }
+    }
 }
 
 /// All the versions an SCX file uses in a single struct.
