@@ -5,7 +5,7 @@ use crate::{ObjectID, PlayerID};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use genie_dat::UnitType;
 pub use genie_dat::{AttributeCost, SpriteID};
-use genie_support::read_opt_u32;
+use genie_support::{read_opt_u32, ReadSkipExt};
 pub use genie_support::{StringKey, UnitTypeID};
 use std::convert::TryInto;
 use std::io::{Read, Write};
@@ -809,10 +809,11 @@ impl UnitAI {
             -1 => None,
             id => Some(id.try_into().unwrap()),
         };
-        ai.current_target_type = match input.read_i32::<LE>()? {
-            -1 => None,
+        ai.current_target_type = match input.read_u16::<LE>()? {
+            0xFFFF => None,
             id => Some(id.try_into().unwrap()),
         };
+        input.skip(2)?;
         ai.current_target_location = (
             input.read_f32::<LE>()?,
             input.read_f32::<LE>()?,
@@ -830,8 +831,8 @@ impl UnitAI {
         ai.secondary_timer = input.read_u32::<LE>()?;
         ai.lookaround_timer = input.read_u32::<LE>()?;
         ai.lookaround_timeout = input.read_u32::<LE>()?;
-        ai.defend_target = match input.read_i32::<LE>()? {
-            -1 => None,
+        ai.defend_target = match input.read_u32::<LE>()? {
+            0xFFFF_FFFF => None,
             id => Some(id.try_into().unwrap()),
         };
         ai.defense_buffer = input.read_f32::<LE>()?;
