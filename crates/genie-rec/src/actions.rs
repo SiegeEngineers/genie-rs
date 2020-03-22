@@ -135,7 +135,11 @@ impl OrderCommand {
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u8(self.player_id.into())?;
         output.write_all(&[0, 0])?;
-        output.write_i32::<LE>(self.target_id.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
+        output.write_i32::<LE>(
+            self.target_id
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
         output.write_u32::<LE>(self.objects.len().try_into().unwrap())?;
         output.write_f32::<LE>(self.location.0)?;
         output.write_f32::<LE>(self.location.1)?;
@@ -532,7 +536,11 @@ impl GuardCommand {
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u8(self.objects.len().try_into().unwrap())?;
         output.write_all(&[0, 0])?;
-        output.write_i32::<LE>(self.target_id.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
+        output.write_i32::<LE>(
+            self.target_id
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
         self.objects.write_to(output)?;
         Ok(())
     }
@@ -565,7 +573,11 @@ impl FollowCommand {
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u8(self.objects.len().try_into().unwrap())?;
         output.write_all(&[0, 0])?;
-        output.write_i32::<LE>(self.target_id.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
+        output.write_i32::<LE>(
+            self.target_id
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
         self.objects.write_to(output)?;
         Ok(())
     }
@@ -1030,7 +1042,11 @@ impl RepairCommand {
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u8(self.repairers.len().try_into().unwrap())?;
         output.write_all(&[0, 0])?;
-        output.write_i32::<LE>(self.target_id.map(|id| id.try_into().unwrap()).unwrap_or(-1))?;
+        output.write_i32::<LE>(
+            self.target_id
+                .map(|id| id.try_into().unwrap())
+                .unwrap_or(-1),
+        )?;
         self.repairers.write_to(output)?;
         Ok(())
     }
@@ -1197,10 +1213,7 @@ impl SetGatherPointCommand {
             id => Some(id.try_into().unwrap()),
         };
         input.skip(2)?;
-        command.location = Some((
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-        ));
+        command.location = Some((input.read_f32::<LE>()?, input.read_f32::<LE>()?));
         command.buildings = ObjectsList::read_from(input, selected_count)?;
         Ok(command)
     }
