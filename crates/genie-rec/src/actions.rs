@@ -1040,6 +1040,46 @@ impl QueueCommand {
     }
 }
 
+///
+#[derive(Debug, Default, Clone)]
+pub struct SetGatherPointCommand {
+    /// The IDs of the buildings whose gather points are being set.
+    pub buildings: ObjectsList,
+    /// The ID of the object being targeted, if the gather point is set to an object.
+    pub target_id: Option<ObjectID>,
+    /// The type ID of the unit being targeted, if the gather point is set to an object.
+    pub target_type_id: Option<UnitTypeID>,
+    /// The location of the new gather point, if the gather point is not set to an object.
+    pub location: Option<Location2>,
+}
+
+impl SetGatherPointCommand {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
+        let mut command = Self::default();
+        let selected_count = i32::from(input.read_i8()?);
+        input.skip(2)?;
+        command.target_id = match input.read_i16::<LE>()? {
+            -1 => None,
+            id => Some(id.try_into().unwrap()),
+        };
+        command.target_type_id = match input.read_i16::<LE>()? {
+            -1 => None,
+            id => Some(id.try_into().unwrap()),
+        };
+        input.skip(2)?;
+        command.location = Some((
+            input.read_f32::<LE>()?,
+            input.read_f32::<LE>()?,
+        ));
+        command.buildings = ObjectsList::read_from(input, selected_count)?;
+        Ok(command)
+    }
+
+    pub fn write_to<W: Write>(&self, _output: &mut W) -> Result<()> {
+        todo!()
+    }
+}
+
 /// Read and write impl for market buying/selling commands, which are different commands but have
 /// the same shape.
 macro_rules! buy_sell_impl {
@@ -1136,6 +1176,7 @@ pub enum Command {
     Flare(FlareCommand),
     UnitOrder(UnitOrderCommand),
     Queue(QueueCommand),
+    SetGatherPoint(SetGatherPointCommand),
     SellResource(SellResourceCommand),
     BuyResource(BuyResourceCommand),
     BackToWork(BackToWorkCommand),
@@ -1180,6 +1221,7 @@ impl Command {
             0x73 => FlareCommand::read_from(cursor).map(Command::Flare),
             0x75 => UnitOrderCommand::read_from(cursor).map(Command::UnitOrder),
             0x77 => QueueCommand::read_from(cursor).map(Command::Queue),
+            0x78 => SetGatherPointCommand::read_from(cursor).map(Command::SetGatherPoint),
             0x7a => SellResourceCommand::read_from(cursor).map(Command::SellResource),
             0x7b => BuyResourceCommand::read_from(cursor).map(Command::BuyResource),
             0x80 => BackToWorkCommand::read_from(cursor).map(Command::BackToWork),
