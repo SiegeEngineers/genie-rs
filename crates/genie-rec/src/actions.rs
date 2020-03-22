@@ -208,6 +208,48 @@ impl WorkCommand {
     }
 }
 
+/// Task an object to move.
+#[derive(Debug, Default, Clone)]
+pub struct MoveCommand {
+    /// The ID of the player issuing this command.
+    pub player_id: PlayerID,
+    /// The target object of this command.
+    pub target_id: Option<ObjectID>,
+    /// The target location of this command.
+    pub location: Location2,
+    /// The objects being tasked.
+    pub objects: ObjectsList,
+}
+
+impl MoveCommand {
+    /// Read a Move command from an input stream.
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
+        let mut command = Self::default();
+        command.player_id = input.read_u8()?.into();
+        input.skip(2)?;
+        command.target_id = match input.read_i32::<LE>()? {
+            -1 => None,
+            id => Some(id.try_into().unwrap()),
+        };
+        let selected_count = input.read_i8()?;
+        input.skip(3)?;
+        command.location = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
+        command.objects = ObjectsList::read_from(input, selected_count as i32)?;
+        Ok(command)
+    }
+
+    /// Write this Move command to an output stream.
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        output.write_all(&[0, 0, 0])?;
+        output.write_i32::<LE>(self.target_id.map(|u| u32::from(u) as i32).unwrap_or(-1))?;
+        output.write_i8(self.objects.len().try_into().unwrap())?;
+        output.write_all(&[0, 0, 0])?;
+        output.write_f32::<LE>(self.location.0)?;
+        output.write_f32::<LE>(self.location.1)?;
+        self.objects.write_to(output)?;
+        Ok(())
+    }
+}
 /// A command that instantly places a unit type at a given location.
 ///
 /// Typically used for cheats and the like.
@@ -1074,6 +1116,7 @@ pub enum Command {
     Order(OrderCommand),
     Stop(StopCommand),
     Work(WorkCommand),
+    Move(MoveCommand),
     Create(CreateCommand),
     AddResource(AddResourceCommand),
     AIOrder(AIOrderCommand),
@@ -1117,6 +1160,7 @@ impl Command {
             0x00 => OrderCommand::read_from(cursor).map(Command::Order),
             0x01 => StopCommand::read_from(cursor).map(Command::Stop),
             0x02 => WorkCommand::read_from(cursor).map(Command::Work),
+            0x03 => MoveCommand::read_from(cursor).map(Command::Move),
             0x04 => CreateCommand::read_from(cursor).map(Command::Create),
             0x05 => AddResourceCommand::read_from(cursor).map(Command::AddResource),
             0x0a => AIOrderCommand::read_from(cursor).map(Command::AIOrder),
