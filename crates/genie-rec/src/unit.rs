@@ -47,10 +47,10 @@ impl Unit {
             unit.moving = Some(MovingUnitAttributes::read_from(&mut input, version)?);
         }
         if unit_base_class >= UnitBaseClass::Action {
-            unit.action = Some(ActionUnitAttributes::read_from(&mut input)?);
+            unit.action = Some(ActionUnitAttributes::read_from(&mut input, version)?);
         }
         if unit_base_class >= UnitBaseClass::BaseCombat {
-            unit.base_combat = Some(BaseCombatUnitAttributes::read_from(&mut input)?);
+            unit.base_combat = Some(BaseCombatUnitAttributes::read_from(&mut input, version)?);
         }
         if unit_base_class >= UnitBaseClass::Missile {
             unit.missile = Some(MissileUnitAttributes::read_from(&mut input, version)?);
@@ -509,11 +509,15 @@ pub struct ActionUnitAttributes {
 }
 
 impl ActionUnitAttributes {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
         let mut attrs = Self::default();
         attrs.waiting = input.read_u8()? != 0;
-        attrs.command_flag = input.read_u8()?;
-        attrs.selected_group_info = input.read_u16::<LE>()?;
+        if version >= 6.5 {
+            attrs.command_flag = input.read_u8()?;
+        }
+        if version >= 11.58 {
+            attrs.selected_group_info = input.read_u16::<LE>()?;
+        }
         attrs.actions = UnitAction::read_list_from(input)?;
         Ok(attrs)
     }
@@ -536,16 +540,24 @@ pub struct BaseCombatUnitAttributes {
 }
 
 impl BaseCombatUnitAttributes {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
         let mut attrs = Self::default();
-        attrs.formation_id = input.read_u8()?;
-        attrs.formation_row = input.read_u8()?;
-        attrs.formation_column = input.read_u8()?;
+        if version >= 9.05 {
+            attrs.formation_id = input.read_u8()?;
+            attrs.formation_row = input.read_u8()?;
+            attrs.formation_column = input.read_u8()?;
+        }
         attrs.attack_timer = input.read_f32::<LE>()?;
-        attrs.capture_flag = input.read_u8()?;
-        attrs.multi_unified_points = input.read_u8()?;
-        attrs.large_object_radius = input.read_u8()?;
-        attrs.attack_count = input.read_u32::<LE>()?;
+        if version >= 2.01 {
+            attrs.capture_flag = input.read_u8()?;
+        }
+        if version >= 9.09 {
+            attrs.multi_unified_points = input.read_u8()?;
+            attrs.large_object_radius = input.read_u8()?;
+        }
+        if version >= 10.02 {
+            attrs.attack_count = input.read_u32::<LE>()?;
+        }
         Ok(attrs)
     }
 
@@ -959,10 +971,18 @@ impl CombatUnitAttributes {
         for amount in attrs.attribute_amounts.iter_mut() {
             *amount = input.read_u16::<LE>()?;
         }
-        attrs.decay_timer = input.read_u16::<LE>()?;
-        attrs.raider_build_countdown = input.read_u32::<LE>()?;
-        attrs.locked_down_count = input.read_u32::<LE>()?;
-        attrs.inside_garrison_count = input.read_u8()?;
+        if version >= 9.16 {
+            attrs.decay_timer = input.read_u16::<LE>()?;
+        }
+        if version >= 9.61 {
+            attrs.raider_build_countdown = input.read_u32::<LE>()?;
+        }
+        if version >= 9.65 {
+            attrs.locked_down_count = input.read_u32::<LE>()?;
+        }
+        if version >= 11.56 {
+            attrs.inside_garrison_count = input.read_u8()?;
+        }
         attrs.unit_ai = {
             let has_ai = input.read_u32::<LE>()? != 0;
             if has_ai {
@@ -971,28 +991,40 @@ impl CombatUnitAttributes {
                 None
             }
         };
-        attrs.town_bell_flag = input.read_i8()?;
-        attrs.town_bell_target_id = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
-        attrs.town_bell_target_location = {
-            let location = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
-            if location.0 >= 0.0 {
-                Some(location)
-            } else {
-                None
-            }
-        };
-        attrs.town_bell_target_id_2 = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
-        attrs.town_bell_target_type = input.read_u32::<LE>()?;
-        attrs.town_bell_action = input.read_u32::<LE>()?;
-        attrs.berserker_timer = input.read_f32::<LE>()?;
-        attrs.num_builders = input.read_u8()?;
-        attrs.num_healers = input.read_u8()?;
+        if version >= 10.30 {
+            attrs.town_bell_flag = input.read_i8()?;
+            attrs.town_bell_target_id = match input.read_i32::<LE>()? {
+                -1 => None,
+                id => Some(id.try_into().unwrap()),
+            };
+            attrs.town_bell_target_location = {
+                let location = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
+                if location.0 >= 0.0 {
+                    Some(location)
+                } else {
+                    None
+                }
+            };
+        }
+        if version >= 11.71 {
+            attrs.town_bell_target_id_2 = match input.read_i32::<LE>()? {
+                -1 => None,
+                id => Some(id.try_into().unwrap()),
+            };
+            attrs.town_bell_target_type = input.read_u32::<LE>()?;
+        }
+        if version >= 11.74 {
+            attrs.town_bell_action = input.read_u32::<LE>()?;
+        }
+        if version >= 10.42 {
+            attrs.berserker_timer = input.read_f32::<LE>()?;
+        }
+        if version >= 10.46 {
+            attrs.num_builders = input.read_u8()?;
+        }
+        if version >= 11.69 {
+            attrs.num_healers = input.read_u8()?;
+        }
         Ok(attrs)
     }
 
