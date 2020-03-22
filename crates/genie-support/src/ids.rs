@@ -1,4 +1,4 @@
-use crate::{fallible_try_from, fallible_try_into};
+use crate::{fallible_try_from, fallible_try_into, infallible_try_into};
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::num::TryFromIntError;
