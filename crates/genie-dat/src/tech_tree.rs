@@ -1,6 +1,6 @@
+use crate::unit_type::UnitTypeID;
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use crate::unit_type::UnitTypeID;
 use genie_support::TechID;
 use std::convert::{TryFrom, TryInto};
 use std::io::{self, Read, Result, Write};
@@ -18,7 +18,9 @@ pub enum TechTreeStatus {
     ResearchedCompleted,
     /// This building/unit/technology is available to the player if someone on their team is this
     /// civilization.
-    AvailableTeam { civilization_id: u8 },
+    AvailableTeam {
+        civilization_id: u8,
+    },
 }
 
 impl std::default::Default for TechTreeStatus {
@@ -48,7 +50,9 @@ impl TryFrom<u8> for TechTreeStatus {
             3 => Ok(Self::NotAvailablePlayer),
             4 => Ok(Self::Researching),
             5 => Ok(Self::ResearchedCompleted),
-            10..=255 => Ok(Self::AvailableTeam { civilization_id: n - 10 }),
+            10..=255 => Ok(Self::AvailableTeam {
+                civilization_id: n - 10,
+            }),
             n => Err(ParseTechTreeStatusError(n as u8)),
         }
     }

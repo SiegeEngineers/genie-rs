@@ -25,7 +25,7 @@ use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 pub use civ::{Civilization, CivilizationID};
 pub use color_table::{ColorTable, PaletteIndex};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
-use genie_support::{cmp_float, TechID, ReadSkipExt};
+use genie_support::{cmp_float, ReadSkipExt, TechID};
 pub use random_map::*;
 pub use sound::{Sound, SoundID, SoundItem};
 pub use sprite::{GraphicID, SoundProp, Sprite, SpriteAttackSound, SpriteDelta, SpriteID};
@@ -34,8 +34,8 @@ use std::io::{Read, Result, Write};
 pub use task::{Task, TaskList};
 pub use tech::{Tech, TechEffect};
 pub use tech_tree::{
-    ParseTechTreeTypeError, TechTree, TechTreeAge, TechTreeBuilding,
-    TechTreeDependencies, TechTreeStatus, TechTreeTech, TechTreeType, TechTreeUnit,
+    ParseTechTreeTypeError, TechTree, TechTreeAge, TechTreeBuilding, TechTreeDependencies,
+    TechTreeStatus, TechTreeTech, TechTreeType, TechTreeUnit,
 };
 pub use terrain::{
     Terrain, TerrainAnimation, TerrainBorder, TerrainID, TerrainObject, TerrainPassGraphic,

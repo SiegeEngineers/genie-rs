@@ -1,10 +1,10 @@
 use crate::sound::SoundID;
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+pub use genie_support::SpriteID;
 use genie_support::{
     fallible_try_from, fallible_try_into, infallible_try_into, read_opt_u16, MapInto,
 };
-pub use genie_support::SpriteID;
 use std::convert::{TryFrom, TryInto};
 use std::io::{Read, Result, Write};
 use std::num::TryFromIntError;

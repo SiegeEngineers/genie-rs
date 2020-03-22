@@ -39,7 +39,7 @@ pub struct TechEffectRef {
 pub struct Tech {
     required_techs: ArrayVec<[i16; 6]>,
     effects: ArrayVec<[TechEffectRef; 3]>,
-    civilization_id: CivilizationID,
+    civilization_id: Option<CivilizationID>,
     full_tech_mode: u16,
     location: Option<UnitTypeID>,
     language_dll_name: Option<StringKey>,
@@ -148,7 +148,10 @@ impl Tech {
             }
         }
         let _num_required_techs = input.read_u16::<LE>()?;
-        tech.civilization_id = input.read_u16::<LE>()?.try_into().unwrap();
+        tech.civilization_id = match input.read_u16::<LE>()? {
+            0xFFFF => None,
+            n => Some(n.try_into().unwrap()),
+        };
         tech.full_tech_mode = input.read_u16::<LE>()?;
         tech.location = read_opt_u16(input)?.map_into();
         tech.language_dll_name = read_opt_u16(input)?.map_into();
