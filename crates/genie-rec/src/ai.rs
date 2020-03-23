@@ -486,8 +486,7 @@ impl InfluenceMap {
         map.height = input.read_u32::<LE>()?;
         map.reference_point = (input.read_u32::<LE>()?, input.read_u32::<LE>()?);
         map.unchangeable_limit = input.read_u8()?;
-        map.values
-            .resize((map.width * map.height).try_into().unwrap(), 0);
+        map.values = vec![0; (map.width * map.height) as usize];
         for v in map.values.iter_mut() {
             *v = input.read_i8()?;
         }
@@ -638,9 +637,7 @@ impl InformationAI {
             };
 
             let mut object_counts = vec![0; num_counts];
-            for c in object_counts.iter_mut() {
-                *c = input.read_u32::<LE>()?;
-            }
+            input.read_u32_into::<LE>(&mut object_counts)?;
             object_counts
         };
 
@@ -687,8 +684,9 @@ impl InformationAI {
 
         ai.resource_memories = {
             let mut resources = [vec![], vec![], vec![], vec![]];
-            for (list, num) in resources.iter_mut().zip(num_resources.iter()) {
-                for _ in 0..*num {
+            for (list, &num) in resources.iter_mut().zip(num_resources.iter()) {
+                list.reserve(num as usize);
+                for _ in 0..num {
                     list.push(ResourceMemory::read_from(&mut input, version)?);
                 }
             }
@@ -736,13 +734,46 @@ impl InformationAI {
             let have_seen_forage = input.read_u32::<LE>()?;
             let have_seen_gold = input.read_u32::<LE>()?;
             let have_seen_stone = input.read_u32::<LE>()?;
-            let have_seen_forest = input.read_u32::<LE>()?;
             dbg!(
                 should_farm,
                 have_seen_forage,
                 have_seen_gold,
                 have_seen_stone,
-                have_seen_forest
+            );
+        }
+        if version >= 10.95 {
+            let have_seen_forest = input.read_u32::<LE>()?;
+            dbg!(have_seen_forest);
+        }
+
+        if version > 10.99 {
+            let last_player_count_refresh_time = input.read_u32::<LE>()?;
+            dbg!(last_player_count_refresh_time);
+        }
+
+        let player_unit_counts_size = if version >= 11.51 { 120 } else { 102 };
+        let mut player_unit_counts = vec![vec![0; player_unit_counts_size as usize]; 8];
+        for unit_counts in player_unit_counts.iter_mut() {
+            input.read_u32_into::<LE>(unit_counts)?;
+        }
+
+        if version >= 11.09 {
+            let mut player_total_building_counts = [0; 8];
+            input.read_u32_into::<LE>(&mut player_total_building_counts)?;
+
+            let mut player_real_total_building_counts = [0; 8];
+            if version >= 11.21 {
+                input.read_u32_into::<LE>(&mut player_real_total_building_counts)?;
+            }
+
+            let mut player_total_unit_counts = [0; 8];
+            input.read_u32_into::<LE>(&mut player_total_unit_counts)?;
+
+            println!(
+                "{:x?} {:x?} {:x?}",
+                player_total_building_counts,
+                player_real_total_building_counts,
+                player_total_unit_counts
             );
         }
 
