@@ -2,9 +2,10 @@ use crate::unit_action::UnitAction;
 use crate::unit_type::UnitBaseClass;
 use crate::Result;
 use crate::{ObjectID, PlayerID};
+use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use genie_dat::UnitType;
-pub use genie_dat::{AttributeCost, SpriteID};
+pub use genie_dat::{AttributeCost, SpriteID, TerrainID};
 use genie_support::{read_opt_u32, ReadSkipExt};
 pub use genie_support::{StringKey, UnitTypeID};
 use std::convert::TryInto;
@@ -20,6 +21,7 @@ pub struct Unit {
     pub base_combat: Option<BaseCombatUnitAttributes>,
     pub missile: Option<MissileUnitAttributes>,
     pub combat: Option<CombatUnitAttributes>,
+    pub building: Option<BuildingUnitAttributes>,
 }
 
 impl Unit {
@@ -39,6 +41,7 @@ impl Unit {
             base_combat: None,
             missile: None,
             combat: None,
+            building: None,
         };
         if unit_base_class >= UnitBaseClass::Animated {
             unit.animated = Some(AnimatedUnitAttributes::read_from(&mut input)?);
@@ -57,6 +60,9 @@ impl Unit {
         }
         if unit_base_class >= UnitBaseClass::Combat {
             unit.combat = Some(CombatUnitAttributes::read_from(&mut input, version)?);
+        }
+        if unit_base_class >= UnitBaseClass::Building {
+            unit.building = Some(BuildingUnitAttributes::read_from(&mut input, version)?);
         }
         Ok(Some(unit))
     }
@@ -1024,6 +1030,179 @@ impl CombatUnitAttributes {
         }
         if version >= 11.69 {
             attrs.num_healers = input.read_u8()?;
+        }
+        Ok(attrs)
+    }
+
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+        todo!()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum GatherPoint {
+    Location { x: f32, y: f32, z: f32 },
+    Object { id: ObjectID, unit_type: UnitTypeID },
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct ProductionQueueEntry {
+    pub unit_type_id: UnitTypeID,
+    pub count: u16,
+}
+
+impl ProductionQueueEntry {
+    fn read_from(mut input: impl Read) -> Result<Self> {
+        let unit_type_id = input.read_u16::<LE>()?.into();
+        let count = input.read_u16::<LE>()?;
+        Ok(Self {
+            unit_type_id,
+            count,
+        })
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct BuildingUnitAttributes {
+    /// Is this building fully built?
+    pub built: bool,
+    /// Number of build points: how much work villagers have to do to build this building.
+    pub build_points: f32,
+    /// The build item ID for this building. Only used by AIs.
+    pub unique_build_id: Option<u32>,
+    /// The culture / architecture graphics set to use for this building.
+    pub culture: u8,
+    /// Is this building on fire?
+    pub burning: u8,
+    pub last_burn_time: u32,
+    pub last_garrison_time: u32,
+    /// The number of relics currently stored inside this building.
+    pub relic_count: u32,
+    /// The number of "specific relics" currently stored inside this building(?).
+    ///
+    /// This specific relic count generates 2× as much gold as normal relics, but appears to be
+    /// otherwise unused.
+    pub specific_relic_count: u32,
+    /// Gather point for units trained from this building.
+    pub gather_point: Option<GatherPoint>,
+    pub desolid_flag: bool,
+    pub pending_order: u32,
+    /// The "owner" building, if this building object is part of a larger building like a Town
+    /// Center.
+    pub linked_owner: Option<ObjectID>,
+    /// The IDs of the children of this building object, also known as "annex buildings".
+    pub linked_children: ArrayVec<[ObjectID; 4]>,
+    pub captured_unit_count: u8,
+    pub extra_actions: Vec<UnitAction>,
+    pub research_actions: Vec<UnitAction>,
+    /// The current active production queue.
+    pub production_queue: Vec<ProductionQueueEntry>,
+    /// Cumulative count of queued units.
+    pub production_queue_total_units: u16,
+    pub production_queue_enabled: bool,
+    /// The actions currently in the production queue.
+    pub production_queue_actions: Vec<UnitAction>,
+    pub endpoint: (f32, f32, f32),
+    pub gate_locked: u32,
+    pub first_update: u32,
+    pub close_timer: u32,
+    pub terrain_type: Option<TerrainID>,
+    pub semi_asleep: bool,
+    /// Should this building be rendered with the snow graphic?
+    pub snow_flag: bool,
+}
+
+impl BuildingUnitAttributes {
+    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+        let mut attrs = Self::default();
+        attrs.built = input.read_u8()? != 0;
+        attrs.build_points = input.read_f32::<LE>()?;
+        attrs.unique_build_id = match input.read_i32::<LE>()? {
+            -1 => None,
+            id => Some(id.try_into().unwrap()),
+        };
+        attrs.culture = input.read_u8()?;
+        attrs.burning = input.read_u8()?;
+        attrs.last_burn_time = input.read_u32::<LE>()?;
+        attrs.last_garrison_time = input.read_u32::<LE>()?;
+        attrs.relic_count = input.read_u32::<LE>()?;
+        attrs.specific_relic_count = input.read_u32::<LE>()?;
+        attrs.gather_point = {
+            let exists = input.read_u32::<LE>()? != 0;
+            let location = GatherPoint::Location {
+                x: input.read_f32::<LE>()?,
+                y: input.read_f32::<LE>()?,
+                z: input.read_f32::<LE>()?,
+            };
+            let object_id = input.read_i32::<LE>()?;
+            let unit_type_id = input.read_i16::<LE>()?;
+            match (exists, object_id, unit_type_id) {
+                (false, _, _) => None,
+                (true, -1, -1) => Some(location),
+                (true, id, unit_type_id) => Some(GatherPoint::Object {
+                    id: id.try_into().unwrap(),
+                    unit_type: unit_type_id.try_into().unwrap(),
+                }),
+            }
+        };
+        attrs.desolid_flag = input.read_u8()? != 0;
+        if version >= 10.54 {
+            attrs.pending_order = input.read_u32::<LE>()?;
+        }
+        attrs.linked_owner = match input.read_i32::<LE>()? {
+            -1 => None,
+            id => Some(id.try_into().unwrap()),
+        };
+        attrs.linked_children = {
+            let mut children: ArrayVec<[ObjectID; 4]> = Default::default();
+            for _ in 0..4 {
+                let id = input.read_i32::<LE>()?;
+                if id != -1 {
+                    children.push(id.try_into().unwrap());
+                }
+            }
+            children
+        };
+        attrs.captured_unit_count = input.read_u8()?;
+        attrs.extra_actions = UnitAction::read_list_from(&mut input)?;
+        attrs.research_actions = UnitAction::read_list_from(&mut input)?;
+        attrs.production_queue = {
+            let capacity = input.read_u16::<LE>()?;
+            let mut queue = vec![ProductionQueueEntry::default(); capacity as usize];
+            for entry in queue.iter_mut() {
+                *entry = ProductionQueueEntry::read_from(&mut input)?;
+            }
+            let size = input.read_u16::<LE>()?;
+            queue
+        };
+        attrs.production_queue_total_units = input.read_u16::<LE>()?;
+        attrs.production_queue_enabled = input.read_u8()? != 0;
+        attrs.production_queue_actions = UnitAction::read_list_from(&mut input)?;
+        if version >= 10.65 {
+            // game reads into the same value twice, while there are two separate fields of this
+            // type. likely a bug, but it doesn't appear to cause issues? is this unused?
+            attrs.endpoint = (
+                input.read_f32::<LE>()?,
+                input.read_f32::<LE>()?,
+                input.read_f32::<LE>()?,
+            );
+            attrs.endpoint = (
+                input.read_f32::<LE>()?,
+                input.read_f32::<LE>()?,
+                input.read_f32::<LE>()?,
+            );
+            attrs.gate_locked = input.read_u32::<LE>()?;
+            attrs.first_update = input.read_u32::<LE>()?;
+            attrs.close_timer = input.read_u32::<LE>()?;
+        }
+        if version >= 10.67 {
+            attrs.terrain_type = Some(input.read_u8()?.into());
+        }
+        if version >= 11.43 {
+            attrs.semi_asleep = input.read_u8()? != 0;
+        }
+        if version >= 11.54 {
+            attrs.snow_flag = input.read_u8()? != 0;
         }
         Ok(attrs)
     }

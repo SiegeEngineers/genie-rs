@@ -14,6 +14,12 @@ use std::io::{Read, Result, Write};
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct TerrainID(u16);
 
+impl From<u8> for TerrainID {
+    fn from(n: u8) -> Self {
+        TerrainID(n.into())
+    }
+}
+
 impl From<u16> for TerrainID {
     fn from(n: u16) -> Self {
         TerrainID(n)

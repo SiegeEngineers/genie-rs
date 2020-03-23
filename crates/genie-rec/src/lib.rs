@@ -381,7 +381,7 @@ mod tests {
     fn aok_rec() {
         let f = File::open("test/aok.mgl").unwrap();
         let mut r = RecordedGame::new(f).unwrap();
-        // r.header().unwrap();
+        r.header().unwrap();
         for act in r.actions().unwrap() {
             println!("{:?}", act.unwrap());
         }
