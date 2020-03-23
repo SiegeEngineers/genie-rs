@@ -17,8 +17,14 @@ use header::Header;
 use std::fmt::{self, Debug, Display};
 use std::io::{self, Read, Seek, SeekFrom};
 
+/// ID identifying a player (0-8).
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct PlayerID(u8);
+
+impl PlayerID {
+    /// Player ID for GAIA, the "nature" player.
+    pub const GAIA: Self = Self(0);
+}
 
 impl From<u8> for PlayerID {
     #[inline]
@@ -73,6 +79,7 @@ fallible_try_from!(ObjectID, i32);
 fallible_try_into!(ObjectID, i16);
 fallible_try_into!(ObjectID, i32);
 
+/// The game data version string. In practice, this does not really reflect the game version.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct GameVersion([u8; 8]);
 
@@ -95,6 +102,7 @@ impl Display for GameVersion {
 }
 
 impl GameVersion {
+    /// Read the game version string from an input stream.
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut game_version = [0; 8];
         input.read_exact(&mut game_version)?;
@@ -102,6 +110,7 @@ impl GameVersion {
     }
 }
 
+/// Errors that may occur while reading a recorded game file.
 #[derive(Debug)]
 pub enum Error {
     IoError(io::Error),
@@ -140,6 +149,7 @@ impl fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
+/// Result type alias with `genie_rec::Error` as the error type.
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Iterator over body actions.

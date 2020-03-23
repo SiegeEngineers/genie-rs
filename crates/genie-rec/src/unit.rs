@@ -196,7 +196,7 @@ impl SpriteList {
         Ok(Self { sprites })
     }
 
-    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write, _version: f32) -> Result<()> {
         for sprite in &self.sprites {
             sprite.write_to(&mut output)?;
         }
@@ -283,7 +283,7 @@ impl StaticUnitAttributes {
         Ok(attrs)
     }
 
-    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write, _version: f32) -> Result<()> {
         output.write_u8(self.owner_id.into())?;
         output.write_u16::<LE>(self.unit_type_id.into())?;
         output.write_u16::<LE>(self.sprite_id.into())?;
@@ -509,11 +509,11 @@ impl ActionUnitAttributes {
         if version >= 11.58 {
             attrs.selected_group_info = input.read_u16::<LE>()?;
         }
-        attrs.actions = UnitAction::read_list_from(input)?;
+        attrs.actions = UnitAction::read_list_from(input, version)?;
         Ok(attrs)
     }
 
-    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
         todo!()
     }
 }
@@ -552,7 +552,7 @@ impl BaseCombatUnitAttributes {
         Ok(attrs)
     }
 
-    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
         todo!()
     }
 }
@@ -579,7 +579,7 @@ impl MissileUnitAttributes {
         Ok(attrs)
     }
 
-    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
         todo!()
     }
 }
@@ -612,7 +612,7 @@ impl UnitAIOrder {
         Ok(order)
     }
 
-    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
         todo!()
     }
 }
@@ -639,7 +639,7 @@ impl UnitAINotification {
         Ok(notify)
     }
 
-    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
         todo!()
     }
 }
@@ -678,7 +678,7 @@ impl UnitAIOrderHistory {
         Ok(order)
     }
 
-    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
         todo!()
     }
 }
@@ -699,7 +699,7 @@ impl UnitAIRetargetEntry {
         })
     }
 
-    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
         todo!()
     }
 }
@@ -725,7 +725,7 @@ impl Waypoint {
         Ok(waypoint)
     }
 
-    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
         todo!()
     }
 }
@@ -738,7 +738,7 @@ impl PatrolPath {
         todo!()
     }
 
-    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
         todo!()
     }
 }
@@ -893,7 +893,7 @@ impl UnitAI {
         Ok(ai)
     }
 
-    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
         todo!()
     }
 }
@@ -986,7 +986,7 @@ impl CombatUnitAttributes {
         Ok(attrs)
     }
 
-    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
         todo!()
     }
 }
@@ -1110,8 +1110,8 @@ impl BuildingUnitAttributes {
             children
         };
         attrs.captured_unit_count = input.read_u8()?;
-        attrs.extra_actions = UnitAction::read_list_from(&mut input)?;
-        attrs.research_actions = UnitAction::read_list_from(&mut input)?;
+        attrs.extra_actions = UnitAction::read_list_from(&mut input, version)?;
+        attrs.research_actions = UnitAction::read_list_from(&mut input, version)?;
         attrs.production_queue = {
             let capacity = input.read_u16::<LE>()?;
             let mut queue = vec![ProductionQueueEntry::default(); capacity as usize];
@@ -1123,7 +1123,7 @@ impl BuildingUnitAttributes {
         };
         attrs.production_queue_total_units = input.read_u16::<LE>()?;
         attrs.production_queue_enabled = input.read_u8()? != 0;
-        attrs.production_queue_actions = UnitAction::read_list_from(&mut input)?;
+        attrs.production_queue_actions = UnitAction::read_list_from(&mut input, version)?;
         if version >= 10.65 {
             // game reads into the same value twice, while there are two separate fields of this
             // type. likely a bug, but it doesn't appear to cause issues? is this unused?

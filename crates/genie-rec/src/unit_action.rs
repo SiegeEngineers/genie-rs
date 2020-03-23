@@ -2,9 +2,8 @@ use crate::ObjectID;
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 pub use genie_dat::SpriteID;
-use genie_support::read_opt_u32;
 pub use genie_support::UnitTypeID;
-use std::convert::TryInto;
+use genie_support::{read_opt_u16, read_opt_u32};
 use std::io::{Read, Write};
 
 #[derive(Debug, Clone)]
@@ -23,15 +22,22 @@ pub struct UnitAction {
 }
 
 impl UnitAction {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
         let action_type = input.read_u16::<LE>()?;
-        Self::read_from_inner(&mut input, action_type)
+        Self::read_from_inner(&mut input, action_type, version)
     }
 
     // `dyn` because this is a recursive function; taking &mut from a `impl Read` here
     // would cause infinite recursion in the types.
-    fn read_from_inner(mut input: &mut dyn Read, action_type: u16) -> Result<Self> {
-        let state = input.read_u32::<LE>()?;
+    fn read_from_inner(mut input: &mut dyn Read, action_type: u16, version: f32) -> Result<Self> {
+        // TODO this is different between AoK and AoC. This version check is a guess
+        // and may not actually be when it changed. May have to become more specific in the
+        // future!
+        let state = if version <= 11.50 {
+            input.read_u8()? as u32
+        } else {
+            input.read_u32::<LE>()?
+        };
         let _target_object_pointer = input.read_u32::<LE>()?;
         let _target_object_pointer_2 = input.read_u32::<LE>()?;
         let target_object_id = read_opt_u32(&mut input)?;
@@ -43,16 +49,10 @@ impl UnitAction {
         );
         let timer = input.read_f32::<LE>()?;
         let target_moved_state = input.read_u8()?;
-        let task_id = match input.read_u16::<LE>()? {
-            0xFFFF => None,
-            id => Some(id),
-        };
+        let task_id = read_opt_u16(&mut input)?;
         let sub_action_value = input.read_u8()?;
-        let sub_actions = UnitAction::read_list_from(&mut input)?;
-        let sprite_id = match input.read_i16::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        let sub_actions = UnitAction::read_list_from(&mut input, version)?;
+        let sprite_id = read_opt_u16(&mut input)?;
         let params = ActionType::read_from(&mut input, action_type)?;
 
         Ok(Self {
@@ -70,14 +70,14 @@ impl UnitAction {
         })
     }
 
-    pub fn read_list_from(mut input: impl Read) -> Result<Vec<Self>> {
+    pub fn read_list_from(mut input: impl Read, version: f32) -> Result<Vec<Self>> {
         let mut list = vec![];
         loop {
             let action_type = input.read_u16::<LE>()?;
             if action_type == 0 {
                 return Ok(list);
             }
-            let action = Self::read_from_inner(&mut input, action_type)?;
+            let action = Self::read_from_inner(&mut input, action_type, version)?;
             list.push(action);
         }
     }
@@ -173,18 +173,9 @@ impl ActionAttack {
         props.need_to_attack = input.read_u16::<LE>()?;
         props.was_same_owner = input.read_u16::<LE>()?;
         props.indirect_fire_flag = input.read_u8()?;
-        props.move_sprite_id = match input.read_i16::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
-        props.fight_sprite_id = match input.read_i16::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
-        props.wait_sprite_id = match input.read_i16::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        props.move_sprite_id = read_opt_u16(&mut input)?;
+        props.fight_sprite_id = read_opt_u16(&mut input)?;
+        props.wait_sprite_id = read_opt_u16(&mut input)?;
         props.last_target_position = (
             input.read_f32::<LE>()?,
             input.read_f32::<LE>()?,
