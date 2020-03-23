@@ -31,9 +31,6 @@ impl UnitAction {
     // would cause infinite recursion in the types.
     fn read_from_inner(mut input: &mut dyn Read, action_type: u16) -> Result<Self> {
         let state = input.read_u8()?;
-        let _padding = input.read_u8()?;
-        let _padding = input.read_u8()?;
-        let _padding = input.read_u8()?;
         let _target_object_pointer = input.read_u32::<LE>()?;
         let _target_object_pointer_2 = input.read_u32::<LE>()?;
         let target_object_id = match input.read_i32::<LE>()? {
