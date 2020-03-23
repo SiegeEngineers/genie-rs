@@ -632,7 +632,7 @@ impl InformationAI {
             let num_counts = if version < 11.51 {
                 750
             } else if version < 11.65 {
-                800
+                850
             } else {
                 900
             };
