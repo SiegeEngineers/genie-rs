@@ -8,17 +8,17 @@ use std::io::{Read, Write};
 
 #[derive(Debug, Clone)]
 pub struct UnitAction {
-    pub state: u8,
+    pub state: u32,
     pub target_object_id: Option<ObjectID>,
     pub target_object_id_2: Option<ObjectID>,
     pub target_position: (f32, f32, f32),
     pub timer: f32,
     pub target_moved_state: u8,
-    pub task_id: u16,
+    pub task_id: Option<u16>,
     pub sub_action_value: u8,
     pub sub_actions: Vec<UnitAction>,
-    pub params: ActionType,
     pub sprite_id: Option<SpriteID>,
+    pub params: ActionType,
 }
 
 impl UnitAction {
@@ -30,7 +30,7 @@ impl UnitAction {
     // `dyn` because this is a recursive function; taking &mut from a `impl Read` here
     // would cause infinite recursion in the types.
     fn read_from_inner(mut input: &mut dyn Read, action_type: u16) -> Result<Self> {
-        let state = input.read_u8()?;
+        let state = input.read_u32::<LE>()?;
         let _target_object_pointer = input.read_u32::<LE>()?;
         let _target_object_pointer_2 = input.read_u32::<LE>()?;
         let target_object_id = match input.read_i32::<LE>()? {
@@ -48,7 +48,10 @@ impl UnitAction {
         );
         let timer = input.read_f32::<LE>()?;
         let target_moved_state = input.read_u8()?;
-        let task_id = input.read_u16::<LE>()?;
+        let task_id = match input.read_u16::<LE>()? {
+            0xFFFF => None,
+            id => Some(id),
+        };
         let sub_action_value = input.read_u8()?;
         let sub_actions = UnitAction::read_list_from(&mut input)?;
         let sprite_id = match input.read_i16::<LE>()? {
