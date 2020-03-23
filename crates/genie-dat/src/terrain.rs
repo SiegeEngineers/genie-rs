@@ -141,9 +141,9 @@ pub struct TerrainBorder {
 impl TerrainPassGraphic {
     pub fn read_from<R: Read>(input: &mut R, version: FileVersion) -> Result<Self> {
         let mut pass = TerrainPassGraphic::default();
-        pass.exit_tile_sprite = read_opt_u32(input)?.map(|v| v.try_into().unwrap());
-        pass.enter_tile_sprite = read_opt_u32(input)?.map(|v| v.try_into().unwrap());
-        pass.walk_tile_sprite = read_opt_u32(input)?.map(|v| v.try_into().unwrap());
+        pass.exit_tile_sprite = read_opt_u32(input)?;
+        pass.enter_tile_sprite = read_opt_u32(input)?;
+        pass.walk_tile_sprite = read_opt_u32(input)?;
         if version.is_swgb() {
             pass.walk_rate = Some(input.read_f32::<LE>()?);
         } else {

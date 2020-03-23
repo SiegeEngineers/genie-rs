@@ -170,7 +170,7 @@ impl RGEScen {
         let mut player_string_table = vec![None; 16];
         if version > 1.16 {
             for string_id in player_string_table.iter_mut() {
-                *string_id = read_opt_u32(input)?.map_into();
+                *string_id = read_opt_u32(input)?;
             }
         }
 
@@ -205,18 +205,18 @@ impl RGEScen {
             history_string_table,
         ) = if version >= 1.16 {
             (
-                read_opt_u32(input)?.map_into(),
-                read_opt_u32(input)?.map_into(),
-                read_opt_u32(input)?.map_into(),
-                read_opt_u32(input)?.map_into(),
-                read_opt_u32(input)?.map_into(),
+                read_opt_u32(input)?,
+                read_opt_u32(input)?,
+                read_opt_u32(input)?,
+                read_opt_u32(input)?,
+                read_opt_u32(input)?,
             )
         } else {
             Default::default()
         };
 
         let scout_string_table = if version >= 1.22 {
-            read_opt_u32(input)?.map_into()
+            read_opt_u32(input)?
         } else {
             Default::default()
         };

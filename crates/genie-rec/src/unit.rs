@@ -240,10 +240,7 @@ impl StaticUnitAttributes {
         attrs.owner_id = input.read_u8()?.into();
         attrs.unit_type_id = input.read_u16::<LE>()?.into();
         attrs.sprite_id = input.read_u16::<LE>()?.into();
-        attrs.garrisoned_in_id = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        attrs.garrisoned_in_id = read_opt_u32(&mut input)?;
         attrs.hit_points = input.read_f32::<LE>()?;
         attrs.object_state = input.read_u8()?;
         attrs.sleep_flag = input.read_u8()? != 0;
@@ -278,10 +275,7 @@ impl StaticUnitAttributes {
             }
             members
         };
-        attrs.group_id = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        attrs.group_id = read_opt_u32(&mut input)?;
         attrs.roo_already_called = input.read_u8()?;
         if input.read_u8()? != 0 {
             attrs.sprite_list = Some(SpriteList::read_from(&mut input)?);
@@ -431,16 +425,7 @@ impl MovingUnitAttributes {
         attrs.turn_towards_time = input.read_u32::<LE>()?;
         attrs.turn_timer = input.read_u32::<LE>()?;
         attrs.continue_counter = input.read_u32::<LE>()?;
-        attrs.current_terrain_exception = (
-            match input.read_i32::<LE>()? {
-                -1 => None,
-                id => Some(id.try_into().unwrap()),
-            },
-            match input.read_i32::<LE>()? {
-                -1 => None,
-                id => Some(id.try_into().unwrap()),
-            },
-        );
+        attrs.current_terrain_exception = (read_opt_u32(&mut input)?, read_opt_u32(&mut input)?);
         attrs.waiting_to_move = input.read_u8()?;
         attrs.wait_delays_count = input.read_u8()?;
         attrs.on_ground = input.read_u8()?;
@@ -683,10 +668,7 @@ impl UnitAIOrderHistory {
         );
         order.target_id = input.read_u32::<LE>()?.into();
         if version >= 10.50 {
-            order.target_attack_category = match input.read_i32::<LE>()? {
-                -1 => None,
-                id => Some(id.try_into().unwrap()),
-            };
+            order.target_attack_category = read_opt_u32(&mut input)?;
         }
         order.target_position = (
             input.read_f32::<LE>()?,
@@ -807,26 +789,11 @@ pub struct UnitAI {
 impl UnitAI {
     pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
         let mut ai = Self::default();
-        ai.mood = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
-        ai.current_order = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
-        ai.current_order_priority = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
-        ai.current_action = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
-        ai.current_target = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        ai.mood = read_opt_u32(&mut input)?;
+        ai.current_order = read_opt_u32(&mut input)?;
+        ai.current_order_priority = read_opt_u32(&mut input)?;
+        ai.current_action = read_opt_u32(&mut input)?;
+        ai.current_target = read_opt_u32(&mut input)?;
         ai.current_target_type = match input.read_u16::<LE>()? {
             0xFFFF => None,
             id => Some(id.try_into().unwrap()),
@@ -849,10 +816,7 @@ impl UnitAI {
         ai.secondary_timer = input.read_u32::<LE>()?;
         ai.lookaround_timer = input.read_u32::<LE>()?;
         ai.lookaround_timeout = input.read_u32::<LE>()?;
-        ai.defend_target = match input.read_u32::<LE>()? {
-            0xFFFF_FFFF => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        ai.defend_target = read_opt_u32(&mut input)?;
         ai.defense_buffer = input.read_f32::<LE>()?;
         ai.last_world_position = Waypoint::read_from(&mut input)?;
         ai.orders = {
@@ -884,10 +848,7 @@ impl UnitAI {
         ai.state_position = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
         ai.time_since_enemy_sighting = input.read_u32::<LE>()?;
         ai.alert_mode = input.read_u8()?;
-        ai.alert_mode_object_id = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        ai.alert_mode_object_id = read_opt_u32(&mut input)?;
         ai.patrol_path = {
             let has_path = input.read_u32::<LE>()? != 0;
             if has_path {
@@ -924,10 +885,7 @@ impl UnitAI {
             };
         }
         if version >= 11.14 {
-            ai.best_unit_to_attack = match input.read_i32::<LE>()? {
-                -1 => None,
-                id => Some(id.try_into().unwrap()),
-            };
+            ai.best_unit_to_attack = read_opt_u32(&mut input)?;
         }
         if version >= 11.44 {
             ai.formation_type = input.read_u8()?;
@@ -999,10 +957,7 @@ impl CombatUnitAttributes {
         };
         if version >= 10.30 {
             attrs.town_bell_flag = input.read_i8()?;
-            attrs.town_bell_target_id = match input.read_i32::<LE>()? {
-                -1 => None,
-                id => Some(id.try_into().unwrap()),
-            };
+            attrs.town_bell_target_id = read_opt_u32(&mut input)?;
             attrs.town_bell_target_location = {
                 let location = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
                 if location.0 >= 0.0 {
@@ -1013,10 +968,7 @@ impl CombatUnitAttributes {
             };
         }
         if version >= 11.71 {
-            attrs.town_bell_target_id_2 = match input.read_i32::<LE>()? {
-                -1 => None,
-                id => Some(id.try_into().unwrap()),
-            };
+            attrs.town_bell_target_id_2 = read_opt_u32(&mut input)?;
             attrs.town_bell_target_type = input.read_u32::<LE>()?;
         }
         if version >= 11.74 {
@@ -1117,10 +1069,7 @@ impl BuildingUnitAttributes {
         let mut attrs = Self::default();
         attrs.built = input.read_u8()? != 0;
         attrs.build_points = input.read_f32::<LE>()?;
-        attrs.unique_build_id = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        attrs.unique_build_id = read_opt_u32(&mut input)?;
         attrs.culture = input.read_u8()?;
         attrs.burning = input.read_u8()?;
         attrs.last_burn_time = input.read_u32::<LE>()?;
@@ -1149,10 +1098,7 @@ impl BuildingUnitAttributes {
         if version >= 10.54 {
             attrs.pending_order = input.read_u32::<LE>()?;
         }
-        attrs.linked_owner = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        attrs.linked_owner = read_opt_u32(&mut input)?;
         attrs.linked_children = {
             let mut children: ArrayVec<[ObjectID; 4]> = Default::default();
             for _ in 0..4 {

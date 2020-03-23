@@ -1,7 +1,7 @@
 use crate::{ObjectID, PlayerID, Result};
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{cmp_float, ReadSkipExt, TechID, UnitTypeID};
+use genie_support::{cmp_float, read_opt_u32, ReadSkipExt, TechID, UnitTypeID};
 use std::convert::TryInto;
 use std::io::{Read, Write};
 
@@ -121,10 +121,7 @@ impl OrderCommand {
         let mut command = Self::default();
         command.player_id = input.read_u8()?.into();
         input.skip(2)?;
-        command.target_id = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        command.target_id = read_opt_u32(&mut input)?;
         let selected_count = input.read_i32::<LE>()?;
         command.location = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
         command.objects = ObjectsList::read_from(input, selected_count)?;
@@ -188,10 +185,7 @@ impl WorkCommand {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut command = Self::default();
         input.skip(3)?;
-        command.target_id = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        command.target_id = read_opt_u32(&mut input)?;
         let selected_count = input.read_i8()?;
         input.skip(3)?;
         command.location = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
@@ -231,10 +225,7 @@ impl MoveCommand {
         let mut command = Self::default();
         command.player_id = input.read_u8()?.into();
         input.skip(2)?;
-        command.target_id = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        command.target_id = read_opt_u32(&mut input)?;
         let selected_count = input.read_i8()?;
         input.skip(3)?;
         command.location = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
@@ -359,10 +350,7 @@ impl AIOrderCommand {
         command.order_type = input.read_u16::<LE>()?;
         command.order_priority = input.read_i8()?;
         let _padding = input.read_u8()?;
-        command.target_id = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        command.target_id = read_opt_u32(&mut input)?;
         command.target_player_id = match input.read_i8()? {
             -1 => None,
             id => Some(id.try_into().unwrap()),
@@ -524,10 +512,7 @@ impl GuardCommand {
         let mut command = Self::default();
         let selected_count = i32::from(input.read_u8()?);
         input.skip(2)?;
-        command.target_id = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        command.target_id = read_opt_u32(&mut input)?;
         command.objects = ObjectsList::read_from(input, selected_count)?;
         Ok(command)
     }
@@ -561,10 +546,7 @@ impl FollowCommand {
         let mut command = Self::default();
         let selected_count = i32::from(input.read_u8()?);
         input.skip(2)?;
-        command.target_id = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        command.target_id = read_opt_u32(&mut input)?;
         command.objects = ObjectsList::read_from(input, selected_count)?;
         Ok(command)
     }
@@ -732,10 +714,7 @@ impl MakeCommand {
         let player_id = input.read_u8()?.into();
         let _padding = input.read_u8()?;
         let unit_type_id = input.read_u16::<LE>()?.into();
-        let target_id = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        let target_id = read_opt_u32(&mut input)?;
         Ok(Self {
             player_id,
             building_id,
@@ -778,10 +757,7 @@ impl ResearchCommand {
         let player_id = input.read_u8()?.into();
         let _padding = input.read_u8()?;
         let tech_id = input.read_u16::<LE>()?.into();
-        let target_id = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        let target_id = read_opt_u32(&mut input)?;
         Ok(Self {
             player_id,
             building_id,
@@ -832,10 +808,7 @@ impl BuildCommand {
         command.location = (x, y);
         command.unit_type_id = input.read_u16::<LE>()?.into();
         let _padding = input.read_u16::<LE>()?;
-        command.unique_id = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        command.unique_id = read_opt_u32(&mut input)?;
         command.frame = input.read_u8()?;
         input.skip(3)?;
         command.builders = ObjectsList::read_from(input, i32::from(selected_count))?;
@@ -1030,10 +1003,7 @@ impl RepairCommand {
         let mut command = Self::default();
         let selected_count = i32::from(input.read_u8()?);
         input.skip(2)?;
-        command.target_id = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        command.target_id = read_opt_u32(&mut input)?;
         command.repairers = ObjectsList::read_from(input, selected_count)?;
         Ok(command)
     }
@@ -1075,10 +1045,7 @@ impl UngarrisonCommand {
         };
         command.ungarrison_type = input.read_i8()?;
         input.skip(3)?;
-        command.unit_type_id = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        command.unit_type_id = read_opt_u32(&mut input)?;
         command.objects = ObjectsList::read_from(input, i32::from(selected_count))?;
         Ok(command)
     }
@@ -1130,10 +1097,7 @@ impl UnitOrderCommand {
         let mut command = Self::default();
         let selected_count = input.read_i8()?;
         let _padding = input.read_u16::<LE>()?;
-        command.target_id = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        command.target_id = read_opt_u32(&mut input)?;
         command.action = input.read_i8()?;
         command.param = match input.read_i8()? {
             -1 => None,
@@ -1147,10 +1111,7 @@ impl UnitOrderCommand {
         } else {
             None
         };
-        command.unique_id = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id as u32),
-        };
+        command.unique_id = read_opt_u32(&mut input)?;
         command.objects = ObjectsList::read_from(input, i32::from(selected_count))?;
         Ok(command)
     }
@@ -1204,10 +1165,7 @@ impl SetGatherPointCommand {
         let mut command = Self::default();
         let selected_count = i32::from(input.read_i8()?);
         input.skip(2)?;
-        command.target_id = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        command.target_id = read_opt_u32(&mut input)?;
         command.target_type_id = match input.read_u16::<LE>()? {
             0xFFFF => None,
             id => Some(id.try_into().unwrap()),

@@ -4,6 +4,7 @@ use crate::unit_type::CompactUnitType;
 use crate::{ObjectID, PlayerID, Result};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use genie_dat::{CivilizationID, TechTree};
+use genie_support::read_opt_u32;
 use std::convert::TryInto;
 use std::io::{Read, Write};
 
@@ -540,18 +541,12 @@ impl GaiaData {
         for v in gaia.wolf_current_villagers.iter_mut() {
             *v = input.read_u32::<LE>()?;
         }
-        gaia.wolf_current_villager = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        gaia.wolf_current_villager = read_opt_u32(&mut input)?;
         gaia.wolf_villager_count = input.read_u32::<LE>()?;
         for wolf in gaia.wolves.iter_mut() {
             *wolf = GaiaWolfInfo::read_from(&mut input)?;
         }
-        gaia.current_wolf = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        gaia.current_wolf = read_opt_u32(&mut input)?;
         for v in gaia.wolf_counts.iter_mut() {
             *v = input.read_u32::<LE>()?;
         }

@@ -3,7 +3,7 @@
 use crate::unit::Waypoint;
 use crate::{ObjectID, PlayerID, Result};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{ReadSkipExt, UnitTypeID};
+use genie_support::{read_opt_u32, ReadSkipExt, UnitTypeID};
 use std::convert::TryInto;
 use std::io::{Read, Write};
 
@@ -265,10 +265,7 @@ pub struct ImportantObjectMemory {
 impl ImportantObjectMemory {
     pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
         let mut object = Self::default();
-        object.id = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        object.id = read_opt_u32(&mut input)?;
         object.unit_type_id = match input.read_i16::<LE>()? {
             -1 => None,
             id => Some(id.try_into().unwrap()),
@@ -285,10 +282,7 @@ impl ImportantObjectMemory {
         object.damage_capability = input.read_f32::<LE>()?;
         object.rate_of_fire = input.read_f32::<LE>()?;
         object.range = input.read_f32::<LE>()?;
-        object.time_seen = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        object.time_seen = read_opt_u32(&mut input)?;
         object.is_garrisoned = input.read_u32::<LE>()?;
         Ok(object)
     }
@@ -303,10 +297,7 @@ pub struct BuildingLot {
 
 impl BuildingLot {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let unit_type_id = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        let unit_type_id = read_opt_u32(&mut input)?;
         let status = input.read_u8()?;
         let x = input.read_u8()?;
         let y = input.read_u8()?;
@@ -337,10 +328,7 @@ impl WallLine {
         if version >= 10.78 {
             line.line_type = input.read_u32::<LE>()?;
         }
-        line.wall_type = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        line.wall_type = read_opt_u32(&mut input)?;
         if version >= 10.78 {
             line.gate_count = input.read_u32::<LE>()?;
         }
@@ -425,10 +413,7 @@ pub struct AttackMemory {
 impl AttackMemory {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut mem = Self::default();
-        mem.id = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        mem.id = read_opt_u32(&mut input)?;
         mem.typ = input.read_u8()?;
         mem.min_x = input.read_u8()?;
         mem.min_y = input.read_u8()?;
@@ -446,14 +431,8 @@ impl AttackMemory {
         mem.kills = input.read_u16::<LE>()?;
         mem.success = input.read_u8()? != 0;
         input.skip(1)?;
-        mem.timestamp = match input.read_u32::<LE>()? {
-            0xFFFF_FFFF => None,
-            id => Some(id),
-        };
-        mem.play = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        mem.timestamp = read_opt_u32(&mut input)?;
+        mem.play = read_opt_u32(&mut input)?;
         Ok(mem)
     }
 }
@@ -485,10 +464,7 @@ impl ResourceMemory {
         mem.resource_type = input.read_u8()?;
         mem.dropsite_id = input.read_u32::<LE>()?.into();
         if version >= 10.91 {
-            mem.attacked_time = match input.read_u32::<LE>()? {
-                0xFFFF_FFFF => None,
-                time => Some(time),
-            };
+            mem.attacked_time = read_opt_u32(&mut input)?;
         }
         Ok(mem)
     }

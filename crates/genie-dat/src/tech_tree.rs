@@ -2,7 +2,7 @@ use crate::civ::CivilizationID;
 use crate::unit_type::UnitTypeID;
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::TechID;
+use genie_support::{read_opt_u32, TechID};
 use std::convert::{TryFrom, TryInto};
 use std::io::{self, Read, Result, Write};
 
@@ -456,10 +456,7 @@ impl TechTreeBuilding {
             *children = input.read_u8()?;
         }
         building.node_type = input.read_i32::<LE>()?.try_into().map_err(invalid_data)?;
-        building.depends_tech_id = match input.read_i32::<LE>()? {
-            -1 => None,
-            n => Some(n.try_into().map_err(invalid_data)?),
-        };
+        building.depends_tech_id = read_opt_u32(input)?;
         Ok(building)
     }
 
@@ -479,15 +476,9 @@ impl TechTreeUnit {
         unit.group_id = input.read_i32::<LE>()?;
         unit.dependent_units = read_dependents(input)?;
         unit.level_no = input.read_i32::<LE>()?;
-        unit.requires_tech_id = match input.read_i32::<LE>()? {
-            -1 => None,
-            n => Some(n.try_into().map_err(invalid_data)?),
-        };
+        unit.requires_tech_id = read_opt_u32(input)?;
         unit.node_type = input.read_i32::<LE>()?.try_into().map_err(invalid_data)?;
-        unit.depends_tech_id = match input.read_i32::<LE>()? {
-            -1 => None,
-            n => Some(n.try_into().map_err(invalid_data)?),
-        };
+        unit.depends_tech_id = read_opt_u32(input)?;
         Ok(unit)
     }
 

@@ -2,6 +2,7 @@ use crate::ObjectID;
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 pub use genie_dat::SpriteID;
+use genie_support::read_opt_u32;
 pub use genie_support::UnitTypeID;
 use std::convert::TryInto;
 use std::io::{Read, Write};
@@ -33,14 +34,8 @@ impl UnitAction {
         let state = input.read_u32::<LE>()?;
         let _target_object_pointer = input.read_u32::<LE>()?;
         let _target_object_pointer_2 = input.read_u32::<LE>()?;
-        let target_object_id = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
-        let target_object_id_2 = match input.read_i32::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        let target_object_id = read_opt_u32(&mut input)?;
+        let target_object_id_2 = read_opt_u32(&mut input)?;
         let target_position = (
             input.read_f32::<LE>()?,
             input.read_f32::<LE>()?,
