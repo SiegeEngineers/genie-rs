@@ -30,6 +30,7 @@ infallible_try_into!(SoundID, i32);
 infallible_try_into!(SoundID, u32);
 fallible_try_from!(SoundID, i16);
 fallible_try_from!(SoundID, i32);
+fallible_try_from!(SoundID, u32);
 
 /// A "conceptual" sound, consisting of one or a group of sound files.
 ///

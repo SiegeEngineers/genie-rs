@@ -12,19 +12,24 @@ use std::io::{self, Error, ErrorKind, Read, Result};
 /// let mut minus_one = std::io::Cursor::new(vec![0xFF, 0xFF]);
 /// let mut zero = std::io::Cursor::new(vec![0x00, 0x00]);
 ///
-/// assert_eq!(read_opt_u16(&mut minus_one).unwrap(), None);
+/// assert_eq!(read_opt_u16::<u16, _>(&mut minus_one).unwrap(), None);
 /// assert_eq!(read_opt_u16(&mut zero).unwrap(), Some(0));
 /// ```
 #[inline]
-pub fn read_opt_u16<R: Read>(input: &mut R) -> Result<Option<u16>> {
-    let v = input.read_i16::<LE>()?;
-    if v == -1 {
-        return Ok(None);
-    }
-    Ok(Some(
-        v.try_into()
-            .map_err(|e| Error::new(ErrorKind::InvalidData, e))?,
-    ))
+pub fn read_opt_u16<T, R>(mut input: R) -> Result<Option<T>>
+where
+    T: TryFrom<u16>,
+    T::Error: std::error::Error + Send + Sync + 'static,
+    R: Read,
+{
+    let opt = match input.read_u16::<LE>()? {
+        0xFFFF => None,
+        v => Some(
+            v.try_into()
+                .map_err(|e| Error::new(ErrorKind::InvalidData, e))?,
+        ),
+    };
+    Ok(opt)
 }
 
 /// Read a 4-byte integer that uses -1 as an "absent" value.
@@ -37,14 +42,15 @@ pub fn read_opt_u16<R: Read>(input: &mut R) -> Result<Option<u16>> {
 /// let mut minus_one = std::io::Cursor::new(vec![0xFF, 0xFF, 0xFF, 0xFF]);
 /// let mut one = std::io::Cursor::new(vec![0x01, 0x00, 0x00, 0x00]);
 ///
-/// assert_eq!(read_opt_u32::<u32>(&mut minus_one).unwrap(), None);
+/// assert_eq!(read_opt_u32::<u32, _>(&mut minus_one).unwrap(), None);
 /// assert_eq!(read_opt_u32(&mut one).unwrap(), Some(1));
 /// ```
 #[inline]
-pub fn read_opt_u32<T>(input: &mut impl Read) -> Result<Option<T>>
+pub fn read_opt_u32<T, R>(mut input: R) -> Result<Option<T>>
 where
     T: TryFrom<u32>,
     T::Error: std::error::Error + Send + Sync + 'static,
+    R: Read,
 {
     let opt = match input.read_u32::<LE>()? {
         0xFFFF_FFFF => None,

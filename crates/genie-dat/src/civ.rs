@@ -69,7 +69,7 @@ impl Civilization {
     }
 
     /// Read civilization data from an input stream.
-    pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, version: GameVersion) -> Result<Self> {
         let mut civ = Self::default();
         let mut bytes = [0; 20];
         input.read_exact(&mut bytes)?;
@@ -107,14 +107,14 @@ impl Civilization {
                 continue;
             }
             civ.unit_types
-                .push(Some(UnitType::read_from(input, version.as_f32())?));
+                .push(Some(UnitType::read_from(&mut input, version.as_f32())?));
         }
 
         Ok(civ)
     }
 
     /// Write civilization data to an output stream.
-    pub fn write_to<W: Write>(&self, output: &mut W, version: GameVersion) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write, version: GameVersion) -> Result<()> {
         let mut name = [0; 20];
         (&mut name[..]).copy_from_slice(self.name.as_bytes());
         output.write_all(&name)?;
@@ -135,7 +135,7 @@ impl Civilization {
         }
         for opt in &self.unit_types {
             if let Some(unit_type) = opt {
-                unit_type.write_to(output, version.as_f32())?;
+                unit_type.write_to(&mut output, version.as_f32())?;
             }
         }
         Ok(())

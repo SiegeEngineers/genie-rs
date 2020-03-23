@@ -4,8 +4,7 @@ use arrayvec::{ArrayString, ArrayVec};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use encoding_rs::WINDOWS_1252;
 pub use genie_support::TechID;
-use genie_support::{read_opt_u16, MapInto, StringKey};
-use std::convert::TryInto;
+use genie_support::{read_opt_u16, read_opt_u32, StringKey};
 use std::io::{Read, Result, Write};
 
 /// An effect command specifies an attribute change when a tech effect is triggered.
@@ -135,49 +134,32 @@ impl Tech {
         self.name.as_str()
     }
 
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut tech = Self::default();
         for _ in 0..6 {
             // 4 on some versions
             tech.required_techs.push(input.read_i16::<LE>()?);
         }
         for _ in 0..3 {
-            let effect = TechEffectRef::read_from(input)?;
+            let effect = TechEffectRef::read_from(&mut input)?;
             if effect.effect_type != 0xFFFF {
                 tech.effects.push(effect);
             }
         }
         let _num_required_techs = input.read_u16::<LE>()?;
-        tech.civilization_id = match input.read_u16::<LE>()? {
-            0xFFFF => None,
-            n => Some(n.try_into().unwrap()),
-        };
+        tech.civilization_id = read_opt_u16(&mut input)?;
         tech.full_tech_mode = input.read_u16::<LE>()?;
-        tech.location = read_opt_u16(input)?.map_into();
-        tech.language_dll_name = read_opt_u16(input)?.map_into();
-        tech.language_dll_description = read_opt_u16(input)?.map_into();
+        tech.location = read_opt_u16(&mut input)?;
+        tech.language_dll_name = read_opt_u16(&mut input)?;
+        tech.language_dll_description = read_opt_u16(&mut input)?;
         tech.time = input.read_u16::<LE>()?;
         tech.time2 = input.read_u16::<LE>()?;
         tech.type_ = input.read_u16::<LE>()?;
-        tech.icon_id = read_opt_u16(input)?;
+        tech.icon_id = read_opt_u16(&mut input)?;
         tech.button_id = input.read_u8()?;
-        tech.language_dll_help = {
-            let n = input.read_i32::<LE>()?;
-            if n < 0 {
-                None
-            } else {
-                Some(n.try_into().unwrap())
-            }
-        };
+        tech.language_dll_help = read_opt_u32(&mut input)?;
         tech.help_page_id = input.read_u32::<LE>()?;
-        tech.hotkey = {
-            let n = input.read_i32::<LE>()?;
-            if n < 0 {
-                None
-            } else {
-                Some(n.try_into().unwrap())
-            }
-        };
+        tech.hotkey = read_opt_u32(&mut input)?;
         tech.name = {
             let name_len = input.read_u16::<LE>()?;
             let mut bytes = vec![0; name_len as usize];
