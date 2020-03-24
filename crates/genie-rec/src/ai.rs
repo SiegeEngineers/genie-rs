@@ -3,7 +3,7 @@
 use crate::unit::Waypoint;
 use crate::{ObjectID, PlayerID, Result};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{read_opt_u32, ReadSkipExt, UnitTypeID};
+use genie_support::{read_opt_u16, read_opt_u32, ReadSkipExt, UnitTypeID};
 use std::convert::TryInto;
 use std::io::{Read, Write};
 
@@ -238,9 +238,7 @@ pub struct EmotionalAI {
 impl EmotionalAI {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut ai = Self::default();
-        for state in ai.state.iter_mut() {
-            *state = input.read_u32::<LE>()?;
-        }
+        input.read_u32_into::<LE>(&mut ai.state)?;
         Ok(ai)
     }
 }
@@ -263,17 +261,11 @@ pub struct ImportantObjectMemory {
 }
 
 impl ImportantObjectMemory {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, _version: f32) -> Result<Self> {
         let mut object = Self::default();
         object.id = read_opt_u32(&mut input)?;
-        object.unit_type_id = match input.read_i16::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
-        object.unit_class = match input.read_i16::<LE>()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
+        object.unit_type_id = read_opt_u16(&mut input)?;
+        object.unit_class = read_opt_u16(&mut input)?;
         object.location = (input.read_u8()?, input.read_u8()?, input.read_u8()?);
         object.owner = input.read_u8()?.into();
         object.hit_points = input.read_u16::<LE>()?;
@@ -487,9 +479,7 @@ impl InfluenceMap {
         map.reference_point = (input.read_u32::<LE>()?, input.read_u32::<LE>()?);
         map.unchangeable_limit = input.read_u8()?;
         map.values = vec![0; (map.width * map.height) as usize];
-        for v in map.values.iter_mut() {
-            *v = input.read_i8()?;
-        }
+        input.read_i8_into(&mut map.values)?;
         Ok(map)
     }
 }
@@ -545,9 +535,7 @@ impl InformationAI {
             let _garbage = input.read_u32::<LE>()?;
         }
         let mut resource_type_counts = vec![0; 4096];
-        for count in resource_type_counts.iter_mut() {
-            *count = input.read_u32::<LE>()?;
-        }
+        input.read_u32_into::<LE>(&mut resource_type_counts)?;
         ai.doctrine = input.read_i32::<LE>()?;
         ai.random_number = input.read_i32::<LE>()?;
         for _ in 0..40 {
@@ -697,9 +685,7 @@ impl InformationAI {
             let mut outer = vec![];
             for _ in 0..4 {
                 let mut inner = [0; 4];
-                for v in inner.iter_mut() {
-                    *v = input.read_u32::<LE>()?;
-                }
+                input.read_u32_into::<LE>(&mut inner)?;
                 outer.push(inner);
             }
             outer

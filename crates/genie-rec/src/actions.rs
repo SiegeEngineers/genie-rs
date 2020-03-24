@@ -911,9 +911,7 @@ impl BuildWallCommand {
             ObjectsList::SameAsLast
         } else {
             let mut list = vec![0; selected_count.try_into().unwrap()];
-            for object in list.iter_mut() {
-                *object = input.read_i32::<LE>()?;
-            }
+            input.read_i32_into::<LE>(&mut list)?;
             if selected_count == 1 && list[0] == -1 {
                 list.clear();
             }

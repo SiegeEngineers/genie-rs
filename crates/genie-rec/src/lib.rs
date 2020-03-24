@@ -378,7 +378,7 @@ mod tests {
     use std::fs::File;
 
     #[test]
-    fn up_15_rec() {
+    fn up_15_rec_with_ai() {
         let f = File::open("test/rec.20181208-195117.mgz").unwrap();
         let mut r = RecordedGame::new(f).unwrap();
         r.header().unwrap();

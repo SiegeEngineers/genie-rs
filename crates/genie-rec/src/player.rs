@@ -38,6 +38,11 @@ pub struct Player {
 }
 
 impl Player {
+    /// Return the name of this player.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
     #[allow(clippy::cognitive_complexity)]
     pub fn read_from(mut input: impl Read, version: f32, num_players: u8) -> Result<Self> {
         let mut player = Self::default();
@@ -449,9 +454,7 @@ impl VisibleMap {
         }
         map.player_id = input.read_u16::<LE>()?.try_into().unwrap();
         map.tiles = vec![0; (map.width * map.height).try_into().unwrap()];
-        for v in map.tiles.iter_mut() {
-            *v = input.read_i8()?;
-        }
+        input.read_i8_into(&mut map.tiles)?;
         Ok(map)
     }
 }
@@ -547,9 +550,7 @@ impl GaiaData {
             *wolf = GaiaWolfInfo::read_from(&mut input)?;
         }
         gaia.current_wolf = read_opt_u32(&mut input)?;
-        for v in gaia.wolf_counts.iter_mut() {
-            *v = input.read_u32::<LE>()?;
-        }
+        input.read_u32_into::<LE>(&mut gaia.wolf_counts[..])?;
         Ok(gaia)
     }
 }
@@ -684,21 +685,13 @@ impl HistoryInfo {
         let _old_current_units_created = input.read_i32::<LE>()?;
         let _old_current_buildings_built = input.read_i32::<LE>()?;
         let mut old_kills = [0; 8];
-        for v in old_kills.iter_mut() {
-            *v = input.read_u16::<LE>()?;
-        }
+        input.read_u16_into::<LE>(&mut old_kills[..])?;
         let mut old_kill_bvs = [0; 8];
-        for v in old_kill_bvs.iter_mut() {
-            *v = input.read_u32::<LE>()?;
-        }
+        input.read_u32_into::<LE>(&mut old_kill_bvs[..])?;
         let mut old_razings = [0; 8];
-        for v in old_razings.iter_mut() {
-            *v = input.read_u16::<LE>()?;
-        }
+        input.read_u16_into::<LE>(&mut old_razings[..])?;
         let mut old_razing_bvs = [0; 8];
-        for v in old_razing_bvs.iter_mut() {
-            *v = input.read_u32::<LE>()?;
-        }
+        input.read_u32_into::<LE>(&mut old_razing_bvs[..])?;
         let _running_average_bv_percent = input.read_i32::<LE>()?;
         let _running_total_bv_kills = input.read_i32::<LE>()?;
         let _running_total_bv_razings = input.read_i32::<LE>()?;
@@ -803,13 +796,8 @@ impl UserPatchData {
         let mut category_priorities = vec![0; 900];
         let mut group_priorities = vec![0; 100];
 
-        for val in category_priorities.iter_mut() {
-            *val = input.read_u16::<LE>()?;
-        }
-
-        for val in group_priorities.iter_mut() {
-            *val = input.read_u16::<LE>()?;
-        }
+        input.read_u16_into::<LE>(&mut category_priorities)?;
+        input.read_u16_into::<LE>(&mut group_priorities)?;
 
         {
             let mut bytes = vec![0; 2096];

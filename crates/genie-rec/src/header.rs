@@ -3,6 +3,7 @@ use crate::player::Player;
 use crate::string_table::StringTable;
 use crate::{GameVersion, Result};
 use byteorder::{ReadBytesExt, LE};
+use genie_support::ReadSkipExt;
 pub use genie_support::SpriteID;
 use std::convert::TryInto;
 use std::fmt::{self, Debug};
@@ -20,10 +21,8 @@ impl AICommand {
         let mut cmd = Self::default();
         cmd.command_type = input.read_i32::<LE>()?;
         cmd.id = input.read_u16::<LE>()?;
-        input.read_u16::<LE>()?;
-        for param in cmd.parameters.iter_mut() {
-            *param = input.read_i32::<LE>()?;
-        }
+        input.skip(2)?;
+        input.read_i32_into::<LE>(&mut cmd.parameters)?;
         Ok(cmd)
     }
 }
@@ -160,24 +159,14 @@ impl AIFactState {
         let mut signals = [0; 256];
         let mut triggers = [0; 256];
         let mut taunts = [[0; 256]; 8];
-        for timers in timers.iter_mut() {
-            for val in timers.iter_mut() {
-                *val = input.read_i32::<LE>()?;
-            }
+        for timer_values in timers.iter_mut() {
+            input.read_i32_into::<LE>(&mut timer_values[..])?;
         }
-        for goal in shared_goals.iter_mut() {
-            *goal = input.read_u32::<LE>()?;
-        }
-        for signal in signals.iter_mut() {
-            *signal = input.read_u32::<LE>()?;
-        }
-        for trigger in triggers.iter_mut() {
-            *trigger = input.read_u32::<LE>()?;
-        }
+        input.read_u32_into::<LE>(&mut shared_goals)?;
+        input.read_u32_into::<LE>(&mut signals)?;
+        input.read_u32_into::<LE>(&mut triggers)?;
         for taunts in taunts.iter_mut() {
-            for taunt in taunts.iter_mut() {
-                *taunt = input.read_i8()?;
-            }
+            input.read_i8_into(&mut taunts[..])?;
         }
 
         Ok(Self {
@@ -243,9 +232,14 @@ pub struct Header {
     ai_scripts: Option<AIScripts>,
     map: Map,
     particle_system: ParticleSystem,
+    players: Vec<Player>,
 }
 
 impl Header {
+    pub fn players(&self) -> impl Iterator<Item = &Player> {
+        self.players.iter()
+    }
+
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut header = Header::default();
         header.game_version = GameVersion::read_from(&mut input)?;
@@ -285,9 +279,7 @@ impl Header {
         }
         let _player_turn = input.read_u32::<LE>()?;
         let mut player_time_delta = [0; 9];
-        for time_delta in player_time_delta.iter_mut() {
-            *time_delta = input.read_u32::<LE>()?;
-        }
+        input.read_u32_into::<LE>(&mut player_time_delta[..])?;
 
         header.map = Map::read_from(&mut input)?;
 
@@ -299,9 +291,9 @@ impl Header {
             let _identifier = input.read_u32::<LE>()?;
         }
 
-        let mut players = Vec::with_capacity(num_players.try_into().unwrap());
+        header.players.reserve(num_players.try_into().unwrap());
         for _ in 0..num_players {
-            players.push(Player::read_from(
+            header.players.push(Player::read_from(
                 &mut input,
                 header.save_version,
                 num_players as u8,

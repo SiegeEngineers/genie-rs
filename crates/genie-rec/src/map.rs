@@ -76,22 +76,14 @@ impl Default for MapZone {
 impl MapZone {
     pub fn read_from(mut input: impl Read, map_size: (u32, u32)) -> Result<Self> {
         let mut zone = Self::default();
-        for val in zone.info.iter_mut() {
-            *val = input.read_i8()?;
-        }
-        for val in zone.tiles.iter_mut() {
-            *val = input.read_i32::<LE>()?;
-        }
+        input.read_i8_into(&mut zone.info)?;
+        input.read_i32_into::<LE>(&mut zone.tiles)?;
         zone.zone_map = vec![0; (map_size.0 * map_size.1).try_into().unwrap()];
-        for val in zone.zone_map.iter_mut() {
-            *val = input.read_i8()?;
-        }
+        input.read_i8_into(&mut zone.zone_map)?;
 
         let num_rules = input.read_u32::<LE>()?;
         zone.passability_rules = vec![0.0; num_rules.try_into().unwrap()];
-        for val in zone.passability_rules.iter_mut() {
-            *val = input.read_f32::<LE>()?;
-        }
+        input.read_f32_into::<LE>(&mut zone.passability_rules)?;
 
         zone.num_zones = input.read_u32::<LE>()?;
         Ok(zone)
@@ -152,9 +144,7 @@ impl VisibilityMap {
         let width = input.read_u32::<LE>()?;
         let height = input.read_u32::<LE>()?;
         let mut visibility = vec![0; (width * height).try_into().unwrap()];
-        for value in visibility.iter_mut() {
-            *value = input.read_u32::<LE>()?;
-        }
+        input.read_u32_into::<LE>(&mut visibility)?;
         Ok(Self {
             width,
             height,
