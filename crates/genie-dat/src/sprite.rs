@@ -1,49 +1,11 @@
 use crate::sound::SoundID;
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{
-    fallible_try_from, fallible_try_into, infallible_try_into, read_opt_u16, MapInto,
-};
+pub use genie_support::SpriteID;
+use genie_support::{fallible_try_into, infallible_try_into, read_opt_u16};
 use std::convert::{TryFrom, TryInto};
 use std::io::{Read, Result, Write};
 use std::num::TryFromIntError;
-
-/// An ID identifying a sprite.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub struct SpriteID(u16);
-impl From<u16> for SpriteID {
-    fn from(n: u16) -> Self {
-        SpriteID(n)
-    }
-}
-
-impl From<SpriteID> for u16 {
-    fn from(n: SpriteID) -> Self {
-        n.0
-    }
-}
-
-impl From<SpriteID> for i32 {
-    fn from(n: SpriteID) -> Self {
-        n.0.into()
-    }
-}
-
-impl From<SpriteID> for u32 {
-    fn from(n: SpriteID) -> Self {
-        n.0.into()
-    }
-}
-
-impl From<SpriteID> for usize {
-    fn from(n: SpriteID) -> Self {
-        n.0.into()
-    }
-}
-
-fallible_try_into!(SpriteID, i16);
-fallible_try_from!(SpriteID, i32);
-fallible_try_from!(SpriteID, u32);
 
 /// An ID identifying a string resource.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -147,9 +109,9 @@ pub struct Sprite {
 }
 
 impl SpriteDelta {
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut delta = SpriteDelta::default();
-        delta.sprite_id = read_opt_u16(input)?.map_into();
+        delta.sprite_id = read_opt_u16(&mut input)?;
         let _padding = input.read_i16::<LE>()?;
         let _parent_sprite_pointer = input.read_i32::<LE>()?;
         delta.offset_x = input.read_i16::<LE>()?;
@@ -215,7 +177,7 @@ impl SpriteAttackSound {
 }
 
 impl Sprite {
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut sprite = Sprite::default();
         let mut name = [0u8; 21];
         input.read_exact(&mut name)?;
@@ -248,7 +210,7 @@ impl Sprite {
             input.read_i16::<LE>()?,
         );
         let num_deltas = input.read_u16::<LE>()?;
-        sprite.sound_id = read_opt_u16(input)?.map_into();
+        sprite.sound_id = read_opt_u16(&mut input)?;
         let attack_sounds_used = input.read_u8()? != 0;
         sprite.num_frames = input.read_u16::<LE>()?;
         sprite.num_angles = input.read_u16::<LE>()?;
@@ -261,13 +223,13 @@ impl Sprite {
         sprite.other_flag = input.read_i8()?;
 
         for _ in 0..num_deltas {
-            sprite.deltas.push(SpriteDelta::read_from(input)?);
+            sprite.deltas.push(SpriteDelta::read_from(&mut input)?);
         }
         if attack_sounds_used {
             for _ in 0..sprite.num_angles {
                 sprite
                     .attack_sounds
-                    .push(SpriteAttackSound::read_from(input)?);
+                    .push(SpriteAttackSound::read_from(&mut input)?);
             }
         }
 

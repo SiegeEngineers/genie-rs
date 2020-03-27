@@ -1,6 +1,6 @@
-use crate::util::*;
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use genie_support::{read_str, DecodeStringError, ReadStringError};
 use std::convert::TryFrom;
 use std::io::{Read, Write};
 use std::mem;

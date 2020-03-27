@@ -9,12 +9,13 @@ use crate::map::Map;
 use crate::player::*;
 use crate::triggers::TriggerSystem;
 use crate::types::*;
-use crate::util::*;
 use crate::victory::*;
 use crate::{Error, Result, VersionBundle};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
-use genie_support::{cmp_float, read_opt_u32, MapInto, StringKey, UnitTypeID};
+use genie_support::{
+    cmp_float, read_opt_u32, read_str, write_opt_str, write_str, StringKey, UnitTypeID,
+};
 use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
 use std::io::{self, Read, Write};
@@ -157,19 +158,19 @@ pub(crate) struct RGEScen {
 }
 
 impl RGEScen {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn from(mut input: impl Read) -> Result<Self> {
         let version = input.read_f32::<LE>()?;
         let mut player_names = vec![None; 16];
         if version > 1.13 {
             for name in player_names.iter_mut() {
-                *name = read_str(input, 256)?;
+                *name = read_str(&mut input, 256)?;
             }
         }
 
         let mut player_string_table = vec![None; 16];
         if version > 1.16 {
             for string_id in player_string_table.iter_mut() {
-                *string_id = read_opt_u32(input)?.map_into();
+                *string_id = read_opt_u32(&mut input)?;
             }
         }
 
@@ -194,7 +195,7 @@ impl RGEScen {
         assert!([-1.0, 0.0].contains(&input.read_f32::<LE>()?));
 
         let name_length = input.read_i16::<LE>()? as usize;
-        let name = read_str(input, name_length)?.ok_or(Error::MissingFileNameError)?;
+        let name = read_str(&mut input, name_length)?.ok_or(Error::MissingFileNameError)?;
 
         let (
             description_string_table,
@@ -204,34 +205,34 @@ impl RGEScen {
             history_string_table,
         ) = if version >= 1.16 {
             (
-                read_opt_u32(input)?.map_into(),
-                read_opt_u32(input)?.map_into(),
-                read_opt_u32(input)?.map_into(),
-                read_opt_u32(input)?.map_into(),
-                read_opt_u32(input)?.map_into(),
+                read_opt_u32(&mut input)?,
+                read_opt_u32(&mut input)?,
+                read_opt_u32(&mut input)?,
+                read_opt_u32(&mut input)?,
+                read_opt_u32(&mut input)?,
             )
         } else {
             Default::default()
         };
 
         let scout_string_table = if version >= 1.22 {
-            read_opt_u32(input)?.map_into()
+            read_opt_u32(&mut input)?
         } else {
             Default::default()
         };
 
         let description_length = input.read_i16::<LE>()? as usize;
-        let description = read_str(input, description_length)?;
+        let description = read_str(&mut input, description_length)?;
 
         let (hints, win_message, loss_message, history) = if version >= 1.11 {
             let hints_length = input.read_i16::<LE>()? as usize;
-            let hints = read_str(input, hints_length)?;
+            let hints = read_str(&mut input, hints_length)?;
             let win_message_length = input.read_i16::<LE>()? as usize;
-            let win_message = read_str(input, win_message_length)?;
+            let win_message = read_str(&mut input, win_message_length)?;
             let loss_message_length = input.read_i16::<LE>()? as usize;
-            let loss_message = read_str(input, loss_message_length)?;
+            let loss_message = read_str(&mut input, loss_message_length)?;
             let history_length = input.read_i16::<LE>()? as usize;
-            let history = read_str(input, history_length)?;
+            let history = read_str(&mut input, history_length)?;
             (hints, win_message, loss_message, history)
         } else {
             (None, None, None, None)
@@ -239,7 +240,7 @@ impl RGEScen {
 
         let scout = if version >= 1.22 {
             let scout_length = input.read_i16::<LE>()? as usize;
-            read_str(input, scout_length)?
+            read_str(&mut input, scout_length)?
         } else {
             None
         };
@@ -249,21 +250,21 @@ impl RGEScen {
         }
 
         let len = input.read_i16::<LE>()? as usize;
-        let pregame_cinematic = read_str(input, len)?;
+        let pregame_cinematic = read_str(&mut input, len)?;
         let len = input.read_i16::<LE>()? as usize;
-        let victory_cinematic = read_str(input, len)?;
+        let victory_cinematic = read_str(&mut input, len)?;
         let len = input.read_i16::<LE>()? as usize;
-        let loss_cinematic = read_str(input, len)?;
+        let loss_cinematic = read_str(&mut input, len)?;
 
         let mission_bmp = if version >= 1.09 {
             let len = input.read_i16::<LE>()? as usize;
-            read_str(input, len)?
+            read_str(&mut input, len)?
         } else {
             None
         };
 
         let _mission_picture = if version >= 1.10 {
-            Bitmap::from(input)?
+            Bitmap::from(&mut input)?
         } else {
             None
         };
@@ -271,20 +272,20 @@ impl RGEScen {
         let mut player_build_lists = vec![None; 16];
         for build_list in player_build_lists.iter_mut() {
             let len = input.read_u16::<LE>()? as usize;
-            *build_list = read_str(input, len)?;
+            *build_list = read_str(&mut input, len)?;
         }
 
         let mut player_city_plans = vec![None; 16];
         for city_plan in player_city_plans.iter_mut() {
             let len = input.read_u16::<LE>()? as usize;
-            *city_plan = read_str(input, len)?;
+            *city_plan = read_str(&mut input, len)?;
         }
 
         let mut player_ai_rules = vec![None; 16];
         if version >= 1.08 {
             for ai_rules in player_ai_rules.iter_mut() {
                 let len = input.read_u16::<LE>()? as usize;
-                *ai_rules = read_str(input, len)?;
+                *ai_rules = read_str(&mut input, len)?;
             }
         }
 
@@ -298,9 +299,9 @@ impl RGEScen {
                 0
             };
 
-            files.build_list = read_str(input, build_list_length)?;
-            files.city_plan = read_str(input, city_plan_length)?;
-            files.ai_rules = read_str(input, ai_rules_length)?;
+            files.build_list = read_str(&mut input, build_list_length)?;
+            files.city_plan = read_str(&mut input, city_plan_length)?;
+            files.ai_rules = read_str(&mut input, ai_rules_length)?;
         }
 
         let mut ai_rules_types = vec![0; 16];
@@ -547,8 +548,13 @@ pub(crate) struct TribeScen {
 }
 
 impl TribeScen {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
-        let mut base = RGEScen::from(input)?;
+    #[deprecated = "Use TribeScen::read_from instead"]
+    pub fn from(input: impl Read) -> Result<Self> {
+        Self::read_from(input)
+    }
+
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
+        let mut base = RGEScen::from(&mut input)?;
         let version = base.version;
 
         let mut player_start_resources = vec![PlayerStartResources::default(); 16];
@@ -556,13 +562,13 @@ impl TribeScen {
         // Moved to RGEScen in 1.13
         if version <= 1.13 {
             for name in base.player_names.iter_mut() {
-                *name = read_str(input, 256)?;
+                *name = read_str(&mut input, 256)?;
             }
 
             for i in 0..16 {
                 let properties = &mut base.player_base_properties[i];
                 properties.active = input.read_i32::<LE>()?;
-                let resources = PlayerStartResources::from(input, version)?;
+                let resources = PlayerStartResources::from(&mut input, version)?;
                 properties.player_type = input.read_i32::<LE>()?;
                 properties.civilization = input.read_i32::<LE>()?;
                 properties.posture = input.read_i32::<LE>()?;
@@ -570,7 +576,7 @@ impl TribeScen {
             }
         } else {
             for resources in player_start_resources.iter_mut() {
-                *resources = PlayerStartResources::from(input, version)?;
+                *resources = PlayerStartResources::from(&mut input, version)?;
             }
         }
 
@@ -579,7 +585,7 @@ impl TribeScen {
             debug_assert_eq!(sep, -99);
         }
 
-        let victory = VictoryInfo::from(input)?;
+        let victory = VictoryInfo::from(&mut input)?;
         let victory_all_flag = input.read_i32::<LE>()? != 0;
 
         let mp_victory_type = if version >= 1.13 {
@@ -608,7 +614,7 @@ impl TribeScen {
         let mut legacy_victory_info = vec![vec![LegacyVictoryInfo::default(); 12]; 16];
         for list in legacy_victory_info.iter_mut() {
             for victory_info in list.iter_mut() {
-                *victory_info = LegacyVictoryInfo::from(input)?;
+                *victory_info = LegacyVictoryInfo::from(&mut input)?;
             }
         }
 
@@ -719,7 +725,13 @@ impl TribeScen {
         };
 
         let map_type = if version >= 1.21 {
-            Some(input.read_i32::<LE>()?).and_then(|v| if v != -1 { Some(v) } else { None })
+            match input.read_i32::<LE>()? {
+                -2 | -1 => None,
+                id => Some(
+                    id.try_into()
+                        .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?,
+                ),
+            }
         } else {
             None
         };
@@ -995,7 +1007,7 @@ impl SCXFormat {
         let mut input = DeflateDecoder::new(input);
         let next_object_id = input.read_i32::<LE>()?;
 
-        let tribe_scen = TribeScen::from(&mut input)?;
+        let tribe_scen = TribeScen::read_from(&mut input)?;
 
         let map = Map::from(&mut input)?;
 
@@ -1164,11 +1176,11 @@ impl SCXFormat {
 }
 
 fn write_opt_string_key<W: Write>(output: &mut W, opt_key: &Option<StringKey>) -> Result<()> {
-    output.write_i32::<LE>(if let Some(key) = opt_key {
+    output.write_u32::<LE>(if let Some(key) = opt_key {
         key.try_into()
-            .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?
+            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?
     } else {
-        -1
+        0xFFFF_FFFF
     })?;
     Ok(())
 }

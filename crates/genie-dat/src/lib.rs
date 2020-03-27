@@ -25,17 +25,17 @@ use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 pub use civ::{Civilization, CivilizationID};
 pub use color_table::{ColorTable, PaletteIndex};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
-use genie_support::cmp_float;
+use genie_support::{cmp_float, ReadSkipExt, TechID};
 pub use random_map::*;
 pub use sound::{Sound, SoundID, SoundItem};
 pub use sprite::{GraphicID, SoundProp, Sprite, SpriteAttackSound, SpriteDelta, SpriteID};
 use std::convert::TryInto;
 use std::io::{Read, Result, Write};
 pub use task::{Task, TaskList};
-pub use tech::{Tech, TechEffect, TechID};
+pub use tech::{Tech, TechEffect};
 pub use tech_tree::{
-    ParseTechTreeStatusError, ParseTechTreeTypeError, TechTree, TechTreeAge, TechTreeBuilding,
-    TechTreeDependencies, TechTreeStatus, TechTreeTech, TechTreeType, TechTreeUnit,
+    ParseTechTreeTypeError, TechTree, TechTreeAge, TechTreeBuilding, TechTreeDependencies,
+    TechTreeStatus, TechTreeTech, TechTreeType, TechTreeUnit,
 };
 pub use terrain::{
     Terrain, TerrainAnimation, TerrainBorder, TerrainID, TerrainObject, TerrainPassGraphic,
@@ -162,10 +162,7 @@ impl DatFile {
         };
 
         // Two lists of pointers
-        skip(
-            &mut input,
-            4 * u64::from(num_terrain_tables) + 4 * u64::from(num_terrain_tables),
-        )?;
+        input.skip(4 * u64::from(num_terrain_tables) + 4 * u64::from(num_terrain_tables))?;
 
         #[must_use]
         fn read_array<T>(num: usize, mut read: impl FnMut() -> Result<T>) -> Result<Vec<T>> {
@@ -255,7 +252,7 @@ impl DatFile {
         let _map_fog_of_war = input.read_u8()?;
 
         // Lots more pointers and stuff
-        skip(&mut input, 21 + 157 * 4)?;
+        input.skip(21 + 157 * 4)?;
 
         let num_random_maps = input.read_u32::<LE>()? as usize;
         let _random_maps_pointer = input.read_u32::<LE>()?;
@@ -501,11 +498,6 @@ impl DatFile {
         let id: SpriteID = id.into();
         self.sprites.get(usize::from(id)).and_then(Option::as_ref)
     }
-}
-
-/// Skip some unimportant bytes on an input stream.
-fn skip<R: Read>(input: &mut R, bytes: u64) -> Result<u64> {
-    std::io::copy(&mut input.by_ref().take(bytes), &mut std::io::sink())
 }
 
 #[cfg(test)]

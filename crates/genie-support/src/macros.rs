@@ -14,9 +14,10 @@
 /// ```
 macro_rules! infallible_try_into {
     ($from:ident, $to:ty) => {
-        impl std::convert::TryFrom<$from> for $to {
-            type Error = std::convert::Infallible;
-            fn try_from(n: $from) -> std::result::Result<Self, Self::Error> {
+        impl ::std::convert::TryFrom<$from> for $to {
+            type Error = ::std::convert::Infallible;
+            fn try_from(n: $from) -> ::std::result::Result<Self, Self::Error> {
+                use ::std::convert::TryInto;
                 n.0.try_into()
             }
         }
@@ -39,10 +40,11 @@ macro_rules! infallible_try_into {
 /// ```
 macro_rules! fallible_try_into {
     ($from:ident, $to:ty) => {
-        impl std::convert::TryFrom<$from> for $to {
-            type Error = std::num::TryFromIntError;
+        impl ::std::convert::TryFrom<$from> for $to {
+            type Error = ::std::num::TryFromIntError;
             #[inline]
-            fn try_from(n: $from) -> std::result::Result<Self, Self::Error> {
+            fn try_from(n: $from) -> ::std::result::Result<Self, Self::Error> {
+                use ::std::convert::TryInto;
                 n.0.try_into()
             }
         }
@@ -66,10 +68,11 @@ macro_rules! fallible_try_into {
 /// ```
 macro_rules! fallible_try_from {
     ($to:ty, $from:ident) => {
-        impl std::convert::TryFrom<$from> for $to {
-            type Error = std::num::TryFromIntError;
+        impl ::std::convert::TryFrom<$from> for $to {
+            type Error = ::std::num::TryFromIntError;
             #[inline]
-            fn try_from(n: $from) -> std::result::Result<Self, Self::Error> {
+            fn try_from(n: $from) -> ::std::result::Result<Self, Self::Error> {
+                use ::std::convert::TryInto;
                 n.try_into().map(Self)
             }
         }
