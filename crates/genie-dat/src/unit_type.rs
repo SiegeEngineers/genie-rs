@@ -536,7 +536,7 @@ impl BaseUnitType {
         )?;
         output.write_u8(self.attack_reaction)?;
         output.write_u8(self.convert_terrain_flag)?;
-        output.write_all(self.name.as_bytes());
+        output.write_all(self.name.as_bytes())?;
         output.write_u16::<LE>(self.copy_id)?;
         output.write_u16::<LE>(self.unit_group)?;
         Ok(())

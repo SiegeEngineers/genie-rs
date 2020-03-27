@@ -203,7 +203,6 @@ impl TerrainRestriction {
             output.write_f32::<LE>(*value)?;
         }
         for graphic in &self.pass_graphics {
-            /// Serialize this object to a binary output stream.
             graphic.write_to(&mut output, version)?;
         }
         Ok(())
