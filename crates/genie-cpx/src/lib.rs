@@ -104,7 +104,7 @@ mod tests {
     use std::io::Cursor;
 
     #[test]
-    fn rebuild_cpx() -> Result<(), Box<dyn std::error::Error>> {
+    fn rebuild_cpx() -> anyhow::Result<()> {
         let instream = File::open("./test/campaigns/Armies at War A Combat Showcase.cpn")?;
         let mut outstream = vec![];
         let mut incpx = Campaign::from(instream)?;
@@ -118,7 +118,7 @@ mod tests {
     }
 
     #[test]
-    fn rebuild_cpn_de() -> Result<(), Box<dyn std::error::Error>> {
+    fn rebuild_cpn_de() -> anyhow::Result<()> {
         let instream = File::open("./test/campaigns/10 The First Punic War.aoecpn")?;
         let mut outstream = vec![];
         let mut incpx = Campaign::from(instream)?;
