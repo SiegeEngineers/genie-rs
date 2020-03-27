@@ -734,7 +734,7 @@ pub struct HistoryEntry {
 }
 
 impl HistoryEntry {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, _version: f32) -> Result<Self> {
         let civilian_population = input.read_u16::<LE>()?;
         let military_population = input.read_u16::<LE>()?;
         Ok(HistoryEntry {

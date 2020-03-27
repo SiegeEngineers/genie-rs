@@ -151,7 +151,7 @@ pub struct ConstructionItem {
 }
 
 impl ConstructionItem {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, _version: f32) -> Result<Self> {
         let mut item = Self::default();
         item.name = {
             let len = input.read_u32::<LE>()?;
@@ -860,14 +860,14 @@ pub struct TacticalAI {
 }
 
 impl TacticalAI {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, _version: f32) -> Result<Self> {
         let mut ai = Self::default();
 
         ai.civilians = read_id_list(&mut input)?;
         ai.civilian_explorers = read_id_list(&mut input)?;
 
-        let num_gatherers = input.read_u32::<LE>()?;
-        let desired_num_gatherers = input.read_u32::<LE>()?;
+        let _num_gatherers = input.read_u32::<LE>()?;
+        let _desired_num_gatherers = input.read_u32::<LE>()?;
 
         // more stuff here
 

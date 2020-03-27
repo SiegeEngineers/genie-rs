@@ -407,7 +407,7 @@ impl BaseUnitType {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write, _version: f32) -> Result<()> {
         output.write_u16::<LE>(self.id.into())?;
         output.write_i16::<LE>((&self.string_id).try_into().unwrap())?;
         write_opt_string_key(&mut output, &self.string_id2)?;
@@ -534,12 +534,12 @@ impl BaseUnitType {
 pub struct TreeUnitType(BaseUnitType);
 
 impl TreeUnitType {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+    pub fn read_from(input: impl Read, version: f32) -> Result<Self> {
         BaseUnitType::read_from(input, version).map(Self)
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, output: impl Write, version: f32) -> Result<()> {
         self.0.write_to(output, version)
     }
 }
@@ -570,12 +570,12 @@ impl AnimatedUnitType {
 pub struct DopplegangerUnitType(AnimatedUnitType);
 
 impl DopplegangerUnitType {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+    pub fn read_from(input: impl Read, version: f32) -> Result<Self> {
         AnimatedUnitType::read_from(input, version).map(Self)
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, output: impl Write, version: f32) -> Result<()> {
         self.0.write_to(output, version)
     }
 }
@@ -812,7 +812,7 @@ impl BaseCombatUnitType {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to(&self, _output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
         unimplemented!();
     }
 }
@@ -973,7 +973,7 @@ impl CombatUnitType {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to(&self, _output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
         unimplemented!();
     }
 }
@@ -1089,7 +1089,7 @@ impl BuildingUnitType {
     }
 
     /// Write the unit type to an output stream.
-    pub fn write_to(&self, _output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
         unimplemented!()
     }
 }

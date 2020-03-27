@@ -858,7 +858,7 @@ impl RawGameCommand {
 }
 
 impl GameCommand {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+    pub fn read_from(input: impl Read) -> Result<Self> {
         let RawGameCommand {
             game_command,
             var1,
@@ -1415,7 +1415,7 @@ impl Meta {
     /// Read recorded game body metadata in the `mgl` format used by Age of Empires 2: The
     /// Age Of Kings.
     pub fn read_from_mgl(mut input: impl Read) -> Result<Self> {
-        let mut meta = Self::read_from_inner(&mut input)?;
+        let meta = Self::read_from_inner(&mut input)?;
         let _exe_file_size = input.read_u64::<LE>()?;
         let _unknown = input.read_f32::<LE>()?;
         let _unknown = input.read_f32::<LE>()?;

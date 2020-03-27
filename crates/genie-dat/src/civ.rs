@@ -3,7 +3,7 @@ use crate::GameVersion;
 use arrayvec::ArrayString;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use encoding_rs::WINDOWS_1252;
-use genie_support::{fallible_try_from, fallible_try_into, infallible_try_into};
+use genie_support::{fallible_try_from, infallible_try_into};
 use std::convert::TryInto;
 use std::io::{Read, Result, Write};
 

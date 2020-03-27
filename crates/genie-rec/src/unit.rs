@@ -348,7 +348,7 @@ impl PathData {
         Ok(path)
     }
 
-    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
         todo!()
     }
 }
@@ -1118,7 +1118,7 @@ impl BuildingUnitAttributes {
             for entry in queue.iter_mut() {
                 *entry = ProductionQueueEntry::read_from(&mut input)?;
             }
-            let size = input.read_u16::<LE>()?;
+            let _size = input.read_u16::<LE>()?;
             queue
         };
         attrs.production_queue_total_units = input.read_u16::<LE>()?;
@@ -1153,7 +1153,7 @@ impl BuildingUnitAttributes {
         Ok(attrs)
     }
 
-    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
         todo!()
     }
 }
