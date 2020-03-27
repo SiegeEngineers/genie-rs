@@ -54,6 +54,8 @@ where
 {
     let opt = match input.read_u32::<LE>()? {
         0xFFFF_FFFF => None,
+        // HD Edition uses -2 in some places.
+        0xFFFF_FFFE => None,
         v => Some(
             v.try_into()
                 .map_err(|e| Error::new(ErrorKind::InvalidData, e))?,

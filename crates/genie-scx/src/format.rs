@@ -725,7 +725,13 @@ impl TribeScen {
         };
 
         let map_type = if version >= 1.21 {
-            read_opt_u32(&mut input)?
+            match input.read_i32::<LE>()? {
+                -2 | -1 => None,
+                id => Some(
+                    id.try_into()
+                        .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?,
+                ),
+            }
         } else {
             None
         };
@@ -1001,7 +1007,7 @@ impl SCXFormat {
         let mut input = DeflateDecoder::new(input);
         let next_object_id = input.read_i32::<LE>()?;
 
-        let tribe_scen = TribeScen::from(&mut input)?;
+        let tribe_scen = TribeScen::read_from(&mut input)?;
 
         let map = Map::from(&mut input)?;
 
@@ -1170,11 +1176,11 @@ impl SCXFormat {
 }
 
 fn write_opt_string_key<W: Write>(output: &mut W, opt_key: &Option<StringKey>) -> Result<()> {
-    output.write_i32::<LE>(if let Some(key) = opt_key {
+    output.write_u32::<LE>(if let Some(key) = opt_key {
         key.try_into()
-            .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?
+            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?
     } else {
-        -1
+        0xFFFF_FFFF
     })?;
     Ok(())
 }
