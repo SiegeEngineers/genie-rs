@@ -15,3 +15,7 @@ flate2 = "^1.0.0"
 genie-support = { version = "^0.0.0", path = "../genie-support", features = ["strings"] }
 nohash-hasher = "^0.2.0"
 rgb = "^0.8.13"
+thiserror = "1.0.13"
+
+[dev-dependencies]
+anyhow = "1.0.27"
