@@ -60,6 +60,7 @@ impl TaskList {
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u16::<LE>(self.len().try_into().unwrap())?;
         for task in self.iter() {
+            output.write_u16::<LE>(1)?;
             task.write_to(output)?;
         }
         Ok(())

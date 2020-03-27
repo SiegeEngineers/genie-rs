@@ -65,6 +65,7 @@ impl From<TechTreeStatus> for u8 {
     }
 }
 
+/// Kinds of tech tree nodes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TechTreeType {
     None = 0,
@@ -105,9 +106,15 @@ impl TryFrom<i32> for TechTreeType {
     }
 }
 
-impl Into<i32> for TechTreeType {
-    fn into(self) -> i32 {
-        self as i32
+impl From<TechTreeType> for u32 {
+    fn from(ty: TechTreeType) -> Self {
+        ty as u32
+    }
+}
+
+impl From<TechTreeType> for i32 {
+    fn from(ty: TechTreeType) -> Self {
+        ty as i32
     }
 }
 
@@ -117,6 +124,7 @@ pub struct TechTree {
     pub buildings: Vec<TechTreeBuilding>,
     pub units: Vec<TechTreeUnit>,
     pub techs: Vec<TechTreeTech>,
+    num_groups: i32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -127,8 +135,11 @@ pub enum TechTreeDependency {
     /// that add a new age. However the dat file format has space for 32 bits, and some data files
     /// in the wild contain incorrect data with much higher "age" IDs, so we have to follow suit.
     Age(i32),
+    /// A dependency on a building.
     Building(UnitTypeID),
+    /// A dependency on a unit.
     Unit(UnitTypeID),
+    /// A dependency on a research/tech.
     Research(TechID),
 }
 
@@ -267,7 +278,7 @@ impl TechTree {
         let num_buildings = input.read_u8()?;
         let num_units = input.read_u8()?;
         let num_techs = input.read_u8()?;
-        let _num_groups = input.read_i32::<LE>()?;
+        let num_groups = input.read_i32::<LE>()?;
 
         let mut ages = vec![];
         for _ in 0..num_ages {
@@ -294,7 +305,31 @@ impl TechTree {
             buildings,
             units,
             techs,
+            num_groups,
         })
+    }
+
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+        output.write_u8(self.ages.len() as u8)?;
+        output.write_u8(self.buildings.len() as u8)?;
+        output.write_u8(self.units.len() as u8)?;
+        output.write_u8(self.techs.len() as u8)?;
+        output.write_i32::<LE>(self.num_groups)?;
+
+        for age in &self.ages {
+            age.write_to(&mut output)?;
+        }
+        for building in &self.buildings {
+            building.write_to(&mut output)?;
+        }
+        for unit in &self.units {
+            unit.write_to(&mut output)?;
+        }
+        for tech in &self.techs {
+            tech.write_to(&mut output)?;
+        }
+
+        Ok(())
     }
 }
 
@@ -408,8 +443,27 @@ impl TechTreeAge {
         Ok(age)
     }
 
-    pub fn write_to<W: Write>(&self, _output: &mut W) -> Result<()> {
-        unimplemented!();
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+        output.write_i32::<LE>(self.age_id)?;
+        output.write_u8(self.status.into())?;
+        output.write_u8(self.dependent_buildings.len() as u8)?;
+        for dependent in &self.dependent_buildings {
+            output.write_u32::<LE>((*dependent).into())?;
+        }
+        output.write_u8(self.dependent_units.len() as u8)?;
+        for dependent in &self.dependent_units {
+            output.write_u32::<LE>((*dependent).into())?;
+        }
+        output.write_u8(self.dependent_techs.len() as u8)?;
+        for dependent in &self.dependent_techs {
+            output.write_u32::<LE>(u16::from(*dependent) as u32)?;
+        }
+        self.prerequisites.write_to(&mut output)?;
+        output.write_u8(self.building_levels)?;
+        output.write_all(&self.buildings_per_zone)?;
+        output.write_all(&self.group_length_per_zone)?;
+        output.write_u8(self.max_age_length)?;
+        output.write_u32::<LE>(self.node_type.into())?;
         Ok(())
     }
 }
@@ -435,8 +489,31 @@ impl TechTreeBuilding {
         Ok(building)
     }
 
-    pub fn write_to<W: Write>(&self, _output: &mut W) -> Result<()> {
-        unimplemented!();
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+        output.write_u32::<LE>(self.building_id.into())?;
+        output.write_u8(self.status.into())?;
+        output.write_u8(self.dependent_buildings.len() as u8)?;
+        for dependent in &self.dependent_buildings {
+            output.write_u32::<LE>((*dependent).into())?;
+        }
+        output.write_u8(self.dependent_units.len() as u8)?;
+        for dependent in &self.dependent_units {
+            output.write_u32::<LE>((*dependent).into())?;
+        }
+        output.write_u8(self.dependent_techs.len() as u8)?;
+        for dependent in &self.dependent_techs {
+            output.write_u32::<LE>(u16::from(*dependent) as u32)?;
+        }
+        self.prerequisites.write_to(&mut output)?;
+        output.write_u8(self.level_no)?;
+        output.write_all(&self.total_children_by_age)?;
+        output.write_all(&self.initial_children_by_age)?;
+        output.write_u32::<LE>(self.node_type.into())?;
+        output.write_u32::<LE>(
+            self.depends_tech_id
+                .map(|tech_id| u16::from(tech_id) as u32)
+                .unwrap_or(0xFFFF_FFFF),
+        )?;
         Ok(())
     }
 }
@@ -457,8 +534,28 @@ impl TechTreeUnit {
         Ok(unit)
     }
 
-    pub fn write_to<W: Write>(&self, _output: &mut W) -> Result<()> {
-        unimplemented!();
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+        output.write_u32::<LE>(u16::from(self.unit_id).into())?;
+        output.write_u8(self.status.into())?;
+        output.write_u32::<LE>(self.building.into())?;
+        self.prerequisites.write_to(&mut output)?;
+        output.write_i32::<LE>(self.group_id)?;
+        output.write_u8(self.dependent_units.len() as u8)?;
+        for dependent in &self.dependent_units {
+            output.write_u32::<LE>((*dependent).into())?;
+        }
+        output.write_i32::<LE>(self.level_no)?;
+        output.write_u32::<LE>(
+            self.requires_tech_id
+                .map(|tech_id| u16::from(tech_id) as u32)
+                .unwrap_or(0xFFFF_FFFF),
+        )?;
+        output.write_u32::<LE>(self.node_type.into())?;
+        output.write_u32::<LE>(
+            self.depends_tech_id
+                .map(|tech_id| u16::from(tech_id) as u32)
+                .unwrap_or(0xFFFF_FFFF),
+        )?;
         Ok(())
     }
 }
@@ -479,8 +576,26 @@ impl TechTreeTech {
         Ok(tech)
     }
 
-    pub fn write_to<W: Write>(&self, _output: &mut W) -> Result<()> {
-        unimplemented!();
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+        output.write_u32::<LE>(u16::from(self.tech_id).into())?;
+        output.write_u8(self.status.into())?;
+        output.write_u32::<LE>(self.building.into())?;
+        output.write_u8(self.dependent_buildings.len() as u8)?;
+        for dependent in &self.dependent_buildings {
+            output.write_u32::<LE>((*dependent).into())?;
+        }
+        output.write_u8(self.dependent_units.len() as u8)?;
+        for dependent in &self.dependent_units {
+            output.write_u32::<LE>((*dependent).into())?;
+        }
+        output.write_u8(self.dependent_techs.len() as u8)?;
+        for dependent in &self.dependent_techs {
+            output.write_u32::<LE>(u16::from(*dependent) as u32)?;
+        }
+        self.prerequisites.write_to(&mut output)?;
+        output.write_i32::<LE>(self.group_id)?;
+        output.write_i32::<LE>(self.level_no)?;
+        output.write_u32::<LE>(self.node_type.into())?;
         Ok(())
     }
 }

@@ -5,7 +5,7 @@ use crate::terrain::TerrainID;
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 pub use genie_support::UnitTypeID;
-use genie_support::{read_opt_u16, MapInto, StringKey, TechID};
+use genie_support::{read_opt_u16, read_opt_u32, MapInto, StringKey, TechID};
 use std::convert::TryInto;
 use std::io::{self, Read, Result, Write};
 
@@ -217,6 +217,13 @@ impl UnitAttribute {
         output.write_u8(self.flag)?;
         Ok(())
     }
+
+    fn write_empty(mut output: impl Write) -> Result<()> {
+        output.write_u16::<LE>(0xFFFF)?;
+        output.write_f32::<LE>(0.0)?;
+        output.write_u8(0)?;
+        Ok(())
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -397,6 +404,7 @@ impl BaseUnitType {
         unit_type.attack_reaction = input.read_u8()?;
         unit_type.convert_terrain_flag = input.read_u8()?;
         unit_type.name = {
+            // TODO use not-UTF8 for the name
             let mut bytes = vec![0; usize::from(name_len)];
             input.read_exact(&mut bytes)?;
             String::from_utf8(bytes.iter().cloned().take_while(|b| *b != 0).collect()).unwrap()
@@ -408,6 +416,8 @@ impl BaseUnitType {
 
     /// Write this unit type to an output stream.
     pub fn write_to(&self, mut output: impl Write, _version: f32) -> Result<()> {
+        // TODO use not-UTF8 for the name
+        output.write_u16::<LE>(self.name.len() as u16)?;
         output.write_u16::<LE>(self.id.into())?;
         output.write_i16::<LE>((&self.string_id).try_into().unwrap())?;
         write_opt_string_key(&mut output, &self.string_id2)?;
@@ -505,8 +515,10 @@ impl BaseUnitType {
         output.write_f32::<LE>(self.outline_radius.1)?;
         output.write_f32::<LE>(self.outline_radius.2)?;
         for index in 0..self.attributes.capacity() {
-            let attr = self.attributes.get(index).cloned().unwrap_or_default();
-            attr.write_to(&mut output)?;
+            match self.attributes.get(index) {
+                Some(attr) => attr.write_to(&mut output)?,
+                None => UnitAttribute::write_empty(&mut output)?,
+            }
         }
         output.write_u8(self.damage_sprites.len().try_into().unwrap())?;
         for sprite in &self.damage_sprites {
@@ -524,6 +536,7 @@ impl BaseUnitType {
         )?;
         output.write_u8(self.attack_reaction)?;
         output.write_u8(self.convert_terrain_flag)?;
+        output.write_all(self.name.as_bytes());
         output.write_u16::<LE>(self.copy_id)?;
         output.write_u16::<LE>(self.unit_group)?;
         Ok(())
@@ -812,8 +825,41 @@ impl BaseCombatUnitType {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
-        unimplemented!();
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+        self.superclass.write_to(&mut output, version)?;
+        if version < 11.52 {
+            output.write_u8(self.base_armor.try_into().unwrap())?;
+        } else {
+            output.write_u16::<LE>(self.base_armor)?;
+        };
+        output.write_u16::<LE>(self.weapons.len() as u16)?;
+        for weapon in &self.weapons {
+            weapon.write_to(&mut output)?;
+        }
+        output.write_u16::<LE>(self.armors.len() as u16)?;
+        for armor in &self.armors {
+            armor.write_to(&mut output)?;
+        }
+        output.write_u16::<LE>(self.defense_terrain_bonus.unwrap_or(0xFFFF))?;
+        output.write_f32::<LE>(self.weapon_range_max)?;
+        output.write_f32::<LE>(self.area_effect_range)?;
+        output.write_f32::<LE>(self.attack_speed)?;
+        output.write_u16::<LE>(self.missile_id.map_into().unwrap_or(0xFFFF))?;
+        output.write_i16::<LE>(self.base_hit_chance)?;
+        output.write_i8(self.break_off_combat)?;
+        output.write_i16::<LE>(self.frame_delay)?;
+        output.write_f32::<LE>(self.weapon_offset.0)?;
+        output.write_f32::<LE>(self.weapon_offset.1)?;
+        output.write_f32::<LE>(self.weapon_offset.2)?;
+        output.write_i8(self.blast_level_offense)?;
+        output.write_f32::<LE>(self.weapon_range_min)?;
+        output.write_f32::<LE>(self.missed_missile_spread)?;
+        output.write_u16::<LE>(self.fight_sprite.map_into().unwrap_or(0xFFFF))?;
+        output.write_i16::<LE>(self.displayed_armor)?;
+        output.write_i16::<LE>(self.displayed_attack)?;
+        output.write_f32::<LE>(self.displayed_range)?;
+        output.write_f32::<LE>(self.displayed_reload_time)?;
+        Ok(())
     }
 }
 
@@ -950,22 +996,8 @@ impl CombatUnitType {
         unit_type.max_attacks_in_volley = input.read_i8()?;
         unit_type.volley_spread = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
         unit_type.volley_start_spread_adjustment = input.read_f32::<LE>()?;
-        unit_type.volley_missile = {
-            let n = input.read_i32::<LE>()?;
-            if n == -1 {
-                None
-            } else {
-                Some(n.try_into().unwrap())
-            }
-        };
-        unit_type.special_attack_sprite = {
-            let n = input.read_i32::<LE>()?;
-            if n == -1 {
-                None
-            } else {
-                Some(n.try_into().unwrap())
-            }
-        };
+        unit_type.volley_missile = read_opt_u32(&mut input)?;
+        unit_type.special_attack_sprite = read_opt_u32(&mut input)?;
         unit_type.special_attack_flag = input.read_i8()?;
         unit_type.displayed_pierce_armor = input.read_i16::<LE>()?;
 
@@ -973,8 +1005,37 @@ impl CombatUnitType {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
-        unimplemented!();
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+        self.superclass.write_to(&mut output, version)?;
+        for i in 0..3 {
+            match self.costs.get(i) {
+                Some(cost) => cost.write_to(&mut output)?,
+                None => AttributeCost {
+                    attribute_type: -1,
+                    amount: 0,
+                    flag: 0,
+                }
+                .write_to(&mut output)?,
+            }
+        }
+        output.write_u16::<LE>(self.create_time)?;
+        output.write_u16::<LE>(self.create_at_building.map_into().unwrap_or(0xFFFF))?;
+        output.write_i8(self.create_button)?;
+        output.write_f32::<LE>(self.rear_attack_modifier)?;
+        output.write_f32::<LE>(self.flank_attack_modifier)?;
+        output.write_u8(0)?;
+        output.write_u8(self.hero_flag)?;
+        output.write_u32::<LE>(self.garrison_sprite.map_into().unwrap_or(0xFFFF_FFFF))?;
+        output.write_f32::<LE>(self.volley_fire_amount)?;
+        output.write_i8(self.max_attacks_in_volley)?;
+        output.write_f32::<LE>(self.volley_spread.0)?;
+        output.write_f32::<LE>(self.volley_spread.1)?;
+        output.write_f32::<LE>(self.volley_start_spread_adjustment)?;
+        output.write_u32::<LE>(self.volley_missile.map_into().unwrap_or(0xFFFF_FFFF))?;
+        output.write_u32::<LE>(self.special_attack_sprite.map_into().unwrap_or(0xFFFF_FFFF))?;
+        output.write_i8(self.special_attack_flag)?;
+        output.write_i16::<LE>(self.displayed_pierce_armor)?;
+        Ok(())
     }
 }
 
@@ -999,10 +1060,16 @@ impl LinkedBuilding {
             y_offset: input.read_f32::<LE>()?,
         })
     }
-    pub fn write_to(self, mut output: impl Write) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
         output.write_u16::<LE>(self.unit_id.into())?;
         output.write_f32::<LE>(self.x_offset)?;
         output.write_f32::<LE>(self.y_offset)?;
+        Ok(())
+    }
+    fn write_empty(mut output: impl Write) -> Result<()> {
+        output.write_u16::<LE>(0xFFFF)?;
+        output.write_f32::<LE>(0.0)?;
+        output.write_f32::<LE>(0.0)?;
         Ok(())
     }
 }
@@ -1089,8 +1156,38 @@ impl BuildingUnitType {
     }
 
     /// Write the unit type to an output stream.
-    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
-        unimplemented!()
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+        self.superclass.write_to(&mut output, version)?;
+        output.write_u16::<LE>(self.construction_sprite.map_into().unwrap_or(0xFFFF))?;
+        if version >= 11.53 {
+            output.write_u16::<LE>(self.snow_sprite.map_into().unwrap_or(0xFFFF))?;
+        }
+        output.write_u8(self.connect_flag)?;
+        output.write_i16::<LE>(self.facet)?;
+        output.write_u8(if self.destroy_on_build { 1 } else { 0 })?;
+        output.write_u16::<LE>(self.on_build_make_unit.map_into().unwrap_or(0xFFFF))?;
+        output.write_u16::<LE>(self.on_build_make_tile.map_into().unwrap_or(0xFFFF))?;
+        output.write_i16::<LE>(self.on_build_make_overlay)?;
+        output.write_u16::<LE>(self.on_build_make_tech.map_into().unwrap_or(0xFFFF))?;
+        output.write_u8(if self.can_burn { 1 } else { 0 })?;
+        for i in 0..self.linked_buildings.capacity() {
+            match self.linked_buildings.get(i) {
+                Some(link) => link.write_to(&mut output)?,
+                None => LinkedBuilding::write_empty(&mut output)?,
+            }
+        }
+        output.write_u16::<LE>(self.construction_unit.map_into().unwrap_or(0xFFFF))?;
+        output.write_u16::<LE>(self.transform_unit.map_into().unwrap_or(0xFFFF))?;
+        output.write_u16::<LE>(self.transform_sound.map_into().unwrap_or(0xFFFF))?;
+        output.write_u16::<LE>(self.construction_sound.map_into().unwrap_or(0xFFFF))?;
+        output.write_i8(self.garrison_type)?;
+        output.write_f32::<LE>(self.garrison_heal_rate)?;
+        output.write_f32::<LE>(self.garrison_repair_rate)?;
+        output.write_u16::<LE>(self.salvage_unit.map_into().unwrap_or(0xFFFF))?;
+        for attr in &self.salvage_attributes {
+            output.write_i8(*attr)?;
+        }
+        Ok(())
     }
 }
 

@@ -493,7 +493,7 @@ fn read_terrain_name<R: Read>(input: &mut R, output: &mut TerrainName) -> Result
 
 fn write_terrain_name<W: Write>(output: &mut W, name: &TerrainName) -> Result<()> {
     let bytes = &mut [0; 13];
-    bytes.copy_from_slice(name.as_bytes());
+    (&mut bytes[..name.len()]).copy_from_slice(name.as_bytes());
     output.write_all(bytes)?;
     Ok(())
 }

@@ -448,7 +448,7 @@ impl DatFile {
             civilization.write_to(&mut output, self.game_version)?;
         }
 
-        output.write_u32::<LE>(self.techs.len() as u32)?;
+        output.write_u16::<LE>(self.techs.len() as u16)?;
         for tech in &self.techs {
             tech.write_to(&mut output)?;
         }
@@ -461,7 +461,9 @@ impl DatFile {
         output.write_u32::<LE>(0)?;
         output.write_u32::<LE>(0)?;
 
-        unimplemented!()
+        self.tech_tree.write_to(&mut output)?;
+
+        Ok(())
     }
 
     /// Get a tech by its ID.
@@ -543,7 +545,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn reserialize() -> anyhow::Result<()> {
         let original = std::fs::read("fixtures/aoc1.0c.dat")?;
         let mut cursor = Cursor::new(&original);

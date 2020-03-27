@@ -3,7 +3,7 @@ use crate::GameVersion;
 use arrayvec::ArrayString;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use encoding_rs::WINDOWS_1252;
-use genie_support::{fallible_try_from, infallible_try_into};
+use genie_support::{fallible_try_from, infallible_try_into, read_opt_u16};
 use std::convert::TryInto;
 use std::io::{Read, Result, Write};
 
@@ -78,15 +78,9 @@ impl Civilization {
         civ.name = CivName::from(&name).unwrap();
         let num_attributes = input.read_u16::<LE>()?;
         civ.civ_effect = input.read_u16::<LE>()?;
-        civ.bonus_effect = {
-            let id = input.read_u16::<LE>()?;
-            if id == 0xFFFF {
-                None
-            } else {
-                Some(id)
-            }
-        };
+        civ.bonus_effect = read_opt_u16(&mut input)?;
 
+        civ.attributes.reserve(num_attributes as usize);
         for _ in 0..num_attributes {
             civ.attributes.push(input.read_f32::<LE>()?);
         }
@@ -116,7 +110,7 @@ impl Civilization {
     /// Write civilization data to an output stream.
     pub fn write_to(&self, mut output: impl Write, version: GameVersion) -> Result<()> {
         let mut name = [0; 20];
-        (&mut name[..]).copy_from_slice(self.name.as_bytes());
+        (&mut name[..self.name.len()]).copy_from_slice(self.name.as_bytes());
         output.write_all(&name)?;
         output.write_u16::<LE>(self.attributes.len().try_into().unwrap())?;
         output.write_u16::<LE>(self.civ_effect)?;

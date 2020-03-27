@@ -2,7 +2,7 @@ use crate::sound::SoundID;
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 pub use genie_support::SpriteID;
-use genie_support::{fallible_try_into, infallible_try_into, read_opt_u16};
+use genie_support::{fallible_try_into, infallible_try_into, read_opt_u16, MapInto};
 use std::convert::{TryFrom, TryInto};
 use std::io::{Read, Result, Write};
 use std::num::TryFromIntError;
@@ -123,7 +123,7 @@ impl SpriteDelta {
     }
 
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        output.write_i16::<LE>(self.sprite_id.map(|v| v.try_into().unwrap()).unwrap_or(-1))?;
+        output.write_u16::<LE>(self.sprite_id.map_into().unwrap_or(0xFFFF))?;
         // padding
         output.write_i16::<LE>(0)?;
         // pointer address to the parent sprite (overridden at load time by the game)
@@ -153,6 +153,12 @@ impl SoundProp {
         output.write_u16::<LE>(self.sound_id.into())?;
         Ok(())
     }
+
+    pub fn write_empty<W: Write>(output: &mut W) -> Result<()> {
+        output.write_u16::<LE>(0)?;
+        output.write_u16::<LE>(0xFFFF)?;
+        Ok(())
+    }
 }
 
 impl SpriteAttackSound {
@@ -169,8 +175,10 @@ impl SpriteAttackSound {
 
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         for index in 0..self.sound_props.capacity() {
-            let prop = self.sound_props.get(index).cloned().unwrap_or_default();
-            prop.write_to(output)?;
+            match self.sound_props.get(index) {
+                Some(prop) => prop.write_to(output)?,
+                None => SoundProp::write_empty(output)?,
+            }
         }
         Ok(())
     }
@@ -244,6 +252,8 @@ impl Sprite {
         (&mut name[..]).write_all(self.name.as_bytes())?;
         let mut filename = [0u8; 13];
         (&mut filename[..]).write_all(self.filename.as_bytes())?;
+        output.write_all(&name)?;
+        output.write_all(&filename)?;
         output.write_i32::<LE>(self.slp_id.map(|v| v.try_into().unwrap()).unwrap_or(-1))?;
         output.write_u8(if self.is_loaded { 1 } else { 0 })?;
         output.write_u8(self.force_player_color.unwrap_or(0xFF))?;
