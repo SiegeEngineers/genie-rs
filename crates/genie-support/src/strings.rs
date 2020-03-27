@@ -39,6 +39,7 @@ pub enum WriteStringError {
     IoError(#[from] std::io::Error),
 }
 
+/// Read a string of length `length` from an input stream, using code page 1252.
 pub fn read_str<R: Read>(input: &mut R, length: usize) -> Result<Option<String>, ReadStringError> {
     if length > 0 {
         let mut bytes = vec![0; length as usize];
@@ -61,6 +62,10 @@ pub fn read_str<R: Read>(input: &mut R, length: usize) -> Result<Option<String>,
     }
 }
 
+/// Write a string to an output stream, using code page 1252, using a `u16` for the length prefix.
+///
+/// This writes the length of the string (including NULL terminator) as a little-endian u16,
+/// followed by the encoded bytes, followed by a NULL terminator.
 pub fn write_str<W: Write>(output: &mut W, string: &str) -> Result<(), WriteStringError> {
     let (bytes, _enc, failed) = WINDOWS_1252.encode(string);
     if failed {
@@ -73,6 +78,10 @@ pub fn write_str<W: Write>(output: &mut W, string: &str) -> Result<(), WriteStri
     Ok(())
 }
 
+/// Write a string to an output stream, using code page 1252, using a `u32` for the length prefix.
+///
+/// This writes the length of the string (including NULL terminator) as a little-endian u177,
+/// followed by the encoded bytes, followed by a NULL terminator.
 pub fn write_i32_str<W: Write>(output: &mut W, string: &str) -> Result<(), WriteStringError> {
     let (bytes, _enc, failed) = WINDOWS_1252.encode(string);
     if failed {
@@ -85,6 +94,9 @@ pub fn write_i32_str<W: Write>(output: &mut W, string: &str) -> Result<(), Write
     Ok(())
 }
 
+/// Write a string to an output stream, using code page 1252, using a `u16` for the length prefix.
+///
+/// When given a `None`, it outputs a 0 for the length. Otherwise, see `write_str`.
 pub fn write_opt_str<W: Write>(
     output: &mut W,
     option: &Option<String>,
@@ -97,6 +109,9 @@ pub fn write_opt_str<W: Write>(
     }
 }
 
+/// Write a string to an output stream, using code page 1252, using a `u32` for the length prefix.
+///
+/// When given a `None`, it outputs a 0 for the length. Otherwise, see `write_str`.
 pub fn write_opt_i32_str<W: Write>(
     output: &mut W,
     option: &Option<String>,
