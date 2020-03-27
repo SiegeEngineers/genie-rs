@@ -5,7 +5,6 @@
 //! unspecified.
 
 use genie::lang::LangFileType::KeyValue;
-use std::error::Error;
 use std::fs::File;
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -27,7 +26,7 @@ struct WololoLang {
 
 /// Collects command line input and converts the specified key-value language
 /// file into an ini language file.
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> anyhow::Result<()> {
     let cli_input = WololoLang::from_args();
     let mut f_in = File::open(&cli_input.path_in)?;
     let lang_file = KeyValue.read_from(&mut f_in)?;

@@ -8,7 +8,6 @@
 
 use genie::hki::{self, HotkeyInfo};
 use genie::lang::LangFileType;
-use std::error::Error;
 use std::fs::File;
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -33,7 +32,7 @@ struct DisplayLang {
 }
 
 /// Displays the hotkeys from a hotkey file and language file given to `stdout`.
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> anyhow::Result<()> {
     let cli_input = DisplayLang::from_args();
 
     let mut f_lang = File::open(&cli_input.lang_file_name)?;

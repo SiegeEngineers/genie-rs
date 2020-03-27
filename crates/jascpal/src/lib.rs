@@ -43,7 +43,7 @@ use nom::multi::many1;
 use nom::IResult;
 use rgb::RGB;
 use std::convert::{TryFrom, TryInto};
-use std::fmt;
+
 use std::io::{Read, Write};
 use std::num::TryFromIntError;
 use std::str::{self, FromStr};

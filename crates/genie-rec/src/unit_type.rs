@@ -5,7 +5,7 @@ pub use genie_dat::AttributeCost;
 pub use genie_support::{StringKey, UnitTypeID};
 use std::cmp;
 use std::convert::{TryFrom, TryInto};
-use std::fmt;
+
 use std::io::{Read, Write};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
