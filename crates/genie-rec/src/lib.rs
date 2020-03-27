@@ -111,22 +111,12 @@ impl GameVersion {
 }
 
 /// Errors that may occur while reading a recorded game file.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
-    IoError(io::Error),
-    DecodeStringError(genie_support::DecodeStringError),
-}
-
-impl From<io::Error> for Error {
-    fn from(err: io::Error) -> Self {
-        Self::IoError(err)
-    }
-}
-
-impl From<genie_support::DecodeStringError> for Error {
-    fn from(err: genie_support::DecodeStringError) -> Self {
-        Self::DecodeStringError(err)
-    }
+    #[error(transparent)]
+    IoError(#[from] io::Error),
+    #[error(transparent)]
+    DecodeStringError(#[from] genie_support::DecodeStringError),
 }
 
 impl From<genie_support::ReadStringError> for Error {
@@ -137,17 +127,6 @@ impl From<genie_support::ReadStringError> for Error {
         }
     }
 }
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::IoError(err) => write!(f, "{}", err),
-            Self::DecodeStringError(err) => write!(f, "{}", err),
-        }
-    }
-}
-
-impl std::error::Error for Error {}
 
 /// Result type alias with `genie_rec::Error` as the error type.
 pub type Result<T> = std::result::Result<T, Error>;
