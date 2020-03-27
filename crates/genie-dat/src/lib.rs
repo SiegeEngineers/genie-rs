@@ -511,36 +511,40 @@ mod tests {
     };
 
     #[test]
-    fn aok() {
-        let mut f = File::open("fixtures/aok.dat").unwrap();
-        let dat = DatFile::read_from(&mut f).unwrap();
+    fn aok() -> anyhow::Result<()> {
+        let mut f = File::open("fixtures/aok.dat")?;
+        let dat = DatFile::read_from(&mut f)?;
         assert_eq!(dat.civilizations.len(), 14);
+        Ok(())
     }
 
     #[test]
-    fn aoc() {
-        let mut f = File::open("fixtures/aoc1.0c.dat").unwrap();
-        let dat = DatFile::read_from(&mut f).unwrap();
+    fn aoc() -> anyhow::Result<()> {
+        let mut f = File::open("fixtures/aoc1.0c.dat")?;
+        let dat = DatFile::read_from(&mut f)?;
         assert_eq!(dat.civilizations.len(), 19);
+        Ok(())
     }
 
     #[test]
-    fn non_7bit_ascii_tech_name() {
-        let mut f = File::open("fixtures/age-of-chivalry.dat").unwrap();
-        let dat = DatFile::read_from(&mut f).unwrap();
+    fn non_7bit_ascii_tech_name() -> anyhow::Result<()> {
+        let mut f = File::open("fixtures/age-of-chivalry.dat")?;
+        let dat = DatFile::read_from(&mut f)?;
         assert_eq!(dat.techs[859].name(), "Székely (enable)");
+        Ok(())
     }
 
     #[test]
-    fn hd_edition() {
-        let mut f = File::open("fixtures/hd.dat").unwrap();
-        let dat = DatFile::read_from(&mut f).unwrap();
+    fn hd_edition() -> anyhow::Result<()> {
+        let mut f = File::open("fixtures/hd.dat")?;
+        let dat = DatFile::read_from(&mut f)?;
         assert_eq!(dat.civilizations.len(), 32);
+        Ok(())
     }
 
     #[test]
     #[ignore]
-    fn reserialize() -> Result<()> {
+    fn reserialize() -> anyhow::Result<()> {
         let original = std::fs::read("fixtures/aoc1.0c.dat")?;
         let mut cursor = Cursor::new(&original);
         let dat = DatFile::read_from(&mut cursor)?;

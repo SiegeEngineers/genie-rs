@@ -43,7 +43,7 @@ use nom::multi::many1;
 use nom::IResult;
 use rgb::RGB;
 use std::convert::{TryFrom, TryInto};
-use std::fmt;
+
 use std::io::{Read, Write};
 use std::num::TryFromIntError;
 use std::str::{self, FromStr};
@@ -153,30 +153,14 @@ fn parse(input: &[u8]) -> IResult<&[u8], Vec<Color>> {
 }
 
 /// An error occurred during reading.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum ReadPaletteError {
     /// An I/O error occurred.
-    IoError(std::io::Error),
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
     /// The palette could not be parsed.
+    #[error("parse error")]
     ParseError,
-}
-
-impl fmt::Display for ReadPaletteError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use ReadPaletteError::*;
-        match self {
-            IoError(err) => write!(f, "{}", err),
-            ParseError => write!(f, "parse error"),
-        }
-    }
-}
-
-impl std::error::Error for ReadPaletteError {}
-
-impl From<std::io::Error> for ReadPaletteError {
-    fn from(err: std::io::Error) -> Self {
-        ReadPaletteError::IoError(err)
-    }
 }
 
 /// A Palette.

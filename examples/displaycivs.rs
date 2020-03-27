@@ -1,7 +1,8 @@
 //! Displays civilizations from a specified dat file.
 
 use genie::DatFile;
-use std::{error::Error, fs::File, path::PathBuf};
+use std::fs::File;
+use std::path::PathBuf;
 use structopt::StructOpt;
 
 /// Display civilizations from a specified dat file.
@@ -13,7 +14,7 @@ struct DisplayCivs {
 }
 
 /// Executes the CLI.
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> anyhow::Result<()> {
     let cli_input = DisplayCivs::from_args();
     let mut f = File::open(&cli_input.file_name)?;
     let dat = DatFile::read_from(&mut f)?;

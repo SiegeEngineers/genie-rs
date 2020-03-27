@@ -30,16 +30,9 @@ impl std::default::Default for TechTreeStatus {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[error("invalid tech tree node status {} (must be 1-5)", .0)]
 pub struct ParseTechTreeStatusError(u8);
-
-impl std::fmt::Display for ParseTechTreeStatusError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "invalid tech tree node status {} (must be 1-5)", self.0)
-    }
-}
-
-impl std::error::Error for ParseTechTreeStatusError {}
 
 impl TryFrom<u8> for TechTreeStatus {
     type Error = ParseTechTreeStatusError;
@@ -90,16 +83,9 @@ impl std::default::Default for TechTreeType {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[error("invalid tech tree node type {} (must be 0-7)", .0)]
 pub struct ParseTechTreeTypeError(i32);
-
-impl std::fmt::Display for ParseTechTreeTypeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "invalid tech tree node type {} (must be 0-7)", self.0)
-    }
-}
-
-impl std::error::Error for ParseTechTreeTypeError {}
 
 impl TryFrom<i32> for TechTreeType {
     type Error = ParseTechTreeTypeError;
@@ -177,20 +163,9 @@ enum TechTreeDependencyType {
     Research = 3,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[error("invalid tech tree dependency type {} (must be 0-3)", .0)]
 pub struct ParseTechTreeDependencyTypeError(i32);
-
-impl std::fmt::Display for ParseTechTreeDependencyTypeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "invalid tech tree dependency type {} (must be 0-3)",
-            self.0
-        )
-    }
-}
-
-impl std::error::Error for ParseTechTreeDependencyTypeError {}
 
 impl TryFrom<i32> for TechTreeDependencyType {
     type Error = ParseTechTreeDependencyTypeError;

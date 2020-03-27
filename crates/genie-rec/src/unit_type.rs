@@ -5,7 +5,7 @@ pub use genie_dat::AttributeCost;
 pub use genie_support::{StringKey, UnitTypeID};
 use std::cmp;
 use std::convert::{TryFrom, TryInto};
-use std::fmt;
+
 use std::io::{Read, Write};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -76,16 +76,9 @@ impl cmp::PartialOrd for UnitBaseClass {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[error("unknown unit base class: {}", .0)]
 pub struct ParseUnitBaseClassError(u8);
-
-impl fmt::Display for ParseUnitBaseClassError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "unknown unit base class: {}", self.0)
-    }
-}
-
-impl std::error::Error for ParseUnitBaseClassError {}
 
 impl TryFrom<u8> for UnitBaseClass {
     type Error = ParseUnitBaseClassError;

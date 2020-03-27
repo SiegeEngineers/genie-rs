@@ -239,16 +239,9 @@ impl From<String> for StringKey {
 ///
 /// When converting to a string, this does not happen, as numeric keys will be converted to
 /// strings.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, thiserror::Error)]
+#[error("could not convert StringKey to the wanted integer size")]
 pub struct TryFromStringKeyError;
-
-impl fmt::Display for TryFromStringKeyError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "could not convert StringKey to the wanted integer size")
-    }
-}
-
-impl std::error::Error for TryFromStringKeyError {}
 
 // Implement TryFrom<&StringKey> conversions for a bunch of stuff
 macro_rules! try_from_string_key {

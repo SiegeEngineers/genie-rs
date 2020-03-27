@@ -1,13 +1,9 @@
 use genie_drs::{DRSReader, DRSWriter, ReserveDirectoryStrategy};
-use std::{
-    collections::HashSet,
-    fs::{create_dir_all, File},
-    io::{self, stdout, Write},
-    path::PathBuf,
-};
+use std::collections::HashSet;
+use std::fs::{create_dir_all, File};
+use std::io::{self, stdout, Write};
+use std::path::PathBuf;
 use structopt::StructOpt;
-
-type CliResult = Result<(), Box<dyn std::error::Error>>;
 
 #[derive(StructOpt)]
 struct Cli {
@@ -80,7 +76,7 @@ struct Add {
     file: Vec<PathBuf>,
 }
 
-fn list(args: List) -> CliResult {
+fn list(args: List) -> anyhow::Result<()> {
     let mut file = File::open(args.archive)?;
     let drs = DRSReader::new(&mut file)?;
 
@@ -93,7 +89,7 @@ fn list(args: List) -> CliResult {
     Ok(())
 }
 
-fn get(args: Get) -> CliResult {
+fn get(args: Get) -> anyhow::Result<()> {
     let mut file = File::open(args.archive)?;
     let drs = DRSReader::new(&mut file)?;
 
@@ -115,7 +111,7 @@ fn get(args: Get) -> CliResult {
     .into())
 }
 
-fn extract(args: Extract) -> CliResult {
+fn extract(args: Extract) -> anyhow::Result<()> {
     let mut file = File::open(args.archive)?;
     let drs = DRSReader::new(&mut file)?;
 
@@ -140,7 +136,7 @@ fn extract(args: Extract) -> CliResult {
     Ok(())
 }
 
-fn add(args: Add) -> CliResult {
+fn add(args: Add) -> anyhow::Result<()> {
     assert_eq!(
         args.file.len(),
         args.table.len(),
@@ -215,7 +211,7 @@ fn add(args: Add) -> CliResult {
     Ok(())
 }
 
-fn main() -> CliResult {
+fn main() -> anyhow::Result<()> {
     let args = Cli::from_args();
 
     match args.command {

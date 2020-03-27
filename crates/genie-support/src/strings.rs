@@ -6,57 +6,37 @@ use std::io::{self, Read, Write};
 ///
 /// This means that the scenario file contained a string that could not be decoded using the
 /// WINDOWS-1252 code page. In the future, genie-scx will support other encodings.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[error("could not decode string as WINDOWS-1252")]
 pub struct DecodeStringError;
-
-impl std::fmt::Display for DecodeStringError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "could not decode string as WINDOWS-1252")
-    }
-}
-
-impl std::error::Error for DecodeStringError {}
 
 /// Failed to encode a string as WINDOWS-1252.
 ///
 /// This means that a string could not be encoded using the WINDOWS-1252 code page. In the future, genie-scx will support other encodings.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[error("could not encode string as WINDOWS-1252")]
 pub struct EncodeStringError;
 
-impl std::fmt::Display for EncodeStringError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "could not encode string as WINDOWS-1252")
-    }
-}
-
-impl std::error::Error for EncodeStringError {}
-
 /// Failed to read a string.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum ReadStringError {
     /// Failed to read a string because the bytes could not be decoded.
-    DecodeStringError(DecodeStringError),
+    #[error(transparent)]
+    DecodeStringError(#[from] DecodeStringError),
     /// Failed to read a string because the underlying I/O failed.
-    IoError(io::Error),
-}
-impl From<io::Error> for ReadStringError {
-    fn from(err: io::Error) -> ReadStringError {
-        ReadStringError::IoError(err)
-    }
+    #[error(transparent)]
+    IoError(#[from] io::Error),
 }
 
 /// Failed to write a string.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum WriteStringError {
     /// Failed to read a string because it could not be encoded.
-    EncodeStringError(EncodeStringError),
+    #[error(transparent)]
+    EncodeStringError(#[from] EncodeStringError),
     /// Failed to write a string because the underlying I/O failed.
-    IoError(std::io::Error),
-}
-impl From<io::Error> for WriteStringError {
-    fn from(err: io::Error) -> WriteStringError {
-        WriteStringError::IoError(err)
-    }
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
 }
 
 pub fn read_str<R: Read>(input: &mut R, length: usize) -> Result<Option<String>, ReadStringError> {
