@@ -2,7 +2,7 @@ use crate::sound::SoundID;
 use crate::sprite::SpriteID;
 use crate::unit_type::UnitTypeID;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{read_opt_u16, MapInto};
+use genie_support::read_opt_u16;
 use std::convert::TryInto;
 use std::io::{Read, Result, Write};
 use std::ops::Deref;
@@ -45,13 +45,13 @@ impl Deref for TaskList {
 }
 
 impl TaskList {
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let num_tasks = input.read_u16::<LE>()?;
         let mut tasks = vec![];
         for _ in 0..num_tasks {
             let task_type = input.read_u16::<LE>()?;
             assert_eq!(task_type, 1);
-            tasks.push(Task::read_from(input)?);
+            tasks.push(Task::read_from(&mut input)?);
         }
 
         Ok(Self(tasks))
@@ -60,6 +60,7 @@ impl TaskList {
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u16::<LE>(self.len().try_into().unwrap())?;
         for task in self.iter() {
+            output.write_u16::<LE>(1)?;
             task.write_to(output)?;
         }
         Ok(())
@@ -67,13 +68,13 @@ impl TaskList {
 }
 
 impl Task {
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut task = Self::default();
         task.id = input.read_u16::<LE>()?;
         task.is_default = input.read_u8()? != 0;
         task.action_type = input.read_u16::<LE>()?;
         task.object_class = input.read_i16::<LE>()?;
-        task.object_id = read_opt_u16(input)?.map_into();
+        task.object_id = read_opt_u16(&mut input)?;
         task.terrain_id = input.read_i16::<LE>()?;
         task.attribute_types = (
             input.read_i16::<LE>()?,
@@ -91,12 +92,12 @@ impl Task {
         task.owner_type = input.read_u8()?;
         task.holding_attribute = input.read_u8()?;
         task.state_building = input.read_u8()?;
-        task.move_sprite = read_opt_u16(input)?.map_into();
-        task.work_sprite = read_opt_u16(input)?.map_into();
-        task.work_sprite2 = read_opt_u16(input)?.map_into();
-        task.carry_sprite = read_opt_u16(input)?.map_into();
-        task.work_sound = read_opt_u16(input)?.map_into();
-        task.work_sound2 = read_opt_u16(input)?.map_into();
+        task.move_sprite = read_opt_u16(&mut input)?;
+        task.work_sprite = read_opt_u16(&mut input)?;
+        task.work_sprite2 = read_opt_u16(&mut input)?;
+        task.carry_sprite = read_opt_u16(&mut input)?;
+        task.work_sound = read_opt_u16(&mut input)?;
+        task.work_sound2 = read_opt_u16(&mut input)?;
 
         Ok(task)
     }

@@ -12,7 +12,7 @@
 //! yet exposed in the public API.
 //!
 //! ```rust
-//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # fn main() -> anyhow::Result<()> {
 //! use genie::DatFile;
 //! let mut input = std::fs::File::open("./crates/genie-dat/fixtures/aok.dat")?;
 //!
@@ -33,7 +33,7 @@
 //! refer to terrains or units that do not exist in the different version.
 //!
 //! ```rust
-//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # fn main() -> anyhow::Result<()> {
 //! use genie::Scenario;
 //! use genie::scx::VersionBundle;
 //!
@@ -87,6 +87,7 @@ pub use genie_dat as dat;
 pub use genie_drs as drs;
 pub use genie_hki as hki;
 pub use genie_lang as lang;
+pub use genie_rec as rec;
 pub use genie_scx as scx;
 pub use jascpal as pal;
 
@@ -95,5 +96,6 @@ pub use genie_dat::DatFile;
 pub use genie_drs::{DRSReader, DRSWriter};
 pub use genie_hki::HotkeyInfo;
 pub use genie_lang::LangFile;
+pub use genie_rec::RecordedGame;
 pub use genie_scx::Scenario;
 pub use jascpal::Palette;

@@ -1,7 +1,6 @@
 //! Displays a hotkey to `stdout`.
 
 use genie::hki::HotkeyInfo;
-use std::error::Error;
 use std::fs::File;
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -30,7 +29,7 @@ struct DisplayHotkey {
 }
 
 /// Executes the CLI.
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> anyhow::Result<()> {
     let cli_input = DisplayHotkey::from_args();
     let mut f = File::open(&cli_input.file_name)?;
     let info = HotkeyInfo::from(&mut f)?;

@@ -19,141 +19,94 @@ mod map;
 mod player;
 mod triggers;
 mod types;
-mod util;
 mod victory;
 
 use format::SCXFormat;
+use genie_support::{ReadStringError, WriteStringError};
 use std::io::{self, Read, Write};
 
 pub use ai::ParseAIErrorCodeError;
 pub use format::ScenarioObject;
+pub use genie_support::{DecodeStringError, EncodeStringError};
 pub use genie_support::{StringKey, UnitTypeID};
 pub use header::{DLCOptions, SCXHeader};
 pub use map::{Map, Tile};
 pub use triggers::{Trigger, TriggerCondition, TriggerEffect, TriggerSystem};
 pub use types::*;
-pub use util::{DecodeStringError, EncodeStringError};
 
 /// Error type for SCX methods, containing all types of errors that may occur while reading or
 /// writing scenario files.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
     /// The scenario that's attempted to be read does not contain a file name.
+    #[error("must have a file name")]
     MissingFileNameError,
     /// Attempted to read a scenario with an unsupported format version identifier.
+    #[error("unsupported format version {:?}", .0)]
     UnsupportedFormatVersionError(SCXVersion),
     /// Attempted to write a scenario with disabled technologies, to a version that doesn't support
     /// this many disabled technologies.
+    #[error("too many disabled techs: got {}, but requested version supports up to 20", .0)]
     TooManyDisabledTechsError(i32),
     /// Attempted to write a scenario with disabled technologies, to a version that doesn't support
     /// disabling technologies.
+    #[error("requested version does not support disabling techs")]
     CannotDisableTechsError,
     /// Attempted to write a scenario with disabled units, to a version that doesn't support
     /// disabling units.
+    #[error("requested version does not support disabling units")]
     CannotDisableUnitsError,
     /// Attempted to write a scenario with disabled buildings, to a version that doesn't support
     /// this many disabled buildings.
+    #[error("too many disabled buildings: got {}, but requested version supports up to {}", .0, .1)]
     TooManyDisabledBuildingsError(i32, i32),
     /// Attempted to write a scenario with disabled buildings, to a version that doesn't support
     /// disabling buildings.
+    #[error("requested version does not support disabling buildings")]
     CannotDisableBuildingsError,
     /// Failed to decode a string from the scenario file, probably because of a wrong encoding.
-    DecodeStringError(DecodeStringError),
+    #[error(transparent)]
+    DecodeStringError(#[from] DecodeStringError),
     /// Failed to encode a string into the scenario file, probably because of a wrong encoding.
-    EncodeStringError(EncodeStringError),
+    #[error(transparent)]
+    EncodeStringError(#[from] EncodeStringError),
     /// The given ID is not a known diplomatic stance.
-    ParseDiplomaticStanceError(ParseDiplomaticStanceError),
+    #[error(transparent)]
+    ParseDiplomaticStanceError(#[from] ParseDiplomaticStanceError),
     /// The given ID is not a known data set.
-    ParseDataSetError(ParseDataSetError),
+    #[error(transparent)]
+    ParseDataSetError(#[from] ParseDataSetError),
     /// The given ID is not a known HD Edition DLC.
-    ParseDLCPackageError(ParseDLCPackageError),
+    #[error(transparent)]
+    ParseDLCPackageError(#[from] ParseDLCPackageError),
     /// The given ID is not a known starting age in AoE1 or AoE2.
-    ParseStartingAgeError(ParseStartingAgeError),
+    #[error(transparent)]
+    ParseStartingAgeError(#[from] ParseStartingAgeError),
     /// The given ID is not a known error code.
-    ParseAIErrorCodeError(ParseAIErrorCodeError),
+    #[error(transparent)]
+    ParseAIErrorCodeError(#[from] ParseAIErrorCodeError),
     /// An error occurred while reading or writing.
-    IoError(io::Error),
+    #[error(transparent)]
+    IoError(#[from] io::Error),
 }
 
-impl From<io::Error> for Error {
-    fn from(err: io::Error) -> Error {
-        Error::IoError(err)
-    }
-}
-
-impl From<util::ReadStringError> for Error {
-    fn from(err: util::ReadStringError) -> Error {
+impl From<ReadStringError> for Error {
+    fn from(err: ReadStringError) -> Error {
         match err {
-            util::ReadStringError::IoError(err) => Error::IoError(err),
-            util::ReadStringError::DecodeStringError(err) => Error::DecodeStringError(err),
+            ReadStringError::IoError(err) => Error::IoError(err),
+            ReadStringError::DecodeStringError(err) => Error::DecodeStringError(err),
         }
     }
 }
 
-impl From<util::WriteStringError> for Error {
-    fn from(err: util::WriteStringError) -> Error {
+impl From<WriteStringError> for Error {
+    fn from(err: WriteStringError) -> Error {
         match err {
-            util::WriteStringError::IoError(err) => Error::IoError(err),
-            util::WriteStringError::EncodeStringError(err) => Error::EncodeStringError(err),
+            WriteStringError::IoError(err) => Error::IoError(err),
+            WriteStringError::EncodeStringError(err) => Error::EncodeStringError(err),
         }
     }
 }
-
-macro_rules! error_impl_from {
-    ($from:ident) => {
-        impl From<$from> for Error {
-            fn from(err: $from) -> Error {
-                Error::$from(err)
-            }
-        }
-    };
-}
-
-error_impl_from!(ParseDiplomaticStanceError);
-error_impl_from!(ParseDataSetError);
-error_impl_from!(ParseDLCPackageError);
-error_impl_from!(ParseStartingAgeError);
-error_impl_from!(ParseAIErrorCodeError);
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::MissingFileNameError => write!(f, "must have a file name"),
-            Error::UnsupportedFormatVersionError(version) => {
-                write!(f, "unsupported format version {:?}", version)
-            }
-            Error::TooManyDisabledTechsError(n) => write!(
-                f,
-                "too many disabled techs: got {}, but requested version supports up to 20",
-                n
-            ),
-            Error::TooManyDisabledBuildingsError(n, max) => write!(
-                f,
-                "too many disabled buildings: got {}, but requested version supports up to {}",
-                n, max
-            ),
-            Error::CannotDisableTechsError => {
-                write!(f, "requested version does not support disabling techs")
-            }
-            Error::CannotDisableUnitsError => {
-                write!(f, "requested version does not support disabling units")
-            }
-            Error::CannotDisableBuildingsError => {
-                write!(f, "requested version does not support disabling buildings")
-            }
-            Error::IoError(err) => write!(f, "{}", err),
-            Error::DecodeStringError(err) => write!(f, "{}", err),
-            Error::EncodeStringError(err) => write!(f, "{}", err),
-            Error::ParseDiplomaticStanceError(err) => write!(f, "{}", err),
-            Error::ParseDataSetError(err) => write!(f, "{}", err),
-            Error::ParseDLCPackageError(err) => write!(f, "{}", err),
-            Error::ParseStartingAgeError(err) => write!(f, "{}", err),
-            Error::ParseAIErrorCodeError(err) => write!(f, "{}", err),
-        }
-    }
-}
-
-impl std::error::Error for Error {}
 
 /// Result type for SCX methods.
 pub type Result<T> = std::result::Result<T, Error>;

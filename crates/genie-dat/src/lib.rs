@@ -25,17 +25,17 @@ use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 pub use civ::{Civilization, CivilizationID};
 pub use color_table::{ColorTable, PaletteIndex};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
-use genie_support::cmp_float;
+use genie_support::{cmp_float, ReadSkipExt, TechID};
 pub use random_map::*;
 pub use sound::{Sound, SoundID, SoundItem};
 pub use sprite::{GraphicID, SoundProp, Sprite, SpriteAttackSound, SpriteDelta, SpriteID};
 use std::convert::TryInto;
 use std::io::{Read, Result, Write};
 pub use task::{Task, TaskList};
-pub use tech::{Tech, TechEffect, TechID};
+pub use tech::{Tech, TechEffect};
 pub use tech_tree::{
-    ParseTechTreeStatusError, ParseTechTreeTypeError, TechTree, TechTreeAge, TechTreeBuilding,
-    TechTreeDependencies, TechTreeStatus, TechTreeTech, TechTreeType, TechTreeUnit,
+    ParseTechTreeTypeError, TechTree, TechTreeAge, TechTreeBuilding, TechTreeDependencies,
+    TechTreeStatus, TechTreeTech, TechTreeType, TechTreeUnit,
 };
 pub use terrain::{
     Terrain, TerrainAnimation, TerrainBorder, TerrainID, TerrainObject, TerrainPassGraphic,
@@ -162,10 +162,7 @@ impl DatFile {
         };
 
         // Two lists of pointers
-        skip(
-            &mut input,
-            4 * u64::from(num_terrain_tables) + 4 * u64::from(num_terrain_tables),
-        )?;
+        input.skip(4 * u64::from(num_terrain_tables) + 4 * u64::from(num_terrain_tables))?;
 
         #[must_use]
         fn read_array<T>(num: usize, mut read: impl FnMut() -> Result<T>) -> Result<Vec<T>> {
@@ -255,7 +252,7 @@ impl DatFile {
         let _map_fog_of_war = input.read_u8()?;
 
         // Lots more pointers and stuff
-        skip(&mut input, 21 + 157 * 4)?;
+        input.skip(21 + 157 * 4)?;
 
         let num_random_maps = input.read_u32::<LE>()? as usize;
         let _random_maps_pointer = input.read_u32::<LE>()?;
@@ -451,7 +448,7 @@ impl DatFile {
             civilization.write_to(&mut output, self.game_version)?;
         }
 
-        output.write_u32::<LE>(self.techs.len() as u32)?;
+        output.write_u16::<LE>(self.techs.len() as u16)?;
         for tech in &self.techs {
             tech.write_to(&mut output)?;
         }
@@ -464,7 +461,9 @@ impl DatFile {
         output.write_u32::<LE>(0)?;
         output.write_u32::<LE>(0)?;
 
-        unimplemented!()
+        self.tech_tree.write_to(&mut output)?;
+
+        Ok(())
     }
 
     /// Get a tech by its ID.
@@ -503,11 +502,6 @@ impl DatFile {
     }
 }
 
-/// Skip some unimportant bytes on an input stream.
-fn skip<R: Read>(input: &mut R, bytes: u64) -> Result<u64> {
-    std::io::copy(&mut input.by_ref().take(bytes), &mut std::io::sink())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -519,36 +513,39 @@ mod tests {
     };
 
     #[test]
-    fn aok() {
-        let mut f = File::open("fixtures/aok.dat").unwrap();
-        let dat = DatFile::read_from(&mut f).unwrap();
+    fn aok() -> anyhow::Result<()> {
+        let mut f = File::open("fixtures/aok.dat")?;
+        let dat = DatFile::read_from(&mut f)?;
         assert_eq!(dat.civilizations.len(), 14);
+        Ok(())
     }
 
     #[test]
-    fn aoc() {
-        let mut f = File::open("fixtures/aoc1.0c.dat").unwrap();
-        let dat = DatFile::read_from(&mut f).unwrap();
+    fn aoc() -> anyhow::Result<()> {
+        let mut f = File::open("fixtures/aoc1.0c.dat")?;
+        let dat = DatFile::read_from(&mut f)?;
         assert_eq!(dat.civilizations.len(), 19);
+        Ok(())
     }
 
     #[test]
-    fn non_7bit_ascii_tech_name() {
-        let mut f = File::open("fixtures/age-of-chivalry.dat").unwrap();
-        let dat = DatFile::read_from(&mut f).unwrap();
+    fn non_7bit_ascii_tech_name() -> anyhow::Result<()> {
+        let mut f = File::open("fixtures/age-of-chivalry.dat")?;
+        let dat = DatFile::read_from(&mut f)?;
         assert_eq!(dat.techs[859].name(), "Székely (enable)");
+        Ok(())
     }
 
     #[test]
-    fn hd_edition() {
-        let mut f = File::open("fixtures/hd.dat").unwrap();
-        let dat = DatFile::read_from(&mut f).unwrap();
+    fn hd_edition() -> anyhow::Result<()> {
+        let mut f = File::open("fixtures/hd.dat")?;
+        let dat = DatFile::read_from(&mut f)?;
         assert_eq!(dat.civilizations.len(), 32);
+        Ok(())
     }
 
     #[test]
-    #[ignore]
-    fn reserialize() -> Result<()> {
+    fn reserialize() -> anyhow::Result<()> {
         let original = std::fs::read("fixtures/aoc1.0c.dat")?;
         let mut cursor = Cursor::new(&original);
         let dat = DatFile::read_from(&mut cursor)?;

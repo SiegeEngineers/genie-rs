@@ -7,16 +7,9 @@ use std::convert::TryFrom;
 pub type SCXVersion = [u8; 4];
 
 /// Could not parse a diplomatic stance because given number is an unknown stance ID.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[error("invalid diplomatic stance {} (must be 0/1/3)", .0)]
 pub struct ParseDiplomaticStanceError(i32);
-
-impl std::fmt::Display for ParseDiplomaticStanceError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "invalid diplomatic stance {} (must be 0/1/3)", self.0)
-    }
-}
-
-impl std::error::Error for ParseDiplomaticStanceError {}
 
 /// A player's diplomatic stance toward another player.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -53,16 +46,9 @@ impl From<DiplomaticStance> for i32 {
 }
 
 /// Could not parse a data set because given number is an unknown data set ID.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[error("invalid data set {} (must be 0/1)", .0)]
 pub struct ParseDataSetError(i32);
-
-impl std::fmt::Display for ParseDataSetError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "invalid data set {} (must be 0/1)", self.0)
-    }
-}
-
-impl std::error::Error for ParseDataSetError {}
 
 /// The data set used by a scenario, HD Edition only.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -94,16 +80,9 @@ impl From<DataSet> for i32 {
 }
 
 /// Could not parse a DLC package identifier because given number is an unknown DLC ID.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[error("unknown dlc package {}", .0)]
 pub struct ParseDLCPackageError(i32);
-
-impl std::fmt::Display for ParseDLCPackageError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "unknown dlc package {}", self.0)
-    }
-}
-
-impl std::error::Error for ParseDLCPackageError {}
 
 /// An HD Edition DLC identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -158,25 +137,21 @@ impl From<DLCPackage> for i32 {
     }
 }
 
+fn expected_range(version: f32) -> &'static str {
+    if version < 1.25 {
+        "-1-4"
+    } else {
+        "-1-6"
+    }
+}
+
 /// Could not parse a starting age because given number refers to an unknown age.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[error("invalid starting age {} (must be {})", .found, expected_range(*.version))]
 pub struct ParseStartingAgeError {
     version: f32,
     found: i32,
 }
-
-impl std::fmt::Display for ParseStartingAgeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let expected = if self.version < 1.25 { "-1-4" } else { "-1-6" };
-        write!(
-            f,
-            "invalid starting age {} (must be {})",
-            self.found, expected
-        )
-    }
-}
-
-impl std::error::Error for ParseStartingAgeError {}
 
 /// The starting age.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]

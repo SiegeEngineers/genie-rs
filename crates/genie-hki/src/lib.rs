@@ -17,7 +17,6 @@ use genie_lang::{LangFile, StringKey};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 use std::collections::HashMap;
-use std::error::Error;
 use std::fmt;
 use std::io::{self, Read, Write};
 use std::slice;
@@ -516,37 +515,16 @@ pub enum MarketHotkeys {
 pub enum BlacksmithHotkeys {}
 
 /// Represents an error when binding or unbinding a hotkey that doesn't exist.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum IndexError {
     /// Represents an index error when accessing a nonexistent group.
-    GroupIndex(GroupIndexError),
+    #[error(transparent)]
+    GroupIndex(#[from] GroupIndexError),
 
     /// Represents an index error when accessing a nonexistent hotkey within a
     /// group.
-    HotkeyIndex(HotkeyIndexError),
-}
-
-impl fmt::Display for IndexError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            IndexError::GroupIndex(err) => err.fmt(f),
-            IndexError::HotkeyIndex(err) => err.fmt(f),
-        }
-    }
-}
-
-impl Error for IndexError {}
-
-impl From<GroupIndexError> for IndexError {
-    fn from(err: GroupIndexError) -> Self {
-        IndexError::GroupIndex(err)
-    }
-}
-
-impl From<HotkeyIndexError> for IndexError {
-    fn from(err: HotkeyIndexError) -> Self {
-        IndexError::HotkeyIndex(err)
-    }
+    #[error(transparent)]
+    HotkeyIndex(#[from] HotkeyIndexError),
 }
 
 /// Represents an error when accessing a hotkey group that does not exist.
@@ -554,7 +532,8 @@ impl From<HotkeyIndexError> for IndexError {
 /// The first index represents the index of the group, and the second index
 /// represents the number of groups. The first index must be greater than or
 /// equal to the second index.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("Group id {} must be less than the number of groups {}.", .index, .num_groups)]
 pub struct GroupIndexError {
     /// The index of the group, must be greater than or equal to `num_groups`.
     index: usize,
@@ -583,20 +562,9 @@ impl GroupIndexError {
     }
 }
 
-impl fmt::Display for GroupIndexError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Group id {} must be less than the number of groups {}.",
-            self.index, self.num_groups
-        )
-    }
-}
-
-impl Error for GroupIndexError {}
-
 /// Represents an error when accessing a hotkey that does not exist.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("Hotkey id {} must be less than the number of hotkeys {}.", .index, .num_hotkeys)]
 pub struct HotkeyIndexError {
     /// The index of the hotkey, must be greater than or equal to `num_hotkeys`.
     index: usize,
@@ -624,18 +592,6 @@ impl HotkeyIndexError {
         self.num_hotkeys
     }
 }
-
-impl fmt::Display for HotkeyIndexError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Hotkey id {} must be less than the number of hotkeys {}.",
-            self.index, self.num_hotkeys
-        )
-    }
-}
-
-impl Error for HotkeyIndexError {}
 
 /// The information about a single hotkey.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -940,7 +896,7 @@ impl HotkeyGroup {
 
     /// Returns the number of hotkeys in this `HotkeyGroup`.
     /// ```rust
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # fn main() -> anyhow::Result<()> {
     /// use std::fs::File;
     /// use genie_hki::HotkeyInfo;
     /// let mut f = File::open("test/files/aoc1.hki")?;
@@ -1060,7 +1016,7 @@ impl HotkeyInfo {
     /// Gets the file version.
     ///
     /// ```rust
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # fn main() -> anyhow::Result<()> {
     /// use std::fs::File;
     /// use genie_hki::HotkeyInfo;
     /// let mut f = File::open("test/files/aoc1.hki")?;
@@ -1079,7 +1035,7 @@ impl HotkeyInfo {
     /// Returns an immutable reference to a hotkey group, if that group exists.
     ///
     /// ```rust
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # fn main() -> anyhow::Result<()> {
     /// use std::fs::File;
     /// use genie_hki::{HotkeyInfo, HotkeyGroupId};
     /// let mut f = File::open("test/files/aoc1.hki")?;
@@ -1099,7 +1055,7 @@ impl HotkeyInfo {
 
     /// Returns the number of hotkey groups in this info's hotkey file.
     /// ```rust
-    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # fn main() -> anyhow::Result<()> {
     /// use std::fs::File;
     /// use genie_hki::HotkeyInfo;
     ///
@@ -1236,48 +1192,55 @@ impl<'a> IntoIterator for &'a mut HotkeyInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::Context;
     use std::fs::File;
 
     #[test]
-    fn aoc1() {
-        let mut f = File::open("test/files/aoc1.hki").unwrap();
-        HotkeyInfo::from(&mut f).expect("failed to read file");
+    fn aoc1() -> anyhow::Result<()> {
+        let mut f = File::open("test/files/aoc1.hki")?;
+        HotkeyInfo::from(&mut f).context("failed to read file")?;
+        Ok(())
     }
 
     #[test]
-    fn aoc2() {
-        let mut f = File::open("test/files/aoc2.hki").unwrap();
-        HotkeyInfo::from(&mut f).expect("failed to read file");
+    fn aoc2() -> anyhow::Result<()> {
+        let mut f = File::open("test/files/aoc2.hki")?;
+        HotkeyInfo::from(&mut f).context("failed to read file")?;
+        Ok(())
     }
 
     #[test]
-    fn aoc3() {
-        let mut f = File::open("test/files/aoc3.hki").unwrap();
-        HotkeyInfo::from(&mut f).expect("failed to read file");
+    fn aoc3() -> anyhow::Result<()> {
+        let mut f = File::open("test/files/aoc3.hki")?;
+        HotkeyInfo::from(&mut f).context("failed to read file")?;
+        Ok(())
     }
 
     #[test]
-    fn hd0() {
-        let mut f = File::open("test/files/hd0.hki").unwrap();
-        HotkeyInfo::from(&mut f).expect("failed to read file");
+    fn hd0() -> anyhow::Result<()> {
+        let mut f = File::open("test/files/hd0.hki")?;
+        HotkeyInfo::from(&mut f).context("failed to read file")?;
+        Ok(())
     }
 
     #[test]
-    fn hd1() {
-        let mut f = File::open("test/files/hd1.hki").unwrap();
-        HotkeyInfo::from(&mut f).expect("failed to read file");
+    fn hd1() -> anyhow::Result<()> {
+        let mut f = File::open("test/files/hd1.hki")?;
+        HotkeyInfo::from(&mut f).context("failed to read file")?;
+        Ok(())
     }
 
     #[test]
-    fn wk() {
-        let mut f = File::open("test/files/wk.hki").unwrap();
-        HotkeyInfo::from(&mut f).expect("failed to read file");
+    fn wk() -> anyhow::Result<()> {
+        let mut f = File::open("test/files/wk.hki")?;
+        HotkeyInfo::from(&mut f).context("failed to read file")?;
+        Ok(())
     }
 
     #[test]
-    fn hk_group_iter() {
-        let mut f = File::open("test/files/aoc1.hki").unwrap();
-        let info = HotkeyInfo::from(&mut f).expect("failed to read file");
+    fn hk_group_iter() -> anyhow::Result<()> {
+        let mut f = File::open("test/files/aoc1.hki")?;
+        let info = HotkeyInfo::from(&mut f).context("failed to read file")?;
         let group = info.group(HotkeyGroupId::UnitCommands as usize).unwrap();
         let mut hotkey_iter = group.iter();
         assert_eq!(19214, hotkey_iter.next().unwrap().string_id);
@@ -1296,12 +1259,13 @@ mod tests {
         assert_eq!(19002, hotkey_iter.next().unwrap().string_id);
         assert_eq!(19220, hotkey_iter.next().unwrap().string_id);
         assert_eq!(None, hotkey_iter.next());
+        Ok(())
     }
 
     #[test]
-    fn hk_info_iter() {
-        let mut f = File::open("test/files/aoc1.hki").unwrap();
-        let info = HotkeyInfo::from(&mut f).expect("failed to read file");
+    fn hk_info_iter() -> anyhow::Result<()> {
+        let mut f = File::open("test/files/aoc1.hki")?;
+        let info = HotkeyInfo::from(&mut f).context("failed to read file")?;
         let mut iter = info.iter();
         assert_eq!(
             info.group(HotkeyGroupId::UnitCommands as usize),
@@ -1333,52 +1297,52 @@ mod tests {
         );
         assert_eq!(info.group(HotkeyGroupId::Castle as usize), iter.next());
         assert_eq!(None, iter.next());
+        Ok(())
     }
 
     #[test]
-    fn hk_group_unbind() {
-        let mut f = File::open("test/files/aoc1.hki").unwrap();
-        let info = HotkeyInfo::from(&mut f).expect("failed to read file");
+    fn hk_group_unbind() -> anyhow::Result<()> {
+        let mut f = File::open("test/files/aoc1.hki")?;
+        let info = HotkeyInfo::from(&mut f).context("failed to read file")?;
         let group0 = info.group(HotkeyGroupId::UnitCommands as usize).unwrap();
-        let group1 = group0
-            .unbind(UnitCommandHotkeys::BuildEconomic as usize)
-            .unwrap();
+        let group1 = group0.unbind(UnitCommandHotkeys::BuildEconomic as usize)?;
         assert_eq!(66, group0.hotkey(0).unwrap().key);
         assert_eq!(0, group1.hotkey(0).unwrap().key);
+        Ok(())
     }
 
     #[test]
-    fn hk_group_bind() {
-        let mut f = File::open("test/files/aoc1.hki").unwrap();
-        let info = HotkeyInfo::from(&mut f).expect("failed to read file");
+    fn hk_group_bind() -> anyhow::Result<()> {
+        let mut f = File::open("test/files/aoc1.hki")?;
+        let info = HotkeyInfo::from(&mut f).context("failed to read file")?;
         let group0 = info.group(HotkeyGroupId::UnitCommands as usize).unwrap();
-        let group1 = group0
-            .bind(
-                UnitCommandHotkeys::BuildEconomic as usize,
-                65,
-                false,
-                false,
-                false,
-            )
-            .unwrap();
+        let group1 = group0.bind(
+            UnitCommandHotkeys::BuildEconomic as usize,
+            65,
+            false,
+            false,
+            false,
+        )?;
         assert_eq!(66, group0.hotkey(0).unwrap().key);
         assert_eq!(65, group1.hotkey(0).unwrap().key);
+        Ok(())
     }
 
     #[test]
-    fn hk_group_bad_index() {
-        let mut f = File::open("test/files/aoc1.hki").unwrap();
-        let info = HotkeyInfo::from(&mut f).expect("failed to read file");
+    fn hk_group_bad_index() -> anyhow::Result<()> {
+        let mut f = File::open("test/files/aoc1.hki")?;
+        let info = HotkeyInfo::from(&mut f).context("failed to read file")?;
         let group = info.group(HotkeyGroupId::UnitCommands as usize).unwrap();
         let result = group.unbind(99999);
         assert!(result.is_err());
+        Ok(())
     }
 
     #[test]
-    fn hk_info_unbind() {
-        let mut f = File::open("test/files/aoc1.hki").unwrap();
-        let info0 = HotkeyInfo::from(&mut f).expect("failed to read file");
-        let info1 = info0.unbind_key(0, 0).unwrap();
+    fn hk_info_unbind() -> anyhow::Result<()> {
+        let mut f = File::open("test/files/aoc1.hki")?;
+        let info0 = HotkeyInfo::from(&mut f).context("failed to read file")?;
+        let info1 = info0.unbind_key(0, 0)?;
         assert_eq!(
             66,
             info0
@@ -1397,13 +1361,14 @@ mod tests {
                 .unwrap()
                 .key
         );
+        Ok(())
     }
 
     #[test]
-    fn hk_info_bind() {
-        let mut f = File::open("test/files/aoc1.hki").unwrap();
-        let info0 = HotkeyInfo::from(&mut f).expect("failed to read file");
-        let info1 = info0.bind_key(0, 0, 65, false, false, false).unwrap();
+    fn hk_info_bind() -> anyhow::Result<()> {
+        let mut f = File::open("test/files/aoc1.hki")?;
+        let info0 = HotkeyInfo::from(&mut f).context("failed to read file")?;
+        let info1 = info0.bind_key(0, 0, 65, false, false, false)?;
         assert_eq!(
             66,
             info0
@@ -1422,28 +1387,31 @@ mod tests {
                 .unwrap()
                 .key
         );
+        Ok(())
     }
 
     #[test]
-    fn hk_info_bad_index_group() {
-        let mut f = File::open("test/files/aoc1.hki").unwrap();
-        let info = HotkeyInfo::from(&mut f).expect("failed to read file");
+    fn hk_info_bad_index_group() -> anyhow::Result<()> {
+        let mut f = File::open("test/files/aoc1.hki")?;
+        let info = HotkeyInfo::from(&mut f).context("failed to read file")?;
         let result = info.unbind_key(999999, 0);
         assert!(result.is_err());
+        Ok(())
     }
 
     #[test]
-    fn hk_info_bad_index_hk() {
-        let mut f = File::open("test/files/aoc1.hki").unwrap();
-        let info = HotkeyInfo::from(&mut f).expect("failed to read file");
+    fn hk_info_bad_index_hk() -> anyhow::Result<()> {
+        let mut f = File::open("test/files/aoc1.hki")?;
+        let info = HotkeyInfo::from(&mut f).context("failed to read file")?;
         let result = info.unbind_key(0, 999999);
         assert!(result.is_err());
+        Ok(())
     }
 
     #[test]
-    fn test_keycode_to_bindings_map() {
-        let mut f = File::open("test/files/aoc1.hki").unwrap();
-        let info = HotkeyInfo::from(&mut f).expect("failed to read file");
+    fn test_keycode_to_bindings_map() -> anyhow::Result<()> {
+        let mut f = File::open("test/files/aoc1.hki")?;
+        let info = HotkeyInfo::from(&mut f).context("failed to read file")?;
         let map = info.bindings_per_keycode();
         // 19270: Ctrl-65
         let h0 = Hotkey::default().string_id(19270).key(65).ctrl(true);
@@ -1459,5 +1427,6 @@ mod tests {
         let h5 = Hotkey::default().string_id(19315).key(65);
         let hotkeys = vec![h0, h1, h2, h3, h4, h5];
         assert_eq!(Some(&hotkeys), map.get(&65));
+        Ok(())
     }
 }

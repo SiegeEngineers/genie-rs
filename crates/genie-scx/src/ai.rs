@@ -1,6 +1,6 @@
-use crate::util::*;
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use genie_support::{read_str, DecodeStringError, ReadStringError};
 use std::convert::TryFrom;
 use std::io::{Read, Write};
 use std::mem;
@@ -39,16 +39,9 @@ pub enum AIErrorCode {
 }
 
 /// Found an AI error code that isn't defined.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("Unknown AI error code {}", .0)]
 pub struct ParseAIErrorCodeError(u32);
-
-impl std::fmt::Display for ParseAIErrorCodeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Unknown AI error code {}", self.0)
-    }
-}
-
-impl std::error::Error for ParseAIErrorCodeError {}
 
 impl TryFrom<u32> for AIErrorCode {
     type Error = ParseAIErrorCodeError;

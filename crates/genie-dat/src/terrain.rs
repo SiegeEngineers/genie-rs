@@ -14,6 +14,12 @@ use std::io::{Read, Result, Write};
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct TerrainID(u16);
 
+impl From<u8> for TerrainID {
+    fn from(n: u8) -> Self {
+        TerrainID(n.into())
+    }
+}
+
 impl From<u16> for TerrainID {
     fn from(n: u16) -> Self {
         TerrainID(n)
@@ -133,11 +139,11 @@ pub struct TerrainBorder {
 }
 
 impl TerrainPassGraphic {
-    pub fn read_from<R: Read>(input: &mut R, version: FileVersion) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, version: FileVersion) -> Result<Self> {
         let mut pass = TerrainPassGraphic::default();
-        pass.exit_tile_sprite = read_opt_u32(input)?.map(|v| v.try_into().unwrap());
-        pass.enter_tile_sprite = read_opt_u32(input)?.map(|v| v.try_into().unwrap());
-        pass.walk_tile_sprite = read_opt_u32(input)?.map(|v| v.try_into().unwrap());
+        pass.exit_tile_sprite = read_opt_u32(&mut input)?;
+        pass.enter_tile_sprite = read_opt_u32(&mut input)?;
+        pass.walk_tile_sprite = read_opt_u32(&mut input)?;
         if version.is_swgb() {
             pass.walk_rate = Some(input.read_f32::<LE>()?);
         } else {
@@ -147,7 +153,7 @@ impl TerrainPassGraphic {
     }
 
     /// Serialize this object to a binary output stream.
-    pub fn write_to<W: Write>(&self, output: &mut W, version: FileVersion) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write, version: FileVersion) -> Result<()> {
         output.write_i32::<LE>(self.exit_tile_sprite.map_into().unwrap_or(-1))?;
         output.write_i32::<LE>(self.enter_tile_sprite.map_into().unwrap_or(-1))?;
         output.write_i32::<LE>(self.walk_tile_sprite.map_into().unwrap_or(-1))?;
@@ -162,8 +168,8 @@ impl TerrainPassGraphic {
 }
 
 impl TerrainRestriction {
-    pub fn read_from<R: Read>(
-        input: &mut R,
+    pub fn read_from(
+        mut input: impl Read,
         version: FileVersion,
         num_terrains: u16,
     ) -> Result<Self> {
@@ -175,7 +181,7 @@ impl TerrainRestriction {
         // Apparently AoK+ only
         let mut pass_graphics = Vec::with_capacity(num_terrains as usize);
         for _ in 0..num_terrains {
-            pass_graphics.push(TerrainPassGraphic::read_from(input, version)?);
+            pass_graphics.push(TerrainPassGraphic::read_from(&mut input, version)?);
         }
 
         Ok(Self {
@@ -185,9 +191,9 @@ impl TerrainRestriction {
     }
 
     /// Serialize this object to a binary output stream.
-    pub fn write_to<W: Write>(
+    pub fn write_to(
         &self,
-        output: &mut W,
+        mut output: impl Write,
         version: FileVersion,
         num_terrains: u16,
     ) -> Result<()> {
@@ -197,8 +203,7 @@ impl TerrainRestriction {
             output.write_f32::<LE>(*value)?;
         }
         for graphic in &self.pass_graphics {
-            /// Serialize this object to a binary output stream.
-            graphic.write_to(output, version)?;
+            graphic.write_to(&mut output, version)?;
         }
         Ok(())
     }
@@ -284,33 +289,19 @@ impl Terrain {
         self.name.as_str()
     }
 
-    pub fn read_from<R: Read>(
-        input: &mut R,
+    pub fn read_from(
+        mut input: impl Read,
         _version: FileVersion,
         num_terrains: u16,
     ) -> Result<Self> {
         let mut terrain = Terrain::default();
         terrain.enabled = input.read_u8()? != 0;
         terrain.random = input.read_u8()?;
-        read_terrain_name(input, &mut terrain.name)?;
-        read_terrain_name(input, &mut terrain.slp_name)?;
-        terrain.slp_id = {
-            let n = input.read_i32::<LE>()?;
-            if n == -1 {
-                None
-            } else {
-                Some(n.try_into().unwrap())
-            }
-        };
+        read_terrain_name(&mut input, &mut terrain.name)?;
+        read_terrain_name(&mut input, &mut terrain.slp_name)?;
+        terrain.slp_id = read_opt_u32(&mut input)?;
         let _slp_pointer = input.read_i32::<LE>()?;
-        terrain.sound_id = {
-            let n = input.read_i32::<LE>()?;
-            if n == -1 {
-                None
-            } else {
-                Some(n.try_into().unwrap())
-            }
-        };
+        terrain.sound_id = read_opt_u32(&mut input)?;
         terrain.blend_priority = Some(input.read_i32::<LE>()?);
         terrain.blend_mode = Some(input.read_i32::<LE>()?);
         terrain.minimap_color_high = input.read_u8()?;
@@ -326,13 +317,13 @@ impl Terrain {
             0xFF => None,
             id => Some(id),
         };
-        terrain.animation = TerrainAnimation::read_from(input)?;
+        terrain.animation = TerrainAnimation::read_from(&mut input)?;
         for _ in 0..19 {
             terrain
                 .elevation_sprites
-                .push(TerrainSpriteFrame::read_from(input)?);
+                .push(TerrainSpriteFrame::read_from(&mut input)?);
         }
-        terrain.terrain_id_to_draw = read_opt_u16(input)?.map_into();
+        terrain.terrain_id_to_draw = read_opt_u16(&mut input)?;
         terrain.rows = input.read_i16::<LE>()?;
         terrain.cols = input.read_i16::<LE>()?;
         for _ in 0..num_terrains {
@@ -429,35 +420,21 @@ impl Terrain {
 }
 
 impl TerrainBorder {
-    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut border = TerrainBorder::default();
         border.enabled = input.read_u8()? != 0;
         border.random = input.read_u8()?;
-        read_terrain_name(input, &mut border.name)?;
-        read_terrain_name(input, &mut border.slp_name)?;
-        border.slp_id = {
-            let n = input.read_i32::<LE>()?;
-            if n == -1 {
-                None
-            } else {
-                Some(n.try_into().unwrap())
-            }
-        };
+        read_terrain_name(&mut input, &mut border.name)?;
+        read_terrain_name(&mut input, &mut border.slp_name)?;
+        border.slp_id = read_opt_u32(&mut input)?;
         let _slp_pointer = input.read_i32::<LE>()?;
-        border.sound_id = {
-            let n = input.read_i32::<LE>()?;
-            if n == -1 {
-                None
-            } else {
-                Some(n.try_into().unwrap())
-            }
-        };
+        border.sound_id = read_opt_u32(&mut input)?;
         border.color = (input.read_u8()?, input.read_u8()?, input.read_u8()?);
-        border.animation = TerrainAnimation::read_from(input)?;
+        border.animation = TerrainAnimation::read_from(&mut input)?;
         for _ in 0..19 {
             let mut frames_list = vec![TerrainSpriteFrame::default(); 12];
             for frame in frames_list.iter_mut() {
-                *frame = TerrainSpriteFrame::read_from(input)?;
+                *frame = TerrainSpriteFrame::read_from(&mut input)?;
             }
             border.frames.push(frames_list);
         }
@@ -465,10 +442,7 @@ impl TerrainBorder {
         border.draw_tile = input.read_i8()?;
         // Padding
         input.read_u8()?;
-        border.underlay_terrain = match input.read_i16::<LE>()? {
-            -1 => None,
-            id => Some(id),
-        };
+        border.underlay_terrain = read_opt_u16(&mut input)?;
         border.border_style = input.read_i16::<LE>()?;
 
         Ok(border)
@@ -518,7 +492,7 @@ fn read_terrain_name<R: Read>(input: &mut R, output: &mut TerrainName) -> Result
 
 fn write_terrain_name<W: Write>(output: &mut W, name: &TerrainName) -> Result<()> {
     let bytes = &mut [0; 13];
-    bytes.copy_from_slice(name.as_bytes());
+    (&mut bytes[..name.len()]).copy_from_slice(name.as_bytes());
     output.write_all(bytes)?;
     Ok(())
 }
