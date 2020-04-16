@@ -24,6 +24,7 @@ pub extern "C" fn cgdrs_load(path: FfiStr) -> *mut DRSR {
 
 /// Close a drs archive.
 #[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn cgdrs_free(drs: *mut DRSR) {
     let pair = unsafe { Box::from_raw(drs) };
     drop(pair);

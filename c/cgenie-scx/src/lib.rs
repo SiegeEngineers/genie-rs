@@ -89,6 +89,7 @@ pub extern "C" fn cgscx_load(path: FfiStr<'_>) -> *mut Scenario {
 /// }
 /// ```
 #[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn cgscx_load_mem(input: *const u8, size: usize) -> *mut Scenario {
     let slice = unsafe { std::slice::from_raw_parts(input, size) };
     let mut cursor = Cursor::new(slice);
@@ -100,6 +101,7 @@ pub extern "C" fn cgscx_load_mem(input: *const u8, size: usize) -> *mut Scenario
 
 /// Convert an AoC scenario file to WololoKingdoms.
 #[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn cgscx_convert_aoc_to_wk(scenario: *mut Scenario) -> u32 {
     if scenario.is_null() {
         return 1;
@@ -107,15 +109,16 @@ pub extern "C" fn cgscx_convert_aoc_to_wk(scenario: *mut Scenario) -> u32 {
     let scenario = unsafe { &mut *scenario };
 
     let converter = AoCToWK::default();
-    if let Err(_) = converter.convert(scenario) {
-        return 3;
+    if converter.convert(scenario).is_err() {
+        3
+    } else {
+        0
     }
-
-    return 0;
 }
 
 /// Convert an HD Edition scenario file to WololoKingdoms.
 #[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn cgscx_convert_hd_to_wk(scenario: *mut Scenario) -> u32 {
     if scenario.is_null() {
         return 1;
@@ -123,15 +126,16 @@ pub extern "C" fn cgscx_convert_hd_to_wk(scenario: *mut Scenario) -> u32 {
     let scenario = unsafe { &mut *scenario };
 
     let converter = HDToWK::default();
-    if let Err(_) = converter.convert(scenario) {
-        return 3;
+    if converter.convert(scenario).is_err() {
+        3
+    } else {
+        0
     }
-
-    return 0;
 }
 
 /// Try to convert any scenario file to WololoKingdoms.
 #[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn cgscx_convert_to_wk(scenario: *mut Scenario) -> u32 {
     if scenario.is_null() {
         return 1;
@@ -139,15 +143,16 @@ pub extern "C" fn cgscx_convert_to_wk(scenario: *mut Scenario) -> u32 {
     let scenario = unsafe { &mut *scenario };
 
     let converter = AutoToWK::default();
-    if let Err(_) = converter.convert(scenario) {
-        return 3;
+    if converter.convert(scenario).is_err() {
+        3
+    } else {
+        0
     }
-
-    return 0;
 }
 
 /// Save the scenario to a file.
 #[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn cgscx_save(
     scenario: *mut Scenario,
     version: FfiStr<'_>,
@@ -169,7 +174,7 @@ pub extern "C" fn cgscx_save(
     };
     if let Some(path) = path.as_opt_str() {
         if let Ok(mut file) = File::create(path) {
-            if let Ok(_) = scenario.write_to_version(&mut file, &version) {
+            if scenario.write_to_version(&mut file, &version).is_ok() {
                 0
             } else {
                 4

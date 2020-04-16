@@ -40,7 +40,10 @@ pub extern "C" fn cglang_load_dll(path: FfiStr) -> *mut LangFile {
 }
 
 /// Get an integer-indexed string.
+///
+/// The returned string is owned by the `cgenie_lang` pointer.
 #[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn cglang_get(file: *const LangFile, index: u32) -> *const u8 {
     if file.is_null() {
         ptr::null()
@@ -53,47 +56,55 @@ pub extern "C" fn cglang_get(file: *const LangFile, index: u32) -> *const u8 {
 }
 
 /// Get a name-indexed string.
+///
+/// The returned string is owned by the `cgenie_lang` pointer.
 #[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn cglang_get_named(file: *const LangFile, index: FfiStr) -> *const u8 {
-    let index = index.as_opt_str();
-    if file.is_null() || index.is_none() {
-        ptr::null()
-    } else {
-        unsafe { &*file }
-            .get(&StringKey::from(index.unwrap()))
-            .map(|s| s.as_ptr())
-            .unwrap_or(ptr::null())
+    match (file.is_null(), index.as_opt_str()) {
+        (true, Some(index)) => {
+            unsafe { &*file }
+                .get(&StringKey::from(index))
+                .map(|s| s.as_ptr())
+                .unwrap_or(ptr::null())
+        }
+        _ => ptr::null(),
     }
 }
 
 /// Save a .ini language file.
 #[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn cglang_save_ini(file: *mut LangFile, path: FfiStr) -> u32 {
     let mut output = match try_create_file(path) {
         Some(output) => output,
         _ => return 1,
     };
-    if let Ok(_) = unsafe { &*file }.write_to_ini(&mut output) {
-        return 0;
+    if unsafe { &*file }.write_to_ini(&mut output).is_ok() {
+        0
+    } else {
+        2
     }
-    return 2;
 }
 
 /// Save an HD Edition key-value.txt language file.
 #[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn cglang_save_keyval(file: *mut LangFile, path: FfiStr) -> u32 {
     let mut output = match try_create_file(path) {
         Some(output) => output,
         _ => return 1,
     };
-    if let Ok(_) = unsafe { &*file }.write_to_keyval(&mut output) {
-        return 0;
+    if unsafe { &*file }.write_to_keyval(&mut output).is_ok() {
+        0
+    } else {
+        2
     }
-    return 2;
 }
 
 /// Free all language file resources.
 #[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn cglang_free(file: *mut LangFile) {
     if !file.is_null() {
         let file = unsafe { Box::from_raw(file) };
