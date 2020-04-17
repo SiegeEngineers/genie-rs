@@ -147,9 +147,7 @@ where
     R: Read,
 {
     pub fn new(mut input: &'r mut R, version: f32) -> Result<Self> {
-        let meta = if version >= 11.97 {
-            // mgx and later have an identifying byte here.
-            assert_eq!(input.read_u32::<LE>()?, 4);
+        let meta = if version >= 11.76 {
             Meta::read_from_mgx(&mut input)?
         } else {
             Meta::read_from_mgl(&mut input)?
@@ -366,6 +364,17 @@ mod tests {
         for act in r.actions().unwrap() {
             let _act = act.unwrap();
         }
+    }
+
+    #[test]
+    fn aoc_1_0_rec() -> anyhow::Result<()> {
+        let f = File::open("test/missyou_finally_vs_11.mgx")?;
+        let mut r = RecordedGame::new(f)?;
+        r.header()?;
+        for act in r.actions()? {
+            println!("{:?}", act?);
+        }
+        Ok(())
     }
 
     #[test]

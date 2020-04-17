@@ -1384,6 +1384,9 @@ impl Sync {
 /// Action at the start of the game, contains settings affecting the rec format.
 #[derive(Debug, Default, Clone)]
 pub struct Meta {
+    /// The version of the action log format.
+    /// `3` for AoC 1.0, `4` for AoC 1.0c and UserPatch.
+    pub log_version: Option<u32>,
     pub checksum_interval: u32,
     pub is_multiplayer: bool,
     pub use_sequence_numbers: bool,
@@ -1429,7 +1432,10 @@ impl Meta {
     /// Read recorded game body metadata in the `mgx` format used by Age of Empires 2: The
     /// Conquerors and all subsequent versions.
     pub fn read_from_mgx(mut input: impl Read) -> Result<Self> {
+        let log_version = input.read_u32::<LE>()?;
+        assert!(matches!(log_version, 3 | 4));
         let mut meta = Self::read_from_inner(&mut input)?;
+        meta.log_version = Some(log_version);
         meta.num_chapters = Some(input.read_u32::<LE>()?);
         Ok(meta)
     }

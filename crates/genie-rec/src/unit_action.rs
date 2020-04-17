@@ -30,10 +30,10 @@ impl UnitAction {
     // `dyn` because this is a recursive function; taking &mut from a `impl Read` here
     // would cause infinite recursion in the types.
     fn read_from_inner(mut input: &mut dyn Read, action_type: u16, version: f32) -> Result<Self> {
-        // TODO this is different between AoK and AoC. This version check is a guess
+        // TODO this is different between AoC 1.0 and AoC 1.0c. This version check is a guess
         // and may not actually be when it changed. May have to become more specific in the
         // future!
-        let state = if version <= 11.50 {
+        let state = if version <= 11.76 {
             input.read_u8()? as u32
         } else {
             input.read_u32::<LE>()?
