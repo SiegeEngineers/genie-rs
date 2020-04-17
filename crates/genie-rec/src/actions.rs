@@ -1235,6 +1235,21 @@ pub struct BuyResourceCommand {
 
 buy_sell_impl!(BuyResourceCommand);
 
+#[derive(Debug, Default, Clone)]
+pub struct Unknown7FCommand {
+    pub object_id: ObjectID,
+    pub value: u32,
+}
+
+impl Unknown7FCommand {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
+        input.skip(3)?;
+        let object_id = input.read_u32::<LE>()?.into();
+        let value = input.read_u32::<LE>()?;
+        Ok(Self { object_id, value })
+    }
+}
+
 /// Send villagers back to work after they've been garrisoned into the Town Center.
 #[derive(Debug, Default, Clone)]
 pub struct BackToWorkCommand {
@@ -1281,6 +1296,7 @@ pub enum Command {
     SetGatherPoint(SetGatherPointCommand),
     SellResource(SellResourceCommand),
     BuyResource(BuyResourceCommand),
+    Unknown7F(Unknown7FCommand),
     BackToWork(BackToWorkCommand),
 }
 
@@ -1330,6 +1346,7 @@ impl Command {
             0x78 => SetGatherPointCommand::read_from(cursor).map(Command::SetGatherPoint),
             0x7a => SellResourceCommand::read_from(cursor).map(Command::SellResource),
             0x7b => BuyResourceCommand::read_from(cursor).map(Command::BuyResource),
+            0x7f => Unknown7FCommand::read_from(cursor).map(Command::Unknown7F),
             0x80 => BackToWorkCommand::read_from(cursor).map(Command::BackToWork),
             id => panic!("unsupported command type {:#x}", id),
         };
