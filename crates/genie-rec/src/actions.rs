@@ -442,30 +442,29 @@ impl ResignCommand {
 #[derive(Debug, Default, Clone)]
 pub struct GroupWaypointCommand {
     pub player_id: PlayerID,
-    pub object_id: ObjectID,
-    waypoints: i8,
+    pub location: (u8, u8),
+    pub objects: ObjectsList,
 }
 
 impl GroupWaypointCommand {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let player_id = input.read_u8()?.into();
-        input.skip(2)?;
-        let object_id = input.read_u32::<LE>()?.into();
-        let waypoints = input.read_i8()?;
-        input.skip(1)?;
+        let num_units = input.read_u8()?;
+        let x = input.read_u8()?;
+        let y = input.read_u8()?;
         Ok(Self {
             player_id,
-            object_id,
-            waypoints,
+            location: (x, y),
+            objects: ObjectsList::read_from(input, i32::from(num_units))?,
         })
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
         output.write_u8(self.player_id.into())?;
-        output.write_all(&[0, 0])?;
-        output.write_u32::<LE>(self.object_id.into())?;
-        output.write_i8(self.waypoints)?;
-        output.write_u8(0)?;
+        output.write_u8(self.objects.len().try_into().unwrap())?;
+        output.write_u8(self.location.0)?;
+        output.write_u8(self.location.1)?;
+        self.objects.write_to(&mut output)?;
         Ok(())
     }
 }
