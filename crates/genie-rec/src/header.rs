@@ -307,6 +307,55 @@ impl Header {
 
         header.scenario = TribeScen::read_from(&mut input)?;
 
+        let _difficulty = if header.save_version >= 7.16 {
+            Some(input.read_u32::<LE>()?)
+        } else {
+            None
+        };
+        let _lock_teams = if header.save_version >= 10.23 {
+            input.read_u32::<LE>()? != 0
+        } else {
+            false
+        };
+
+        if header.save_version >= 11.32 {
+            for _ in 0..9 {
+                let _player_id = input.read_u32::<LE>()?;
+                let _player_humanity = input.read_u32::<LE>()?;
+                let name_length = input.read_u32::<LE>()?;
+                let mut name = vec![0; name_length as usize];
+                input.read_exact(&mut name)?;
+            }
+        }
+
+        if header.save_version >= 11.35 {
+            for _ in 0..9 {
+                let _resigned = input.read_u32::<LE>()?;
+            }
+        }
+
+        if header.save_version >= 11.36 {
+            let _num_players = input.read_u32::<LE>()?;
+        }
+
+        if header.save_version >= 11.38 {
+            let _sent_commanded_count = input.read_u32::<LE>()?;
+            if header.save_version >= 11.39 {
+                let _sent_commanded_valid = input.read_u32::<LE>()?;
+            }
+            let mut sent_commanded_units = [0u32; 40];
+            input.read_u32_into::<LE>(&mut sent_commanded_units)?;
+            for _ in 0..9 {
+                let _num_selected = input.read_u8()?;
+                let mut selection = [0u32; 40];
+                input.read_u32_into::<LE>(&mut selection)?;
+            }
+        }
+
+        let _num_paths = input.read_u32::<LE>()?;
+        // TODO: Read paths
+        // TODO: Read unit groups
+
         Ok(header)
     }
 }
