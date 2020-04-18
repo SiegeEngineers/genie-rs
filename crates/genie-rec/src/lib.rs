@@ -10,12 +10,12 @@ pub mod unit_type;
 
 use crate::actions::{Action, Meta};
 use byteorder::{ReadBytesExt, LE};
-use flate2::read::DeflateDecoder;
+use flate2::bufread::DeflateDecoder;
 use genie_scx::DLCOptions;
 use genie_support::{fallible_try_from, fallible_try_into, infallible_try_into};
 use header::Header;
 use std::fmt::{self, Debug, Display};
-use std::io::{self, Read, Seek, SeekFrom};
+use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom};
 
 /// ID identifying a player (0-8).
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -134,21 +134,21 @@ impl From<genie_support::ReadStringError> for Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 /// Iterator over body actions.
-pub struct BodyActions<'r, R>
+pub struct BodyActions<R>
 where
-    R: Read,
+    R: BufRead,
 {
-    input: &'r mut R,
+    input: R,
     version: f32,
     meta: Meta,
     remaining_syncs_until_checksum: u32,
 }
 
-impl<'r, R> BodyActions<'r, R>
+impl<R> BodyActions<R>
 where
-    R: Read,
+    R: BufRead,
 {
-    pub fn new(mut input: &'r mut R, version: f32) -> Result<Self> {
+    pub fn new(mut input: R, version: f32) -> Result<Self> {
         let meta = if version >= 11.76 {
             Meta::read_from_mgx(&mut input)?
         } else {
@@ -164,15 +164,14 @@ where
     }
 }
 
-impl<'r, R> Iterator for BodyActions<'r, R>
+impl<R> Iterator for BodyActions<R>
 where
-    R: Read,
+    R: BufRead,
 {
     type Item = Result<Action>;
     fn next(&mut self) -> Option<Self::Item> {
-        // TODO return Option<Result> instead
         match self.input.read_i32::<LE>() {
-            Ok(0x01) => Some(actions::Command::read_from(self.input).map(Action::Command)),
+            Ok(0x01) => Some(actions::Command::read_from(&mut self.input).map(Action::Command)),
             Ok(0x02) => {
                 self.remaining_syncs_until_checksum -= 1;
                 let includes_checksum = self.remaining_syncs_until_checksum == 0;
@@ -181,7 +180,7 @@ where
                 }
                 Some(
                     actions::Sync::read_from(
-                        self.input,
+                        &mut self.input,
                         self.meta.use_sequence_numbers,
                         includes_checksum,
                     )
@@ -189,7 +188,7 @@ where
                 )
             }
             Ok(0x03) => Some(actions::ViewLock::read_from(&mut self.input).map(Action::ViewLock)),
-            Ok(0x04) => Some(actions::Chat::read_from(self.input).map(Action::Chat)),
+            Ok(0x04) => Some(actions::Chat::read_from(&mut self.input).map(Action::Chat)),
             Ok(id) => panic!("unsupported action type {:#x}", id),
             Err(err) if err.kind() == io::ErrorKind::UnexpectedEof => None,
             Err(err) => Some(Err(err.into())),
@@ -265,6 +264,53 @@ pub struct HDGameOptions {
     pub scenario_player_indices: Vec<i32>,
 }
 
+/// A struct implementing `BufRead` that uses a small, single-use, stack-allocated buffer, intended
+/// for reading only the first few bytes from a file.
+struct SmallBufReader<R>
+where
+    R: Read,
+{
+    buffer: [u8; 256],
+    pointer: usize,
+    reader: R,
+}
+
+impl<R> SmallBufReader<R>
+where
+    R: Read,
+{
+    fn new(reader: R) -> Self {
+        Self {
+            buffer: [0; 256],
+            pointer: 0,
+            reader,
+        }
+    }
+}
+
+impl<R> Read for SmallBufReader<R>
+where
+    R: Read,
+{
+    fn read(&mut self, output: &mut [u8]) -> io::Result<usize> {
+        self.reader.read(output)
+    }
+}
+
+impl<R> BufRead for SmallBufReader<R>
+where
+    R: Read,
+{
+    fn fill_buf(&mut self) -> io::Result<&[u8]> {
+        self.reader.read_exact(&mut self.buffer[self.pointer..])?;
+        Ok(&self.buffer[self.pointer..])
+    }
+
+    fn consume(&mut self, len: usize) {
+        self.pointer += len;
+    }
+}
+
 /// Recorded game reader.
 pub struct RecordedGame<R>
 where
@@ -305,7 +351,8 @@ where
 
         let (game_version, save_version) = {
             input.seek(SeekFrom::Start(header_start))?;
-            let mut deflate = DeflateDecoder::new(&mut input);
+            let version_reader = SmallBufReader::new(&mut input);
+            let mut deflate = DeflateDecoder::new(version_reader);
             let game_version = GameVersion::read_from(&mut deflate)?;
             let save_version = deflate.read_f32::<LE>()?;
             (game_version, save_version)
@@ -335,15 +382,15 @@ where
 
     pub fn header(&mut self) -> Result<Header> {
         self.seek_to_first_header()?;
-        let reader = (&mut self.inner).take(self.header_end - self.header_start);
+        let reader = BufReader::new(&mut self.inner).take(self.header_end - self.header_start);
         let deflate = DeflateDecoder::new(reader);
         let header = Header::read_from(deflate)?;
         Ok(header)
     }
 
-    pub fn actions(&mut self) -> Result<BodyActions<R>> {
+    pub fn actions(&mut self) -> Result<BodyActions<BufReader<&mut R>>> {
         self.seek_to_body()?;
-        BodyActions::new(&mut self.inner, self.save_version)
+        BodyActions::new(BufReader::new(&mut self.inner), self.save_version)
     }
 
     pub fn into_inner(self) -> R {
