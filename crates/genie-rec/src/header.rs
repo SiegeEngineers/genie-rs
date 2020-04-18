@@ -3,6 +3,7 @@ use crate::player::Player;
 use crate::string_table::StringTable;
 use crate::{GameVersion, Result};
 use byteorder::{ReadBytesExt, LE};
+use genie_scx::TribeScen;
 use genie_support::ReadSkipExt;
 pub use genie_support::SpriteID;
 use std::convert::TryInto;
@@ -233,6 +234,7 @@ pub struct Header {
     map: Map,
     particle_system: ParticleSystem,
     players: Vec<Player>,
+    scenario: TribeScen,
 }
 
 impl Header {
@@ -299,7 +301,11 @@ impl Header {
                 num_players as u8,
             )?);
         }
-        // dbg!(players.last().unwrap());
+        for player in &mut header.players {
+            player.read_info(&mut input, header.save_version)?;
+        }
+
+        header.scenario = TribeScen::read_from(&mut input)?;
 
         Ok(header)
     }

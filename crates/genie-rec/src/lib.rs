@@ -117,6 +117,8 @@ pub enum Error {
     IoError(#[from] io::Error),
     #[error(transparent)]
     DecodeStringError(#[from] genie_support::DecodeStringError),
+    #[error("Could not read embedded scenario data: {0}")]
+    ReadScenarioError(#[from] genie_scx::Error),
 }
 
 impl From<genie_support::ReadStringError> for Error {

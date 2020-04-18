@@ -122,7 +122,7 @@ impl ScenarioObject {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub(crate) struct RGEScen {
     /// Data version.
     pub(crate) version: f32,
@@ -192,10 +192,11 @@ impl RGEScen {
 
         assert_eq!(input.read_i16::<LE>()?, 0, "Unexpected RGE_Timeline");
         assert_eq!(input.read_i16::<LE>()?, 0, "Unexpected RGE_Timeline");
-        assert!([-1.0, 0.0].contains(&input.read_f32::<LE>()?));
+        let _old_time = input.read_f32::<LE>()?;
 
         let name_length = input.read_i16::<LE>()? as usize;
-        let name = read_str(&mut input, name_length)?.ok_or(Error::MissingFileNameError)?;
+        // File name may be empty for embedded scenario data inside recorded games.
+        let name = read_str(&mut input, name_length)?.unwrap_or_default();
 
         let (
             description_string_table,
@@ -491,8 +492,8 @@ impl RGEScen {
     }
 }
 
-#[derive(Debug, Clone)]
-pub(crate) struct TribeScen {
+#[derive(Debug, Default, Clone)]
+pub struct TribeScen {
     /// "Engine" data.
     ///
     /// This distinction doesn't make much sense as a user of this library, but

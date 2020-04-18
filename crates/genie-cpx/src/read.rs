@@ -213,14 +213,14 @@ where
     pub fn by_name(&mut self, filename: &str) -> Result<Scenario> {
         self.by_name_raw(filename)
             .map(Cursor::new)
-            .and_then(|mut buf| Scenario::from(&mut buf).map_err(ReadCampaignError::ParseSCXError))
+            .and_then(|buf| Scenario::read_from(buf).map_err(ReadCampaignError::ParseSCXError))
     }
 
     /// Get a scenario by its campaign index.
     pub fn by_index(&mut self, index: usize) -> Result<Scenario> {
         self.by_index_raw(index)
             .map(Cursor::new)
-            .and_then(|mut buf| Scenario::from(&mut buf).map_err(ReadCampaignError::ParseSCXError))
+            .and_then(|buf| Scenario::read_from(buf).map_err(ReadCampaignError::ParseSCXError))
     }
 
     /// Get a scenario file buffer by its file name.

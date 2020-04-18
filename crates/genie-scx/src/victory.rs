@@ -1,6 +1,6 @@
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::io::{Read, Write};
+use std::io::{self, Read, Write};
 
 /// AoE1's victory info.
 ///
@@ -93,7 +93,7 @@ pub struct VictoryEntry {
 }
 
 impl VictoryEntry {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn from<R: Read>(input: &mut R) -> io::Result<Self> {
         let command = input.read_i8()?;
         let object_type = input.read_i32::<LE>()?;
         let player_id = input.read_i32::<LE>()?;
@@ -162,7 +162,7 @@ pub struct VictoryPointEntry {
 }
 
 impl VictoryPointEntry {
-    pub fn from<R: Read>(input: &mut R, version: f32) -> Result<Self> {
+    pub fn from<R: Read>(input: &mut R, version: f32) -> io::Result<Self> {
         let command = input.read_i8()?;
         let state = input.read_i8()?;
         let attribute = input.read_i32::<LE>()?;
@@ -212,19 +212,19 @@ impl VictoryPointEntry {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct VictoryConditions {
-    version: f32,
+    pub version: f32,
     victory: bool,
-    total_points: i32,
-    starting_points: i32,
-    starting_group: i32,
-    entries: Vec<VictoryEntry>,
-    point_entries: Vec<VictoryPointEntry>,
+    pub total_points: i32,
+    pub starting_points: i32,
+    pub starting_group: i32,
+    pub entries: Vec<VictoryEntry>,
+    pub point_entries: Vec<VictoryPointEntry>,
 }
 
 impl VictoryConditions {
-    pub fn from<R: Read>(input: &mut R, has_version: bool) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, has_version: bool) -> io::Result<Self> {
         let version = if has_version {
             input.read_f32::<LE>()?
         } else {
@@ -236,7 +236,7 @@ impl VictoryConditions {
 
         let mut entries = Vec::with_capacity(num_conditions as usize);
         for _ in 0..num_conditions {
-            entries.push(VictoryEntry::from(input)?);
+            entries.push(VictoryEntry::from(&mut input)?);
         }
 
         let mut total_points = 0;
@@ -254,7 +254,7 @@ impl VictoryConditions {
             }
 
             for _ in 0..num_point_entries {
-                point_entries.push(VictoryPointEntry::from(input, version)?);
+                point_entries.push(VictoryPointEntry::from(&mut input, version)?);
             }
         }
 
@@ -267,6 +267,11 @@ impl VictoryConditions {
             entries,
             point_entries,
         })
+    }
+
+    #[deprecated = "Use VictoryConditions::read_from instead"]
+    pub fn from<R: Read>(input: &mut R, has_version: bool) -> Result<Self> {
+        Ok(Self::read_from(input, has_version)?)
     }
 
     pub fn write_to<W: Write>(&self, output: &mut W, version: Option<f32>) -> Result<()> {

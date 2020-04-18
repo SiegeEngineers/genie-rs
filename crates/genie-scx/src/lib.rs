@@ -26,13 +26,14 @@ use genie_support::{ReadStringError, WriteStringError};
 use std::io::{self, Read, Write};
 
 pub use ai::ParseAIErrorCodeError;
-pub use format::ScenarioObject;
+pub use format::{ScenarioObject, TribeScen};
 pub use genie_support::{DecodeStringError, EncodeStringError};
 pub use genie_support::{StringKey, UnitTypeID};
 pub use header::{DLCOptions, SCXHeader};
 pub use map::{Map, Tile};
 pub use triggers::{Trigger, TriggerCondition, TriggerEffect, TriggerSystem};
 pub use types::*;
+pub use victory::{VictoryConditions, VictoryEntry, VictoryPointEntry};
 
 /// Error type for SCX methods, containing all types of errors that may occur while reading or
 /// writing scenario files.
@@ -120,12 +121,17 @@ pub struct Scenario {
 
 impl Scenario {
     /// Read a scenario file.
-    #[inline]
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
-        let format = SCXFormat::load_scenario(input)?;
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
+        let format = SCXFormat::load_scenario(&mut input)?;
         let version = format.version();
 
         Ok(Self { format, version })
+    }
+
+    /// Read a scenario file.
+    #[deprecated = "Use Scenario::read_from instead."]
+    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+        Self::read_from(input)
     }
 
     /// Write the scenario file to an output stream.
