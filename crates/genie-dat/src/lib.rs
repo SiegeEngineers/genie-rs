@@ -29,7 +29,9 @@ use genie_support::{cmp_float, ReadSkipExt, TechID};
 pub use random_map::*;
 pub use sound::{Sound, SoundID, SoundItem};
 pub use sprite::{GraphicID, SoundProp, Sprite, SpriteAttackSound, SpriteDelta, SpriteID};
+use std::cmp::{Ordering, PartialOrd};
 use std::convert::TryInto;
+use std::fmt;
 use std::io::{Read, Result, Write};
 pub use task::{Task, TaskList};
 pub use tech::{Tech, TechEffect};
@@ -72,11 +74,54 @@ pub struct FileVersion([u8; 8]);
 
 impl From<[u8; 8]> for FileVersion {
     fn from(identifier: [u8; 8]) -> Self {
+        assert!(matches!(
+            identifier,
+            // "VER *.*\0"
+            [b'V', b'E', b'R', b' ', b'0'..=b'9', b'.', b'0'..=b'9', 0]
+        ));
         Self(identifier)
     }
 }
 
+impl From<&str> for FileVersion {
+    fn from(string: &str) -> Self {
+        assert!(string.len() <= 8);
+        let mut bytes = [0; 8];
+        (&mut bytes[..string.len()]).copy_from_slice(string.as_bytes());
+        Self::from(bytes)
+    }
+}
+
+impl fmt::Display for FileVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match std::str::from_utf8(&self.0[0..7]) {
+            Ok(s) => write!(f, "{}", s),
+            Err(_) => write!(f, "{:?}", self.0),
+        }
+    }
+}
+
+impl PartialOrd for FileVersion {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match self.major_version().partial_cmp(&other.major_version()) {
+            None | Some(Ordering::Equal) => {
+                self.minor_version().partial_cmp(&other.minor_version())
+            }
+            Some(order) => Some(order),
+        }
+    }
+}
+
 impl FileVersion {
+    /// Get the major version component, eg the 5 in "VER 5.8".
+    fn major_version(self) -> u8 {
+        self.0[4] - b'0'
+    }
+    /// Get the minor version component, eg the 8 in "VER 5.8".
+    fn minor_version(self) -> u8 {
+        self.0[6] - b'0'
+    }
+
     /// Is this file built for Star Wars: Galactic Battlegrounds?
     pub fn is_swgb(self) -> bool {
         false
@@ -86,6 +131,11 @@ impl FileVersion {
     pub fn is_aoc(self) -> bool {
         let data_version = self.into_data_version();
         cmp_float!(data_version == 11.97)
+    }
+
+    /// Is this file built for Age of Empires II: Definitive Edition?
+    pub fn is_de2(self) -> bool {
+        self >= FileVersion(*b"VER 5.8\0")
     }
 
     /// Get the data version associated with this file version.

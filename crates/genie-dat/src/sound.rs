@@ -102,6 +102,9 @@ impl Sound {
         sound.play_delay = input.read_i16::<LE>()?;
         let num_items = input.read_u16::<LE>()?;
         sound.cache_time = input.read_i32::<LE>()?;
+        if version.is_de2() {
+            let _total_probability = input.read_u16::<LE>()?;
+        }
         for _ in 0..num_items {
             sound.items.push(SoundItem::read_from(input, version)?);
         }
