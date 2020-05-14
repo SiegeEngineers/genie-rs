@@ -48,9 +48,10 @@ impl Map {
         }
     }
 
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let width = input.read_u32::<LE>()?;
         let height = input.read_u32::<LE>()?;
+        log::debug!("Map size: {}×{}", width, height);
 
         let mut tiles = Vec::with_capacity((height * height) as usize);
         for _ in 0..height {
@@ -60,6 +61,9 @@ impl Map {
                     elevation: input.read_i8()?,
                     zone: input.read_i8()?,
                 });
+                input.read_u8()?;
+                input.read_u8()?;
+                input.read_u8()?;
             }
         }
 

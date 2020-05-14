@@ -15,6 +15,7 @@ use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 use genie_support::{
     cmp_float, read_opt_u32, read_str, write_opt_str, write_str, StringKey, UnitTypeID,
+    ReadSkipExt,
 };
 use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
@@ -158,8 +159,9 @@ pub(crate) struct RGEScen {
 }
 
 impl RGEScen {
-    pub fn from(mut input: impl Read) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let version = input.read_f32::<LE>()?;
+        log::debug!("RGEScen version {}", version);
         let mut player_names = vec![None; 16];
         if version > 1.13 {
             for name in player_names.iter_mut() {
@@ -190,9 +192,17 @@ impl RGEScen {
             true
         };
 
-        assert_eq!(input.read_i16::<LE>()?, 0, "Unexpected RGE_Timeline");
-        assert_eq!(input.read_i16::<LE>()?, 0, "Unexpected RGE_Timeline");
-        let _old_time = input.read_f32::<LE>()?;
+        {
+            let _timeline_count = input.read_i16::<LE>()?;
+            let _timeline_available = input.read_i16::<LE>()?;
+            let _old_time = input.read_f32::<LE>()?;
+            assert_eq!(_timeline_count, 0, "Unexpected RGE_Timeline");
+            assert_eq!(_timeline_available, 0, "Unexpected RGE_Timeline");
+        }
+
+        if version >= 1.28 {
+            input.skip(64)?;
+        }
 
         let name_length = input.read_i16::<LE>()? as usize;
         // File name may be empty for embedded scenario data inside recorded games.
@@ -533,10 +543,16 @@ pub struct TribeScen {
     num_disabled_buildings: Vec<i32>,
     /// Disabled building IDs per player.
     disabled_buildings: Vec<Vec<i32>>,
-    /// Some unknown scenario option...
-    unknown_scenario_option: i32,
-    /// Some unknown scenario option...
-    unknown_scenario_option_2: i32,
+    /// (What exactly?)
+    ///
+    /// According to [AoE2ScenarioParser][].
+    /// [AoE2ScenarioParser]: https://github.com/KSneijders/AoE2ScenarioParser/blob/8e3abd422164961aa5c7857350475088790804f8/AoE2ScenarioParser/pieces/options.py
+    combat_mode: i32,
+    /// (What exactly?)
+    ///
+    /// According to [AoE2ScenarioParser][].
+    /// [AoE2ScenarioParser]: https://github.com/KSneijders/AoE2ScenarioParser/blob/8e3abd422164961aa5c7857350475088790804f8/AoE2ScenarioParser/pieces/options.py
+    naval_mode: i32,
     /// Whether "All Techs" is enabled.
     all_techs: bool,
     /// The starting age per player.
@@ -555,7 +571,7 @@ impl TribeScen {
     }
 
     pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let mut base = RGEScen::from(&mut input)?;
+        let mut base = RGEScen::read_from(&mut input)?;
         let version = base.version;
 
         let mut player_start_resources = vec![PlayerStartResources::default(); 16];
@@ -650,28 +666,42 @@ impl TribeScen {
         let mut num_disabled_buildings = vec![0; 16];
         let mut disabled_buildings = vec![vec![]; 16];
 
-        if version >= 1.18 {
-            for num in num_disabled_techs.iter_mut() {
-                *num = input.read_i32::<LE>()?;
+        if version >= 1.28 {
+            // Definitive Edition only stores the exact number of disabled techs/units/buildings.
+            input.read_i32_into::<LE>(&mut num_disabled_techs)?;
+            for (player_disabled_techs, &num) in disabled_techs.iter_mut().zip(num_disabled_techs.iter()) {
+                *player_disabled_techs = vec![0; num as usize];
+                input.read_i32_into::<LE>(player_disabled_techs)?;
             }
+
+            input.read_i32_into::<LE>(&mut num_disabled_units)?;
+            for (player_disabled_units, &num) in disabled_units.iter_mut().zip(num_disabled_units.iter()) {
+                *player_disabled_units = vec![0; num as usize];
+                input.read_i32_into::<LE>(player_disabled_units)?;
+            }
+
+            input.read_i32_into::<LE>(&mut num_disabled_buildings)?;
+            for (player_disabled_buildings, &num) in disabled_buildings.iter_mut().zip(num_disabled_buildings.iter()) {
+                *player_disabled_buildings = vec![0; num as usize];
+                input.read_i32_into::<LE>(player_disabled_buildings)?;
+            }
+        } else if version >= 1.18 {
+            // AoC and friends store up to 20 or 30 of each.
+            input.read_i32_into::<LE>(&mut num_disabled_techs)?;
             for player_disabled_techs in disabled_techs.iter_mut() {
                 for _ in 0..30 {
                     player_disabled_techs.push(input.read_i32::<LE>()?);
                 }
             }
 
-            for num in num_disabled_units.iter_mut() {
-                *num = input.read_i32::<LE>()?;
-            }
+            input.read_i32_into::<LE>(&mut num_disabled_units)?;
             for player_disabled_units in disabled_units.iter_mut() {
                 for _ in 0..30 {
                     player_disabled_units.push(input.read_i32::<LE>()?);
                 }
             }
 
-            for num in num_disabled_buildings.iter_mut() {
-                *num = input.read_i32::<LE>()?;
-            }
+            input.read_i32_into::<LE>(&mut num_disabled_buildings)?;
             let max_disabled_buildings = if version >= 1.25 { 30 } else { 20 };
             for player_disabled_buildings in disabled_buildings.iter_mut() {
                 for _ in 0..max_disabled_buildings {
@@ -682,9 +712,7 @@ impl TribeScen {
             // Old scenarios only allowed disabling up to 20 techs per player.
             for i in 0..16 {
                 let player_disabled_techs = &mut disabled_techs[i];
-                for _ in 0..20 {
-                    player_disabled_techs.push(input.read_i32::<LE>()?);
-                }
+                input.read_i32_into::<LE>(&mut player_disabled_techs[0..20])?;
                 // The number of disabled techs wasn't stored either, so we need to guess it!
                 num_disabled_techs[i] = player_disabled_techs
                     .iter()
@@ -696,12 +724,12 @@ impl TribeScen {
             // <= 1.03 did not support disabling anything
         }
 
-        let unknown_scenario_option = if version > 1.04 {
+        let combat_mode = if version > 1.04 {
             input.read_i32::<LE>()?
         } else {
             0
         };
-        let (unknown_scenario_option_2, all_techs) = if version >= 1.12 {
+        let (naval_mode, all_techs) = if version >= 1.12 {
             (input.read_i32::<LE>()?, input.read_i32::<LE>()? != 0)
         } else {
             (0, false)
@@ -739,9 +767,13 @@ impl TribeScen {
 
         let mut base_priorities = vec![0; 16];
         if version >= 1.24 {
-            for priority in base_priorities.iter_mut() {
-                *priority = input.read_i8()?;
-            }
+            input.read_i8_into(&mut base_priorities)?;
+        }
+
+        if version >= 1.28 {
+            let mut unknown = [0; 4];
+            input.read_exact(&mut unknown)?;
+            dbg!(unknown);
         }
 
         Ok(TribeScen {
@@ -765,8 +797,8 @@ impl TribeScen {
             disabled_units,
             num_disabled_buildings,
             disabled_buildings,
-            unknown_scenario_option,
-            unknown_scenario_option_2,
+            combat_mode,
+            naval_mode,
             all_techs,
             player_start_ages,
             view,
@@ -1002,17 +1034,42 @@ impl SCXFormat {
         }
     }
 
-    fn load_121<R: Read>(version: SCXVersion, player_version: f32, input: &mut R) -> Result<Self> {
-        let header = SCXHeader::from(input, version)?;
+    fn load_121(version: SCXVersion, player_version: f32, mut input: impl Read) -> Result<Self> {
+        let header = SCXHeader::read_from(&mut input, version)?;
 
-        let mut input = DeflateDecoder::new(input);
+        let mut input = DeflateDecoder::new(&mut input);
         let next_object_id = input.read_i32::<LE>()?;
 
         let tribe_scen = TribeScen::read_from(&mut input)?;
 
-        let map = Map::from(&mut input)?;
+        if tribe_scen.version() >= 1.28 {
+            dbg!(input.read_u16::<LE>()?);
+            let _str = {
+                let len = input.read_u16::<LE>()?;
+                read_str(&mut input, dbg!(len) as usize)?
+            };
+            dbg!(_str);
+            /*
+            dbg!(input.read_u16::<LE>()?);
+            let color_mood = {
+                let len = input.read_u16::<LE>()?;
+                read_str(&mut input, dbg!(len) as usize)?
+            };
+            dbg!(color_mood);
+            dbg!(input.read_u8()?);
+            dbg!(input.read_u8()?);
+            let _camera = (
+                input.read_f32::<LE>()?,
+                input.read_f32::<LE>()?,
+            );
+            dbg!(_camera);
+            */
+        }
+
+        let map = Map::read_from(&mut input)?;
 
         let num_players = input.read_i32::<LE>()?;
+        log::debug!("number of players: {}", num_players);
         let mut world_players = vec![];
         for _ in 1..num_players {
             world_players.push(WorldPlayerData::from(&mut input, player_version)?);
@@ -1029,6 +1086,7 @@ impl SCXFormat {
         }
 
         let num_scenario_players = input.read_i32::<LE>()?;
+        log::debug!("number of scenario players: {}", num_scenario_players);
         let mut scenario_players = vec![];
         for _ in 1..num_scenario_players {
             scenario_players.push(ScenarioPlayerData::from(&mut input, player_version)?);

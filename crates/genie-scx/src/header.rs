@@ -89,7 +89,7 @@ pub struct SCXHeader {
 
 impl SCXHeader {
     /// Parse an SCX header from a byte stream.
-    pub fn from<R: Read>(input: &mut R, format_version: SCXVersion) -> Result<SCXHeader> {
+    pub fn read_from(mut input: impl Read, format_version: SCXVersion) -> Result<SCXHeader> {
         let _header_size = input.read_u32::<LE>()?;
         let version = input.read_u32::<LE>()?;
         let timestamp = if version >= 2 {
@@ -104,13 +104,13 @@ impl SCXHeader {
         } else {
             input.read_u32::<LE>()? as usize
         };
-        let description = read_str(input, description_length)?;
+        let description = read_str(&mut input, description_length)?;
 
         let any_sp_victory = input.read_u32::<LE>()? != 0;
         let active_player_count = input.read_u32::<LE>()?;
 
         let dlc_options = if version > 2 && format_version != *b"3.13" {
-            Some(DLCOptions::from(input)?)
+            Some(DLCOptions::from(&mut input)?)
         } else {
             None
         };
