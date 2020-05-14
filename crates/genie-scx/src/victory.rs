@@ -1,7 +1,7 @@
 use crate::types::VictoryCondition;
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::io::{self, Read, Write};
+use std::io::{Read, Write};
 
 /// AoE1's victory info.
 ///
@@ -230,7 +230,7 @@ impl VictoryConditions {
         Ok(Self::read_from(input, has_version)?)
     }
 
-    pub fn read_from(mut input: impl Read, has_version: bool) -> io::Result<Self> {
+    pub fn read_from(mut input: impl Read, has_version: bool) -> Result<Self> {
         let version = if has_version {
             input.read_f32::<LE>()?
         } else {
