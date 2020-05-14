@@ -56,14 +56,18 @@ impl Map {
         let mut tiles = Vec::with_capacity((height * height) as usize);
         for _ in 0..height {
             for _ in 0..width {
-                tiles.push(Tile {
+                let tile = Tile {
                     terrain: input.read_i8()?,
                     elevation: input.read_i8()?,
                     zone: input.read_i8()?,
-                });
-                input.read_u8()?;
-                input.read_u8()?;
-                input.read_u8()?;
+                };
+                if version >= 1.28 {
+                    let _more_data = input.read_u32::<LE>()?;
+                    if _more_data != 0xFF_FF_FF_FF {
+                        log::debug!("DE2 Terrain data: {}", _more_data);
+                    }
+                }
+                tiles.push(tile);
             }
         }
 
