@@ -74,7 +74,7 @@ impl Map {
         })
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
         output.write_u32::<LE>(self.width)?;
         output.write_u32::<LE>(self.height)?;
 

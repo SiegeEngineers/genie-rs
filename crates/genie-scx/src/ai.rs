@@ -95,7 +95,7 @@ fn parse_bytes(bytes: &[u8]) -> std::result::Result<String, ReadStringError> {
 }
 
 impl AIErrorInfo {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut filename_bytes = [0; 257];
         input.read_exact(&mut filename_bytes)?;
         let line_number = input.read_i32::<LE>()?;
@@ -122,11 +122,11 @@ pub struct AIFile {
 }
 
 impl AIFile {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let len = input.read_i32::<LE>()? as usize;
-        let filename = read_str(input, len)?.expect("missing ai file name");
+        let filename = read_str(&mut input, len)?.expect("missing ai file name");
         let len = input.read_i32::<LE>()? as usize;
-        let content = read_str(input, len)?.expect("empty ai file?");
+        let content = read_str(&mut input, len)?.expect("empty ai file?");
 
         Ok(Self { filename, content })
     }
@@ -139,7 +139,7 @@ pub struct AIInfo {
 }
 
 impl AIInfo {
-    pub fn from<R: Read>(input: &mut R) -> Result<Option<Self>> {
+    pub fn read_from(mut input: impl Read) -> Result<Option<Self>> {
         let has_ai_files = input.read_u32::<LE>()? != 0;
         let has_error = input.read_u32::<LE>()? != 0;
 
@@ -148,7 +148,7 @@ impl AIInfo {
         }
 
         let error = if has_error {
-            Some(AIErrorInfo::from(input)?)
+            Some(AIErrorInfo::read_from(&mut input)?)
         } else {
             None
         };
@@ -156,13 +156,13 @@ impl AIInfo {
         let num_ai_files = input.read_u32::<LE>()?;
         let mut files = vec![];
         for _ in 0..num_ai_files {
-            files.push(AIFile::from(input)?);
+            files.push(AIFile::read_from(&mut input)?);
         }
 
         Ok(Some(Self { error, files }))
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
         output.write_u32::<LE>(0)?;
         output.write_u32::<LE>(0)?;
         Ok(())

@@ -61,7 +61,7 @@ pub struct ScenarioObject {
 }
 
 impl ScenarioObject {
-    pub fn from<R: Read>(input: &mut R, version: SCXVersion) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, version: SCXVersion) -> Result<Self> {
         let position = (
             input.read_f32::<LE>()?,
             input.read_f32::<LE>()?,
@@ -102,7 +102,7 @@ impl ScenarioObject {
         })
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W, version: SCXVersion) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write, version: SCXVersion) -> Result<()> {
         output.write_f32::<LE>(self.position.0)?;
         output.write_f32::<LE>(self.position.1)?;
         output.write_f32::<LE>(self.position.2)?;
@@ -275,7 +275,7 @@ impl RGEScen {
         };
 
         let _mission_picture = if version >= 1.10 {
-            Bitmap::from(&mut input)?
+            Bitmap::read_from(&mut input)?
         } else {
             None
         };
@@ -358,7 +358,7 @@ impl RGEScen {
         })
     }
 
-    pub fn write_to<W: Write>(&self, mut output: &mut W, version: f32) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
         output.write_f32::<LE>(version)?;
 
         if version > 1.13 {
@@ -400,7 +400,7 @@ impl RGEScen {
         output.write_i16::<LE>(0)?;
         output.write_f32::<LE>(-1.0)?;
 
-        write_str(output, &self.name)?;
+        write_str(&mut output, &self.name)?;
 
         if version >= 1.16 {
             write_opt_string_key(&mut output, &self.description_string_table)?;
@@ -413,23 +413,23 @@ impl RGEScen {
             write_opt_string_key(&mut output, &self.scout_string_table)?;
         }
 
-        write_opt_str(output, &self.description)?;
+        write_opt_str(&mut output, &self.description)?;
         if version >= 1.11 {
-            write_opt_str(output, &self.hints)?;
-            write_opt_str(output, &self.win_message)?;
-            write_opt_str(output, &self.loss_message)?;
-            write_opt_str(output, &self.history)?;
+            write_opt_str(&mut output, &self.hints)?;
+            write_opt_str(&mut output, &self.win_message)?;
+            write_opt_str(&mut output, &self.loss_message)?;
+            write_opt_str(&mut output, &self.history)?;
         }
         if version >= 1.22 {
-            write_opt_str(output, &self.scout)?;
+            write_opt_str(&mut output, &self.scout)?;
         }
 
-        write_opt_str(output, &self.pregame_cinematic)?;
-        write_opt_str(output, &self.victory_cinematic)?;
-        write_opt_str(output, &self.loss_cinematic)?;
+        write_opt_str(&mut output, &self.pregame_cinematic)?;
+        write_opt_str(&mut output, &self.victory_cinematic)?;
+        write_opt_str(&mut output, &self.loss_cinematic)?;
         if version >= 1.09 {
             // mission_bmp
-            write_opt_str(output, &None)?;
+            write_opt_str(&mut output, &None)?;
         }
 
         if version >= 1.10 {
@@ -442,18 +442,18 @@ impl RGEScen {
 
         assert_eq!(self.player_build_lists.len(), 16);
         for build_list in &self.player_build_lists {
-            write_opt_str(output, build_list)?;
+            write_opt_str(&mut output, build_list)?;
         }
 
         assert_eq!(self.player_city_plans.len(), 16);
         for city_plan in &self.player_city_plans {
-            write_opt_str(output, city_plan)?;
+            write_opt_str(&mut output, city_plan)?;
         }
 
         if version >= 1.08 {
             assert_eq!(self.player_ai_rules.len(), 16);
             for ai_rules in &self.player_ai_rules {
-                write_opt_str(output, ai_rules)?;
+                write_opt_str(&mut output, ai_rules)?;
             }
         }
 
@@ -585,7 +585,7 @@ impl TribeScen {
             for i in 0..16 {
                 let properties = &mut base.player_base_properties[i];
                 properties.active = input.read_i32::<LE>()?;
-                let resources = PlayerStartResources::from(&mut input, version)?;
+                let resources = PlayerStartResources::read_from(&mut input, version)?;
                 properties.player_type = input.read_i32::<LE>()?;
                 properties.civilization = input.read_i32::<LE>()?;
                 properties.posture = input.read_i32::<LE>()?;
@@ -593,7 +593,7 @@ impl TribeScen {
             }
         } else {
             for resources in player_start_resources.iter_mut() {
-                *resources = PlayerStartResources::from(&mut input, version)?;
+                *resources = PlayerStartResources::read_from(&mut input, version)?;
             }
         }
 
@@ -602,7 +602,7 @@ impl TribeScen {
             debug_assert_eq!(sep, -99);
         }
 
-        let victory = VictoryInfo::from(&mut input)?;
+        let victory = VictoryInfo::read_from(&mut input)?;
         let victory_all_flag = input.read_i32::<LE>()? != 0;
 
         let mp_victory_type = if version >= 1.13 {
@@ -631,7 +631,7 @@ impl TribeScen {
         let mut legacy_victory_info = vec![vec![LegacyVictoryInfo::default(); 12]; 16];
         for list in legacy_victory_info.iter_mut() {
             for victory_info in list.iter_mut() {
-                *victory_info = LegacyVictoryInfo::from(&mut input)?;
+                *victory_info = LegacyVictoryInfo::read_from(&mut input)?;
             }
         }
 
@@ -807,8 +807,8 @@ impl TribeScen {
         })
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W, version: f32) -> Result<()> {
-        self.base.write_to(output, version)?;
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+        self.base.write_to(&mut output, version)?;
 
         if version <= 1.13 {
             assert_eq!(self.base.player_names.len(), 16);
@@ -828,7 +828,7 @@ impl TribeScen {
                 let properties = &self.base.player_base_properties[i];
                 let resources = &self.player_start_resources[i];
                 output.write_i32::<LE>(properties.active)?;
-                resources.write_to(output, version)?;
+                resources.write_to(&mut output, version)?;
                 output.write_i32::<LE>(properties.player_type)?;
                 output.write_i32::<LE>(properties.civilization)?;
                 output.write_i32::<LE>(properties.posture)?;
@@ -836,7 +836,7 @@ impl TribeScen {
         } else {
             assert_eq!(self.player_start_resources.len(), 16);
             for start_resources in &self.player_start_resources {
-                start_resources.write_to(output, version)?;
+                start_resources.write_to(&mut output, version)?;
             }
         }
 
@@ -844,7 +844,7 @@ impl TribeScen {
             output.write_i32::<LE>(-99)?;
         }
 
-        self.victory.write_to(output)?;
+        self.victory.write_to(&mut output)?;
         output.write_i32::<LE>(if self.victory_all_flag { 1 } else { 0 })?;
 
         if version >= 1.13 {
@@ -864,7 +864,7 @@ impl TribeScen {
         assert_eq!(self.legacy_victory_info.len(), 16);
         for list in &self.legacy_victory_info {
             for entry in list {
-                entry.write_to(output)?;
+                entry.write_to(&mut output)?;
             }
         }
 
@@ -1072,7 +1072,7 @@ impl SCXFormat {
         log::debug!("number of players: {}", num_players);
         let mut world_players = vec![];
         for _ in 1..num_players {
-            world_players.push(WorldPlayerData::from(&mut input, player_version)?);
+            world_players.push(WorldPlayerData::read_from(&mut input, player_version)?);
         }
 
         let mut player_objects = vec![];
@@ -1080,7 +1080,7 @@ impl SCXFormat {
             let mut objects = vec![];
             let num_objects = input.read_u32::<LE>()?;
             for _ in 0..num_objects {
-                objects.push(ScenarioObject::from(&mut input, version)?);
+                objects.push(ScenarioObject::read_from(&mut input, version)?);
             }
             player_objects.push(objects);
         }
@@ -1089,19 +1089,23 @@ impl SCXFormat {
         log::debug!("number of scenario players: {}", num_scenario_players);
         let mut scenario_players = vec![];
         for _ in 1..num_scenario_players {
-            scenario_players.push(ScenarioPlayerData::from(&mut input, player_version)?);
+            scenario_players.push(ScenarioPlayerData::read_from(&mut input, player_version)?);
         }
+        dbg!(&scenario_players
+            .iter()
+            .map(|p| &p.victory)
+            .collect::<Vec<_>>());
 
         let triggers = if cmp_scx_version(version, *b"1.14") == Ordering::Less {
             None
         } else {
-            Some(TriggerSystem::from(&mut input)?)
+            Some(TriggerSystem::read_from(&mut input)?)
         };
 
         let ai_info = if cmp_scx_version(version, *b"1.17") == Ordering::Greater
             && cmp_scx_version(version, *b"2.00") == Ordering::Less
         {
-            AIInfo::from(&mut input)?
+            AIInfo::read_from(&mut input)?
         } else {
             None
         };
@@ -1120,7 +1124,7 @@ impl SCXFormat {
         })
     }
 
-    pub fn load_scenario<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn load_scenario(mut input: impl Read) -> Result<Self> {
         let mut format_version = [0; 4];
         input.read_exact(&mut format_version)?;
         match &format_version {
@@ -1145,7 +1149,7 @@ impl SCXFormat {
         }
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W, version: &VersionBundle) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write, version: &VersionBundle) -> Result<()> {
         let player_version = match &version.format {
             b"1.07" => 1.07,
             b"1.09" | b"1.10" | b"1.11" => 1.11,
@@ -1160,7 +1164,7 @@ impl SCXFormat {
 
         output.write_all(&version.format)?;
         self.header
-            .write_to(output, version.format, version.header)?;
+            .write_to(&mut output, version.format, version.header)?;
 
         let mut output = DeflateEncoder::new(output, Compression::default());
         output.write_i32::<LE>(self.next_object_id)?;
@@ -1234,7 +1238,7 @@ impl SCXFormat {
     }
 }
 
-fn write_opt_string_key<W: Write>(output: &mut W, opt_key: &Option<StringKey>) -> Result<()> {
+fn write_opt_string_key(mut output: impl Write, opt_key: &Option<StringKey>) -> Result<()> {
     output.write_u32::<LE>(if let Some(key) = opt_key {
         key.try_into()
             .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?
