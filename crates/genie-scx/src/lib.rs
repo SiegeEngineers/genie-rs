@@ -142,12 +142,7 @@ impl Scenario {
     }
 
     /// Write the scenario file to an output stream, targeting specific game versions.
-    #[inline]
-    pub fn write_to_version<W: Write>(
-        &self,
-        output: &mut W,
-        version: &VersionBundle,
-    ) -> Result<()> {
+    pub fn write_to_version(&self, output: impl Write, version: &VersionBundle) -> Result<()> {
         self.format.write_to(output, version)
     }
 
