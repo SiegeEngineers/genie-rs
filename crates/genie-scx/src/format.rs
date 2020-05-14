@@ -14,24 +14,11 @@ use crate::{Error, Result, VersionBundle};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 use genie_support::{
-    cmp_float, read_opt_u32, read_str, write_opt_str, write_str, StringKey, UnitTypeID,
-    ReadSkipExt,
+    cmp_float, read_opt_u32, read_str, write_opt_str, write_str, ReadSkipExt, StringKey, UnitTypeID,
 };
 use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
 use std::io::{self, Read, Write};
-
-fn cmp_scx_version(a: SCXVersion, b: SCXVersion) -> Ordering {
-    match a[0].cmp(&b[0]) {
-        Ordering::Equal => {}
-        ord => return ord,
-    }
-    match a[2].cmp(&b[2]) {
-        Ordering::Equal => {}
-        ord => return ord,
-    }
-    a[3].cmp(&b[3])
-}
 
 // pub enum LostInformation {
 //     DisabledTechs(i32, i32),
@@ -71,12 +58,12 @@ impl ScenarioObject {
         let object_type = input.read_u16::<LE>()?.into();
         let state = input.read_u8()?;
         let angle = input.read_f32::<LE>()?;
-        let frame = if cmp_scx_version(version, *b"1.15") == Ordering::Less {
+        let frame = if version < SCXVersion(*b"1.15") {
             -1
         } else {
             input.read_i16::<LE>()?
         };
-        let garrisoned_in = if cmp_scx_version(version, *b"1.13") == Ordering::Less {
+        let garrisoned_in = if version < SCXVersion(*b"1.13") {
             None
         } else {
             Some(input.read_i32::<LE>()?)
@@ -87,7 +74,7 @@ impl ScenarioObject {
         })
         .and_then(|id| match id {
             // 0 means -1 in "recent" versions
-            0 if cmp_scx_version(version, *b"1.12") == Ordering::Greater => None,
+            0 if version > SCXVersion(*b"1.12") => None,
             id => Some(id),
         });
 
@@ -110,10 +97,10 @@ impl ScenarioObject {
         output.write_u16::<LE>(self.object_type.into())?;
         output.write_u8(self.state)?;
         output.write_f32::<LE>(self.angle)?;
-        if cmp_scx_version(version, *b"1.14") == Ordering::Greater {
+        if version > SCXVersion(*b"1.14") {
             output.write_i16::<LE>(self.frame)?;
         }
-        if cmp_scx_version(version, *b"1.12") == Ordering::Greater {
+        if version > SCXVersion(*b"1.12") {
             match self.garrisoned_in {
                 Some(id) => output.write_i32::<LE>(id)?,
                 None => output.write_i32::<LE>(-1)?,
@@ -669,19 +656,26 @@ impl TribeScen {
         if version >= 1.28 {
             // Definitive Edition only stores the exact number of disabled techs/units/buildings.
             input.read_i32_into::<LE>(&mut num_disabled_techs)?;
-            for (player_disabled_techs, &num) in disabled_techs.iter_mut().zip(num_disabled_techs.iter()) {
+            for (player_disabled_techs, &num) in
+                disabled_techs.iter_mut().zip(num_disabled_techs.iter())
+            {
                 *player_disabled_techs = vec![0; num as usize];
                 input.read_i32_into::<LE>(player_disabled_techs)?;
             }
 
             input.read_i32_into::<LE>(&mut num_disabled_units)?;
-            for (player_disabled_units, &num) in disabled_units.iter_mut().zip(num_disabled_units.iter()) {
+            for (player_disabled_units, &num) in
+                disabled_units.iter_mut().zip(num_disabled_units.iter())
+            {
                 *player_disabled_units = vec![0; num as usize];
                 input.read_i32_into::<LE>(player_disabled_units)?;
             }
 
             input.read_i32_into::<LE>(&mut num_disabled_buildings)?;
-            for (player_disabled_buildings, &num) in disabled_buildings.iter_mut().zip(num_disabled_buildings.iter()) {
+            for (player_disabled_buildings, &num) in disabled_buildings
+                .iter_mut()
+                .zip(num_disabled_buildings.iter())
+            {
                 *player_disabled_buildings = vec![0; num as usize];
                 input.read_i32_into::<LE>(player_disabled_buildings)?;
             }
@@ -1066,7 +1060,7 @@ impl SCXFormat {
             */
         }
 
-        let map = Map::read_from(&mut input)?;
+        let map = Map::read_from(&mut input, tribe_scen.version())?;
 
         let num_players = input.read_i32::<LE>()?;
         log::debug!("number of players: {}", num_players);
@@ -1096,15 +1090,13 @@ impl SCXFormat {
             .map(|p| &p.victory)
             .collect::<Vec<_>>());
 
-        let triggers = if cmp_scx_version(version, *b"1.14") == Ordering::Less {
+        let triggers = if version < SCXVersion(*b"1.14") {
             None
         } else {
             Some(TriggerSystem::read_from(&mut input)?)
         };
 
-        let ai_info = if cmp_scx_version(version, *b"1.17") == Ordering::Greater
-            && cmp_scx_version(version, *b"2.00") == Ordering::Less
-        {
+        let ai_info = if version > SCXVersion(*b"1.17") && version < SCXVersion(*b"2.00") {
             AIInfo::read_from(&mut input)?
         } else {
             None
@@ -1127,7 +1119,8 @@ impl SCXFormat {
     pub fn load_scenario(mut input: impl Read) -> Result<Self> {
         let mut format_version = [0; 4];
         input.read_exact(&mut format_version)?;
-        match &format_version {
+        let format_version = SCXVersion(format_version);
+        match format_version.as_bytes() {
             b"1.01" => unimplemented!(),
             b"1.02" => unimplemented!(),
             b"1.03" => unimplemented!(),
@@ -1150,19 +1143,16 @@ impl SCXFormat {
     }
 
     pub fn write_to(&self, mut output: impl Write, version: &VersionBundle) -> Result<()> {
-        let player_version = match &version.format {
+        let player_version = match version.format.as_bytes() {
             b"1.07" => 1.07,
             b"1.09" | b"1.10" | b"1.11" => 1.11,
             b"1.12" | b"1.13" | b"1.14" | b"1.15" | b"1.16" => 1.12,
             b"1.18" | b"1.19" => 1.13,
-            b"1.14" | b"1.20" | b"1.21" => 1.14,
-            _ => panic!(
-                "writing version {} is not supported",
-                String::from_utf8_lossy(&version.format)
-            ),
+            b"1.20" | b"1.21" => 1.14,
+            _ => panic!("writing version {} is not supported", version.format),
         };
 
-        output.write_all(&version.format)?;
+        output.write_all(version.format.as_bytes())?;
         self.header
             .write_to(&mut output, version.format, version.header)?;
 
@@ -1189,7 +1179,7 @@ impl SCXFormat {
             player.write_to(&mut output, player_version, version.victory)?;
         }
 
-        if cmp_scx_version(version.format, *b"1.13") == Ordering::Greater {
+        if version.format > SCXVersion(*b"1.13") {
             let def = TriggerSystem::default();
             let triggers = match self.triggers {
                 Some(ref tr) => tr,
@@ -1198,9 +1188,7 @@ impl SCXFormat {
             triggers.write_to(&mut output, version.triggers.unwrap_or(1.6))?;
         }
 
-        if cmp_scx_version(version.format, *b"1.17") == Ordering::Greater
-            && cmp_scx_version(version.format, *b"2.00") == Ordering::Less
-        {
+        if version.format > SCXVersion(*b"1.17") && version.format < SCXVersion(*b"2.00") {
             let def = AIInfo::default();
             let ai_info = match self.ai_info {
                 Some(ref ai) => ai,

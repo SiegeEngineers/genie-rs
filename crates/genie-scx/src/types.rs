@@ -1,10 +1,70 @@
 //! Contains pure types, no IO.
 //!
 //! Most of these are more descriptive wrappers around integers.
+use std::cmp::Ordering;
 use std::convert::TryFrom;
+use std::fmt::{self, Debug, Display};
 
-/// SCX Format version.
-pub type SCXVersion = [u8; 4];
+/// The SCX Format version string. In practice, this does not really reflect the game version.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct SCXVersion(pub(crate) [u8; 4]);
+
+impl SCXVersion {
+    /// Get the raw bytes representing this scx format version.
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl Default for SCXVersion {
+    fn default() -> Self {
+        Self(*b"1.21")
+    }
+}
+
+impl Debug for SCXVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", std::str::from_utf8(&self.0).unwrap())
+    }
+}
+
+impl Display for SCXVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", std::str::from_utf8(&self.0).unwrap())
+    }
+}
+
+impl PartialEq<[u8; 4]> for SCXVersion {
+    fn eq(&self, other: &[u8; 4]) -> bool {
+        other[0] == self.0[0] && other[1] == b'.' && other[2] == self.0[2] && other[3] == self.0[3]
+    }
+}
+
+impl PartialEq<SCXVersion> for [u8; 4] {
+    fn eq(&self, other: &SCXVersion) -> bool {
+        other == self
+    }
+}
+
+impl Ord for SCXVersion {
+    fn cmp(&self, other: &SCXVersion) -> Ordering {
+        match self.0[0].cmp(&other.0[0]) {
+            Ordering::Equal => {}
+            ord => return ord,
+        }
+        match self.0[2].cmp(&other.0[2]) {
+            Ordering::Equal => {}
+            ord => return ord,
+        }
+        self.0[3].cmp(&other.0[3])
+    }
+}
+
+impl PartialOrd for SCXVersion {
+    fn partial_cmp(&self, other: &SCXVersion) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 /// Could not parse a diplomatic stance because given number is an unknown stance ID.
 #[derive(Debug, Clone, Copy, thiserror::Error)]
@@ -302,7 +362,7 @@ impl VersionBundle {
     /// A version bundle with the parameters AoE1: Rise of Rome uses by default.
     pub fn ror() -> Self {
         Self {
-            format: *b"1.11",
+            format: SCXVersion(*b"1.11"),
             header: 2,
             dlc_options: None,
             data: 1.15,
@@ -315,7 +375,7 @@ impl VersionBundle {
     /// A version bundle with the parameters AoK uses by default.
     pub fn aok() -> Self {
         Self {
-            format: *b"1.18",
+            format: SCXVersion(*b"1.18"),
             header: 2,
             dlc_options: None,
             data: 1.2,
@@ -328,7 +388,7 @@ impl VersionBundle {
     /// A version bundle with the parameters AoC uses by default
     pub fn aoc() -> Self {
         Self {
-            format: *b"1.21",
+            format: SCXVersion(*b"1.21"),
             header: 2,
             dlc_options: None,
             data: 1.22,
@@ -351,7 +411,7 @@ impl VersionBundle {
     /// A version bundle with the parameters HD Edition uses by default.
     pub fn hd_edition() -> Self {
         Self {
-            format: *b"1.21",
+            format: SCXVersion(*b"1.21"),
             header: 3,
             dlc_options: Some(1000),
             data: 1.26,
@@ -363,7 +423,7 @@ impl VersionBundle {
 
     /// Returns whether this version is (likely) for an AoK scenario.
     pub fn is_aok(&self) -> bool {
-        match &self.format {
+        match self.format.as_bytes() {
             b"1.18" | b"1.19" | b"1.20" => true,
             _ => false,
         }

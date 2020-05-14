@@ -48,7 +48,7 @@ impl Map {
         }
     }
 
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
         let width = input.read_u32::<LE>()?;
         let height = input.read_u32::<LE>()?;
         log::debug!("Map size: {}×{}", width, height);
