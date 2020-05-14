@@ -1,7 +1,7 @@
 use crate::Result;
 use crate::UnitTypeID;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{read_str, write_str};
+use genie_support::{read_opt_u32, read_str, write_str};
 use std::convert::TryInto;
 use std::io::{Read, Write};
 
@@ -425,6 +425,7 @@ pub struct Trigger {
     objective_order: i32,
     start_time: u32,
     description: Option<String>,
+    short_description: Option<String>,
     name: Option<String>,
     effects: Vec<TriggerEffect>,
     effect_order: Vec<i32>,
@@ -440,13 +441,36 @@ impl Trigger {
         let name_id = input.read_i32::<LE>()?;
         let is_objective = input.read_i8()? != 0;
         let objective_order = input.read_i32::<LE>()?;
-        let start_time = input.read_u32::<LE>()?;
 
-        let description_length = input.read_u32::<LE>()? as usize;
-        let description = read_str(&mut input, description_length)?;
+        let start_time;
+        if version >= 1.8 {
+            start_time = 0;
+            let _make_header = input.read_u8()?;
+            let _short_string_id: Option<u32> = read_opt_u32(&mut input)?;
+            let _display = input.read_u8()?;
+            let mut _unknown = [0; 5];
+            input.read_exact(&mut _unknown)?;
+            let _mute = input.read_u8()?;
+        } else {
+            start_time = input.read_u32::<LE>()?;
+        }
 
-        let name_length = input.read_u32::<LE>()? as usize;
-        let name = read_str(&mut input, name_length)?;
+        let description = {
+            let len = input.read_u32::<LE>()? as usize;
+            read_str(&mut input, len)?
+        };
+
+        let name = {
+            let len = input.read_u32::<LE>()? as usize;
+            read_str(&mut input, len)?
+        };
+
+        let short_description = if version >= 1.8 {
+            let len = input.read_u32::<LE>()? as usize;
+            read_str(&mut input, len)?
+        } else {
+            None
+        };
 
         let num_effects = input.read_i32::<LE>()?;
         let mut effects = vec![];
@@ -476,6 +500,7 @@ impl Trigger {
             objective_order,
             start_time,
             description,
+            short_description,
             name,
             effects,
             effect_order,
@@ -568,9 +593,11 @@ impl Default for TriggerSystem {
 impl TriggerSystem {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let version = input.read_f64::<LE>()?;
+        log::debug!("Trigger system version {}", version);
         let objectives_state = if version >= 1.5 { input.read_i8()? } else { 0 };
 
         let num_triggers = input.read_i32::<LE>()?;
+        log::debug!("{} triggers", num_triggers);
 
         let mut triggers = vec![];
         let mut trigger_order = vec![];

@@ -767,7 +767,6 @@ impl TribeScen {
         if version >= 1.28 {
             let mut unknown = [0; 4];
             input.read_exact(&mut unknown)?;
-            dbg!(unknown);
         }
 
         Ok(TribeScen {
@@ -1037,13 +1036,13 @@ impl SCXFormat {
         let tribe_scen = TribeScen::read_from(&mut input)?;
 
         if tribe_scen.version() >= 1.28 {
-            dbg!(input.read_u16::<LE>()?);
+            input.read_u16::<LE>()?;
             let _str = {
                 let len = input.read_u16::<LE>()?;
-                read_str(&mut input, dbg!(len) as usize)?
+                read_str(&mut input, len as usize)?
             };
-            dbg!(_str);
-            /*
+            /* According to https://github.com/KSneijders/AoE2ScenarioParser/blob/8e3abd422164961aa5c7857350475088790804f8/AoE2ScenarioParser/pieces/map.py#L7
+             * Probably added in a later version
             dbg!(input.read_u16::<LE>()?);
             let color_mood = {
                 let len = input.read_u16::<LE>()?;
@@ -1085,10 +1084,6 @@ impl SCXFormat {
         for _ in 1..num_scenario_players {
             scenario_players.push(ScenarioPlayerData::read_from(&mut input, player_version)?);
         }
-        dbg!(&scenario_players
-            .iter()
-            .map(|p| &p.victory)
-            .collect::<Vec<_>>());
 
         let triggers = if version < SCXVersion(*b"1.14") {
             None
