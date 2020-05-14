@@ -16,7 +16,6 @@ use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 use genie_support::{
     cmp_float, read_opt_u32, read_str, write_opt_str, write_str, ReadSkipExt, StringKey, UnitTypeID,
 };
-use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
 use std::io::{self, Read, Write};
 
