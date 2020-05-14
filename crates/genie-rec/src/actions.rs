@@ -822,10 +822,42 @@ pub enum GameCommand {
         player_id: PlayerID,
         speed: f32,
     },
+    /// Not used in game, but implemented.
+    Inventory {
+        player_id: PlayerID,
+        attribute_id: i16,
+        amount: f32,
+    },
+    /// Not implemented in game.
+    UpgradeTown {
+        player_id: PlayerID,
+    },
+    QuickBuild {
+        player_id: PlayerID,
+    },
+    AlliedVictory {
+        player_id: PlayerID,
+        status: bool,
+    },
+    Cheat {
+        player_id: PlayerID,
+        cheat_id: i16,
+    },
+    /// Not implemented in game.
+    SharedLos {
+        player_id: PlayerID,
+    },
+    Spies {
+        player_id: PlayerID,
+    },
     SetStrategicNumber {
         player_id: PlayerID,
         strategic_number: i16,
         value: i32,
+    },
+    /// Appears to be unused.
+    Unknown0x0c {
+        player_id: PlayerID,
     },
 }
 
@@ -872,10 +904,38 @@ impl GameCommand {
                 player_id: var1.try_into().unwrap(),
                 speed: var3,
             }),
+            0x02 => Ok(Inventory {
+                player_id: var1.try_into().unwrap(),
+                attribute_id: var2,
+                amount: var3,
+            }),
+            0x03 => Ok(UpgradeTown {
+                player_id: var1.try_into().unwrap(),
+            }),
+            0x04 => Ok(QuickBuild {
+                player_id: var1.try_into().unwrap(),
+            }),
+            0x05 => Ok(AlliedVictory {
+                player_id: var1.try_into().unwrap(),
+                status: var2 != 0,
+            }),
+            0x06 => Ok(Cheat {
+                player_id: var1.try_into().unwrap(),
+                cheat_id: var2,
+            }),
+            0x07 => Ok(SharedLos {
+                player_id: var1.try_into().unwrap(),
+            }),
+            0x0a => Ok(Spies {
+                player_id: var1.try_into().unwrap(),
+            }),
             0x0b => Ok(SetStrategicNumber {
                 player_id: var1.try_into().unwrap(),
                 strategic_number: var2,
                 value: var4.try_into().unwrap(),
+            }),
+            0x0c => Ok(Unknown0x0c {
+                player_id: var1.try_into().unwrap(),
             }),
             _ => panic!("unimplemented game command {:#x}", game_command),
         }
