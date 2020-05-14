@@ -1,7 +1,7 @@
-use crate::util::*;
 use crate::victory::VictoryConditions;
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use genie_support::{read_str, write_opt_str};
 use std::io::{Read, Write};
 
 #[derive(Debug, Default, Clone)]

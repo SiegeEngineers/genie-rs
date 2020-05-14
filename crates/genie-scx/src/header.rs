@@ -1,7 +1,7 @@
 use crate::types::{DLCPackage, DataSet, SCXVersion};
-use crate::util::*;
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use genie_support::read_str;
 use std::convert::TryFrom;
 use std::io::{Read, Write};
 

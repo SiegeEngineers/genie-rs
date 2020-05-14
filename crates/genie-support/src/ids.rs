@@ -1,4 +1,4 @@
-use crate::{fallible_try_from, fallible_try_into};
+use crate::{fallible_try_from, fallible_try_into, infallible_try_into};
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::num::TryFromIntError;
@@ -43,8 +43,74 @@ impl From<UnitTypeID> for usize {
 }
 
 fallible_try_into!(UnitTypeID, i16);
+fallible_try_from!(UnitTypeID, i16);
 fallible_try_from!(UnitTypeID, i32);
 fallible_try_from!(UnitTypeID, u32);
+
+/// An ID identifying a tech.
+#[derive(Debug, Hash, Default, Clone, Copy, PartialEq, Eq)]
+pub struct TechID(u16);
+
+impl From<u16> for TechID {
+    fn from(n: u16) -> Self {
+        TechID(n)
+    }
+}
+
+impl From<TechID> for u16 {
+    fn from(n: TechID) -> Self {
+        n.0
+    }
+}
+
+impl From<TechID> for usize {
+    fn from(n: TechID) -> Self {
+        n.0.into()
+    }
+}
+
+fallible_try_into!(TechID, i16);
+infallible_try_into!(TechID, u32);
+fallible_try_from!(TechID, i32);
+fallible_try_from!(TechID, u32);
+
+/// An ID identifying a sprite.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct SpriteID(u16);
+impl From<u16> for SpriteID {
+    fn from(n: u16) -> Self {
+        SpriteID(n)
+    }
+}
+
+impl From<SpriteID> for u16 {
+    fn from(n: SpriteID) -> Self {
+        n.0
+    }
+}
+
+impl From<SpriteID> for i32 {
+    fn from(n: SpriteID) -> Self {
+        n.0.into()
+    }
+}
+
+impl From<SpriteID> for u32 {
+    fn from(n: SpriteID) -> Self {
+        n.0.into()
+    }
+}
+
+impl From<SpriteID> for usize {
+    fn from(n: SpriteID) -> Self {
+        n.0.into()
+    }
+}
+
+fallible_try_into!(SpriteID, i16);
+fallible_try_from!(SpriteID, i16);
+fallible_try_from!(SpriteID, i32);
+fallible_try_from!(SpriteID, u32);
 
 /// A key in a language file.
 ///
@@ -173,16 +239,9 @@ impl From<String> for StringKey {
 ///
 /// When converting to a string, this does not happen, as numeric keys will be converted to
 /// strings.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, thiserror::Error)]
+#[error("could not convert StringKey to the wanted integer size")]
 pub struct TryFromStringKeyError;
-
-impl fmt::Display for TryFromStringKeyError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "could not convert StringKey to the wanted integer size")
-    }
-}
-
-impl std::error::Error for TryFromStringKeyError {}
 
 // Implement TryFrom<&StringKey> conversions for a bunch of stuff
 macro_rules! try_from_string_key {

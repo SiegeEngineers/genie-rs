@@ -3,8 +3,6 @@ use genie::Scenario;
 use std::{fs::File, path::PathBuf};
 use structopt::StructOpt;
 
-type CliResult = Result<(), Box<dyn std::error::Error>>;
-
 /// Convert Age of Empires scenario files between versions.
 #[derive(Debug, StructOpt)]
 struct Cli {
@@ -21,7 +19,7 @@ struct Cli {
     version: Option<String>,
 }
 
-fn main() -> CliResult {
+fn main() -> anyhow::Result<()> {
     let Cli {
         input,
         output,

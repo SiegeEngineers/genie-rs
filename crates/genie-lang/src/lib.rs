@@ -8,7 +8,7 @@
 //!
 //! ## DLLs
 //! ```rust
-//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # fn main() -> anyhow::Result<()> {
 //! use genie_lang::{LangFileType::Dll, StringKey};
 //! use std::{convert::TryFrom, fs::File};
 //! let f = File::open("./test/dlls/language_x1_p1.dll")?;
@@ -33,7 +33,7 @@
 //!
 //! ## INI files
 //! ```rust
-//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # fn main() -> anyhow::Result<()> {
 //! use genie_lang::{LangFileType::Ini, StringKey};
 //! use std::{convert::TryFrom, io::Cursor};
 //! let text = br#"
@@ -51,7 +51,7 @@
 //!
 //! ## HD key-value files
 //! ```rust
-//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # fn main() -> anyhow::Result<()> {
 //! use genie_lang::{LangFileType::KeyValue, StringKey};
 //! use std::{convert::TryFrom, io::Cursor};
 //! let text = br#"
@@ -73,7 +73,7 @@
 //!
 //! ## Creating a file from scratch
 //! ```rust
-//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! # fn main() -> anyhow::Result<()> {
 //! use genie_lang::{LangFile, StringKey};
 //! use std::{convert::TryFrom, str};
 //! let mut lang_file = LangFile::new();
@@ -118,7 +118,6 @@ use pelite::{
 };
 use std::collections::hash_map::{Drain, Entry, IntoIter, Iter, IterMut, Keys, Values, ValuesMut};
 use std::collections::HashMap;
-use std::error::Error;
 use std::fmt;
 use std::io::{self, BufRead, BufReader, Error as IoError, Read, Write};
 use std::iter::FromIterator;
@@ -131,62 +130,27 @@ use std::str::FromStr;
 /// For DLL files, PeError and IoError can occur.
 /// For INI and HD Edition files, ParseIntError and IoError can occur.
 /// Both the INI and HD Edition parsers silently ignore invalid lines.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum LoadError {
     /// An error occurred while reading strings from the DLL.
     /// It probably does not contain any or is malformed.
-    PeError(pelite::Error),
+    #[error(transparent)]
+    PeError(#[from] pelite::Error),
     /// An error occurred while reading data from the file.
-    IoError(IoError),
+    #[error(transparent)]
+    IoError(#[from] IoError),
     /// An error occurred while parsing a numeric string ID into an integer
     /// value.
-    ParseIntError(ParseIntError),
+    #[error(transparent)]
+    ParseIntError(#[from] ParseIntError),
 }
-
-impl fmt::Display for LoadError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use LoadError::{IoError, ParseIntError, PeError};
-        match self {
-            IoError(e) => e.fmt(f),
-            ParseIntError(e) => e.fmt(f),
-            PeError(e) => e.fmt(f),
-        }
-    }
-}
-
-impl From<pelite::Error> for LoadError {
-    fn from(error: pelite::Error) -> Self {
-        LoadError::PeError(error)
-    }
-}
-
-impl From<IoError> for LoadError {
-    fn from(error: IoError) -> Self {
-        LoadError::IoError(error)
-    }
-}
-
-impl From<ParseIntError> for LoadError {
-    fn from(error: ParseIntError) -> Self {
-        LoadError::ParseIntError(error)
-    }
-}
-
-impl Error for LoadError {}
 
 /// An error when parsing a string to a language file.
 ///
 /// The field contains the string that could not be parsed.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("{}", self.0)]
 pub struct ParseLangFileTypeError(String);
-
-impl fmt::Display for ParseLangFileTypeError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl Error for ParseLangFileTypeError {}
 
 /// Aoe2 supports three types of language files
 #[derive(Debug)]

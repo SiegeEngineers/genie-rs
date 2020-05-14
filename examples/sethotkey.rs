@@ -1,7 +1,6 @@
 //! Sets a hotkey in a hotkey file.
 
 use genie::hki::HotkeyInfo;
-use std::error::Error;
 use std::fs::File;
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -46,7 +45,7 @@ struct SetHotkey {
 }
 
 /// Executes the CLI.
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> anyhow::Result<()> {
     let cli_input = SetHotkey::from_args();
     let mut f = File::open(&cli_input.file_name)?;
     let info = HotkeyInfo::from(&mut f)?;

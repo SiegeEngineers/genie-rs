@@ -1,4 +1,5 @@
 use crate::FileVersion;
+use arrayvec::ArrayString;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use genie_support::{fallible_try_from, fallible_try_into, infallible_try_into};
 use std::convert::TryInto;
@@ -30,6 +31,7 @@ infallible_try_into!(SoundID, i32);
 infallible_try_into!(SoundID, u32);
 fallible_try_from!(SoundID, i16);
 fallible_try_from!(SoundID, i32);
+fallible_try_from!(SoundID, u32);
 
 /// A "conceptual" sound, consisting of one or a group of sound files.
 ///
@@ -51,7 +53,7 @@ pub struct Sound {
 #[derive(Debug, Default, Clone)]
 pub struct SoundItem {
     /// Internal file name for this sound file.
-    pub filename: String,
+    pub filename: ArrayString<[u8; 13]>,
     /// DRS file ID for this sound file.
     pub resource_id: i32,
     /// The probability out of 100% that this file will be used for any given playback.
@@ -66,6 +68,7 @@ impl SoundItem {
     /// Read this sound item from an input stream.
     pub fn read_from<R: Read>(input: &mut R, _version: FileVersion) -> Result<Self> {
         let mut item = SoundItem::default();
+        // TODO actually use this
         let mut filename = [0u8; 13];
         input.read_exact(&mut filename)?;
         item.resource_id = input.read_i32::<LE>()?;
@@ -79,6 +82,7 @@ impl SoundItem {
 
     /// Write this sound item to an input stream.
     pub fn write_to<W: Write>(&self, output: &mut W, _version: FileVersion) -> Result<()> {
+        output.write_all(&[0; 13])?;
         output.write_i32::<LE>(self.resource_id)?;
         output.write_i16::<LE>(self.probability)?;
         // AoK only, must both be set
@@ -98,6 +102,9 @@ impl Sound {
         sound.play_delay = input.read_i16::<LE>()?;
         let num_items = input.read_u16::<LE>()?;
         sound.cache_time = input.read_i32::<LE>()?;
+        if version.is_de2() {
+            let _total_probability = input.read_u16::<LE>()?;
+        }
         for _ in 0..num_items {
             sound.items.push(SoundItem::read_from(input, version)?);
         }

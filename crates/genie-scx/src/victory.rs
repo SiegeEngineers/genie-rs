@@ -1,7 +1,7 @@
 use crate::types::VictoryCondition;
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::io::{Read, Write};
+use std::io::{self, Read, Write};
 
 /// AoE1's victory info.
 ///
@@ -213,19 +213,24 @@ impl VictoryPointEntry {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct VictoryConditions {
-    version: f32,
+    pub version: f32,
     victory: bool,
-    total_points: i32,
-    starting_points: i32,
-    starting_group: i32,
-    entries: Vec<VictoryEntry>,
-    point_entries: Vec<VictoryPointEntry>,
+    pub total_points: i32,
+    pub starting_points: i32,
+    pub starting_group: i32,
+    pub entries: Vec<VictoryEntry>,
+    pub point_entries: Vec<VictoryPointEntry>,
 }
 
 impl VictoryConditions {
-    pub fn read_from(mut input: impl Read, has_version: bool) -> Result<Self> {
+    #[deprecated = "Use VictoryConditions::read_from instead"]
+    pub fn from<R: Read>(input: &mut R, has_version: bool) -> Result<Self> {
+        Ok(Self::read_from(input, has_version)?)
+    }
+
+    pub fn read_from(mut input: impl Read, has_version: bool) -> io::Result<Self> {
         let version = if has_version {
             input.read_f32::<LE>()?
         } else {

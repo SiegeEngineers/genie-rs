@@ -15,11 +15,13 @@ genie-dat = { version = "0.1.0", path = "crates/genie-dat" }
 genie-drs = { version = "0.2.0", path = "crates/genie-drs" }
 genie-hki = { version = "0.2.0", path = "crates/genie-hki" }
 genie-lang = { version = "0.2.0", path = "crates/genie-lang" }
+genie-rec = { version = "0.0.0", path = "crates/genie-rec" }
 genie-scx = { version = "2.0.0", path = "crates/genie-scx" }
 jascpal = { version = "0.1.0", path = "crates/jascpal" }
 
 [dev-dependencies]
 structopt = "^0.3.11"
+anyhow = "1.0.27"
 
 [workspace]
 members = [
@@ -28,6 +30,7 @@ members = [
   "crates/genie-drs",
   "crates/genie-hki",
   "crates/genie-lang",
+  "crates/genie-rec",
   "crates/genie-scx",
   "crates/genie-support",
   "crates/jascpal"

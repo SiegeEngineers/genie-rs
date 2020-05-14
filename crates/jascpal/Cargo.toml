@@ -11,3 +11,7 @@ repository = "https://github.com/SiegeEngineers/genie-rs"
 [dependencies]
 nom = { version = "^5.0.0", default-features = false, features = ["std"] }
 rgb = "^0.8.13"
+thiserror = "1.0.13"
+
+[dev-dependencies]
+anyhow = "1.0.27"

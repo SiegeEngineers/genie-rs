@@ -9,12 +9,13 @@ use crate::map::Map;
 use crate::player::*;
 use crate::triggers::TriggerSystem;
 use crate::types::*;
-use crate::util::*;
 use crate::victory::*;
 use crate::{Error, Result, VersionBundle};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
-use genie_support::{cmp_float, read_opt_u32, MapInto, StringKey, UnitTypeID};
+use genie_support::{
+    cmp_float, read_opt_u32, read_str, write_opt_str, write_str, StringKey, UnitTypeID,
+};
 use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
 use std::io::{self, Read, Write};
@@ -121,7 +122,7 @@ impl ScenarioObject {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub(crate) struct RGEScen {
     /// Data version.
     pub(crate) version: f32,
@@ -169,7 +170,7 @@ impl RGEScen {
         let mut player_string_table = vec![None; 16];
         if version > 1.16 {
             for string_id in player_string_table.iter_mut() {
-                *string_id = read_opt_u32(&mut input)?.map_into();
+                *string_id = read_opt_u32(&mut input)?;
             }
         }
 
@@ -191,10 +192,11 @@ impl RGEScen {
 
         assert_eq!(input.read_i16::<LE>()?, 0, "Unexpected RGE_Timeline");
         assert_eq!(input.read_i16::<LE>()?, 0, "Unexpected RGE_Timeline");
-        assert!([-1.0, 0.0].contains(&input.read_f32::<LE>()?));
+        let _old_time = input.read_f32::<LE>()?;
 
         let name_length = input.read_i16::<LE>()? as usize;
-        let name = read_str(&mut input, name_length)?.ok_or(Error::MissingFileNameError)?;
+        // File name may be empty for embedded scenario data inside recorded games.
+        let name = read_str(&mut input, name_length)?.unwrap_or_default();
 
         let (
             description_string_table,
@@ -204,18 +206,18 @@ impl RGEScen {
             history_string_table,
         ) = if version >= 1.16 {
             (
-                read_opt_u32(&mut input)?.map_into(),
-                read_opt_u32(&mut input)?.map_into(),
-                read_opt_u32(&mut input)?.map_into(),
-                read_opt_u32(&mut input)?.map_into(),
-                read_opt_u32(&mut input)?.map_into(),
+                read_opt_u32(&mut input)?,
+                read_opt_u32(&mut input)?,
+                read_opt_u32(&mut input)?,
+                read_opt_u32(&mut input)?,
+                read_opt_u32(&mut input)?,
             )
         } else {
             Default::default()
         };
 
         let scout_string_table = if version >= 1.22 {
-            read_opt_u32(&mut input)?.map_into()
+            read_opt_u32(&mut input)?
         } else {
             Default::default()
         };
@@ -490,8 +492,8 @@ impl RGEScen {
     }
 }
 
-#[derive(Debug, Clone)]
-pub(crate) struct TribeScen {
+#[derive(Debug, Default, Clone)]
+pub struct TribeScen {
     /// "Engine" data.
     ///
     /// This distinction doesn't make much sense as a user of this library, but
@@ -547,6 +549,11 @@ pub(crate) struct TribeScen {
 }
 
 impl TribeScen {
+    #[deprecated = "Use TribeScen::read_from instead"]
+    pub fn from(input: impl Read) -> Result<Self> {
+        Self::read_from(input)
+    }
+
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut base = RGEScen::read_from(&mut input)?;
         let version = base.version;
@@ -719,7 +726,13 @@ impl TribeScen {
         };
 
         let map_type = if version >= 1.21 {
-            Some(input.read_i32::<LE>()?).and_then(|v| if v != -1 { Some(v) } else { None })
+            match input.read_i32::<LE>()? {
+                -2 | -1 => None,
+                id => Some(
+                    id.try_into()
+                        .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?,
+                ),
+            }
         } else {
             None
         };
@@ -1168,11 +1181,11 @@ impl SCXFormat {
 }
 
 fn write_opt_string_key(mut output: impl Write, opt_key: &Option<StringKey>) -> Result<()> {
-    output.write_i32::<LE>(if let Some(key) = opt_key {
+    output.write_u32::<LE>(if let Some(key) = opt_key {
         key.try_into()
-            .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?
+            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?
     } else {
-        -1
+        0xFFFF_FFFF
     })?;
     Ok(())
 }
