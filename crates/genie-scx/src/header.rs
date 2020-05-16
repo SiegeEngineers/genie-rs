@@ -79,6 +79,8 @@ pub struct SCXHeader {
     pub timestamp: u32,
     /// Description text about the scenario.
     pub description: Option<String>,
+    /// Name of the person who created this scenario. Only available in DE2.
+    pub author_name: Option<String>,
     /// Whether the scenario has any victory conditions for singleplayer.
     pub any_sp_victory: bool,
     /// How many players are supported by this scenario.
@@ -92,6 +94,7 @@ impl SCXHeader {
     pub fn read_from(mut input: impl Read, format_version: SCXVersion) -> Result<SCXHeader> {
         let _header_size = input.read_u32::<LE>()?;
         let version = input.read_u32::<LE>()?;
+        log::debug!("Header version {}", version);
         let timestamp = if version >= 2 {
             input.read_u32::<LE>()?
         } else {
@@ -115,10 +118,22 @@ impl SCXHeader {
             None
         };
 
+        let author_name;
+        if version >= 5 {
+            author_name = {
+                let len = input.read_u32::<LE>()?;
+                read_str(&mut input, len as usize)?
+            };
+            let _unknown_data = input.read_u32::<LE>()?;
+        } else {
+            author_name = None;
+        }
+
         Ok(SCXHeader {
             version,
             timestamp,
             description,
+            author_name,
             any_sp_victory,
             active_player_count,
             dlc_options,

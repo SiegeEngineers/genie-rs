@@ -1130,7 +1130,9 @@ impl SCXFormat {
             }
             b"1.17" => Self::load_inner(format_version, 1.14, input),
             b"1.18" | b"1.19" => Self::load_inner(format_version, 1.13, input),
-            b"1.20" | b"1.21" | b"1.32" => Self::load_inner(format_version, 1.14, input),
+            b"1.20" | b"1.21"  => Self::load_inner(format_version, 1.14, input),
+            // AoE2: Definitive Edition
+            b"1.32" | b"1.36" | b"1.37" => Self::load_inner(format_version, 1.14, input),
             // AoE1: Definitive Edition
             b"3.13" => Self::load_inner(format_version, 1.14, input),
             _ => Err(Error::UnsupportedFormatVersionError(format_version)),
@@ -1143,7 +1145,7 @@ impl SCXFormat {
             b"1.09" | b"1.10" | b"1.11" => 1.11,
             b"1.12" | b"1.13" | b"1.14" | b"1.15" | b"1.16" => 1.12,
             b"1.18" | b"1.19" => 1.13,
-            b"1.20" | b"1.21" | b"1.32" => 1.14,
+            b"1.20" | b"1.21" | b"1.32" | b"1.36" | b"1.37" => 1.14,
             _ => panic!("writing version {} is not supported", version.format),
         };
 
