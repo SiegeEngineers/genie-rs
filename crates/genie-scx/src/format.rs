@@ -551,6 +551,18 @@ pub struct TribeScen {
     /// The map type.
     map_type: Option<i32>,
     base_priorities: Vec<i8>,
+    /// The water definition type used. (DE2 and up)
+    water_definition: Option<String>,
+    /// The colour mood used. (DE2 and up)
+    color_mood: Option<String>,
+    /// Is collide-and-correct pathing enabled?
+    ///
+    /// Only supported for DE2 and up; defaults to `false` in earlier versions.
+    collide_and_correct: bool,
+    /// Is villager force drop enabled?
+    ///
+    /// Only supported for DE2 and up; defaults to `false` in earlier versions.
+    villager_force_drop: bool,
 }
 
 impl TribeScen {
@@ -779,6 +791,47 @@ impl TribeScen {
             input.read_exact(&mut unknown)?;
         }
 
+        let mut water_definition = None;
+        let mut color_mood = None;
+        let mut collide_and_correct = false;
+        let mut villager_force_drop = false;
+
+        if version >= 1.28 {
+            let _unknown = input.read_u16::<LE>()?;
+            log::debug!("1.28 unknown: {}", _unknown);
+            water_definition = {
+                let len = input.read_u16::<LE>()?;
+                read_str(&mut input, len as usize)?
+            };
+        }
+
+        if version >= 1.36 {
+            let _unknowns = (input.read_u8()?, input.read_u8()?);
+            log::debug!("1.36 unknowns: {:?}", _unknowns);
+            color_mood = {
+                let len = input.read_u16::<LE>()?;
+                read_str(&mut input, len as usize)?
+            };
+            collide_and_correct = input.read_u8()? != 0;
+            villager_force_drop = input.read_u8()? != 0;
+        }
+
+        if version >= 1.32 {
+            let _unknowns = (
+                input.read_u8()?,
+                input.read_u8()?,
+                input.read_u8()?,
+                input.read_u8()?,
+            );
+            let _unknown = input.read_u32::<LE>()?;
+            log::debug!("1.32 unknowns: {:?}, {:x}", _unknowns, _unknown);
+        }
+
+        if version >= 1.36 {
+            let _unknown = input.read_u8()?;
+            log::debug!("1.36 unknown: {}", _unknown);
+        }
+
         Ok(TribeScen {
             base,
             player_start_resources,
@@ -807,6 +860,10 @@ impl TribeScen {
             view,
             map_type,
             base_priorities,
+            water_definition,
+            color_mood,
+            collide_and_correct,
+            villager_force_drop,
         })
     }
 
@@ -1044,48 +1101,6 @@ impl SCXFormat {
         let next_object_id = input.read_i32::<LE>()?;
 
         let tribe_scen = TribeScen::read_from(&mut input)?;
-
-        // AoE2ScenarioParser has different info here:
-        // https://github.com/KSneijders/AoE2ScenarioParser/blob/8e3abd422164961aa5c7857350475088790804f8/AoE2ScenarioParser/pieces/map.py#L7
-        if tribe_scen.version() >= 1.28 {
-            let _unknown = input.read_u16::<LE>()?;
-            let water_definition = {
-                let len = input.read_u16::<LE>()?;
-                read_str(&mut input, len as usize)?
-            };
-            log::debug!("1.28 unknown: {}", _unknown);
-            log::debug!("Water definition: {:?}", water_definition);
-        }
-        if version >= SCXVersion(*b"1.36") {
-            let _unknowns = (input.read_u8()?, input.read_u8()?);
-            log::debug!("1.36 unknowns: {:?}", _unknowns);
-            let color_mood = {
-                let len = input.read_u16::<LE>()?;
-                read_str(&mut input, len as usize)?
-            };
-            log::debug!("Color mood: {:?}", color_mood);
-            let collide_and_correct = input.read_u8()?;
-            let villager_force_drop = input.read_u8()?;
-            log::debug!(
-                "Collide & correct: {}, force drop: {}",
-                collide_and_correct,
-                villager_force_drop
-            );
-        }
-        if tribe_scen.version() >= 1.32 {
-            let _unknowns = (
-                input.read_u8()?,
-                input.read_u8()?,
-                input.read_u8()?,
-                input.read_u8()?,
-            );
-            let _unknown = input.read_u32::<LE>()?;
-            log::debug!("1.32 unknowns: {:?}, {:x}", _unknowns, _unknown);
-        }
-        if version >= SCXVersion(*b"1.36") {
-            let _unknown = input.read_u8()?;
-            log::debug!("1.36 unknown: {}", _unknown);
-        }
 
         let map = Map::read_from(&mut input, tribe_scen.version())?;
 
