@@ -610,7 +610,12 @@ impl TribeScen {
             9000
         };
 
-        log::debug!("Victory values: {} {} {}", mp_victory_type, victory_score, victory_time);
+        log::debug!(
+            "Victory values: {} {} {}",
+            mp_victory_type,
+            victory_score,
+            victory_time
+        );
 
         let mut diplomacy = vec![vec![DiplomaticStance::Neutral; 16]; 16];
         for player_diplomacy in diplomacy.iter_mut() {
@@ -1052,10 +1057,7 @@ impl SCXFormat {
             log::debug!("Water definition: {:?}", water_definition);
         }
         if version >= SCXVersion(*b"1.36") {
-            let _unknowns = (
-                input.read_u8()?,
-                input.read_u8()?,
-            );
+            let _unknowns = (input.read_u8()?, input.read_u8()?);
             log::debug!("1.36 unknowns: {:?}", _unknowns);
             let color_mood = {
                 let len = input.read_u16::<LE>()?;
@@ -1064,7 +1066,11 @@ impl SCXFormat {
             log::debug!("Color mood: {:?}", color_mood);
             let collide_and_correct = input.read_u8()?;
             let villager_force_drop = input.read_u8()?;
-            log::debug!("Collide & correct: {}, force drop: {}", collide_and_correct, villager_force_drop);
+            log::debug!(
+                "Collide & correct: {}, force drop: {}",
+                collide_and_correct,
+                villager_force_drop
+            );
         }
         if tribe_scen.version() >= 1.32 {
             let _unknowns = (
@@ -1077,34 +1083,60 @@ impl SCXFormat {
             log::debug!("1.32 unknowns: {:?}, {:x}", _unknowns, _unknown);
         }
         if version >= SCXVersion(*b"1.36") {
-            log::debug!("1.36 unknown: {}", input.read_u8()?);
+            let _unknown = input.read_u8()?;
+            log::debug!("1.36 unknown: {}", _unknown);
         }
 
         let map = Map::read_from(&mut input, tribe_scen.version())?;
 
-        let num_players = input.read_i32::<LE>()?;
+        let num_players = input.read_u32::<LE>()?;
         log::debug!("number of players: {}", num_players);
-        let mut world_players = vec![];
+        let mut world_players = Vec::with_capacity(num_players as usize);
         for _ in 1..num_players {
             world_players.push(WorldPlayerData::read_from(&mut input, player_version)?);
         }
 
-        let mut player_objects = vec![];
-        for _ in 0..num_players {
-            let mut objects = vec![];
-            let num_objects = input.read_u32::<LE>()?;
-            for _ in 0..num_objects {
-                objects.push(ScenarioObject::read_from(&mut input, version)?);
+        fn read_scenario_players(
+            mut input: impl Read,
+            player_version: f32,
+        ) -> Result<Vec<ScenarioPlayerData>> {
+            let num = input.read_u32::<LE>()?;
+            let mut players = Vec::with_capacity(num as usize);
+            log::debug!("number of scenario players: {}", num);
+            for _ in 1..num {
+                players.push(ScenarioPlayerData::read_from(&mut input, player_version)?);
             }
-            player_objects.push(objects);
+            Ok(players)
         }
 
-        let num_scenario_players = input.read_i32::<LE>()?;
-        log::debug!("number of scenario players: {}", num_scenario_players);
-        let mut scenario_players = vec![];
-        for _ in 1..num_scenario_players {
-            scenario_players.push(ScenarioPlayerData::read_from(&mut input, player_version)?);
+        fn read_player_objects(
+            mut input: impl Read,
+            num_players: u32,
+            version: SCXVersion,
+        ) -> Result<Vec<Vec<ScenarioObject>>> {
+            let mut player_objects = Vec::with_capacity(num_players as usize);
+            for _ in 0..num_players {
+                let num_objects = input.read_u32::<LE>()?;
+                let mut objects = Vec::with_capacity(num_objects as usize);
+                log::debug!("number of objects: {}", num_objects);
+                for _ in 0..num_objects {
+                    objects.push(ScenarioObject::read_from(&mut input, version)?);
+                }
+                player_objects.push(objects);
+            }
+            Ok(player_objects)
         }
+
+        // The order is flipped … thanks DE
+        let (scenario_players, player_objects) = if version >= SCXVersion(*b"1.36") {
+            let players = read_scenario_players(&mut input, player_version)?;
+            let objects = read_player_objects(&mut input, num_players, version)?;
+            (players, objects)
+        } else {
+            let objects = read_player_objects(&mut input, num_players, version)?;
+            let players = read_scenario_players(&mut input, player_version)?;
+            (players, objects)
+        };
 
         let triggers = if version < SCXVersion(*b"1.14") {
             None
@@ -1151,7 +1183,7 @@ impl SCXFormat {
             }
             b"1.17" => Self::load_inner(format_version, 1.14, input),
             b"1.18" | b"1.19" => Self::load_inner(format_version, 1.13, input),
-            b"1.20" | b"1.21"  => Self::load_inner(format_version, 1.14, input),
+            b"1.20" | b"1.21" => Self::load_inner(format_version, 1.14, input),
             // AoE2: Definitive Edition
             b"1.32" | b"1.36" | b"1.37" => Self::load_inner(format_version, 1.14, input),
             // AoE1: Definitive Edition
@@ -1433,5 +1465,19 @@ mod tests {
         format
             .write_to(&mut out, &format.version())
             .expect("failed to write");
+    }
+
+    /// A Definitive Edition 2 scenario, based on the included AIImprovementsBucket10Test file,
+    /// saved as a 1.37 format version with some layered terrain in the corners.
+    #[test]
+    fn aoe_de2_1_37() {
+        let mut f = File::open("test/scenarios/layertest.aoe2scenario").unwrap();
+        let _format = SCXFormat::load_scenario(&mut f).expect("failed to read");
+        /* Cannot write this version yet
+        let mut out = vec![];
+        format
+            .write_to(&mut out, &format.version())
+            .expect("failed to write");
+        */
     }
 }
