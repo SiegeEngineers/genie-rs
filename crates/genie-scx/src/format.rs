@@ -1043,11 +1043,28 @@ impl SCXFormat {
         // AoE2ScenarioParser has different info here:
         // https://github.com/KSneijders/AoE2ScenarioParser/blob/8e3abd422164961aa5c7857350475088790804f8/AoE2ScenarioParser/pieces/map.py#L7
         if tribe_scen.version() >= 1.28 {
-            input.read_u16::<LE>()?;
-            let _str = {
+            let _unknown = input.read_u16::<LE>()?;
+            let water_definition = {
                 let len = input.read_u16::<LE>()?;
                 read_str(&mut input, len as usize)?
             };
+            log::debug!("1.28 unknown: {}", _unknown);
+            log::debug!("Water definition: {:?}", water_definition);
+        }
+        if version >= SCXVersion(*b"1.36") {
+            let _unknowns = (
+                input.read_u8()?,
+                input.read_u8()?,
+            );
+            log::debug!("1.36 unknowns: {:?}", _unknowns);
+            let color_mood = {
+                let len = input.read_u16::<LE>()?;
+                read_str(&mut input, len as usize)?
+            };
+            log::debug!("Color mood: {:?}", color_mood);
+            let collide_and_correct = input.read_u8()?;
+            let villager_force_drop = input.read_u8()?;
+            log::debug!("Collide & correct: {}, force drop: {}", collide_and_correct, villager_force_drop);
         }
         if tribe_scen.version() >= 1.32 {
             let _unknowns = (
@@ -1057,6 +1074,10 @@ impl SCXFormat {
                 input.read_u8()?,
             );
             let _unknown = input.read_u32::<LE>()?;
+            log::debug!("1.32 unknowns: {:?}, {:x}", _unknowns, _unknown);
+        }
+        if version >= SCXVersion(*b"1.36") {
+            log::debug!("1.36 unknown: {}", input.read_u8()?);
         }
 
         let map = Map::read_from(&mut input, tribe_scen.version())?;

@@ -7,6 +7,8 @@ use std::io::{self, Read, Write};
 pub struct Tile {
     /// The terrain.
     pub terrain: i8,
+    /// Terrain type layered on top of this tile, if any.
+    pub layered_terrain: Option<u8>,
     /// The elevation level.
     pub elevation: i8,
     /// Unused?
@@ -33,6 +35,7 @@ impl Map {
             tiles: vec![
                 Tile {
                     terrain: 0,
+                    layered_terrain: None,
                     elevation: 0,
                     zone: 0
                 };
@@ -67,16 +70,18 @@ impl Map {
         let mut tiles = Vec::with_capacity((height * height) as usize);
         for _ in 0..height {
             for _ in 0..width {
-                let tile = Tile {
+                let mut tile = Tile {
                     terrain: input.read_i8()?,
+                    layered_terrain: None,
                     elevation: input.read_i8()?,
                     zone: input.read_i8()?,
                 };
                 if version >= 1.28 {
-                    let _more_data = input.read_u32::<LE>()?;
-                    if _more_data != 0xFF_FF_FF_FF {
-                        log::debug!("DE2 Terrain data: {:08x}", _more_data);
-                    }
+                    let a = input.read_i8()?;
+                    let b = input.read_i8()?;
+                    tile.layered_terrain = Some(input.read_u8()?);
+                    let c = input.read_i8()?;
+                    log::debug!("DE2 Terrain data: {} {} {}", a, b, c);
                 }
                 tiles.push(tile);
             }
@@ -99,6 +104,8 @@ impl Map {
             output.write_i8(tile.terrain)?;
             output.write_i8(tile.elevation)?;
             output.write_i8(tile.zone)?;
+
+            // TODO output DE2 data
         }
 
         Ok(())
