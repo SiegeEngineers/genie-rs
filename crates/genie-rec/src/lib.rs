@@ -421,7 +421,13 @@ mod tests {
         let mut r = RecordedGame::new(f)?;
         r.header()?;
         for act in r.actions()? {
-            println!("{:?}", act?);
+            match act {
+                Ok(act) => println!("{:?}", act),
+                Err(Error::DecodeStringError(_)) => {
+                    // Skip invalid utf8 chat for now
+                }
+                Err(err) => return Err(err.into()),
+            }
         }
         Ok(())
     }
