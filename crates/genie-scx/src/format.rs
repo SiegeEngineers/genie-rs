@@ -1090,6 +1090,8 @@ impl SCXFormat {
             format: self.version,
             header: self.header.version,
             data: self.tribe_scen.version(),
+            triggers: self.triggers.as_ref()
+                .map(|triggers| triggers.version()),
             ..VersionBundle::aoc()
         }
     }

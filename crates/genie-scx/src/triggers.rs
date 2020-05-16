@@ -639,6 +639,11 @@ impl TriggerSystem {
         Ok(())
     }
 
+    /// Get the version of the trigger system data.
+    pub fn version(&self) -> f64 {
+        self.version
+    }
+
     /// Iterate over all triggers, in order.
     pub fn triggers(&self) -> impl Iterator<Item = &Trigger> {
         self.trigger_order
