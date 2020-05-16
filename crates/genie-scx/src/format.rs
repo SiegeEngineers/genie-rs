@@ -682,30 +682,28 @@ impl TribeScen {
             // AoC and friends store up to 20 or 30 of each.
             input.read_i32_into::<LE>(&mut num_disabled_techs)?;
             for player_disabled_techs in disabled_techs.iter_mut() {
-                for _ in 0..30 {
-                    player_disabled_techs.push(input.read_i32::<LE>()?);
-                }
+                *player_disabled_techs = vec![0; 30];
+                input.read_i32_into::<LE>(player_disabled_techs)?;
             }
 
             input.read_i32_into::<LE>(&mut num_disabled_units)?;
             for player_disabled_units in disabled_units.iter_mut() {
-                for _ in 0..30 {
-                    player_disabled_units.push(input.read_i32::<LE>()?);
-                }
+                *player_disabled_units = vec![0; 30];
+                input.read_i32_into::<LE>(player_disabled_units)?;
             }
 
             input.read_i32_into::<LE>(&mut num_disabled_buildings)?;
             let max_disabled_buildings = if version >= 1.25 { 30 } else { 20 };
             for player_disabled_buildings in disabled_buildings.iter_mut() {
-                for _ in 0..max_disabled_buildings {
-                    player_disabled_buildings.push(input.read_i32::<LE>()?);
-                }
+                *player_disabled_buildings = vec![0; max_disabled_buildings];
+                input.read_i32_into::<LE>(player_disabled_buildings)?;
             }
         } else if version > 1.03 {
             // Old scenarios only allowed disabling up to 20 techs per player.
             for i in 0..16 {
                 let player_disabled_techs = &mut disabled_techs[i];
-                input.read_i32_into::<LE>(&mut player_disabled_techs[0..20])?;
+                *player_disabled_techs = vec![0; 20];
+                input.read_i32_into::<LE>(player_disabled_techs)?;
                 // The number of disabled techs wasn't stored either, so we need to guess it!
                 num_disabled_techs[i] = player_disabled_techs
                     .iter()
@@ -748,6 +746,7 @@ impl TribeScen {
 
         let map_type = if version >= 1.21 {
             match input.read_i32::<LE>()? {
+                // HD Edition uses -2 instead of -1?
                 -2 | -1 => None,
                 id => Some(
                     id.try_into()
