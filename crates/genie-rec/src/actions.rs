@@ -1,7 +1,7 @@
 use crate::{ObjectID, PlayerID, Result};
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{cmp_float, read_opt_u32, ReadSkipExt, TechID, UnitTypeID};
+use genie_support::{f32_neq, read_opt_u32, read_str, ReadSkipExt, TechID, UnitTypeID};
 use std::convert::TryInto;
 use std::io::{Read, Write};
 
@@ -859,6 +859,18 @@ pub enum GameCommand {
     Unknown0x0c {
         player_id: PlayerID,
     },
+    AddFarmReseedQueue {
+        player_id: PlayerID,
+        amount: i16,
+    },
+    RemoveFarmReseedQueue {
+        player_id: PlayerID,
+        amount: i16,
+    },
+    FarmReseedAutoQueue {
+        player_id: PlayerID,
+        // TODO unknown vars
+    },
 }
 
 #[derive(Debug)]
@@ -935,6 +947,17 @@ impl GameCommand {
                 value: var4.try_into().unwrap(),
             }),
             0x0c => Ok(Unknown0x0c {
+                player_id: var1.try_into().unwrap(),
+            }),
+            0x0d => Ok(AddFarmReseedQueue {
+                player_id: var1.try_into().unwrap(),
+                amount: var2,
+            }),
+            0x0e => Ok(RemoveFarmReseedQueue {
+                player_id: var1.try_into().unwrap(),
+                amount: var2,
+            }),
+            0x10 => Ok(FarmReseedAutoQueue {
                 player_id: var1.try_into().unwrap(),
             }),
             _ => panic!("unimplemented game command {:#x}", game_command),
@@ -1095,7 +1118,7 @@ impl UngarrisonCommand {
         let _padding = input.read_u16::<LE>()?;
         let x = input.read_f32::<LE>()?;
         let y = input.read_f32::<LE>()?;
-        command.location = if cmp_float!(x != -1.0) && cmp_float!(y != -1.0) {
+        command.location = if f32_neq!(x, -1.0) && f32_neq!(y, -1.0) {
             Some((x, y))
         } else {
             None
@@ -1163,7 +1186,7 @@ impl UnitOrderCommand {
         let _padding = input.read_u16::<LE>()?;
         let x = input.read_f32::<LE>()?;
         let y = input.read_f32::<LE>()?;
-        command.location = if cmp_float!(x != -1.0) && cmp_float!(y != -1.0) {
+        command.location = if f32_neq!(x, -1.0) && f32_neq!(y, -1.0) {
             Some((x, y))
         } else {
             None
@@ -1527,12 +1550,7 @@ impl Chat {
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         assert_eq!(input.read_i32::<LE>()?, -1);
         let length = input.read_u32::<LE>()?;
-        let mut bytes = vec![0; length as usize];
-        input.read_exact(&mut bytes)?;
-        if bytes.last() == Some(&0) {
-            bytes.pop();
-        }
-        let message = String::from_utf8(bytes).unwrap();
+        let message = read_str(input, length as usize)?.unwrap_or_default();
         Ok(Self { message })
     }
 }

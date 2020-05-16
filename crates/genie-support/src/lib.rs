@@ -1,4 +1,4 @@
-//! Some internal utilities for genie-rs modules.
+//! Internal utilities for genie-rs modules.
 
 #![deny(future_incompatible)]
 #![deny(nonstandard_style)]
