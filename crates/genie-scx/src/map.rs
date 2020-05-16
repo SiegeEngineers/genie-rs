@@ -1,6 +1,6 @@
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::io::{Read, Write};
+use std::io::{self, Read, Write};
 
 /// A map tile.
 #[derive(Debug, Clone, Copy)]
@@ -53,6 +53,17 @@ impl Map {
         let height = input.read_u32::<LE>()?;
         log::debug!("Map size: {}×{}", width, height);
 
+        if width > 500 || height > 500 {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "Unexpected map size {}×{}, this is likely a genie-scx bug.",
+                    width, height
+                ),
+            )
+            .into());
+        }
+
         let mut tiles = Vec::with_capacity((height * height) as usize);
         for _ in 0..height {
             for _ in 0..width {
@@ -64,7 +75,7 @@ impl Map {
                 if version >= 1.28 {
                     let _more_data = input.read_u32::<LE>()?;
                     if _more_data != 0xFF_FF_FF_FF {
-                        log::debug!("DE2 Terrain data: {}", _more_data);
+                        log::debug!("DE2 Terrain data: {:08x}", _more_data);
                     }
                 }
                 tiles.push(tile);

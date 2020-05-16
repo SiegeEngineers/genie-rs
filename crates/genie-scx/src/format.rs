@@ -178,12 +178,15 @@ impl RGEScen {
             true
         };
 
+        dbg!(victory_conquest);
+
         {
             let _timeline_count = input.read_i16::<LE>()?;
             let _timeline_available = input.read_i16::<LE>()?;
             let _old_time = input.read_f32::<LE>()?;
+            dbg!(_timeline_count, _timeline_available, _old_time);
             assert_eq!(_timeline_count, 0, "Unexpected RGE_Timeline");
-            assert_eq!(_timeline_available, 0, "Unexpected RGE_Timeline");
+            // assert_eq!(_timeline_available, 0, "Unexpected RGE_Timeline");
         }
 
         if version >= 1.28 {
@@ -607,6 +610,8 @@ impl TribeScen {
             9000
         };
 
+        log::debug!("Victory values: {} {} {}", mp_victory_type, victory_score, victory_time);
+
         let mut diplomacy = vec![vec![DiplomaticStance::Neutral; 16]; 16];
         for player_diplomacy in diplomacy.iter_mut() {
             for stance in player_diplomacy.iter_mut() {
@@ -732,6 +737,8 @@ impl TribeScen {
                 *start_age = StartingAge::try_from(input.read_i32::<LE>()?, version)?;
             }
         }
+
+        log::debug!("starting ages: {:?}", player_start_ages);
 
         if version >= 1.02 {
             let sep = input.read_i32::<LE>()?;
@@ -1025,7 +1032,7 @@ impl SCXFormat {
         }
     }
 
-    fn load_121(version: SCXVersion, player_version: f32, mut input: impl Read) -> Result<Self> {
+    fn load_inner(version: SCXVersion, player_version: f32, mut input: impl Read) -> Result<Self> {
         let header = SCXHeader::read_from(&mut input, version)?;
 
         let mut input = DeflateDecoder::new(&mut input);
@@ -1033,28 +1040,23 @@ impl SCXFormat {
 
         let tribe_scen = TribeScen::read_from(&mut input)?;
 
+        // AoE2ScenarioParser has different info here:
+        // https://github.com/KSneijders/AoE2ScenarioParser/blob/8e3abd422164961aa5c7857350475088790804f8/AoE2ScenarioParser/pieces/map.py#L7
         if tribe_scen.version() >= 1.28 {
             input.read_u16::<LE>()?;
             let _str = {
                 let len = input.read_u16::<LE>()?;
                 read_str(&mut input, len as usize)?
             };
-            /* According to https://github.com/KSneijders/AoE2ScenarioParser/blob/8e3abd422164961aa5c7857350475088790804f8/AoE2ScenarioParser/pieces/map.py#L7
-             * Probably added in a later version
-            dbg!(input.read_u16::<LE>()?);
-            let color_mood = {
-                let len = input.read_u16::<LE>()?;
-                read_str(&mut input, dbg!(len) as usize)?
-            };
-            dbg!(color_mood);
-            dbg!(input.read_u8()?);
-            dbg!(input.read_u8()?);
-            let _camera = (
-                input.read_f32::<LE>()?,
-                input.read_f32::<LE>()?,
+        }
+        if tribe_scen.version() >= 1.32 {
+            let _unknowns = (
+                input.read_u8()?,
+                input.read_u8()?,
+                input.read_u8()?,
+                input.read_u8()?,
             );
-            dbg!(_camera);
-            */
+            let _unknown = input.read_u32::<LE>()?;
         }
 
         let map = Map::read_from(&mut input, tribe_scen.version())?;
@@ -1120,17 +1122,17 @@ impl SCXFormat {
             b"1.04" => unimplemented!(),
             b"1.05" => unimplemented!(),
             b"1.06" => unimplemented!(),
-            b"1.07" => Self::load_121(format_version, 1.07, input),
+            b"1.07" => Self::load_inner(format_version, 1.07, input),
             b"1.08" => unimplemented!(),
-            b"1.09" | b"1.10" | b"1.11" => Self::load_121(format_version, 1.11, input),
+            b"1.09" | b"1.10" | b"1.11" => Self::load_inner(format_version, 1.11, input),
             b"1.12" | b"1.13" | b"1.14" | b"1.15" | b"1.16" => {
-                Self::load_121(format_version, 1.12, input)
+                Self::load_inner(format_version, 1.12, input)
             }
-            b"1.17" => Self::load_121(format_version, 1.14, input),
-            b"1.18" | b"1.19" => Self::load_121(format_version, 1.13, input),
-            b"1.20" | b"1.21" => Self::load_121(format_version, 1.14, input),
-            // Definitive Edition
-            b"3.13" => Self::load_121(format_version, 1.14, input),
+            b"1.17" => Self::load_inner(format_version, 1.14, input),
+            b"1.18" | b"1.19" => Self::load_inner(format_version, 1.13, input),
+            b"1.20" | b"1.21" | b"1.32" => Self::load_inner(format_version, 1.14, input),
+            // AoE1: Definitive Edition
+            b"3.13" => Self::load_inner(format_version, 1.14, input),
             _ => Err(Error::UnsupportedFormatVersionError(format_version)),
         }
     }
@@ -1141,7 +1143,7 @@ impl SCXFormat {
             b"1.09" | b"1.10" | b"1.11" => 1.11,
             b"1.12" | b"1.13" | b"1.14" | b"1.15" | b"1.16" => 1.12,
             b"1.18" | b"1.19" => 1.13,
-            b"1.20" | b"1.21" => 1.14,
+            b"1.20" | b"1.21" | b"1.32" => 1.14,
             _ => panic!("writing version {} is not supported", version.format),
         };
 
