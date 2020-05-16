@@ -14,7 +14,7 @@ use crate::{Error, Result, VersionBundle};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 use genie_support::{
-    cmp_float, read_opt_u32, read_str, write_opt_str, write_str, StringKey, UnitTypeID,
+    f32_eq, read_opt_u32, read_str, write_opt_str, write_str, StringKey, UnitTypeID,
 };
 use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
@@ -637,7 +637,7 @@ impl TribeScen {
                 input.read_i8()? != 0,
                 input.read_u8()?,
             )
-        } else if cmp_float!(version == 1.23) {
+        } else if f32_eq!(version, 1.23) {
             (input.read_i32::<LE>()? != 0, true, true, 4)
         } else {
             (false, true, true, 4)
@@ -849,7 +849,7 @@ impl TribeScen {
             output.write_i8(if self.can_change_teams { 1 } else { 0 })?;
             output.write_i8(if self.random_start_locations { 1 } else { 0 })?;
             output.write_u8(self.max_teams)?;
-        } else if cmp_float!(version == 1.23) {
+        } else if f32_eq!(version, 1.23) {
             output.write_i32::<LE>(if self.teams_locked { 1 } else { 0 })?;
         }
 

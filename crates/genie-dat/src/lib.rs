@@ -25,7 +25,7 @@ use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 pub use civ::{Civilization, CivilizationID};
 pub use color_table::{ColorTable, PaletteIndex};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
-use genie_support::{cmp_float, ReadSkipExt, TechID};
+use genie_support::{f32_eq, ReadSkipExt, TechID};
 pub use random_map::*;
 pub use sound::{Sound, SoundID, SoundItem};
 pub use sprite::{GraphicID, SoundProp, Sprite, SpriteAttackSound, SpriteDelta, SpriteID};
@@ -130,7 +130,7 @@ impl FileVersion {
     /// Is this file built for Age of Empires II: The Conquerors?
     pub fn is_aoc(self) -> bool {
         let data_version = self.into_data_version();
-        cmp_float!(data_version == 11.97)
+        f32_eq!(data_version, 11.97)
     }
 
     /// Is this file built for Age of Empires II: Definitive Edition?

@@ -1,7 +1,7 @@
 use crate::{ObjectID, PlayerID, Result};
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{cmp_float, read_opt_u32, read_str, ReadSkipExt, TechID, UnitTypeID};
+use genie_support::{f32_neq, read_opt_u32, read_str, ReadSkipExt, TechID, UnitTypeID};
 use std::convert::TryInto;
 use std::io::{Read, Write};
 
@@ -1118,7 +1118,7 @@ impl UngarrisonCommand {
         let _padding = input.read_u16::<LE>()?;
         let x = input.read_f32::<LE>()?;
         let y = input.read_f32::<LE>()?;
-        command.location = if cmp_float!(x != -1.0) && cmp_float!(y != -1.0) {
+        command.location = if f32_neq!(x, -1.0) && f32_neq!(y, -1.0) {
             Some((x, y))
         } else {
             None
@@ -1186,7 +1186,7 @@ impl UnitOrderCommand {
         let _padding = input.read_u16::<LE>()?;
         let x = input.read_f32::<LE>()?;
         let y = input.read_f32::<LE>()?;
-        command.location = if cmp_float!(x != -1.0) && cmp_float!(y != -1.0) {
+        command.location = if f32_neq!(x, -1.0) && f32_neq!(y, -1.0) {
             Some((x, y))
         } else {
             None
