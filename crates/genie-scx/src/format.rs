@@ -964,7 +964,11 @@ impl TribeScen {
             for num in &self.num_disabled_techs {
                 output.write_i32::<LE>(*num)?;
             }
-            for (player_disabled_techs, &num) in self.disabled_techs.iter().zip(self.num_disabled_techs.iter()) {
+            for (player_disabled_techs, &num) in self
+                .disabled_techs
+                .iter()
+                .zip(self.num_disabled_techs.iter())
+            {
                 for i in 0..num as usize {
                     output.write_i32::<LE>(*player_disabled_techs.get(i).unwrap_or(&-1))?;
                 }
@@ -973,7 +977,11 @@ impl TribeScen {
             for num in &self.num_disabled_units {
                 output.write_i32::<LE>(*num)?;
             }
-            for (player_disabled_units, &num) in self.disabled_units.iter().zip(self.num_disabled_units.iter()) {
+            for (player_disabled_units, &num) in self
+                .disabled_units
+                .iter()
+                .zip(self.num_disabled_units.iter())
+            {
                 for i in 0..num as usize {
                     output.write_i32::<LE>(*player_disabled_units.get(i).unwrap_or(&-1))?;
                 }
@@ -982,7 +990,11 @@ impl TribeScen {
             for num in &self.num_disabled_buildings {
                 output.write_i32::<LE>(*num)?;
             }
-            for (player_disabled_buildings, &num) in self.disabled_buildings.iter().zip(self.num_disabled_buildings.iter()) {
+            for (player_disabled_buildings, &num) in self
+                .disabled_buildings
+                .iter()
+                .zip(self.num_disabled_buildings.iter())
+            {
                 for i in 0..num as usize {
                     output.write_i32::<LE>(*player_disabled_buildings.get(i).unwrap_or(&-1))?;
                 }
@@ -1258,7 +1270,11 @@ impl SCXFormat {
         }
     }
 
-    fn write_player_objects(&self, mut output: impl  Write, format_version: SCXVersion) -> Result<()> {
+    fn write_player_objects(
+        &self,
+        mut output: impl Write,
+        format_version: SCXVersion,
+    ) -> Result<()> {
         for objects in &self.player_objects {
             output.write_i32::<LE>(objects.len() as i32)?;
             for object in objects {
@@ -1268,7 +1284,12 @@ impl SCXFormat {
         Ok(())
     }
 
-    fn write_scenario_players(&self, mut output: impl Write, player_version: f32, victory_version: f32) -> Result<()> {
+    fn write_scenario_players(
+        &self,
+        mut output: impl Write,
+        player_version: f32,
+        victory_version: f32,
+    ) -> Result<()> {
         output.write_i32::<LE>(self.scenario_players.len() as i32 + 1)?;
         for player in &self.scenario_players {
             player.write_to(&mut output, player_version, victory_version)?;
@@ -1289,10 +1310,13 @@ impl SCXFormat {
         let mut output = DeflateEncoder::new(output, Compression::default());
         output.write_i32::<LE>(self.next_object_id)?;
 
-        let num_triggers = self.triggers.as_ref()
+        let num_triggers = self
+            .triggers
+            .as_ref()
             .map(|trigger_system| trigger_system.num_triggers())
             .unwrap_or(0);
-        self.tribe_scen.write_to(&mut output, version.data, num_triggers)?;
+        self.tribe_scen
+            .write_to(&mut output, version.data, num_triggers)?;
         self.map.write_to(&mut output, version.data)?;
 
         output.write_i32::<LE>(self.player_objects.len() as i32)?;
@@ -1368,7 +1392,7 @@ fn write_opt_string_key(mut output: impl Write, opt_key: &Option<StringKey>) -> 
 #[cfg(test)]
 mod tests {
     use super::SCXFormat;
-    use crate::{VersionBundle, Result};
+    use crate::{Result, VersionBundle};
     use std::fs::File;
     use std::io::Cursor;
 
@@ -1543,7 +1567,9 @@ mod tests {
         let mut f = File::open("test/scenarios/Hotkey Trainer Buildings.aoe2scenario").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let format2 = save_and_load(&format, format.version()).expect("save-and-load failed");
-        assert_eq!(format.hash(), format2.hash(),
+        assert_eq!(
+            format.hash(),
+            format2.hash(),
             "should produce exactly the same scenario"
         );
     }
@@ -1555,7 +1581,9 @@ mod tests {
         let mut f = File::open("test/scenarios/layertest.aoe2scenario").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
         let format2 = save_and_load(&format, format.version()).expect("save-and-load failed");
-        assert_eq!(format.hash(), format2.hash(),
+        assert_eq!(
+            format.hash(),
+            format2.hash(),
             "should produce exactly the same scenario"
         );
     }
