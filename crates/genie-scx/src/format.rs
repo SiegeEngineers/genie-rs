@@ -190,7 +190,9 @@ impl RGEScen {
         }
 
         if version >= 1.28 {
-            input.skip(64)?;
+            let mut civ_lock = [0; 16];
+            input.read_u32_into::<LE>(&mut civ_lock)?;
+            dbg!(civ_lock);
         }
 
         let name_length = input.read_i16::<LE>()? as usize;
@@ -389,6 +391,13 @@ impl RGEScen {
         output.write_i16::<LE>(0)?;
         output.write_f32::<LE>(-1.0)?;
 
+        if version >= 1.28 {
+            // Civ Lock data
+            for _ in 0..16 {
+                output.write_u32::<LE>(0)?;
+            }
+        }
+
         write_str(&mut output, &self.name)?;
 
         if version >= 1.16 {
@@ -521,14 +530,20 @@ pub struct TribeScen {
     random_start_locations: bool,
     max_teams: u8,
     /// Number of disabled techs per player.
+    ///
+    /// TODO only use `disabled_techs` for this
     num_disabled_techs: Vec<i32>,
     /// Disabled tech IDs per player.
     disabled_techs: Vec<Vec<i32>>,
     /// Number of disabled units per player.
+    ///
+    /// TODO only use `disabled_units` for this
     num_disabled_units: Vec<i32>,
     /// Disabled unit IDs per player.
     disabled_units: Vec<Vec<i32>>,
     /// Number of disabled buildings per player.
+    ///
+    /// TODO only use `disabled_buildings` for this
     num_disabled_buildings: Vec<i32>,
     /// Disabled building IDs per player.
     disabled_buildings: Vec<Vec<i32>>,
@@ -945,8 +960,35 @@ impl TribeScen {
             output.write_i32::<LE>(if self.teams_locked { 1 } else { 0 })?;
         }
 
-        let max_disabled_buildings = if version >= 1.25 { 30 } else { 20 };
-        if version >= 1.18 {
+        if version >= 1.28 {
+            for num in &self.num_disabled_techs {
+                output.write_i32::<LE>(*num)?;
+            }
+            for (player_disabled_techs, &num) in self.disabled_techs.iter().zip(self.num_disabled_techs.iter()) {
+                for i in 0..num as usize {
+                    output.write_i32::<LE>(*player_disabled_techs.get(i).unwrap_or(&-1))?;
+                }
+            }
+
+            for num in &self.num_disabled_units {
+                output.write_i32::<LE>(*num)?;
+            }
+            for (player_disabled_units, &num) in self.disabled_units.iter().zip(self.num_disabled_units.iter()) {
+                for i in 0..num as usize {
+                    output.write_i32::<LE>(*player_disabled_units.get(i).unwrap_or(&-1))?;
+                }
+            }
+
+            for num in &self.num_disabled_buildings {
+                output.write_i32::<LE>(*num)?;
+            }
+            for (player_disabled_buildings, &num) in self.disabled_buildings.iter().zip(self.num_disabled_buildings.iter()) {
+                for i in 0..num as usize {
+                    output.write_i32::<LE>(*player_disabled_buildings.get(i).unwrap_or(&-1))?;
+                }
+            }
+        } else if version >= 1.18 {
+            let max_disabled_buildings = if version >= 1.25 { 30 } else { 20 };
             let most = *self.num_disabled_buildings.iter().max().unwrap_or(&0);
             if most > max_disabled_buildings {
                 return Err(Error::TooManyDisabledBuildingsError(
@@ -1251,7 +1293,7 @@ impl SCXFormat {
             .map(|trigger_system| trigger_system.num_triggers())
             .unwrap_or(0);
         self.tribe_scen.write_to(&mut output, version.data, num_triggers)?;
-        self.map.write_to(&mut output)?;
+        self.map.write_to(&mut output, version.data)?;
 
         output.write_i32::<LE>(self.player_objects.len() as i32)?;
         for player in &self.world_players {
@@ -1326,8 +1368,17 @@ fn write_opt_string_key(mut output: impl Write, opt_key: &Option<StringKey>) -> 
 #[cfg(test)]
 mod tests {
     use super::SCXFormat;
-    use crate::VersionBundle;
-    use std::{fs::File, io::Cursor};
+    use crate::{VersionBundle, Result};
+    use std::fs::File;
+    use std::io::Cursor;
+
+    fn save_and_load(format: &SCXFormat, as_version: VersionBundle) -> Result<SCXFormat> {
+        let mut out = vec![];
+        format.write_to(&mut out, &as_version)?;
+
+        let mut f = Cursor::new(out);
+        SCXFormat::load_scenario(&mut f)
+    }
 
     /// Source: http://aoe.heavengames.com/dl-php/showfile.php?fileid=42
     #[test]
@@ -1344,13 +1395,7 @@ mod tests {
     fn aoe1_beta_scn_reserialize() {
         let mut f = File::open("test/scenarios/Dawn of a New Age.scn").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
-        let mut out = vec![];
-        format
-            .write_to(&mut out, &format.version())
-            .expect("failed to write");
-
-        let mut f = Cursor::new(out);
-        let format2 = SCXFormat::load_scenario(&mut f).expect("failed to read");
+        let format2 = save_and_load(&format, format.version()).expect("save-and-load failed");
 
         assert_eq!(
             format.hash(),
@@ -1363,13 +1408,8 @@ mod tests {
     fn aoe1_beta_scn_to_aoc() {
         let mut f = File::open("test/scenarios/Dawn of a New Age.scn").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
-        let mut out = vec![];
-        format
-            .write_to(&mut out, &VersionBundle::aoc())
-            .expect("failed to write");
+        let format2 = save_and_load(&format, VersionBundle::aoc()).expect("save-and-load failed");
 
-        let mut f = Cursor::new(out);
-        let format2 = SCXFormat::load_scenario(&mut f).expect("failed to read");
         assert_eq!(
             format2.version(),
             VersionBundle::aoc(),
@@ -1422,16 +1462,13 @@ mod tests {
     }
 
     #[test]
-    fn aoe1_ror_to_aoc() -> Result<(), Box<dyn std::error::Error>> {
+    fn aoe1_ror_to_aoc() -> Result<()> {
         let mut f = File::open("test/scenarios/El advenimiento de los hunos_.scx")?;
         let format = SCXFormat::load_scenario(&mut f)?;
+        let format2 = save_and_load(&format, VersionBundle::aoc())?;
 
-        let mut out = vec![];
-        format.write_to(&mut out, &VersionBundle::aoc())?;
-
-        let format = SCXFormat::load_scenario(&mut Cursor::new(out))?;
         assert_eq!(
-            format.version(),
+            format2.version(),
             VersionBundle::aoc(),
             "should have converted to AoC versions"
         );
@@ -1464,13 +1501,7 @@ mod tests {
     fn hd_aoe2scenario() {
         let mut f = File::open("test/scenarios/Year_of_the_Pig.aoe2scenario").unwrap();
         let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
-        let mut out = vec![];
-        format
-            .write_to(&mut out, &format.version())
-            .expect("failed to write");
-
-        let mut f = std::io::Cursor::new(out);
-        let format2 = SCXFormat::load_scenario(&mut f).expect("failed to read");
+        let format2 = save_and_load(&format, format.version()).expect("save-and-load failed");
 
         assert_eq!(
             format.hash(),
@@ -1510,13 +1541,11 @@ mod tests {
     #[test]
     fn aoe_de2_1_36() {
         let mut f = File::open("test/scenarios/Hotkey Trainer Buildings.aoe2scenario").unwrap();
-        let _format = SCXFormat::load_scenario(&mut f).expect("failed to read");
-        /* Cannot write this version yet
-        let mut out = vec![];
-        format
-            .write_to(&mut out, &format.version())
-            .expect("failed to write");
-        */
+        let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
+        let format2 = save_and_load(&format, format.version()).expect("save-and-load failed");
+        assert_eq!(format.hash(), format2.hash(),
+            "should produce exactly the same scenario"
+        );
     }
 
     /// A Definitive Edition 2 scenario, based on the included AIImprovementsBucket10Test file,
@@ -1524,12 +1553,10 @@ mod tests {
     #[test]
     fn aoe_de2_1_37() {
         let mut f = File::open("test/scenarios/layertest.aoe2scenario").unwrap();
-        let _format = SCXFormat::load_scenario(&mut f).expect("failed to read");
-        /* Cannot write this version yet
-        let mut out = vec![];
-        format
-            .write_to(&mut out, &format.version())
-            .expect("failed to write");
-        */
+        let format = SCXFormat::load_scenario(&mut f).expect("failed to read");
+        let format2 = save_and_load(&format, format.version()).expect("save-and-load failed");
+        assert_eq!(format.hash(), format2.hash(),
+            "should produce exactly the same scenario"
+        );
     }
 }

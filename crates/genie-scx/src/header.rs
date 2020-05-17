@@ -1,7 +1,7 @@
 use crate::types::{DLCPackage, DataSet, SCXVersion};
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::read_str;
+use genie_support::{read_str, write_opt_i32_str};
 use std::convert::TryFrom;
 use std::io::{Read, Write};
 
@@ -143,7 +143,7 @@ impl SCXHeader {
     /// Serialize an SCX header to a byte stream.
     pub fn write_to(
         &self,
-        mut output: impl Write,
+        output: impl Write,
         format_version: SCXVersion,
         version: u32,
     ) -> Result<()> {
@@ -187,6 +187,14 @@ impl SCXHeader {
             dlc_options.write_to(&mut intermediate)?;
         }
 
+        if version >= 5 {
+            write_opt_i32_str(&mut intermediate, &self.author_name)?;
+            // TODO should be number of triggers
+            intermediate.write_u32::<LE>(0)?;
+        }
+
+        // Make `output` mutable here so we don't accidentally use it above.
+        let mut output = output;
         output.write_u32::<LE>(intermediate.len() as u32)?;
         output.write_all(&intermediate)?;
 

@@ -7,7 +7,7 @@ use nohash_hasher::IntMap;
 /// Maps HD unit IDs and terrain IDs to their WK equivalents.
 pub struct HDToWK {
     object_ids_map: IntMap<i32, UnitTypeID>,
-    terrain_ids_map: IntMap<i8, i8>,
+    terrain_ids_map: IntMap<u8, u8>,
 }
 
 impl Default for HDToWK {
