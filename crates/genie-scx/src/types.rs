@@ -14,6 +14,17 @@ impl SCXVersion {
     pub fn as_bytes(&self) -> &[u8] {
         &self.0
     }
+
+    pub(crate) fn to_player_version(self) -> Option<f32> {
+        match self.as_bytes() {
+            b"1.07" => Some(1.07),
+            b"1.09" | b"1.10" | b"1.11" => Some(1.11),
+            b"1.12" | b"1.13" | b"1.14" | b"1.15" | b"1.16" => Some(1.12),
+            b"1.18" | b"1.19" => Some(1.13),
+            b"1.20" | b"1.21" | b"1.32" | b"1.36" | b"1.37" => Some(1.14),
+            _ => None,
+        }
+    }
 }
 
 impl Default for SCXVersion {

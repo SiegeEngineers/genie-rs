@@ -1186,38 +1186,35 @@ impl SCXFormat {
         let mut format_version = [0; 4];
         input.read_exact(&mut format_version)?;
         let format_version = SCXVersion(format_version);
-        match format_version.as_bytes() {
-            b"1.01" => unimplemented!(),
-            b"1.02" => unimplemented!(),
-            b"1.03" => unimplemented!(),
-            b"1.04" => unimplemented!(),
-            b"1.05" => unimplemented!(),
-            b"1.06" => unimplemented!(),
-            b"1.07" => Self::load_inner(format_version, 1.07, input),
-            b"1.08" => unimplemented!(),
-            b"1.09" | b"1.10" | b"1.11" => Self::load_inner(format_version, 1.11, input),
-            b"1.12" | b"1.13" | b"1.14" | b"1.15" | b"1.16" => {
-                Self::load_inner(format_version, 1.12, input)
-            }
-            b"1.17" => Self::load_inner(format_version, 1.14, input),
-            b"1.18" | b"1.19" => Self::load_inner(format_version, 1.13, input),
-            b"1.20" | b"1.21" => Self::load_inner(format_version, 1.14, input),
-            // AoE2: Definitive Edition
-            b"1.32" | b"1.36" | b"1.37" => Self::load_inner(format_version, 1.14, input),
-            // AoE1: Definitive Edition
-            b"3.13" => Self::load_inner(format_version, 1.14, input),
-            _ => Err(Error::UnsupportedFormatVersionError(format_version)),
+        if let Some(player_version) = format_version.to_player_version() {
+            Self::load_inner(format_version, player_version, input)
+        } else {
+            Err(Error::UnsupportedFormatVersionError(format_version))
         }
     }
 
+    fn write_player_objects(&self, mut output: impl  Write, format_version: SCXVersion) -> Result<()> {
+        for objects in &self.player_objects {
+            output.write_i32::<LE>(objects.len() as i32)?;
+            for object in objects {
+                object.write_to(&mut output, format_version)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn write_scenario_players(&self, mut output: impl Write, player_version: f32, victory_version: f32) -> Result<()> {
+        output.write_i32::<LE>(self.scenario_players.len() as i32 + 1)?;
+        for player in &self.scenario_players {
+            player.write_to(&mut output, player_version, victory_version)?;
+        }
+        Ok(())
+    }
+
     pub fn write_to(&self, mut output: impl Write, version: &VersionBundle) -> Result<()> {
-        let player_version = match version.format.as_bytes() {
-            b"1.07" => 1.07,
-            b"1.09" | b"1.10" | b"1.11" => 1.11,
-            b"1.12" | b"1.13" | b"1.14" | b"1.15" | b"1.16" => 1.12,
-            b"1.18" | b"1.19" => 1.13,
-            b"1.20" | b"1.21" | b"1.32" | b"1.36" | b"1.37" => 1.14,
-            _ => panic!("writing version {} is not supported", version.format),
+        let player_version = match version.format.to_player_version() {
+            Some(v) => v,
+            None => return Err(Error::UnsupportedFormatVersionError(version.format)),
         };
 
         output.write_all(version.format.as_bytes())?;
@@ -1235,16 +1232,12 @@ impl SCXFormat {
             player.write_to(&mut output, player_version)?;
         }
 
-        for objects in &self.player_objects {
-            output.write_i32::<LE>(objects.len() as i32)?;
-            for object in objects {
-                object.write_to(&mut output, version.format)?;
-            }
-        }
-
-        output.write_i32::<LE>(self.scenario_players.len() as i32 + 1)?;
-        for player in &self.scenario_players {
-            player.write_to(&mut output, player_version, version.victory)?;
+        if version.format >= SCXVersion(*b"1.36") {
+            self.write_scenario_players(&mut output, player_version, version.victory)?;
+            self.write_player_objects(&mut output, version.format)?;
+        } else {
+            self.write_player_objects(&mut output, version.format)?;
+            self.write_scenario_players(&mut output, player_version, version.victory)?;
         }
 
         if version.format > SCXVersion(*b"1.13") {
