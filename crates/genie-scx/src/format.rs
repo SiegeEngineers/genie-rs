@@ -813,6 +813,8 @@ impl TribeScen {
                 read_str(&mut input, len as usize)?
             };
             collide_and_correct = input.read_u8()? != 0;
+        }
+        if version >= 1.37 {
             villager_force_drop = input.read_u8()? != 0;
         }
 
@@ -1481,6 +1483,21 @@ mod tests {
         format
             .write_to(&mut out, &format.version())
             .expect("failed to write");
+    }
+
+    /// A Definitive Edition 2 scenario, SCX format version 1.36.
+    ///
+    /// Source: https://www.ageofempires.com/mods/details/2015/
+    #[test]
+    fn aoe_de2_1_36() {
+        let mut f = File::open("test/scenarios/Hotkey Trainer Buildings.aoe2scenario").unwrap();
+        let _format = SCXFormat::load_scenario(&mut f).expect("failed to read");
+        /* Cannot write this version yet
+        let mut out = vec![];
+        format
+            .write_to(&mut out, &format.version())
+            .expect("failed to write");
+        */
     }
 
     /// A Definitive Edition 2 scenario, based on the included AIImprovementsBucket10Test file,
