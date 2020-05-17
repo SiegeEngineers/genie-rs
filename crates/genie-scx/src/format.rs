@@ -786,19 +786,17 @@ impl TribeScen {
             input.read_i8_into(&mut base_priorities)?;
         }
 
-        if version >= 1.28 {
-            let mut unknown = [0; 4];
-            input.read_exact(&mut unknown)?;
-        }
-
         let mut water_definition = None;
         let mut color_mood = None;
         let mut collide_and_correct = false;
         let mut villager_force_drop = false;
 
         if version >= 1.28 {
-            let _unknown = input.read_u16::<LE>()?;
-            log::debug!("1.28 unknown: {}", _unknown);
+            // Duplicated here from TriggerSystem … we can discard it because the TriggerSystem
+            // will read the same number later.
+            let trigger_count = input.read_u32::<LE>()?;
+            let _unknown_u16 = input.read_u16::<LE>()?;
+            log::debug!("1.28 unknown: {:?}, {}", trigger_count, _unknown_u16);
             water_definition = {
                 let len = input.read_u16::<LE>()?;
                 read_str(&mut input, len as usize)?
@@ -869,7 +867,7 @@ impl TribeScen {
         })
     }
 
-    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write, version: f32, num_triggers: u32) -> Result<()> {
         self.base.write_to(&mut output, version)?;
 
         if version <= 1.13 {
@@ -1048,6 +1046,31 @@ impl TribeScen {
             }
         }
 
+        if version >= 1.28 {
+            output.write_u32::<LE>(num_triggers)?;
+            output.write_u16::<LE>(0)?;
+            write_opt_str(&mut output, &self.water_definition)?;
+        }
+
+        if version >= 1.36 {
+            output.write_u8(0)?;
+            output.write_u8(0)?;
+            write_opt_str(&mut output, &self.color_mood)?;
+            output.write_u8(if self.collide_and_correct { 1 } else { 0 })?;
+        }
+        if version >= 1.37 {
+            output.write_u8(if self.villager_force_drop { 1 } else { 0 })?;
+        }
+
+        if version >= 1.32 {
+            output.write_u32::<LE>(0)?;
+            output.write_u32::<LE>(0)?;
+        }
+
+        if version >= 1.36 {
+            output.write_u8(0)?;
+        }
+
         Ok(())
     }
 
@@ -1224,7 +1247,10 @@ impl SCXFormat {
         let mut output = DeflateEncoder::new(output, Compression::default());
         output.write_i32::<LE>(self.next_object_id)?;
 
-        self.tribe_scen.write_to(&mut output, version.data)?;
+        let num_triggers = self.triggers.as_ref()
+            .map(|trigger_system| trigger_system.num_triggers())
+            .unwrap_or(0);
+        self.tribe_scen.write_to(&mut output, version.data, num_triggers)?;
         self.map.write_to(&mut output)?;
 
         output.write_i32::<LE>(self.player_objects.len() as i32)?;
