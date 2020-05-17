@@ -53,86 +53,109 @@ impl TriggerCondition {
         Ok(())
     }
 
+    /// Get the "amount" value for this trigger condition.
     pub fn amount(&self) -> i32 {
         self.properties[0]
     }
 
+    /// Set the "amount" value for this trigger condition.
     pub fn set_amount(&mut self, amount: i32) {
         self.properties[0] = amount;
     }
 
+    /// Get the "resource" value for this trigger condition.
     pub fn resource(&self) -> i32 {
         self.properties[1]
     }
 
+    /// Set the "resource" value for this trigger condition.
     pub fn set_resource(&mut self, resource: i32) {
         self.properties[1] = resource;
     }
 
+    /// Get the "primary object" value for this trigger condition.
     pub fn primary_object(&self) -> i32 {
         self.properties[2]
     }
 
+    /// Set the "primary object" value for this trigger condition.
     pub fn set_primary_object(&mut self, primary_object: i32) {
         self.properties[2] = primary_object;
     }
 
+    /// Get the "secondary object" value for this trigger condition.
     pub fn secondary_object(&self) -> i32 {
         self.properties[3]
     }
 
+    /// Set the "secondary object" value for this trigger condition.
     pub fn set_secondary_object(&mut self, secondary_object: i32) {
         self.properties[3] = secondary_object;
     }
 
+    /// Get the raw "unit type" value for this trigger condition.
     pub fn raw_unit_type(&self) -> i32 {
         self.properties[4]
     }
 
+    /// Set the raw "unit type" value for this trigger condition.
     pub fn set_raw_unit_type(&mut self, unit_type: i32) {
         self.properties[4] = unit_type;
     }
 
+    /// Get the "unit type" value for this trigger condition.
     pub fn unit_type(&self) -> UnitTypeID {
         self.properties[4].try_into().unwrap()
     }
 
+    /// Set the "unit type" value for this trigger condition.
     pub fn set_unit_type(&mut self, unit_type: UnitTypeID) {
         self.properties[4] = unit_type.try_into().unwrap();
     }
 
+    /// Get the "player ID" value for this trigger condition.
     pub fn player_id(&self) -> i32 {
         self.properties[5]
     }
 
+    /// Set the "player ID" value for this trigger condition.
     pub fn set_player_id(&mut self, player_id: i32) {
         self.properties[5] = player_id;
     }
 
+    /// Get the "Tech ID" value for this trigger condition.
     pub fn technology_id(&self) -> i32 {
         self.properties[6]
     }
 
+    /// Set the "Tech ID" value for this trigger condition.
     pub fn set_technology_id(&mut self, technology_id: i32) {
         self.properties[6] = technology_id;
     }
 
+    /// Get the "Timer" value for this trigger condition.
     pub fn timer(&self) -> i32 {
         self.properties[7]
     }
 
+    /// Set the "Timer" value for this trigger condition.
     pub fn set_timer(&mut self, timer: i32) {
         self.properties[7] = timer;
     }
 
+    /// Get the "Trigger ID" value for this trigger condition.
     pub fn trigger_id(&self) -> i32 {
         self.properties[8]
     }
 
+    /// Set the "Trigger ID" value for this trigger condition.
     pub fn set_trigger_id(&mut self, trigger_id: i32) {
         self.properties[8] = trigger_id;
     }
 
+    /// Get the area this trigger condition applies to.
+    ///
+    /// -1 values indicate no area is set.
     pub fn area(&self) -> (i32, i32, i32, i32) {
         (
             self.properties[9],
@@ -142,6 +165,9 @@ impl TriggerCondition {
         )
     }
 
+    /// Set the area this trigger condition applies to.
+    ///
+    /// -1 values indicate no area is set.
     pub fn set_area(&mut self, area: (i32, i32, i32, i32)) {
         self.properties[9] = area.0;
         self.properties[10] = area.1;
@@ -149,34 +175,42 @@ impl TriggerCondition {
         self.properties[12] = area.3;
     }
 
+    /// Get the "unit group" value for this trigger condition.
     pub fn unit_group(&self) -> i32 {
         self.properties[13]
     }
 
+    /// Set the "unit group" value for this trigger condition.
     pub fn set_unit_group(&mut self, unit_group: i32) {
         self.properties[13] = unit_group;
     }
 
+    /// Get the "Object Type" value for this trigger condition.
     pub fn object_type(&self) -> UnitTypeID {
         self.properties[14].try_into().unwrap()
     }
 
+    /// Set the "Object Type" value for this trigger condition.
     pub fn set_object_type(&mut self, object_type: UnitTypeID) {
         self.properties[14] = i32::from(object_type);
     }
 
+    /// Get the "AI Signal" value for this trigger condition.
     pub fn ai_signal(&self) -> i32 {
         self.properties[15]
     }
 
+    /// Set the "AI Signal" value for this trigger condition.
     pub fn set_ai_signal(&mut self, ai_signal: i32) {
         self.properties[15] = ai_signal;
     }
 
+    /// Get the "Inverted" value for this trigger condition.
     pub fn inverted(&self) -> bool {
         self.properties[16] == 1
     }
 
+    /// Set the "Inverted" value for this trigger condition.
     pub fn set_inverted(&mut self, inverted: i32) {
         self.properties[16] = inverted;
     }
@@ -245,127 +279,158 @@ impl TriggerEffect {
         Ok(())
     }
 
+    /// Get the "AI Goal" value for this trigger effect.
     pub fn ai_goal(&self) -> i32 {
         self.properties[0]
     }
 
+    /// Set the "AI Goal" value for this trigger effect.
     pub fn set_ai_goal(&mut self, ai_goal: i32) {
         self.properties[0] = ai_goal;
     }
 
+    /// Get the "Amount" value for this trigger effect.
     pub fn amount(&self) -> i32 {
         self.properties[1]
     }
 
+    /// Set the "Amount" value for this trigger effect.
     pub fn set_amount(&mut self, amount: i32) {
         self.properties[1] = amount;
     }
 
+    /// Get the "Resource" value for this trigger effect.
     pub fn resource(&self) -> i32 {
         self.properties[2]
     }
 
+    /// Set the "Resource" value for this trigger effect.
     pub fn set_resource(&mut self, resource: i32) {
         self.properties[2] = resource;
     }
 
+    /// Get the "Diplomacy" value for this trigger effect.
     pub fn diplomacy(&self) -> i32 {
         self.properties[3]
     }
 
+    /// Set the "Diplomacy" value for this trigger effect.
     pub fn set_diplomacy(&mut self, diplomacy: i32) {
         self.properties[3] = diplomacy;
     }
 
+    /// Get the "Number of Objects" value for this trigger effect.
     pub fn num_objects(&self) -> i32 {
         self.properties[4]
     }
 
+    /// Set the "Number of Objects" value for this trigger effect.
     pub fn set_num_objects(&mut self, num_objects: i32) {
         self.properties[4] = num_objects;
     }
 
+    /// Get the "Object ID" value for this trigger effect.
     pub fn object_id(&self) -> i32 {
         self.properties[5]
     }
 
+    /// Set the "Object ID" value for this trigger effect.
     pub fn set_object_id(&mut self, object_id: i32) {
         self.properties[5] = object_id;
     }
 
+    /// Get the "Unit Type" value for this trigger effect.
     pub fn unit_type(&self) -> UnitTypeID {
         self.properties[6].try_into().unwrap()
     }
 
+    /// Set the "Unit Type" value for this trigger effect.
     pub fn set_unit_type(&mut self, unit_type: UnitTypeID) {
         self.properties[6] = i32::from(unit_type);
     }
 
+    /// Get the "Source Player" value for this trigger effect.
     pub fn source_player_id(&self) -> i32 {
         self.properties[7]
     }
 
+    /// Set the "Source Player" value for this trigger effect.
     pub fn set_source_player_id(&mut self, source_player_id: i32) {
         self.properties[7] = source_player_id;
     }
 
+    /// Get the "Target Player" value for this trigger effect.
     pub fn target_player_id(&self) -> i32 {
         self.properties[8]
     }
 
+    /// Set the "Target Player" value for this trigger effect.
     pub fn set_target_player_id(&mut self, target_player_id: i32) {
         self.properties[8] = target_player_id;
     }
 
+    /// Get the "Tech ID" value for this trigger effect.
     pub fn technology_id(&self) -> i32 {
         self.properties[9]
     }
 
+    /// Set the "Tech ID" value for this trigger effect.
     pub fn set_technology_id(&mut self, technology_id: i32) {
         self.properties[9] = technology_id;
     }
 
+    /// Get the "Text ID" value for this trigger effect.
     pub fn text_id(&self) -> i32 {
         self.properties[10]
     }
 
+    /// Set the "Text ID" value for this trigger effect.
     pub fn set_text_id(&mut self, text_id: i32) {
         self.properties[10] = text_id;
     }
 
+    /// Get the "Sound ID" value for this trigger effect.
     pub fn sound_id(&self) -> i32 {
         self.properties[11]
     }
 
+    /// Set the "Sound ID" value for this trigger effect.
     pub fn set_sound_id(&mut self, sound_id: i32) {
         self.properties[11] = sound_id;
     }
 
+    /// Get the "Timer" value for this trigger effect.
     pub fn timer(&self) -> i32 {
         self.properties[12]
     }
 
+    /// Set the "Timer" value for this trigger effect.
     pub fn set_timer(&mut self, timer: i32) {
         self.properties[12] = timer;
     }
 
+    /// Get the "Trigger ID" value for this trigger effect.
     pub fn trigger_id(&self) -> i32 {
         self.properties[13]
     }
 
+    /// Set the "Trigger ID" value for this trigger effect.
     pub fn set_trigger_id(&mut self, trigger_id: i32) {
         self.properties[13] = trigger_id;
     }
 
+    /// Get the location this trigger effect applies to.
     pub fn location(&self) -> (i32, i32) {
         (self.properties[14], self.properties[15])
     }
 
+    /// Set the location this trigger effect applies to.
     pub fn set_location(&mut self, location: (i32, i32)) {
         self.properties[14] = location.0;
         self.properties[15] = location.1;
     }
 
+    /// Get the area this trigger effect applies to.
     pub fn area(&self) -> (i32, i32, i32, i32) {
         (
             self.properties[16],
@@ -375,6 +440,7 @@ impl TriggerEffect {
         )
     }
 
+    /// Set the area this trigger effect applies to.
     pub fn set_area(&mut self, area: (i32, i32, i32, i32)) {
         self.properties[16] = area.0;
         self.properties[17] = area.1;
@@ -382,34 +448,42 @@ impl TriggerEffect {
         self.properties[19] = area.3;
     }
 
+    /// Get the "Object Group" value for this trigger effect.
     pub fn object_group(&self) -> i32 {
         self.properties[20]
     }
 
+    /// Set the "Object Group" value for this trigger effect.
     pub fn set_object_group(&mut self, object_group: i32) {
         self.properties[20] = object_group;
     }
 
+    /// Get the "Object Type" value for this trigger effect.
     pub fn object_type(&self) -> UnitTypeID {
         self.properties[21].try_into().unwrap()
     }
 
+    /// Set the "Object Type" value for this trigger effect.
     pub fn set_object_type(&mut self, object_type: UnitTypeID) {
         self.properties[21] = i32::from(object_type);
     }
 
+    /// Get the "Line ID" value for this trigger effect.
     pub fn line_id(&self) -> i32 {
         self.properties[22]
     }
 
+    /// Set the "Line ID" value for this trigger effect.
     pub fn set_line_id(&mut self, line_id: i32) {
         self.properties[22] = line_id;
     }
 
+    /// Get the "Stance" value for this trigger effect.
     pub fn stance(&self) -> i32 {
         self.properties[23]
     }
 
+    /// Set the "Stance" value for this trigger effect.
     pub fn set_stance(&mut self, stance: i32) {
         self.properties[23] = stance;
     }
@@ -549,22 +623,26 @@ impl Trigger {
         Ok(())
     }
 
+    /// Get the conditions in this trigger, in display order.
     pub fn conditions(&self) -> impl Iterator<Item = &TriggerCondition> {
         self.condition_order
             .iter()
             .map(move |index| &self.conditions[*index as usize])
     }
 
+    /// Get the conditions in this trigger, unordered.
     pub fn conditions_unordered_mut(&mut self) -> impl Iterator<Item = &mut TriggerCondition> {
         self.conditions.iter_mut()
     }
 
+    /// Get the effects in this trigger, in display order.
     pub fn effects(&self) -> impl Iterator<Item = &TriggerEffect> {
         self.effect_order
             .iter()
             .map(move |index| &self.effects[*index as usize])
     }
 
+    /// Get the effects in this trigger, unordered.
     pub fn effects_unordered_mut(&mut self) -> impl Iterator<Item = &mut TriggerEffect> {
         self.effects.iter_mut()
     }
@@ -591,6 +669,7 @@ impl Default for TriggerSystem {
 }
 
 impl TriggerSystem {
+    /// Read a trigger system from an input stream.
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let version = input.read_f64::<LE>()?;
         log::debug!("Trigger system version {}", version);
@@ -622,6 +701,7 @@ impl TriggerSystem {
         })
     }
 
+    /// Write the trigger system to an output stream with the given system version.
     pub fn write_to(&self, mut output: impl Write, version: f64) -> Result<()> {
         output.write_f64::<LE>(version)?;
         if version >= 1.5 {
@@ -642,6 +722,11 @@ impl TriggerSystem {
     /// Get the version of the trigger system data.
     pub fn version(&self) -> f64 {
         self.version
+    }
+
+    /// Get the number of triggers in the trigger system.
+    pub fn num_triggers(&self) -> u32 {
+        self.triggers.len() as u32
     }
 
     /// Iterate over all triggers, in order.
