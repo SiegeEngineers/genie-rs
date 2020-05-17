@@ -124,7 +124,7 @@ impl SCXHeader {
                 let len = input.read_u32::<LE>()?;
                 read_str(&mut input, len as usize)?
             };
-            let _unknown_data = input.read_u32::<LE>()?;
+            let _num_triggers = input.read_u32::<LE>()?;
         } else {
             author_name = None;
         }

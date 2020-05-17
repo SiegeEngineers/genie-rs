@@ -80,8 +80,8 @@ impl Map {
                     let a = input.read_i8()?;
                     let b = input.read_i8()?;
                     tile.layered_terrain = Some(input.read_u8()?);
-                    let c = input.read_i8()?;
-                    log::debug!("DE2 Terrain data: {} {} {}", a, b, c);
+                    let layering_related = input.read_i8()?;
+                    log::debug!("DE2 Terrain data: {} {} {}", a, b, layering_related);
                 }
                 tiles.push(tile);
             }
