@@ -45,8 +45,8 @@ fn main() -> anyhow::Result<()> {
         converter.convert(&mut scen)?;
     }
 
-    let mut outstream = File::create(output)?;
-    scen.write_to_version(&mut outstream, &version)?;
+    let outstream = File::create(output)?;
+    scen.write_to_version(outstream, &version)?;
 
     println!("Conversion complete!");
 

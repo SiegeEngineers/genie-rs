@@ -1,10 +1,81 @@
 //! Contains pure types, no IO.
 //!
 //! Most of these are more descriptive wrappers around integers.
+use std::cmp::Ordering;
 use std::convert::TryFrom;
+use std::fmt::{self, Debug, Display};
 
-/// SCX Format version.
-pub type SCXVersion = [u8; 4];
+/// The SCX Format version string. In practice, this does not really reflect the game version.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct SCXVersion(pub(crate) [u8; 4]);
+
+impl SCXVersion {
+    /// Get the raw bytes representing this scx format version.
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+
+    pub(crate) fn to_player_version(self) -> Option<f32> {
+        match self.as_bytes() {
+            b"1.07" => Some(1.07),
+            b"1.09" | b"1.10" | b"1.11" => Some(1.11),
+            b"1.12" | b"1.13" | b"1.14" | b"1.15" | b"1.16" => Some(1.12),
+            b"1.18" | b"1.19" => Some(1.13),
+            b"1.20" | b"1.21" | b"1.32" | b"1.36" | b"1.37" => Some(1.14),
+            _ => None,
+        }
+    }
+}
+
+impl Default for SCXVersion {
+    fn default() -> Self {
+        Self(*b"1.21")
+    }
+}
+
+impl Debug for SCXVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", std::str::from_utf8(&self.0).unwrap())
+    }
+}
+
+impl Display for SCXVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", std::str::from_utf8(&self.0).unwrap())
+    }
+}
+
+impl PartialEq<[u8; 4]> for SCXVersion {
+    fn eq(&self, other: &[u8; 4]) -> bool {
+        other[0] == self.0[0] && other[1] == b'.' && other[2] == self.0[2] && other[3] == self.0[3]
+    }
+}
+
+impl PartialEq<SCXVersion> for [u8; 4] {
+    fn eq(&self, other: &SCXVersion) -> bool {
+        other == self
+    }
+}
+
+impl Ord for SCXVersion {
+    fn cmp(&self, other: &SCXVersion) -> Ordering {
+        match self.0[0].cmp(&other.0[0]) {
+            Ordering::Equal => {}
+            ord => return ord,
+        }
+        match self.0[2].cmp(&other.0[2]) {
+            Ordering::Equal => {}
+            ord => return ord,
+        }
+        self.0[3].cmp(&other.0[3])
+    }
+}
+
+impl PartialOrd for SCXVersion {
+    fn partial_cmp(&self, other: &SCXVersion) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 /// Could not parse a diplomatic stance because given number is an unknown stance ID.
 #[derive(Debug, Clone, Copy, thiserror::Error)]
@@ -219,18 +290,59 @@ impl StartingAge {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VictoryCondition {
-    Capture = 0,
-    Create = 1,
-    Destroy = 2,
-    DestroyMultiple = 3,
-    BringToArea = 4,
-    BringToObject = 5,
-    Attribute = 6,
-    Explore = 7,
-    CreateInArea = 8,
-    DestroyAll = 9,
-    DestroyPlayer = 10,
-    Points = 11,
+    Capture,
+    Create,
+    Destroy,
+    DestroyMultiple,
+    BringToArea,
+    BringToObject,
+    Attribute,
+    Explore,
+    CreateInArea,
+    DestroyAll,
+    DestroyPlayer,
+    Points,
+    Other(u8),
+}
+
+impl From<u8> for VictoryCondition {
+    fn from(n: u8) -> Self {
+        match n {
+            0 => VictoryCondition::Capture,
+            1 => VictoryCondition::Create,
+            2 => VictoryCondition::Destroy,
+            3 => VictoryCondition::DestroyMultiple,
+            4 => VictoryCondition::BringToArea,
+            5 => VictoryCondition::BringToObject,
+            6 => VictoryCondition::Attribute,
+            7 => VictoryCondition::Explore,
+            8 => VictoryCondition::CreateInArea,
+            9 => VictoryCondition::DestroyAll,
+            10 => VictoryCondition::DestroyPlayer,
+            11 => VictoryCondition::Points,
+            n => VictoryCondition::Other(n),
+        }
+    }
+}
+
+impl From<VictoryCondition> for u8 {
+    fn from(condition: VictoryCondition) -> Self {
+        match condition {
+            VictoryCondition::Capture => 0,
+            VictoryCondition::Create => 1,
+            VictoryCondition::Destroy => 2,
+            VictoryCondition::DestroyMultiple => 3,
+            VictoryCondition::BringToArea => 4,
+            VictoryCondition::BringToObject => 5,
+            VictoryCondition::Attribute => 6,
+            VictoryCondition::Explore => 7,
+            VictoryCondition::CreateInArea => 8,
+            VictoryCondition::DestroyAll => 9,
+            VictoryCondition::DestroyPlayer => 10,
+            VictoryCondition::Points => 11,
+            VictoryCondition::Other(n) => n,
+        }
+    }
 }
 
 /// All the versions an SCX file uses in a single struct.
@@ -261,7 +373,7 @@ impl VersionBundle {
     /// A version bundle with the parameters AoE1: Rise of Rome uses by default.
     pub fn ror() -> Self {
         Self {
-            format: *b"1.11",
+            format: SCXVersion(*b"1.11"),
             header: 2,
             dlc_options: None,
             data: 1.15,
@@ -274,7 +386,7 @@ impl VersionBundle {
     /// A version bundle with the parameters AoK uses by default.
     pub fn aok() -> Self {
         Self {
-            format: *b"1.18",
+            format: SCXVersion(*b"1.18"),
             header: 2,
             dlc_options: None,
             data: 1.2,
@@ -287,7 +399,7 @@ impl VersionBundle {
     /// A version bundle with the parameters AoC uses by default
     pub fn aoc() -> Self {
         Self {
-            format: *b"1.21",
+            format: SCXVersion(*b"1.21"),
             header: 2,
             dlc_options: None,
             data: 1.22,
@@ -310,7 +422,7 @@ impl VersionBundle {
     /// A version bundle with the parameters HD Edition uses by default.
     pub fn hd_edition() -> Self {
         Self {
-            format: *b"1.21",
+            format: SCXVersion(*b"1.21"),
             header: 3,
             dlc_options: Some(1000),
             data: 1.26,
@@ -322,7 +434,7 @@ impl VersionBundle {
 
     /// Returns whether this version is (likely) for an AoK scenario.
     pub fn is_aok(&self) -> bool {
-        match &self.format {
+        match self.format.as_bytes() {
             b"1.18" | b"1.19" | b"1.20" => true,
             _ => false,
         }

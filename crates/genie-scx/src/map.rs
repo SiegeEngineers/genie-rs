@@ -1,16 +1,52 @@
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::io::{Read, Write};
+use std::io::{self, Read, Write};
 
 /// A map tile.
 #[derive(Debug, Clone, Copy)]
 pub struct Tile {
     /// The terrain.
-    pub terrain: i8,
+    pub terrain: u8,
+    /// Terrain type layered on top of this tile, if any.
+    pub layered_terrain: Option<u8>,
     /// The elevation level.
     pub elevation: i8,
     /// Unused?
     pub zone: i8,
+}
+
+impl Tile {
+    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+        let mut tile = Self {
+            terrain: input.read_u8()?,
+            layered_terrain: None,
+            elevation: input.read_i8()?,
+            zone: input.read_i8()?,
+        };
+        if version >= 1.28 {
+            let a = input.read_i8()?;
+            let b = input.read_i8()?;
+            tile.layered_terrain = Some(input.read_u8()?);
+            let layering_related = input.read_i8()?;
+            log::debug!("DE2 Terrain data: {} {} {}", a, b, layering_related);
+        }
+        Ok(tile)
+    }
+
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+        output.write_u8(self.terrain)?;
+        output.write_i8(self.elevation)?;
+        output.write_i8(self.zone)?;
+
+        if version >= 1.28 {
+            output.write_i8(-1)?;
+            output.write_i8(-1)?;
+            output.write_u8(self.layered_terrain.unwrap_or(self.terrain))?;
+            output.write_i8(-1)?;
+        }
+
+        Ok(())
+    }
 }
 
 /// Describes the terrain in a map.
@@ -33,6 +69,7 @@ impl Map {
             tiles: vec![
                 Tile {
                     terrain: 0,
+                    layered_terrain: None,
                     elevation: 0,
                     zone: 0
                 };
@@ -42,24 +79,33 @@ impl Map {
     }
 
     /// Fill the map with the given terrain type.
-    pub fn fill(&mut self, terrain_type: i8) {
+    pub fn fill(&mut self, terrain_type: u8) {
         for tile in self.tiles.iter_mut() {
             tile.terrain = terrain_type;
         }
     }
 
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    /// Read map/terrain data from an input stream.
+    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
         let width = input.read_u32::<LE>()?;
         let height = input.read_u32::<LE>()?;
+        log::debug!("Map size: {}×{}", width, height);
+
+        if width > 500 || height > 500 {
+            return Err(io::Error::new(
+                io::ErrorKind::Other,
+                format!(
+                    "Unexpected map size {}×{}, this is likely a genie-scx bug.",
+                    width, height
+                ),
+            )
+            .into());
+        }
 
         let mut tiles = Vec::with_capacity((height * height) as usize);
         for _ in 0..height {
             for _ in 0..width {
-                tiles.push(Tile {
-                    terrain: input.read_i8()?,
-                    elevation: input.read_i8()?,
-                    zone: input.read_i8()?,
-                });
+                tiles.push(Tile::read_from(&mut input, version)?);
             }
         }
 
@@ -70,16 +116,15 @@ impl Map {
         })
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    /// Write map/terrain data to an output stream.
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
         output.write_u32::<LE>(self.width)?;
         output.write_u32::<LE>(self.height)?;
 
         assert_eq!(self.tiles.len(), (self.height * self.width) as usize);
 
         for tile in &self.tiles {
-            output.write_i8(tile.terrain)?;
-            output.write_i8(tile.elevation)?;
-            output.write_i8(tile.zone)?;
+            tile.write_to(&mut output, version)?;
         }
 
         Ok(())

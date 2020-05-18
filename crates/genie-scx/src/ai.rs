@@ -1,77 +1,66 @@
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{read_str, DecodeStringError, ReadStringError};
+use genie_support::{read_str, write_i32_str, DecodeStringError, ReadStringError};
 use std::convert::TryFrom;
 use std::io::{Read, Write};
-use std::mem;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, num_enum::IntoPrimitive, num_enum::TryFromPrimitive)]
 #[repr(u32)]
 pub enum AIErrorCode {
+    ///
     ConstantAlreadyDefined = 0,
+    ///
     FileOpenFailed = 1,
+    ///
     FileReadFailed = 2,
+    ///
     InvalidIdentifier = 3,
+    ///
     InvalidKeyword = 4,
+    ///
     InvalidPreprocessorDirective = 5,
+    ///
     ListFull = 6,
+    ///
     MissingArrow = 7,
+    ///
     MissingClosingParenthesis = 8,
+    ///
     MissingClosingQuote = 9,
+    ///
     MissingEndIf = 10,
+    ///
     MissingFileName = 11,
+    ///
     MissingIdentifier = 12,
+    ///
     MissingKeyword = 13,
+    ///
     MissingLHS = 14,
+    ///
     MissingOpeningParenthesis = 15,
+    ///
     MissingPreprocessorSymbol = 16,
+    ///
     MissingRHS = 17,
+    ///
     NoRules = 18,
+    ///
     PreprocessorNestingTooDeep = 19,
+    ///
     RuleTooLong = 20,
+    ///
     StringTableFull = 21,
+    ///
     UndocumentedError = 22,
+    ///
     UnexpectedElse = 23,
+    ///
     UnexpectedEndIf = 24,
+    ///
     UnexpectedError = 25,
+    ///
     UnexpectedEOF = 26,
-    // Update the check in the TryFrom impl if you add anything here
-}
-
-/// Found an AI error code that isn't defined.
-#[derive(Debug, thiserror::Error)]
-#[error("Unknown AI error code {}", .0)]
-pub struct ParseAIErrorCodeError(u32);
-
-impl TryFrom<u32> for AIErrorCode {
-    type Error = ParseAIErrorCodeError;
-    fn try_from(n: u32) -> std::result::Result<Self, Self::Error> {
-        if n < 27 {
-            // I really don't want to write a 27 branch match statement
-            // or depend on num_derive _just_ for this, because it needs a proc macro
-            // Just keep the above check in sync with the possible values of the AIErrorCode enum
-            Ok({
-                #[allow(unsafe_code)]
-                unsafe {
-                    mem::transmute(n)
-                }
-            })
-        } else {
-            Err(ParseAIErrorCodeError(n))
-        }
-    }
-}
-
-impl AIErrorCode {
-    // TODO remove allow(unused) when AIErrorInfo::write is implemented.
-    #[allow(unused)]
-    fn to_u32(self) -> u32 {
-        // I really don't want to write a 27 branch match statement
-        #[allow(unsafe_code)]
-        unsafe {
-            mem::transmute(self)
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -95,7 +84,9 @@ fn parse_bytes(bytes: &[u8]) -> std::result::Result<String, ReadStringError> {
 }
 
 impl AIErrorInfo {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    /// Read AI error information from an input stream.
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
+        // TODO support non UTF8 encoding
         let mut filename_bytes = [0; 257];
         input.read_exact(&mut filename_bytes)?;
         let line_number = input.read_i32::<LE>()?;
@@ -113,6 +104,25 @@ impl AIErrorInfo {
             error_code,
         })
     }
+
+    /// Write AI error information to an output stream.
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+        // TODO support non UTF8 encoding
+        let mut filename_bytes = [0; 257];
+        (&mut filename_bytes[..self.filename.len()]).copy_from_slice(self.filename.as_bytes());
+        output.write_all(&filename_bytes)?;
+
+        output.write_i32::<LE>(self.line_number)?;
+
+        let mut description_bytes = [0; 128];
+        (&mut description_bytes[..self.description.len()])
+            .copy_from_slice(self.description.as_bytes());
+        output.write_all(&description_bytes)?;
+
+        output.write_u32::<LE>(self.error_code.into())?;
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -122,13 +132,21 @@ pub struct AIFile {
 }
 
 impl AIFile {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    /// Read an embedded AI file from an input stream.
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let len = input.read_i32::<LE>()? as usize;
-        let filename = read_str(input, len)?.expect("missing ai file name");
+        let filename = read_str(&mut input, len)?.expect("missing ai file name");
         let len = input.read_i32::<LE>()? as usize;
-        let content = read_str(input, len)?.expect("empty ai file?");
+        let content = read_str(&mut input, len)?.expect("empty ai file?");
 
         Ok(Self { filename, content })
+    }
+
+    /// Write this embedded AI file to an output stream.
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+        write_i32_str(&mut output, &self.filename)?;
+        write_i32_str(&mut output, &self.content)?;
+        Ok(())
     }
 }
 
@@ -139,7 +157,7 @@ pub struct AIInfo {
 }
 
 impl AIInfo {
-    pub fn from<R: Read>(input: &mut R) -> Result<Option<Self>> {
+    pub fn read_from(mut input: impl Read) -> Result<Option<Self>> {
         let has_ai_files = input.read_u32::<LE>()? != 0;
         let has_error = input.read_u32::<LE>()? != 0;
 
@@ -148,7 +166,7 @@ impl AIInfo {
         }
 
         let error = if has_error {
-            Some(AIErrorInfo::from(input)?)
+            Some(AIErrorInfo::read_from(&mut input)?)
         } else {
             None
         };
@@ -156,15 +174,29 @@ impl AIInfo {
         let num_ai_files = input.read_u32::<LE>()?;
         let mut files = vec![];
         for _ in 0..num_ai_files {
-            files.push(AIFile::from(input)?);
+            files.push(AIFile::read_from(&mut input)?);
         }
 
         Ok(Some(Self { error, files }))
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        output.write_u32::<LE>(0)?;
-        output.write_u32::<LE>(0)?;
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+        output.write_u32::<LE>(if self.files.is_empty() { 0 } else { 1 })?;
+
+        if let Some(error) = &self.error {
+            output.write_u32::<LE>(1)?;
+            error.write_to(&mut output)?;
+        } else {
+            output.write_u32::<LE>(0)?;
+        }
+
+        if !self.files.is_empty() {
+            output.write_u32::<LE>(self.files.len() as u32)?;
+            for file in &self.files {
+                file.write_to(&mut output)?;
+            }
+        }
+
         Ok(())
     }
 }
