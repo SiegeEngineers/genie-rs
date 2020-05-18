@@ -190,9 +190,8 @@ impl RGEScen {
         }
 
         if version >= 1.28 {
-            let mut civ_lock = [0; 16];
-            input.read_u32_into::<LE>(&mut civ_lock)?;
-            dbg!(civ_lock);
+            let _civ_lock = &mut [0; 16];
+            input.read_u32_into::<LE>(_civ_lock)?;
         }
 
         let name_length = input.read_i16::<LE>()? as usize;
@@ -500,6 +499,10 @@ impl RGEScen {
     }
 }
 
+/// Embeddable scenario data. This includes all scenario settings, but not map data, triggers, and
+/// placed objects.
+///
+/// The game saves this structure in scenario files, and also in saved and recorded game files.
 #[derive(Debug, Default, Clone)]
 pub struct TribeScen {
     /// "Engine" data.
@@ -582,10 +585,12 @@ pub struct TribeScen {
 
 impl TribeScen {
     #[deprecated = "Use TribeScen::read_from instead"]
+    #[doc(hidden)]
     pub fn from(input: impl Read) -> Result<Self> {
         Self::read_from(input)
     }
 
+    /// Read scenario data from an input stream.
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut base = RGEScen::read_from(&mut input)?;
         let version = base.version;
@@ -882,6 +887,7 @@ impl TribeScen {
         })
     }
 
+    /// Write scenario data to an output stream.
     pub fn write_to(&self, mut output: impl Write, version: f32, num_triggers: u32) -> Result<()> {
         self.base.write_to(&mut output, version)?;
 

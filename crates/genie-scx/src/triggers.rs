@@ -1,7 +1,7 @@
 use crate::Result;
 use crate::UnitTypeID;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{read_opt_u32, read_str, write_i32_str, write_opt_i32_str};
+use genie_support::{read_opt_u32, read_str, write_i32_str, write_opt_i32_str, StringKey};
 use std::convert::TryInto;
 use std::io::{Read, Write};
 
@@ -508,12 +508,17 @@ pub struct Trigger {
     objective_order: i32,
     start_time: u32,
     description: Option<String>,
+    short_description_id: Option<StringKey>,
     short_description: Option<String>,
+    display_short_description: bool,
+    short_description_state: u8,
+    mute_objective: bool,
     name: Option<String>,
     effects: Vec<TriggerEffect>,
     effect_order: Vec<i32>,
     conditions: Vec<TriggerCondition>,
     condition_order: Vec<i32>,
+    make_header: bool,
 }
 
 impl Trigger {
@@ -525,14 +530,19 @@ impl Trigger {
         let is_objective = input.read_i8()? != 0;
         let objective_order = input.read_i32::<LE>()?;
 
+        let mut make_header = false;
+        let mut short_description_id = None;
+        let mut short_description_state = 0;
+        let mut display_short_description = false;
+        let mut mute_objective = false;
         let start_time;
         if version >= 1.8 {
-            let _make_header = input.read_u8()?;
-            let _short_description_id: Option<u32> = read_opt_u32(&mut input)?;
-            let _display_short_description = input.read_u8()?;
-            let _short_description_state = input.read_u8()?;
+            make_header = input.read_u8()? != 0;
+            short_description_id = read_opt_u32(&mut input)?;
+            display_short_description = input.read_u8()? != 0;
+            short_description_state = input.read_u8()?;
             start_time = input.read_u32::<LE>()?;
-            let _mute = input.read_u8()?;
+            mute_objective = input.read_u8()? != 0;
         } else {
             start_time = input.read_u32::<LE>()?;
         }
@@ -583,11 +593,16 @@ impl Trigger {
             start_time,
             description,
             short_description,
+            short_description_id,
+            display_short_description,
+            short_description_state,
+            mute_objective,
             name,
             effects,
             effect_order,
             conditions,
             condition_order,
+            make_header,
         })
     }
 
@@ -600,12 +615,12 @@ impl Trigger {
         output.write_i32::<LE>(self.objective_order)?;
 
         if version >= 1.8 {
-            output.write_u8(0)?;
-            output.write_i32::<LE>(-1)?;
-            output.write_u8(0)?;
-            output.write_u8(0)?;
+            output.write_u8(if self.make_header { 1 } else { 0 })?;
+            write_opt_string_key(&mut output, &self.short_description_id)?;
+            output.write_u8(if self.display_short_description { 1 } else { 0 })?;
+            output.write_u8(self.short_description_state)?;
             output.write_u32::<LE>(self.start_time)?;
-            output.write_u8(0)?;
+            output.write_u8(if self.mute_objective { 1 } else { 0 })?;
         } else {
             output.write_u32::<LE>(self.start_time)?;
         }
@@ -817,4 +832,15 @@ impl TriggerSystem {
     pub fn triggers_unordered_mut(&mut self) -> impl Iterator<Item = &mut Trigger> {
         self.triggers.iter_mut()
     }
+}
+
+fn write_opt_string_key(mut output: impl Write, opt_key: &Option<StringKey>) -> Result<()> {
+    use std::io::{Error, ErrorKind};
+    output.write_u32::<LE>(if let Some(key) = opt_key {
+        key.try_into()
+            .map_err(|err| Error::new(ErrorKind::InvalidData, err))?
+    } else {
+        0xFFFF_FFFF
+    })?;
+    Ok(())
 }
