@@ -1,7 +1,7 @@
 use crate::Result;
 use crate::UnitTypeID;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{read_opt_u32, read_str, write_str};
+use genie_support::{read_opt_u32, read_str, write_opt_i32_str, write_i32_str};
 use std::convert::TryInto;
 use std::io::{Read, Write};
 
@@ -269,11 +269,20 @@ impl TriggerEffect {
     }
 
     /// Write a trigger effect to an output stream, with the given trigger system version.
-    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write, version: f64) -> Result<()> {
         output.write_i32::<LE>(self.effect_type)?;
         output.write_i32::<LE>(self.properties.len() as i32)?;
         for value in &self.properties {
             output.write_i32::<LE>(*value)?;
+        }
+
+        write_opt_i32_str(&mut output, &self.chat_text)?;
+        write_opt_i32_str(&mut output, &self.audio_file)?;
+
+        if version > 1.1 {
+            for i in 0..self.num_objects() {
+                output.write_i32::<LE>(*self.objects.get(i as usize).unwrap_or(&-1))?;
+            }
         }
 
         Ok(())
@@ -518,12 +527,11 @@ impl Trigger {
 
         let start_time;
         if version >= 1.8 {
-            start_time = 0;
             let _make_header = input.read_u8()?;
-            let _short_string_id: Option<u32> = read_opt_u32(&mut input)?;
-            let _display = input.read_u8()?;
-            let mut _unknown = [0; 5];
-            input.read_exact(&mut _unknown)?;
+            let _short_description_id: Option<u32> = read_opt_u32(&mut input)?;
+            let _display_short_description = input.read_u8()?;
+            let _short_description_state = input.read_u8()?;
+            start_time = input.read_u32::<LE>()?;
             let _mute = input.read_u8()?;
         } else {
             start_time = input.read_u32::<LE>()?;
@@ -531,16 +539,19 @@ impl Trigger {
 
         let description = {
             let len = input.read_u32::<LE>()? as usize;
+            dbg!(len);
             read_str(&mut input, len)?
         };
 
         let name = {
             let len = input.read_u32::<LE>()? as usize;
+            dbg!(len);
             read_str(&mut input, len)?
         };
 
         let short_description = if version >= 1.8 {
             let len = input.read_u32::<LE>()? as usize;
+            dbg!(len);
             read_str(&mut input, len)?
         } else {
             None
@@ -590,24 +601,27 @@ impl Trigger {
         output.write_i32::<LE>(self.name_id)?;
         output.write_i8(if self.is_objective { 1 } else { 0 })?;
         output.write_i32::<LE>(self.objective_order)?;
-        output.write_u32::<LE>(self.start_time)?;
 
-        if let Some(descr) = &self.description {
-            output.write_u32::<LE>(descr.len().try_into().unwrap())?;
-            write_str(&mut output, descr)?;
+        if version >= 1.8 {
+            output.write_u8(0)?;
+            output.write_i32::<LE>(-1)?;
+            output.write_u8(0)?;
+            output.write_u8(0)?;
+            output.write_u32::<LE>(self.start_time)?;
+            output.write_u8(0)?;
         } else {
-            output.write_u32::<LE>(0)?;
+            output.write_u32::<LE>(self.start_time)?;
         }
-        if let Some(name) = &self.name {
-            output.write_u32::<LE>(name.len().try_into().unwrap())?;
-            write_str(&mut output, name)?;
-        } else {
-            output.write_u32::<LE>(0)?;
+
+        write_opt_i32_str(&mut output, &self.description)?;
+        write_opt_i32_str(&mut output, &self.name)?;
+        if version >= 1.8 {
+            write_opt_i32_str(&mut output, &self.short_description)?;
         }
 
         output.write_u32::<LE>(self.effects.len() as u32)?;
         for effect in &self.effects {
-            effect.write_to(&mut output)?;
+            effect.write_to(&mut output, version)?;
         }
         for order in &self.effect_order {
             output.write_i32::<LE>(*order)?;
@@ -655,6 +669,9 @@ pub struct TriggerSystem {
     objectives_state: i8,
     triggers: Vec<Trigger>,
     trigger_order: Vec<i32>,
+    enabled_techs: Vec<u32>,
+    variable_values: Vec<u32>,
+    variable_names: Vec<String>,
 }
 
 impl Default for TriggerSystem {
@@ -664,6 +681,9 @@ impl Default for TriggerSystem {
             objectives_state: 0,
             triggers: vec![],
             trigger_order: vec![],
+            enabled_techs: vec![],
+            variable_values: vec![0; 256],
+            variable_names: vec![String::new(); 256],
         }
     }
 }
@@ -693,11 +713,41 @@ impl TriggerSystem {
             }
         }
 
+        let mut variable_values = vec![];
+        let mut enabled_techs = vec![];
+        let mut variable_names = vec![];
+
+        if version >= 2.2 {
+            variable_values.resize(256, 0);
+            input.read_u32_into::<LE>(&mut variable_values)?;
+            enabled_techs = {
+                let num_enabled_techs = input.read_u32::<LE>()?;
+                let mut enabled_techs = vec![0; num_enabled_techs as usize];
+                input.read_u32_into::<LE>(&mut enabled_techs)?;
+                enabled_techs
+            };
+            variable_names = {
+                let num_var_names = input.read_u32::<LE>()?;
+                let mut variable_names = vec![String::new(); 256];
+                for _ in 0..num_var_names {
+                    let id = input.read_u32::<LE>()?;
+                    assert!(id < 256, "Unexpected variable number, this is probably a genie-scx bug");
+                    let len = input.read_u32::<LE>()?;
+                    variable_names[id as usize] = read_str(&mut input, len as usize)?.unwrap_or_default();
+                }
+                variable_names
+            };
+
+        }
+
         Ok(Self {
             version,
             objectives_state,
             triggers,
             trigger_order,
+            enabled_techs,
+            variable_values,
+            variable_names,
         })
     }
 
@@ -714,6 +764,27 @@ impl TriggerSystem {
         if version >= 1.4 {
             for order in &self.trigger_order {
                 output.write_i32::<LE>(*order)?;
+            }
+        }
+        if version >= 2.2 {
+            let padded_values = self.variable_values
+                .iter()
+                .cloned()
+                .chain(std::iter::repeat(0))
+                .take(256);
+            for value in padded_values {
+                output.write_u32::<LE>(value)?;
+            }
+            output.write_u32::<LE>(self.enabled_techs.len() as u32)?;
+            for id in &self.enabled_techs {
+                output.write_u32::<LE>(*id)?;
+            }
+            for (index, name) in self.variable_names.iter().enumerate() {
+                if name.is_empty() {
+                    continue;
+                }
+                output.write_u32::<LE>(index as u32)?;
+                write_i32_str(&mut output, &name)?;
             }
         }
         Ok(())
