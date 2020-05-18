@@ -25,7 +25,6 @@ use format::SCXFormat;
 use genie_support::{ReadStringError, WriteStringError};
 use std::io::{self, Read, Write};
 
-pub use ai::ParseAIErrorCodeError;
 pub use format::{ScenarioObject, TribeScen};
 pub use genie_support::{DecodeStringError, EncodeStringError};
 pub use genie_support::{StringKey, UnitTypeID};
@@ -85,7 +84,7 @@ pub enum Error {
     ParseStartingAgeError(#[from] ParseStartingAgeError),
     /// The given ID is not a known error code.
     #[error(transparent)]
-    ParseAIErrorCodeError(#[from] ParseAIErrorCodeError),
+    ParseAIErrorCodeError(#[from] num_enum::TryFromPrimitiveError<ai::AIErrorCode>),
     /// An error occurred while reading or writing.
     #[error(transparent)]
     IoError(#[from] io::Error),

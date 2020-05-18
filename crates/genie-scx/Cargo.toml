@@ -17,6 +17,7 @@ log = "0.4.8"
 nohash-hasher = "^0.2.0"
 rgb = "^0.8.13"
 thiserror = "1.0.13"
+num_enum = "0.5.0"
 
 [dev-dependencies]
 anyhow = "1.0.27"

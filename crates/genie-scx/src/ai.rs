@@ -3,75 +3,64 @@ use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use genie_support::{read_str, DecodeStringError, ReadStringError};
 use std::convert::TryFrom;
 use std::io::{Read, Write};
-use std::mem;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, num_enum::IntoPrimitive, num_enum::TryFromPrimitive)]
 #[repr(u32)]
 pub enum AIErrorCode {
+    ///
     ConstantAlreadyDefined = 0,
+    ///
     FileOpenFailed = 1,
+    ///
     FileReadFailed = 2,
+    ///
     InvalidIdentifier = 3,
+    ///
     InvalidKeyword = 4,
+    ///
     InvalidPreprocessorDirective = 5,
+    ///
     ListFull = 6,
+    ///
     MissingArrow = 7,
+    ///
     MissingClosingParenthesis = 8,
+    ///
     MissingClosingQuote = 9,
+    ///
     MissingEndIf = 10,
+    ///
     MissingFileName = 11,
+    ///
     MissingIdentifier = 12,
+    ///
     MissingKeyword = 13,
+    ///
     MissingLHS = 14,
+    ///
     MissingOpeningParenthesis = 15,
+    ///
     MissingPreprocessorSymbol = 16,
+    ///
     MissingRHS = 17,
+    ///
     NoRules = 18,
+    ///
     PreprocessorNestingTooDeep = 19,
+    ///
     RuleTooLong = 20,
+    ///
     StringTableFull = 21,
+    ///
     UndocumentedError = 22,
+    ///
     UnexpectedElse = 23,
+    ///
     UnexpectedEndIf = 24,
+    ///
     UnexpectedError = 25,
+    ///
     UnexpectedEOF = 26,
-    // Update the check in the TryFrom impl if you add anything here
-}
-
-/// Found an AI error code that isn't defined.
-#[derive(Debug, thiserror::Error)]
-#[error("Unknown AI error code {}", .0)]
-pub struct ParseAIErrorCodeError(u32);
-
-impl TryFrom<u32> for AIErrorCode {
-    type Error = ParseAIErrorCodeError;
-    fn try_from(n: u32) -> std::result::Result<Self, Self::Error> {
-        if n < 27 {
-            // I really don't want to write a 27 branch match statement
-            // or depend on num_derive _just_ for this, because it needs a proc macro
-            // Just keep the above check in sync with the possible values of the AIErrorCode enum
-            Ok({
-                #[allow(unsafe_code)]
-                unsafe {
-                    mem::transmute(n)
-                }
-            })
-        } else {
-            Err(ParseAIErrorCodeError(n))
-        }
-    }
-}
-
-impl AIErrorCode {
-    // TODO remove allow(unused) when AIErrorInfo::write is implemented.
-    #[allow(unused)]
-    fn to_u32(self) -> u32 {
-        // I really don't want to write a 27 branch match statement
-        #[allow(unsafe_code)]
-        unsafe {
-            mem::transmute(self)
-        }
-    }
 }
 
 #[derive(Debug, Clone)]

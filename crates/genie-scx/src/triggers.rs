@@ -539,19 +539,16 @@ impl Trigger {
 
         let description = {
             let len = input.read_u32::<LE>()? as usize;
-            dbg!(len);
             read_str(&mut input, len)?
         };
 
         let name = {
             let len = input.read_u32::<LE>()? as usize;
-            dbg!(len);
             read_str(&mut input, len)?
         };
 
         let short_description = if version >= 1.8 {
             let len = input.read_u32::<LE>()? as usize;
-            dbg!(len);
             read_str(&mut input, len)?
         } else {
             None
@@ -737,7 +734,6 @@ impl TriggerSystem {
                 }
                 variable_names
             };
-
         }
 
         Ok(Self {
@@ -779,10 +775,11 @@ impl TriggerSystem {
             for id in &self.enabled_techs {
                 output.write_u32::<LE>(*id)?;
             }
-            for (index, name) in self.variable_names.iter().enumerate() {
-                if name.is_empty() {
-                    continue;
-                }
+
+            let custom_names = self.variable_names.iter()
+                .enumerate()
+                .filter(|(_index, name)| !name.is_empty());
+            for (index, name) in custom_names {
                 output.write_u32::<LE>(index as u32)?;
                 write_i32_str(&mut output, &name)?;
             }
