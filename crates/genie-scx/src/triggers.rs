@@ -779,6 +779,8 @@ impl TriggerSystem {
             let custom_names = self.variable_names.iter()
                 .enumerate()
                 .filter(|(_index, name)| !name.is_empty());
+            let num_custom_names = custom_names.clone().count();
+            output.write_u32::<LE>(num_custom_names as u32)?;
             for (index, name) in custom_names {
                 output.write_u32::<LE>(index as u32)?;
                 write_i32_str(&mut output, &name)?;
