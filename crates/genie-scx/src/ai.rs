@@ -1,6 +1,6 @@
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{read_str, DecodeStringError, ReadStringError};
+use genie_support::{read_str, write_i32_str, DecodeStringError, ReadStringError};
 use std::convert::TryFrom;
 use std::io::{Read, Write};
 
@@ -84,7 +84,9 @@ fn parse_bytes(bytes: &[u8]) -> std::result::Result<String, ReadStringError> {
 }
 
 impl AIErrorInfo {
+    /// Read AI error information from an input stream.
     pub fn read_from(mut input: impl Read) -> Result<Self> {
+        // TODO support non UTF8 encoding
         let mut filename_bytes = [0; 257];
         input.read_exact(&mut filename_bytes)?;
         let line_number = input.read_i32::<LE>()?;
@@ -102,6 +104,24 @@ impl AIErrorInfo {
             error_code,
         })
     }
+
+    /// Write AI error information to an output stream.
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+        // TODO support non UTF8 encoding
+        let mut filename_bytes = [0; 257];
+        (&mut filename_bytes[..self.filename.len()]).copy_from_slice(self.filename.as_bytes());
+        output.write_all(&filename_bytes)?;
+
+        output.write_i32::<LE>(self.line_number)?;
+
+        let mut description_bytes = [0; 128];
+        (&mut description_bytes[..self.description.len()]).copy_from_slice(self.description.as_bytes());
+        output.write_all(&description_bytes)?;
+
+        output.write_u32::<LE>(self.error_code.into())?;
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -111,6 +131,7 @@ pub struct AIFile {
 }
 
 impl AIFile {
+    /// Read an embedded AI file from an input stream.
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let len = input.read_i32::<LE>()? as usize;
         let filename = read_str(&mut input, len)?.expect("missing ai file name");
@@ -118,6 +139,13 @@ impl AIFile {
         let content = read_str(&mut input, len)?.expect("empty ai file?");
 
         Ok(Self { filename, content })
+    }
+
+    /// Write this embedded AI file to an output stream.
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+        write_i32_str(&mut output, &self.filename)?;
+        write_i32_str(&mut output, &self.content)?;
+        Ok(())
     }
 }
 
@@ -152,8 +180,22 @@ impl AIInfo {
     }
 
     pub fn write_to(&self, mut output: impl Write) -> Result<()> {
-        output.write_u32::<LE>(0)?;
-        output.write_u32::<LE>(0)?;
+        output.write_u32::<LE>(if self.files.is_empty() { 0 } else { 1 })?;
+
+        if let Some(error) = &self.error {
+            output.write_u32::<LE>(1)?;
+            error.write_to(&mut output)?;
+        } else {
+            output.write_u32::<LE>(0)?;
+        }
+
+        if !self.files.is_empty() {
+            output.write_u32::<LE>(self.files.len() as u32)?;
+            for file in &self.files {
+                file.write_to(&mut output)?;
+            }
+        }
+
         Ok(())
     }
 }
