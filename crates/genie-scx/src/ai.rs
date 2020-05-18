@@ -115,7 +115,8 @@ impl AIErrorInfo {
         output.write_i32::<LE>(self.line_number)?;
 
         let mut description_bytes = [0; 128];
-        (&mut description_bytes[..self.description.len()]).copy_from_slice(self.description.as_bytes());
+        (&mut description_bytes[..self.description.len()])
+            .copy_from_slice(self.description.as_bytes());
         output.write_all(&description_bytes)?;
 
         output.write_u32::<LE>(self.error_code.into())?;

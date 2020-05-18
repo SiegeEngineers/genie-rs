@@ -1,7 +1,7 @@
 use crate::Result;
 use crate::UnitTypeID;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{read_opt_u32, read_str, write_opt_i32_str, write_i32_str};
+use genie_support::{read_opt_u32, read_str, write_i32_str, write_opt_i32_str};
 use std::convert::TryInto;
 use std::io::{Read, Write};
 
@@ -728,9 +728,13 @@ impl TriggerSystem {
                 let mut variable_names = vec![String::new(); 256];
                 for _ in 0..num_var_names {
                     let id = input.read_u32::<LE>()?;
-                    assert!(id < 256, "Unexpected variable number, this is probably a genie-scx bug");
+                    assert!(
+                        id < 256,
+                        "Unexpected variable number, this is probably a genie-scx bug"
+                    );
                     let len = input.read_u32::<LE>()?;
-                    variable_names[id as usize] = read_str(&mut input, len as usize)?.unwrap_or_default();
+                    variable_names[id as usize] =
+                        read_str(&mut input, len as usize)?.unwrap_or_default();
                 }
                 variable_names
             };
@@ -763,7 +767,8 @@ impl TriggerSystem {
             }
         }
         if version >= 2.2 {
-            let padded_values = self.variable_values
+            let padded_values = self
+                .variable_values
                 .iter()
                 .cloned()
                 .chain(std::iter::repeat(0))
@@ -776,7 +781,9 @@ impl TriggerSystem {
                 output.write_u32::<LE>(*id)?;
             }
 
-            let custom_names = self.variable_names.iter()
+            let custom_names = self
+                .variable_names
+                .iter()
                 .enumerate()
                 .filter(|(_index, name)| !name.is_empty());
             let num_custom_names = custom_names.clone().count();
