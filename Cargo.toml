@@ -22,7 +22,7 @@ jascpal = { version = "0.1.1", path = "crates/jascpal" }
 [dev-dependencies]
 structopt = "^0.3.11"
 anyhow = "1.0.27"
-simplelog = "0.7.6"
+simplelog = "0.8.0"
 
 [workspace]
 members = [
