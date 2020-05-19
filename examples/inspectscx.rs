@@ -32,6 +32,7 @@ fn main() {
     }
     println!("  Data: {}", scen.version().data);
     println!("  Victory: {}", scen.version().victory);
+    println!("  Map: {}", scen.version().map);
     match scen.triggers() {
         Some(_) => println!("  Triggers: {}", scen.version().triggers.unwrap()),
         None => println!("  Triggers: absent"),

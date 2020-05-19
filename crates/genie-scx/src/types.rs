@@ -362,6 +362,8 @@ pub struct VersionBundle {
     pub victory: f32,
     /// The version of the trigger system.
     pub triggers: Option<f64>,
+    /// The version of the map data.
+    pub map: u32,
 }
 
 impl VersionBundle {
@@ -380,6 +382,7 @@ impl VersionBundle {
             picture: 1,
             victory: 2.0,
             triggers: None,
+            map: 0,
         }
     }
 
@@ -393,6 +396,7 @@ impl VersionBundle {
             picture: 1,
             victory: 2.0,
             triggers: Some(1.6),
+            map: 0,
         }
     }
 
@@ -406,6 +410,7 @@ impl VersionBundle {
             picture: 1,
             victory: 2.0,
             triggers: Some(1.6),
+            map: 0,
         }
     }
 
@@ -429,6 +434,23 @@ impl VersionBundle {
             picture: 3,
             victory: 2.0,
             triggers: Some(1.6),
+            map: 0,
+        }
+    }
+
+    /// A version bundle with parameters Age of Empires 2: Definitive Edition uses by default.
+    ///
+    /// This will be updated along with DE2 patches.
+    pub fn aoe2_de() -> Self {
+        Self {
+            format: SCXVersion(*b"1.37"),
+            header: 5,
+            dlc_options: Some(1000),
+            data: 1.37,
+            picture: 3,
+            victory: 2.0,
+            triggers: Some(2.2),
+            map: 2,
         }
     }
 
@@ -448,5 +470,10 @@ impl VersionBundle {
     /// Returns whether this version is (likely) for an HD Edition scenario.
     pub fn is_hd_edition(&self) -> bool {
         self.format == *b"1.21" || self.format == *b"1.22" && self.data > 1.22
+    }
+
+    /// Returns whether this version is (likely) for an AoE2: Definitive Edition scenario.
+    pub fn is_age2_de(&self) -> bool {
+        self.data >= 1.28
     }
 }

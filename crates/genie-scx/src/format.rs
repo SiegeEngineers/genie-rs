@@ -811,45 +811,31 @@ impl TribeScen {
         let mut collide_and_correct = false;
         let mut villager_force_drop = false;
 
-        if version >= 1.28 {
+        if version >= 1.35 {
             // Duplicated here from TriggerSystem … we can discard it because the TriggerSystem
             // will read the same number later.
-            let trigger_count = input.read_u32::<LE>()?;
-            let _unknown_u16 = input.read_u16::<LE>()?;
-            log::debug!("1.28 unknown: {:?}, {}", trigger_count, _unknown_u16);
+            let _trigger_count = input.read_u32::<LE>()?;
+        }
+        if version >= 1.30 {
+            let _str_signature = input.read_u16::<LE>()?;
             water_definition = {
                 let len = input.read_u16::<LE>()?;
                 read_str(&mut input, len as usize)?
             };
         }
 
-        if version >= 1.36 {
-            let _unknowns = (input.read_u8()?, input.read_u8()?);
-            log::debug!("1.36 unknowns: {:?}", _unknowns);
+        if version >= 1.32 {
+            let _str_signature = input.read_u16::<LE>()?;
             color_mood = {
                 let len = input.read_u16::<LE>()?;
                 read_str(&mut input, len as usize)?
             };
+        }
+        if version >= 1.36 {
             collide_and_correct = input.read_u8()? != 0;
         }
         if version >= 1.37 {
             villager_force_drop = input.read_u8()? != 0;
-        }
-
-        if version >= 1.32 {
-            let _unknowns = (
-                input.read_u8()?,
-                input.read_u8()?,
-                input.read_u8()?,
-                input.read_u8()?,
-            );
-            let _unknown = input.read_u32::<LE>()?;
-            log::debug!("1.32 unknowns: {:?}, {:x}", _unknowns, _unknown);
-        }
-
-        if version >= 1.36 {
-            let _unknown = input.read_u8()?;
-            log::debug!("1.36 unknown: {}", _unknown);
         }
 
         Ok(TribeScen {
@@ -1122,15 +1108,6 @@ impl TribeScen {
             output.write_u8(if self.villager_force_drop { 1 } else { 0 })?;
         }
 
-        if version >= 1.32 {
-            output.write_u32::<LE>(0)?;
-            output.write_u32::<LE>(0)?;
-        }
-
-        if version >= 1.36 {
-            output.write_u8(0)?;
-        }
-
         Ok(())
     }
 
@@ -1176,6 +1153,7 @@ impl SCXFormat {
             header: self.header.version,
             data: self.tribe_scen.version(),
             triggers: self.triggers.as_ref().map(|triggers| triggers.version()),
+            map: self.map.version(),
             ..VersionBundle::aoc()
         }
     }
@@ -1188,7 +1166,7 @@ impl SCXFormat {
 
         let tribe_scen = TribeScen::read_from(&mut input)?;
 
-        let map = Map::read_from(&mut input, tribe_scen.version())?;
+        let map = Map::read_from(&mut input)?;
 
         let num_players = input.read_u32::<LE>()?;
         log::debug!("number of players: {}", num_players);
@@ -1323,7 +1301,7 @@ impl SCXFormat {
             .unwrap_or(0);
         self.tribe_scen
             .write_to(&mut output, version.data, num_triggers)?;
-        self.map.write_to(&mut output, version.data)?;
+        self.map.write_to(&mut output, version.map)?;
 
         output.write_i32::<LE>(self.player_objects.len() as i32)?;
         for player in &self.world_players {
