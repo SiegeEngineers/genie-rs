@@ -1,3 +1,5 @@
+//! Player actions executed during a game.
+
 use crate::{ObjectID, PlayerID, Result};
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};

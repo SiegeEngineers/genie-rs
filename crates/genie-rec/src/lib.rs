@@ -1,3 +1,16 @@
+//! Provides an Age of Empires series recorded game file reader.
+//!
+//! ## Version Support
+//! This crate can read Age of Empires 1, Age of Empires 2: The Conquerors, and HD Edition recorded game files.
+//!
+//! ## Credits
+//! Most of the `.mgl`, `.mgx`, `.mgz` format specification was taken from Bari's classic [mgx
+//! format description][], the [recage][] Node.js library, and Happyleaves' [aoc-mgz][] Python library.
+//!
+//! [mgx format description]: https://web.archive.org/web/20090215065209/http://members.at.infoseek.co.jp/aocai/mgx_format.html
+//! [recage]: https://github.com/genie-js/recage
+//! [aoc-mgz]: https://github.com/happyleavesaoc/aoc-mgz
+
 pub mod actions;
 pub mod ai;
 pub mod header;
