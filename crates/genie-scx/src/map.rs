@@ -1,48 +1,49 @@
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::io::{self, Read, Write};
+use genie_support::read_opt_u16;
 
 /// A map tile.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct Tile {
     /// The terrain.
     pub terrain: u8,
     /// Terrain type layered on top of this tile, if any.
-    pub layered_terrain: Option<u8>,
+    pub layered_terrain: Option<u16>,
     /// The elevation level.
     pub elevation: i8,
     /// Unused?
     pub zone: i8,
+    /// Definitive Edition 2 value, not sure what it does, only seen `-1` in the wild so far
+    mask_type: Option<u16>,
 }
 
 impl Tile {
+    /// Read a tile from an input stream.
     pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
         let mut tile = Self {
             terrain: input.read_u8()?,
             layered_terrain: None,
             elevation: input.read_i8()?,
             zone: input.read_i8()?,
+            mask_type: None,
         };
         if version >= 1.28 {
-            let a = input.read_i8()?;
-            let b = input.read_i8()?;
-            tile.layered_terrain = Some(input.read_u8()?);
-            let layering_related = input.read_i8()?;
-            log::debug!("DE2 Terrain data: {} {} {}", a, b, layering_related);
+            tile.mask_type = read_opt_u16(&mut input)?;
+            tile.layered_terrain = read_opt_u16(&mut input)?;
         }
         Ok(tile)
     }
 
+    /// Write a tile to an output stream.
     pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
         output.write_u8(self.terrain)?;
         output.write_i8(self.elevation)?;
         output.write_i8(self.zone)?;
 
         if version >= 1.28 {
-            output.write_i8(-1)?;
-            output.write_i8(-1)?;
-            output.write_u8(self.layered_terrain.unwrap_or(self.terrain))?;
-            output.write_i8(-1)?;
+            output.write_u16::<LE>(self.mask_type.unwrap_or(0xFFFF))?;
+            output.write_u16::<LE>(self.layered_terrain.unwrap_or(0xFFFF))?;
         }
 
         Ok(())
@@ -66,15 +67,7 @@ impl Map {
         Self {
             width,
             height,
-            tiles: vec![
-                Tile {
-                    terrain: 0,
-                    layered_terrain: None,
-                    elevation: 0,
-                    zone: 0
-                };
-                (width * height) as usize
-            ],
+            tiles: vec![Default::default(); (width * height) as usize],
         }
     }
 
