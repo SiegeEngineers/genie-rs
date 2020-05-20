@@ -135,4 +135,21 @@ mod tests {
         assert_eq!(written_cpx.by_index_raw(0)?, incpx.by_index_raw(0)?);
         Ok(())
     }
+
+    #[test]
+    fn rebuild_campaign_de2() -> anyhow::Result<()> {
+        let instream = File::open("./test/campaigns/AIImprovementsTest.aoe2campaign")?;
+        let mut outstream = vec![];
+        let mut incpx = Campaign::from(instream)?;
+        incpx.write_to(&mut outstream)?;
+
+        let mut written_cpx = Campaign::from(Cursor::new(outstream))?;
+        assert_eq!(written_cpx.name(), incpx.name());
+        assert_eq!(written_cpx.len(), incpx.len());
+        assert_eq!(written_cpx.version(), incpx.version());
+        assert_eq!(written_cpx.get_name(0), incpx.get_name(0));
+        assert_eq!(written_cpx.get_filename(0), incpx.get_filename(0));
+        assert_eq!(written_cpx.by_index_raw(0)?, incpx.by_index_raw(0)?);
+        Ok(())
+    }
 }

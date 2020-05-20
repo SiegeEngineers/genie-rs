@@ -72,23 +72,6 @@ fn read_hd_or_later_string<R: Read>(input: &mut R) -> Result<Option<String>> {
     decode_str(&bytes).map(Some)
 }
 
-fn read_nullterm_str<R: Read>(input: &mut R) -> Result<Option<String>> {
-    let mut string = vec![];
-    while let byte = input.read_u8()? {
-        if byte == 0 {
-            break;
-        }
-        string.push(byte);
-    }
-
-    let string = String::from_utf8(string).map_err(|_| ReadCampaignError::DecodeStringError)?;
-    Ok(if string.is_empty() {
-        None
-    } else {
-        Some(string)
-    })
-}
-
 fn read_campaign_header<R: Read>(input: &mut R) -> Result<CampaignHeader> {
     let mut version = [0; 4];
     input.read_exact(&mut version)?;
@@ -100,9 +83,8 @@ fn read_campaign_header<R: Read>(input: &mut R) -> Result<CampaignHeader> {
                 DLCPackage::try_from(input.read_i32::<LE>()?).map_err(scx::Error::from)?;
         }
 
-        let name = read_fixed_str(input, 255)?.ok_or(ReadCampaignError::MissingNameError)?;
+        let name = read_fixed_str(input, 256)?.ok_or(ReadCampaignError::MissingNameError)?;
 
-        let _zero = input.read_u8()?;
         let num_scenarios = input.read_u32::<LE>()? as usize;
         (name, num_scenarios)
     } else if version == *b"1.10" {
@@ -114,7 +96,7 @@ fn read_campaign_header<R: Read>(input: &mut R) -> Result<CampaignHeader> {
     } else {
         (
             read_fixed_str(input, 256)?.ok_or(ReadCampaignError::MissingNameError)?,
-            input.read_i32::<LE>()? as usize,
+            input.read_u32::<LE>()? as usize,
         )
     };
 

@@ -1,6 +1,6 @@
-use crate::{CPXVersion, CampaignHeader, ScenarioMeta, AOE1_DE, AOE_AOK};
+use crate::{CPXVersion, CampaignHeader, ScenarioMeta, AOE1_DE, AOE2_DE, AOE_AOK};
 use byteorder::{WriteBytesExt, LE};
-use genie_scx::{Result as SCXResult, Scenario};
+use genie_scx::{DLCPackage, Result as SCXResult, Scenario};
 use std::io::{self, Write};
 
 /// Type for errors that could occur during writing.
@@ -30,15 +30,34 @@ fn write_campaign_header<W: Write>(header: &CampaignHeader, output: &mut W) -> i
     assert!(header.num_scenarios < std::i32::MAX as usize);
 
     output.write_all(&header.version)?;
-    if header.version == AOE1_DE {
-        output.write_i32::<LE>(header.num_scenarios as i32)?;
+    if header.version == AOE2_DE {
+        // DE2 always supports all DLC, so we can just write them all out by default
+        let dependencies = [
+            DLCPackage::AgeOfKings,
+            DLCPackage::AgeOfConquerors,
+            DLCPackage::TheForgotten,
+            DLCPackage::AfricanKingdoms,
+            DLCPackage::RiseOfTheRajas,
+            DLCPackage::LastKhans,
+        ];
+        output.write_u32::<LE>(dependencies.len() as u32)?;
+        for dep in &dependencies {
+            output.write_i32::<LE>(i32::from(*dep))?;
+        }
+        let mut name_bytes = header.name.as_bytes().to_vec();
+        assert!(name_bytes.len() < 256);
+        name_bytes.resize(256, 0);
+        output.write_all(&name_bytes)?;
+        output.write_u32::<LE>(header.num_scenarios as u32)?;
+    } else if header.version == AOE1_DE {
+        output.write_u32::<LE>(header.num_scenarios as u32)?;
         write_variable_str(output, &header.name)?;
     } else {
         let mut name_bytes = header.name.as_bytes().to_vec();
         assert!(name_bytes.len() < 256);
-        name_bytes.extend(vec![0; 256 - name_bytes.len()]);
+        name_bytes.resize(256, 0);
         output.write_all(&name_bytes)?;
-        output.write_i32::<LE>(header.num_scenarios as i32)?;
+        output.write_u32::<LE>(header.num_scenarios as u32)?;
     }
     Ok(())
 }
@@ -71,6 +90,18 @@ fn write_scenario_meta_de<W: Write>(meta: &ScenarioMeta, output: &mut W) -> io::
 
     output.write_u64::<LE>(meta.size as u64)?;
     output.write_u64::<LE>(meta.offset as u64)?;
+    write_variable_str(output, &meta.name)?;
+    write_variable_str(output, &meta.filename)?;
+    Ok(())
+}
+
+/// Write metadata for a single scenario into the `output` stream, in the AoE2: DE format.
+fn write_scenario_meta_de2<W: Write>(meta: &ScenarioMeta, output: &mut W) -> io::Result<()> {
+    assert!(meta.size < std::u32::MAX as usize);
+    assert!(meta.offset < std::u32::MAX as usize);
+
+    output.write_u32::<LE>(meta.size as u32)?;
+    output.write_u32::<LE>(meta.offset as u32)?;
     write_variable_str(output, &meta.name)?;
     write_variable_str(output, &meta.filename)?;
     Ok(())
@@ -127,7 +158,7 @@ impl<W: Write> CampaignWriter<W> {
     /// Set the file version to output.
     pub fn version(mut self, version: CPXVersion) -> Self {
         debug_assert!(
-            [AOE_AOK, AOE1_DE].contains(&version),
+            [AOE_AOK, AOE1_DE, AOE2_DE].contains(&version),
             "unknown or unsupported version"
         );
         self.header.version = version;
@@ -171,7 +202,10 @@ impl<W: Write> CampaignWriter<W> {
 
     /// Get the size in bytes of all metadata.
     fn get_meta_size(&self) -> usize {
-        let header_size = std::mem::size_of::<CPXVersion>() + std::mem::size_of::<i32>() + 256;
+        // version + number of scenarios + campaign name
+        let header_size = std::mem::size_of::<CPXVersion>()
+            + std::mem::size_of::<i32>() // number of scenarios
+            + 256; // campaign name
         header_size + self.scenarios.len() * (2 * std::mem::size_of::<i32>() + 255 + 255)
     }
 
@@ -182,22 +216,43 @@ impl<W: Write> CampaignWriter<W> {
             s.as_bytes().len() + 4
         }
         let header_size = std::mem::size_of::<CPXVersion>()
-            + std::mem::size_of::<i32>()
+            + std::mem::size_of::<u32>() // number of scenarios
             + strlen(&self.header.name);
         self.scenarios.iter().fold(header_size, |acc, scen| {
             acc + 2 * std::mem::size_of::<u64>() + strlen(&scen.name) + strlen(&scen.filename)
         })
     }
 
+    /// Get the size in bytes of all metadata for a AoE2: DE campaign file.
+    fn get_meta_size_de2(&self) -> usize {
+        // Length of a single variable string is (4 + byte length)
+        fn strlen(s: &str) -> usize {
+            s.as_bytes().len() + 4
+        }
+        let header_size = std::mem::size_of::<CPXVersion>()
+            + 7 * std::mem::size_of::<i32>() // DLC dependencies
+            + std::mem::size_of::<u32>() // number of scenarios
+            + 256; // campaign name
+        self.scenarios.iter().fold(header_size, |acc, scen| {
+            acc + 2 * std::mem::size_of::<u32>() + strlen(&scen.name) + strlen(&scen.filename)
+        })
+    }
+
     /// Write the scenario metadata block.
     fn write_metas(&mut self) -> io::Result<()> {
-        let write_meta = if self.header.version == AOE1_DE {
+        let write_meta = if self.header.version == AOE2_DE {
+            write_scenario_meta_de2
+        } else if self.header.version == AOE1_DE {
             write_scenario_meta_de
         } else {
             write_scenario_meta
         };
 
-        let mut offset = if self.header.version == AOE1_DE {
+        // TODO: perhaps write to a buffer first instead of having these brittle calculations that
+        // may get out of sync
+        let mut offset = if self.header.version == AOE2_DE {
+            self.get_meta_size_de2()
+        } else if self.header.version == AOE1_DE {
             self.get_meta_size_de()
         } else {
             self.get_meta_size()
