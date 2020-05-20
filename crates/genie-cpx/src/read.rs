@@ -2,7 +2,8 @@ use crate::{CPXVersion, CampaignHeader, ScenarioMeta};
 use byteorder::{ReadBytesExt, LE};
 use chardet::detect as detect_encoding;
 use encoding_rs::Encoding;
-use genie_scx::{self as scx, Scenario};
+use genie_scx::{self as scx, DLCPackage, Scenario};
+use std::convert::TryFrom;
 use std::io::{self, Cursor, Read, Seek, SeekFrom};
 
 /// Type for errrors that could occur while reading/parsing a campaign file.
@@ -59,7 +60,7 @@ pub fn read_fixed_str<R: Read>(input: &mut R, len: usize) -> Result<Option<Strin
     }
 }
 
-fn read_variable_str<R: Read>(input: &mut R) -> Result<Option<String>> {
+fn read_hd_or_later_string<R: Read>(input: &mut R) -> Result<Option<String>> {
     let open = input.read_u16::<LE>()?;
     // Check that this actually is the start of a string
     if open != 0x0A60 {
@@ -74,16 +75,28 @@ fn read_variable_str<R: Read>(input: &mut R) -> Result<Option<String>> {
 fn read_campaign_header<R: Read>(input: &mut R) -> Result<CampaignHeader> {
     let mut version = [0; 4];
     input.read_exact(&mut version)?;
-    let (name, num_scenarios) = if version == *b"1.10" {
-        let num_scenarios = input.read_i32::<LE>()? as usize;
+    let (name, num_scenarios) = if version == *b"2.00" {
+        let num_dependencies = input.read_u32::<LE>()?;
+        let mut dependencies = vec![DLCPackage::AgeOfKings; num_dependencies as usize];
+        for dependency in dependencies.iter_mut() {
+            *dependency =
+                DLCPackage::try_from(input.read_i32::<LE>()?).map_err(scx::Error::from)?;
+        }
+
+        let name = read_fixed_str(input, 256)?.ok_or(ReadCampaignError::MissingNameError)?;
+
+        let num_scenarios = input.read_u32::<LE>()? as usize;
+        (name, num_scenarios)
+    } else if version == *b"1.10" {
+        let num_scenarios = input.read_u32::<LE>()? as usize;
         (
-            read_variable_str(input)?.ok_or(ReadCampaignError::MissingNameError)?,
+            read_hd_or_later_string(input)?.ok_or(ReadCampaignError::MissingNameError)?,
             num_scenarios,
         )
     } else {
         (
             read_fixed_str(input, 256)?.ok_or(ReadCampaignError::MissingNameError)?,
-            input.read_i32::<LE>()? as usize,
+            input.read_u32::<LE>()? as usize,
         )
     };
 
@@ -94,11 +107,25 @@ fn read_campaign_header<R: Read>(input: &mut R) -> Result<CampaignHeader> {
     })
 }
 
+fn read_scenario_meta_de2<R: Read>(input: &mut R) -> Result<ScenarioMeta> {
+    let size = input.read_u32::<LE>()? as usize;
+    let offset = input.read_u32::<LE>()? as usize;
+    let name = read_hd_or_later_string(input)?.ok_or(ReadCampaignError::MissingNameError)?;
+    let filename = read_hd_or_later_string(input)?.ok_or(ReadCampaignError::MissingNameError)?;
+
+    Ok(ScenarioMeta {
+        size,
+        offset,
+        name,
+        filename,
+    })
+}
+
 fn read_scenario_meta_de<R: Read>(input: &mut R) -> Result<ScenarioMeta> {
     let size = input.read_u64::<LE>()? as usize;
     let offset = input.read_u64::<LE>()? as usize;
-    let name = read_variable_str(input)?.ok_or(ReadCampaignError::MissingNameError)?;
-    let filename = read_variable_str(input)?.ok_or(ReadCampaignError::MissingNameError)?;
+    let name = read_hd_or_later_string(input)?.ok_or(ReadCampaignError::MissingNameError)?;
+    let filename = read_hd_or_later_string(input)?.ok_or(ReadCampaignError::MissingNameError)?;
 
     Ok(ScenarioMeta {
         size,
@@ -146,13 +173,15 @@ where
     pub fn from(mut input: R) -> Result<Self> {
         let header = read_campaign_header(&mut input)?;
         let mut entries = vec![];
-        let read_entry = if header.version == *b"1.10" {
+        let read_entry = if header.version == *b"2.00" {
+            read_scenario_meta_de2
+        } else if header.version == *b"1.10" {
             read_scenario_meta_de
         } else {
             read_scenario_meta
         };
         for _ in 0..header.num_scenarios {
-            entries.push(dbg!(read_entry(&mut input)?));
+            entries.push(read_entry(&mut input)?);
         }
 
         Ok(Self {
@@ -252,7 +281,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{AOE1_DE, AOE_AOK};
+    use crate::{AOE1_DE, AOE2_DE, AOE_AOK};
     use anyhow::Context;
     use std::fs::File;
 
@@ -341,6 +370,54 @@ mod tests {
         );
 
         /* Enable when genie_scx supports DE1 scenarios better
+        let mut c = c;
+        for i in 0..c.len() {
+            let _scen = c.by_index(i)?;
+        }
+        */
+
+        Ok(())
+    }
+
+    #[test]
+    fn aoe_de2() -> Result<()> {
+        let f = File::open("test/campaigns/acam1.aoe2campaign")?;
+        let c = Campaign::from(f)?;
+
+        assert_eq!(c.version(), AOE2_DE);
+        assert_eq!(c.name(), "acam1");
+        assert_eq!(c.len(), 5);
+        let filenames: Vec<_> = c.entries().map(|e| &e.filename).collect();
+        assert_eq!(
+            filenames,
+            vec![
+                "A1_Tariq1.aoe2scenario",
+                "A1_Tariq2.aoe2scenario",
+                "A1_Tariq3.aoe2scenario",
+                "A1_Tariq4.aoe2scenario",
+                "A1_Tariq5.aoe2scenario",
+            ]
+        );
+
+        let f = File::open("test/campaigns/rcam3.aoe2campaign")?;
+        let c = Campaign::from(f)?;
+
+        assert_eq!(c.version(), AOE2_DE);
+        assert_eq!(c.name(), "rcam3");
+        assert_eq!(c.len(), 5);
+        let filenames: Vec<_> = c.entries().map(|e| &e.filename).collect();
+        assert_eq!(
+            filenames,
+            vec![
+                "R3_Bayinnaung_1.aoe2scenario",
+                "R3_Bayinnaung_2.aoe2scenario",
+                "R3_Bayinnaung_3.aoe2scenario",
+                "R3_Bayinnaung_4.aoe2scenario",
+                "R3_Bayinnaung_5.aoe2scenario",
+            ]
+        );
+
+        /* Enable when genie_scx supports DE2 scenarios better
         let mut c = c;
         for i in 0..c.len() {
             let _scen = c.by_index(i)?;
