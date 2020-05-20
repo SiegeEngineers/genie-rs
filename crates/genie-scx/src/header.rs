@@ -1,7 +1,7 @@
 use crate::types::{DLCPackage, DataSet, SCXVersion};
-use crate::util::*;
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use genie_support::{read_str, write_opt_i32_str};
 use std::convert::TryFrom;
 use std::io::{Read, Write};
 
@@ -26,7 +26,7 @@ impl Default for DLCOptions {
 }
 
 impl DLCOptions {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         // If version is 0 or 1, it's actually the dataset identifier from
         // before DLCOptions was versioned.
         let version_or_data_set = input.read_i32::<LE>()?;
@@ -57,7 +57,7 @@ impl DLCOptions {
         })
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
         output.write_u32::<LE>(1000)?;
         output.write_i32::<LE>(self.game_data_set.into())?;
         output.write_u32::<LE>(self.dependencies.len() as u32)?;
@@ -79,6 +79,8 @@ pub struct SCXHeader {
     pub timestamp: u32,
     /// Description text about the scenario.
     pub description: Option<String>,
+    /// Name of the person who created this scenario. Only available in DE2.
+    pub author_name: Option<String>,
     /// Whether the scenario has any victory conditions for singleplayer.
     pub any_sp_victory: bool,
     /// How many players are supported by this scenario.
@@ -89,9 +91,10 @@ pub struct SCXHeader {
 
 impl SCXHeader {
     /// Parse an SCX header from a byte stream.
-    pub fn from<R: Read>(input: &mut R, format_version: SCXVersion) -> Result<SCXHeader> {
+    pub fn read_from(mut input: impl Read, format_version: SCXVersion) -> Result<SCXHeader> {
         let _header_size = input.read_u32::<LE>()?;
         let version = input.read_u32::<LE>()?;
+        log::debug!("Header version {}", version);
         let timestamp = if version >= 2 {
             input.read_u32::<LE>()?
         } else {
@@ -104,21 +107,33 @@ impl SCXHeader {
         } else {
             input.read_u32::<LE>()? as usize
         };
-        let description = read_str(input, description_length)?;
+        let description = read_str(&mut input, description_length)?;
 
         let any_sp_victory = input.read_u32::<LE>()? != 0;
         let active_player_count = input.read_u32::<LE>()?;
 
         let dlc_options = if version > 2 && format_version != *b"3.13" {
-            Some(DLCOptions::from(input)?)
+            Some(DLCOptions::read_from(&mut input)?)
         } else {
             None
         };
+
+        let author_name;
+        if version >= 5 {
+            author_name = {
+                let len = input.read_u32::<LE>()?;
+                read_str(&mut input, len as usize)?
+            };
+            let _num_triggers = input.read_u32::<LE>()?;
+        } else {
+            author_name = None;
+        }
 
         Ok(SCXHeader {
             version,
             timestamp,
             description,
+            author_name,
             any_sp_victory,
             active_player_count,
             dlc_options,
@@ -126,9 +141,9 @@ impl SCXHeader {
     }
 
     /// Serialize an SCX header to a byte stream.
-    pub fn write_to<W: Write>(
+    pub fn write_to(
         &self,
-        output: &mut W,
+        output: impl Write,
         format_version: SCXVersion,
         version: u32,
     ) -> Result<()> {
@@ -172,6 +187,14 @@ impl SCXHeader {
             dlc_options.write_to(&mut intermediate)?;
         }
 
+        if version >= 5 {
+            write_opt_i32_str(&mut intermediate, &self.author_name)?;
+            // TODO should be number of triggers
+            intermediate.write_u32::<LE>(0)?;
+        }
+
+        // Make `output` mutable here so we don't accidentally use it above.
+        let mut output = output;
         output.write_u32::<LE>(intermediate.len() as u32)?;
         output.write_all(&intermediate)?;
 

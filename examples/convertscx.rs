@@ -3,8 +3,6 @@ use genie::Scenario;
 use std::{fs::File, path::PathBuf};
 use structopt::StructOpt;
 
-type CliResult = Result<(), Box<dyn std::error::Error>>;
-
 /// Convert Age of Empires scenario files between versions.
 #[derive(Debug, StructOpt)]
 struct Cli {
@@ -21,7 +19,7 @@ struct Cli {
     version: Option<String>,
 }
 
-fn main() -> CliResult {
+fn main() -> anyhow::Result<()> {
     let Cli {
         input,
         output,
@@ -38,8 +36,8 @@ fn main() -> CliResult {
         _ => VersionBundle::aoc(),
     };
 
-    let mut instream = File::open(input)?;
-    let mut scen = Scenario::from(&mut instream)?;
+    let instream = File::open(input)?;
+    let mut scen = Scenario::read_from(instream)?;
 
     if version_arg == Some("wk".to_string()) {
         println!("Applying WololoKingdoms conversion...");
@@ -47,8 +45,8 @@ fn main() -> CliResult {
         converter.convert(&mut scen)?;
     }
 
-    let mut outstream = File::create(output)?;
-    scen.write_to_version(&mut outstream, &version)?;
+    let outstream = File::create(output)?;
+    scen.write_to_version(outstream, &version)?;
 
     println!("Conversion complete!");
 

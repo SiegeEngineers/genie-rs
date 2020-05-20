@@ -4,33 +4,16 @@ use genie_scx::{Result as SCXResult, Scenario};
 use std::io::{self, Write};
 
 /// Type for errors that could occur during writing.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum WriteCampaignError {
     /// An I/O error occurred during writing.
-    IoError(io::Error),
+    #[error("{}", .0)]
+    IoError(#[from] io::Error),
     /// A scenario could not be found, either because the original campaign file was corrupt, or
     /// the scenario file exists but could not be parsed.
+    #[error("missing scenario data for index {}", .0)]
     NotFoundError(usize),
 }
-
-impl From<io::Error> for WriteCampaignError {
-    fn from(err: io::Error) -> WriteCampaignError {
-        WriteCampaignError::IoError(err)
-    }
-}
-
-impl std::fmt::Display for WriteCampaignError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            WriteCampaignError::IoError(err) => write!(f, "{}", err),
-            WriteCampaignError::NotFoundError(n) => {
-                write!(f, "missing scenario data for index {}", n)
-            }
-        }
-    }
-}
-
-impl std::error::Error for WriteCampaignError {}
 
 #[must_use]
 fn write_variable_str<W: Write>(output: &mut W, value: &str) -> io::Result<()> {

@@ -19,6 +19,7 @@ pub struct ColorTable {
 }
 
 impl ColorTable {
+    /// Read a colour table from an input stream.
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let id = input.read_i32::<LE>()?;
         let base = input.read_i32::<LE>()?.try_into().unwrap();
@@ -44,6 +45,7 @@ impl ColorTable {
         })
     }
 
+    /// Write this colour table to an output stream.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_i32::<LE>(self.id)?;
         output.write_i32::<LE>(self.base.try_into().unwrap())?;

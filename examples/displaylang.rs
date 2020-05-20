@@ -1,7 +1,6 @@
 //! Displays the key value pairs in a language file.
 
 use genie::lang::LangFileType;
-use std::error::Error;
 use std::fs::File;
 use std::path::PathBuf;
 use structopt::StructOpt;
@@ -22,7 +21,7 @@ struct DisplayLang {
 }
 
 /// Prints the key value pairs of an input language file to `stdout`.
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> anyhow::Result<()> {
     let cli_input = DisplayLang::from_args();
     let mut f = File::open(&cli_input.file_name)?;
     let lang_file = cli_input.file_type.read_from(&mut f)?;

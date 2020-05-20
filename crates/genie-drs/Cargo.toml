@@ -1,6 +1,6 @@
 [package]
 name = "genie-drs"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Renée Kooi <renee@kooi.me>"]
 edition = "2018"
 license = "GPL-3.0"
@@ -8,7 +8,12 @@ description = "Read .drs archive files from the Genie Engine, used in Age of Emp
 homepage = "https://github.com/SiegeEngineers/genie-rs"
 repository = "https://github.com/SiegeEngineers/genie-rs"
 readme = "README.md"
+exclude = ["*.drs"]
 
 [dependencies]
 byteorder = "^1.3.1"
 sorted-vec = "^0.3.0"
+thiserror = "1.0.13"
+
+[dev-dependencies]
+anyhow = "1.0.27"

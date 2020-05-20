@@ -6,47 +6,24 @@ use genie_scx::{self as scx, Scenario};
 use std::io::{self, Cursor, Read, Seek, SeekFrom};
 
 /// Type for errrors that could occur while reading/parsing a campaign file.
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum ReadCampaignError {
     /// A string could not be decoded, its encoding may be unknown or it may be binary nonsense.
+    #[error("invalid string")]
     DecodeStringError,
     /// An I/O error occurred.
-    IoError(io::Error),
+    #[error("{}", .0)]
+    IoError(#[from] io::Error),
     /// The campaign file or a scenario inside it is missing a user-facing name value.
+    #[error("campaign or scenario must have a name")]
     MissingNameError,
     /// The requested scenario file does not exist in this campaign file.
+    #[error("scenario not fonud in campaign")]
     NotFoundError,
     /// A scenario file could not be parsed.
-    ParseSCXError(scx::Error),
+    #[error("{}", .0)]
+    ParseSCXError(#[from] scx::Error),
 }
-
-impl From<io::Error> for ReadCampaignError {
-    fn from(err: io::Error) -> ReadCampaignError {
-        ReadCampaignError::IoError(err)
-    }
-}
-
-impl From<scx::Error> for ReadCampaignError {
-    fn from(err: scx::Error) -> ReadCampaignError {
-        ReadCampaignError::ParseSCXError(err)
-    }
-}
-
-impl std::fmt::Display for ReadCampaignError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ReadCampaignError::DecodeStringError => write!(f, "invalid string"),
-            ReadCampaignError::IoError(err) => write!(f, "{}", err),
-            ReadCampaignError::MissingNameError => {
-                write!(f, "campaign or scenario must have a name")
-            }
-            ReadCampaignError::NotFoundError => write!(f, "scenario not found in campaign"),
-            ReadCampaignError::ParseSCXError(err) => write!(f, "{}", err),
-        }
-    }
-}
-
-impl std::error::Error for ReadCampaignError {}
 
 type Result<T> = std::result::Result<T, ReadCampaignError>;
 
@@ -290,14 +267,14 @@ where
     pub fn by_name(&mut self, filename: &str) -> Result<Scenario> {
         self.by_name_raw(filename)
             .map(Cursor::new)
-            .and_then(|mut buf| Scenario::from(&mut buf).map_err(ReadCampaignError::ParseSCXError))
+            .and_then(|buf| Scenario::read_from(buf).map_err(ReadCampaignError::ParseSCXError))
     }
 
     /// Get a scenario by its campaign index.
     pub fn by_index(&mut self, index: usize) -> Result<Scenario> {
         self.by_index_raw(index)
             .map(Cursor::new)
-            .and_then(|mut buf| Scenario::from(&mut buf).map_err(ReadCampaignError::ParseSCXError))
+            .and_then(|buf| Scenario::read_from(buf).map_err(ReadCampaignError::ParseSCXError))
     }
 
     /// Get a scenario file buffer by its file name.
@@ -330,14 +307,15 @@ where
 mod tests {
     use super::*;
     use crate::{AOE1_DE, AOE2_DE, AOE_AOK};
+    use anyhow::Context;
     use std::fs::File;
 
     /// Try to parse a file with an encoding that is not compatible with UTF-8.
     /// Source: http://aok.heavengames.com/blacksmith/showfile.php?fileid=884
     #[test]
-    fn detect_encoding() {
-        let f = File::open("./test/campaigns/DER FALL VON SACSAHUAMAN - TEIL I.cpx").unwrap();
-        let cpx = Campaign::from(f).unwrap();
+    fn detect_encoding() -> anyhow::Result<()> {
+        let f = File::open("./test/campaigns/DER FALL VON SACSAHUAMAN - TEIL I.cpx")?;
+        let cpx = Campaign::from(f)?;
         assert_eq!(cpx.version(), AOE_AOK);
         assert_eq!(cpx.name(), "DER FALL VON SACSAHUAMÁN - TEIL I");
         assert_eq!(cpx.len(), 1);
@@ -346,13 +324,14 @@ mod tests {
         assert_eq!(names, vec!["Der Weg nach Sacsahuamán"]);
         let filenames: Vec<_> = cpx.entries().map(|e| &e.filename).collect();
         assert_eq!(filenames, vec!["Der Weg nach Sacsahuamán.scx"]);
+        Ok(())
     }
 
     /// Source: http://aoe.heavengames.com/dl-php/showfile.php?fileid=1678
     #[test]
-    fn aoe1_trial_cpn() {
-        let f = File::open("test/campaigns/Armies at War A Combat Showcase.cpn").unwrap();
-        let mut c = Campaign::from(f).expect("could not read meta");
+    fn aoe1_trial_cpn() -> anyhow::Result<()> {
+        let f = File::open("test/campaigns/Armies at War A Combat Showcase.cpn")?;
+        let mut c = Campaign::from(f).context("could not read meta")?;
 
         assert_eq!(c.version(), AOE_AOK);
         assert_eq!(c.name(), "Armies at War, A Combat Showcase");
@@ -362,15 +341,16 @@ mod tests {
         let filenames: Vec<_> = c.entries().map(|e| &e.filename).collect();
         assert_eq!(filenames, vec!["Bronze Age Art of War.scn"]);
 
-        c.by_index_raw(0).expect("could not read raw file");
+        c.by_index_raw(0).context("could not read raw file")?;
         c.by_name_raw("Bronze Age Art of War.scn")
-            .expect("could not read raw file");
+            .context("could not read raw file")?;
+        Ok(())
     }
 
     #[test]
-    fn aoe1_beta_cpn() {
-        let f = File::open("test/campaigns/Rise of Egypt Learning Campaign.cpn").unwrap();
-        let c = Campaign::from(f).expect("could not read meta");
+    fn aoe1_beta_cpn() -> anyhow::Result<()> {
+        let f = File::open("test/campaigns/Rise of Egypt Learning Campaign.cpn")?;
+        let c = Campaign::from(f).context("could not read meta")?;
 
         assert_eq!(c.version(), AOE_AOK);
         assert_eq!(c.name(), "Rise of Egypt Learning Campaign");
@@ -393,10 +373,11 @@ mod tests {
                 "Siege Battle.scn",
             ]
         );
+        Ok(())
     }
 
     #[test]
-    fn aoe_de() -> Result<()> {
+    fn aoe_de() -> anyhow::Result<()> {
         let f = File::open("test/campaigns/10 The First Punic War.aoecpn")?;
         let c = Campaign::from(f)?;
 

@@ -25,17 +25,19 @@ use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 pub use civ::{Civilization, CivilizationID};
 pub use color_table::{ColorTable, PaletteIndex};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
-use genie_support::cmp_float;
+use genie_support::{f32_eq, ReadSkipExt, TechID};
 pub use random_map::*;
 pub use sound::{Sound, SoundID, SoundItem};
 pub use sprite::{GraphicID, SoundProp, Sprite, SpriteAttackSound, SpriteDelta, SpriteID};
+use std::cmp::{Ordering, PartialOrd};
 use std::convert::TryInto;
+use std::fmt;
 use std::io::{Read, Result, Write};
 pub use task::{Task, TaskList};
-pub use tech::{Tech, TechEffect, TechID};
+pub use tech::{Tech, TechEffect};
 pub use tech_tree::{
-    ParseTechTreeStatusError, ParseTechTreeTypeError, TechTree, TechTreeAge, TechTreeBuilding,
-    TechTreeDependencies, TechTreeStatus, TechTreeTech, TechTreeType, TechTreeUnit,
+    ParseTechTreeTypeError, TechTree, TechTreeAge, TechTreeBuilding, TechTreeDependencies,
+    TechTreeStatus, TechTreeTech, TechTreeType, TechTreeUnit,
 };
 pub use terrain::{
     Terrain, TerrainAnimation, TerrainBorder, TerrainID, TerrainObject, TerrainPassGraphic,
@@ -72,11 +74,54 @@ pub struct FileVersion([u8; 8]);
 
 impl From<[u8; 8]> for FileVersion {
     fn from(identifier: [u8; 8]) -> Self {
+        assert!(matches!(
+            identifier,
+            // "VER *.*\0"
+            [b'V', b'E', b'R', b' ', b'0'..=b'9', b'.', b'0'..=b'9', 0]
+        ));
         Self(identifier)
     }
 }
 
+impl From<&str> for FileVersion {
+    fn from(string: &str) -> Self {
+        assert!(string.len() <= 8);
+        let mut bytes = [0; 8];
+        (&mut bytes[..string.len()]).copy_from_slice(string.as_bytes());
+        Self::from(bytes)
+    }
+}
+
+impl fmt::Display for FileVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match std::str::from_utf8(&self.0[0..7]) {
+            Ok(s) => write!(f, "{}", s),
+            Err(_) => write!(f, "{:?}", self.0),
+        }
+    }
+}
+
+impl PartialOrd for FileVersion {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match self.major_version().partial_cmp(&other.major_version()) {
+            None | Some(Ordering::Equal) => {
+                self.minor_version().partial_cmp(&other.minor_version())
+            }
+            Some(order) => Some(order),
+        }
+    }
+}
+
 impl FileVersion {
+    /// Get the major version component, eg the 5 in "VER 5.8".
+    fn major_version(self) -> u8 {
+        self.0[4] - b'0'
+    }
+    /// Get the minor version component, eg the 8 in "VER 5.8".
+    fn minor_version(self) -> u8 {
+        self.0[6] - b'0'
+    }
+
     /// Is this file built for Star Wars: Galactic Battlegrounds?
     pub fn is_swgb(self) -> bool {
         false
@@ -85,7 +130,12 @@ impl FileVersion {
     /// Is this file built for Age of Empires II: The Conquerors?
     pub fn is_aoc(self) -> bool {
         let data_version = self.into_data_version();
-        cmp_float!(data_version == 11.97)
+        f32_eq!(data_version, 11.97)
+    }
+
+    /// Is this file built for Age of Empires II: Definitive Edition?
+    pub fn is_de2(self) -> bool {
+        self >= FileVersion(*b"VER 5.8\0")
     }
 
     /// Get the data version associated with this file version.
@@ -162,10 +212,7 @@ impl DatFile {
         };
 
         // Two lists of pointers
-        skip(
-            &mut input,
-            4 * u64::from(num_terrain_tables) + 4 * u64::from(num_terrain_tables),
-        )?;
+        input.skip(4 * u64::from(num_terrain_tables) + 4 * u64::from(num_terrain_tables))?;
 
         #[must_use]
         fn read_array<T>(num: usize, mut read: impl FnMut() -> Result<T>) -> Result<Vec<T>> {
@@ -255,7 +302,7 @@ impl DatFile {
         let _map_fog_of_war = input.read_u8()?;
 
         // Lots more pointers and stuff
-        skip(&mut input, 21 + 157 * 4)?;
+        input.skip(21 + 157 * 4)?;
 
         let num_random_maps = input.read_u32::<LE>()? as usize;
         let _random_maps_pointer = input.read_u32::<LE>()?;
@@ -451,7 +498,7 @@ impl DatFile {
             civilization.write_to(&mut output, self.game_version)?;
         }
 
-        output.write_u32::<LE>(self.techs.len() as u32)?;
+        output.write_u16::<LE>(self.techs.len() as u16)?;
         for tech in &self.techs {
             tech.write_to(&mut output)?;
         }
@@ -464,7 +511,9 @@ impl DatFile {
         output.write_u32::<LE>(0)?;
         output.write_u32::<LE>(0)?;
 
-        unimplemented!()
+        self.tech_tree.write_to(&mut output)?;
+
+        Ok(())
     }
 
     /// Get a tech by its ID.
@@ -503,11 +552,6 @@ impl DatFile {
     }
 }
 
-/// Skip some unimportant bytes on an input stream.
-fn skip<R: Read>(input: &mut R, bytes: u64) -> Result<u64> {
-    std::io::copy(&mut input.by_ref().take(bytes), &mut std::io::sink())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -519,36 +563,39 @@ mod tests {
     };
 
     #[test]
-    fn aok() {
-        let mut f = File::open("fixtures/aok.dat").unwrap();
-        let dat = DatFile::read_from(&mut f).unwrap();
+    fn aok() -> anyhow::Result<()> {
+        let mut f = File::open("fixtures/aok.dat")?;
+        let dat = DatFile::read_from(&mut f)?;
         assert_eq!(dat.civilizations.len(), 14);
+        Ok(())
     }
 
     #[test]
-    fn aoc() {
-        let mut f = File::open("fixtures/aoc1.0c.dat").unwrap();
-        let dat = DatFile::read_from(&mut f).unwrap();
+    fn aoc() -> anyhow::Result<()> {
+        let mut f = File::open("fixtures/aoc1.0c.dat")?;
+        let dat = DatFile::read_from(&mut f)?;
         assert_eq!(dat.civilizations.len(), 19);
+        Ok(())
     }
 
     #[test]
-    fn non_7bit_ascii_tech_name() {
-        let mut f = File::open("fixtures/age-of-chivalry.dat").unwrap();
-        let dat = DatFile::read_from(&mut f).unwrap();
+    fn non_7bit_ascii_tech_name() -> anyhow::Result<()> {
+        let mut f = File::open("fixtures/age-of-chivalry.dat")?;
+        let dat = DatFile::read_from(&mut f)?;
         assert_eq!(dat.techs[859].name(), "Székely (enable)");
+        Ok(())
     }
 
     #[test]
-    fn hd_edition() {
-        let mut f = File::open("fixtures/hd.dat").unwrap();
-        let dat = DatFile::read_from(&mut f).unwrap();
+    fn hd_edition() -> anyhow::Result<()> {
+        let mut f = File::open("fixtures/hd.dat")?;
+        let dat = DatFile::read_from(&mut f)?;
         assert_eq!(dat.civilizations.len(), 32);
+        Ok(())
     }
 
     #[test]
-    #[ignore]
-    fn reserialize() -> Result<()> {
+    fn reserialize() -> anyhow::Result<()> {
         let original = std::fs::read("fixtures/aoc1.0c.dat")?;
         let mut cursor = Cursor::new(&original);
         let dat = DatFile::read_from(&mut cursor)?;

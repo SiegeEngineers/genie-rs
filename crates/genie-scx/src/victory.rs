@@ -1,3 +1,4 @@
+use crate::types::VictoryCondition;
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::io::{Read, Write};
@@ -20,7 +21,7 @@ pub struct LegacyVictoryInfo {
 }
 
 impl LegacyVictoryInfo {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let object_type = input.read_i32::<LE>()?;
         let all_flag = input.read_i32::<LE>()? != 0;
         let player_id = input.read_i32::<LE>()?;
@@ -54,7 +55,7 @@ impl LegacyVictoryInfo {
         })
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
         output.write_i32::<LE>(self.object_type)?;
         output.write_i32::<LE>(if self.all_flag { 1 } else { 0 })?;
         output.write_i32::<LE>(self.player_id)?;
@@ -76,7 +77,7 @@ impl LegacyVictoryInfo {
 
 #[derive(Debug, Clone)]
 pub struct VictoryEntry {
-    command: i8,
+    command: VictoryCondition,
     object_type: i32,
     player_id: i32,
     x0: f32,
@@ -93,8 +94,8 @@ pub struct VictoryEntry {
 }
 
 impl VictoryEntry {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
-        let command = input.read_i8()?;
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
+        let command = input.read_u8()?.into();
         let object_type = input.read_i32::<LE>()?;
         let player_id = input.read_i32::<LE>()?;
         let x0 = input.read_f32::<LE>()?;
@@ -127,8 +128,8 @@ impl VictoryEntry {
         })
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        output.write_i8(self.command)?;
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+        output.write_u8(self.command.into())?;
         output.write_i32::<LE>(self.object_type)?;
         output.write_i32::<LE>(self.player_id)?;
         output.write_f32::<LE>(self.x0)?;
@@ -162,7 +163,7 @@ pub struct VictoryPointEntry {
 }
 
 impl VictoryPointEntry {
-    pub fn from<R: Read>(input: &mut R, version: f32) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
         let command = input.read_i8()?;
         let state = input.read_i8()?;
         let attribute = input.read_i32::<LE>()?;
@@ -193,7 +194,7 @@ impl VictoryPointEntry {
         })
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W, version: f32) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
         output.write_i8(self.command)?;
         output.write_i8(self.state)?;
         output.write_i32::<LE>(self.attribute)?;
@@ -212,19 +213,24 @@ impl VictoryPointEntry {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct VictoryConditions {
-    version: f32,
+    pub version: f32,
     victory: bool,
-    total_points: i32,
-    starting_points: i32,
-    starting_group: i32,
-    entries: Vec<VictoryEntry>,
-    point_entries: Vec<VictoryPointEntry>,
+    pub total_points: i32,
+    pub starting_points: i32,
+    pub starting_group: i32,
+    pub entries: Vec<VictoryEntry>,
+    pub point_entries: Vec<VictoryPointEntry>,
 }
 
 impl VictoryConditions {
+    #[deprecated = "Use VictoryConditions::read_from instead"]
     pub fn from<R: Read>(input: &mut R, has_version: bool) -> Result<Self> {
+        Ok(Self::read_from(input, has_version)?)
+    }
+
+    pub fn read_from(mut input: impl Read, has_version: bool) -> Result<Self> {
         let version = if has_version {
             input.read_f32::<LE>()?
         } else {
@@ -236,7 +242,7 @@ impl VictoryConditions {
 
         let mut entries = Vec::with_capacity(num_conditions as usize);
         for _ in 0..num_conditions {
-            entries.push(VictoryEntry::from(input)?);
+            entries.push(VictoryEntry::read_from(&mut input)?);
         }
 
         let mut total_points = 0;
@@ -254,7 +260,7 @@ impl VictoryConditions {
             }
 
             for _ in 0..num_point_entries {
-                point_entries.push(VictoryPointEntry::from(input, version)?);
+                point_entries.push(VictoryPointEntry::read_from(&mut input, version)?);
             }
         }
 
@@ -269,7 +275,7 @@ impl VictoryConditions {
         })
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W, version: Option<f32>) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write, version: Option<f32>) -> Result<()> {
         if let Some(v) = version {
             output.write_f32::<LE>(v)?;
         }
@@ -280,7 +286,7 @@ impl VictoryConditions {
         output.write_u8(if self.victory { 1 } else { 0 })?;
 
         for entry in &self.entries {
-            entry.write_to(output)?;
+            entry.write_to(&mut output)?;
         }
 
         if version >= 1.0 {
@@ -293,7 +299,7 @@ impl VictoryConditions {
             }
 
             for entry in &self.point_entries {
-                entry.write_to(output, version)?;
+                entry.write_to(&mut output, version)?;
             }
         }
 
@@ -312,7 +318,7 @@ pub struct VictoryInfo {
 }
 
 impl VictoryInfo {
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         Ok(Self {
             conquest: input.read_i32::<LE>()?,
             ruins: input.read_i32::<LE>()?,
@@ -323,7 +329,7 @@ impl VictoryInfo {
         })
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
         output.write_i32::<LE>(self.conquest)?;
         output.write_i32::<LE>(self.ruins)?;
         output.write_i32::<LE>(self.artifacts)?;

@@ -100,16 +100,9 @@ impl ToString for ResourceType {
 ///
 /// This may be caused by:
 ///   - The input string not being 4 characters long
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("invalid resource type, must be 4 characters")]
 pub struct ParseResourceTypeError;
-
-impl std::fmt::Display for ParseResourceTypeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "invalid resource type, must be 4 characters")
-    }
-}
-
-impl std::error::Error for ParseResourceTypeError {}
 
 impl core::str::FromStr for ResourceType {
     type Err = ParseResourceTypeError;
@@ -374,7 +367,7 @@ mod tests {
     use std::fs::File;
 
     #[test]
-    fn it_works() -> Result<(), Box<dyn std::error::Error>> {
+    fn it_works() -> anyhow::Result<()> {
         let mut file = File::open("test.drs")?;
         let drs = DRSReader::new(&mut file)?;
         let mut expected = vec![

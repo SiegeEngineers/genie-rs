@@ -3,23 +3,35 @@ use crate::GameVersion;
 use arrayvec::ArrayString;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use encoding_rs::WINDOWS_1252;
-use genie_support::{fallible_try_from, fallible_try_into, infallible_try_into};
+use genie_support::{fallible_try_from, infallible_try_into, read_opt_u16};
 use std::convert::TryInto;
 use std::io::{Read, Result, Write};
 
 /// An ID identifying a civilization
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub struct CivilizationID(u16);
+pub struct CivilizationID(u8);
 
-impl From<u16> for CivilizationID {
-    fn from(n: u16) -> Self {
+impl From<u8> for CivilizationID {
+    fn from(n: u8) -> Self {
         CivilizationID(n)
+    }
+}
+
+impl From<CivilizationID> for u8 {
+    fn from(n: CivilizationID) -> Self {
+        n.0
     }
 }
 
 impl From<CivilizationID> for u16 {
     fn from(n: CivilizationID) -> Self {
-        n.0
+        n.0.into()
+    }
+}
+
+impl From<CivilizationID> for u32 {
+    fn from(n: CivilizationID) -> Self {
+        n.0.into()
     }
 }
 
@@ -29,13 +41,17 @@ impl From<CivilizationID> for usize {
     }
 }
 
-fallible_try_into!(CivilizationID, i16);
-infallible_try_into!(CivilizationID, u32);
+infallible_try_into!(CivilizationID, i16);
+infallible_try_into!(CivilizationID, i32);
+fallible_try_from!(CivilizationID, i8);
+fallible_try_from!(CivilizationID, i16);
+fallible_try_from!(CivilizationID, u16);
 fallible_try_from!(CivilizationID, i32);
 fallible_try_from!(CivilizationID, u32);
 
 type CivName = ArrayString<[u8; 20]>;
 
+/// Information about a civilization.
 #[derive(Debug, Default, Clone)]
 pub struct Civilization {
     name: CivName,
@@ -52,7 +68,8 @@ impl Civilization {
         self.name.as_str()
     }
 
-    pub fn read_from<R: Read>(input: &mut R, version: GameVersion) -> Result<Self> {
+    /// Read civilization data from an input stream.
+    pub fn read_from(mut input: impl Read, version: GameVersion) -> Result<Self> {
         let mut civ = Self::default();
         let mut bytes = [0; 20];
         input.read_exact(&mut bytes)?;
@@ -61,15 +78,9 @@ impl Civilization {
         civ.name = CivName::from(&name).unwrap();
         let num_attributes = input.read_u16::<LE>()?;
         civ.civ_effect = input.read_u16::<LE>()?;
-        civ.bonus_effect = {
-            let id = input.read_u16::<LE>()?;
-            if id == 0xFFFF {
-                None
-            } else {
-                Some(id)
-            }
-        };
+        civ.bonus_effect = read_opt_u16(&mut input)?;
 
+        civ.attributes.reserve(num_attributes as usize);
         for _ in 0..num_attributes {
             civ.attributes.push(input.read_f32::<LE>()?);
         }
@@ -90,15 +101,16 @@ impl Civilization {
                 continue;
             }
             civ.unit_types
-                .push(Some(UnitType::read_from(input, version)?));
+                .push(Some(UnitType::read_from(&mut input, version.as_f32())?));
         }
 
         Ok(civ)
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W, version: GameVersion) -> Result<()> {
+    /// Write civilization data to an output stream.
+    pub fn write_to(&self, mut output: impl Write, version: GameVersion) -> Result<()> {
         let mut name = [0; 20];
-        (&mut name[..]).copy_from_slice(self.name.as_bytes());
+        (&mut name[..self.name.len()]).copy_from_slice(self.name.as_bytes());
         output.write_all(&name)?;
         output.write_u16::<LE>(self.attributes.len().try_into().unwrap())?;
         output.write_u16::<LE>(self.civ_effect)?;
@@ -117,7 +129,7 @@ impl Civilization {
         }
         for opt in &self.unit_types {
             if let Some(unit_type) = opt {
-                unit_type.write_to(output, version)?;
+                unit_type.write_to(&mut output, version.as_f32())?;
             }
         }
         Ok(())
