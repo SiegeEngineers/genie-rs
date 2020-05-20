@@ -2,7 +2,8 @@ use crate::{CPXVersion, CampaignHeader, ScenarioMeta};
 use byteorder::{ReadBytesExt, LE};
 use chardet::detect as detect_encoding;
 use encoding_rs::Encoding;
-use genie_scx::{self as scx, Scenario};
+use genie_scx::{self as scx, DLCPackage, Scenario};
+use std::convert::TryFrom;
 use std::io::{self, Cursor, Read, Seek, SeekFrom};
 
 /// Type for errrors that could occur while reading/parsing a campaign file.
@@ -59,7 +60,7 @@ pub fn read_fixed_str<R: Read>(input: &mut R, len: usize) -> Result<Option<Strin
     }
 }
 
-fn read_variable_str<R: Read>(input: &mut R) -> Result<Option<String>> {
+fn read_hd_or_later_string<R: Read>(input: &mut R) -> Result<Option<String>> {
     let open = input.read_u16::<LE>()?;
     // Check that this actually is the start of a string
     if open != 0x0A60 {
@@ -78,7 +79,7 @@ fn read_nullterm_str<R: Read>(input: &mut R) -> Result<Option<String>> {
             break;
         }
         string.push(byte);
-    };
+    }
 
     let string = String::from_utf8(string).map_err(|_| ReadCampaignError::DecodeStringError)?;
     Ok(if string.is_empty() {
@@ -92,30 +93,22 @@ fn read_campaign_header<R: Read>(input: &mut R) -> Result<CampaignHeader> {
     let mut version = [0; 4];
     input.read_exact(&mut version)?;
     let (name, num_scenarios) = if version == *b"2.00" {
-        let num_dlcs = input.read_i32::<LE>()?;
-        for i in 0..num_dlcs {
-            let _ = input.read_i32::<LE>()?;
+        let num_dependencies = input.read_u32::<LE>()?;
+        let mut dependencies = vec![DLCPackage::AgeOfKings; num_dependencies as usize];
+        for dependency in dependencies.iter_mut() {
+            *dependency =
+                DLCPackage::try_from(input.read_i32::<LE>()?).map_err(scx::Error::from)?;
         }
 
-        let name = read_nullterm_str(input)?.ok_or(ReadCampaignError::MissingNameError)?;
+        let name = read_fixed_str(input, 255)?.ok_or(ReadCampaignError::MissingNameError)?;
 
-        // unknown data
-        {
-            let sample_start_offset = 38;
-            let sample_end_offset = 288;
-            let mut unknown_bytes = vec![0; sample_end_offset - sample_start_offset];
-            input.read_exact(&mut unknown_bytes)?;
-        }
-
-        let num_scenarios = input.read_i32::<LE>()? as usize;
-        (
-            name,
-            num_scenarios,
-        )
+        let _zero = input.read_u8()?;
+        let num_scenarios = input.read_u32::<LE>()? as usize;
+        (name, num_scenarios)
     } else if version == *b"1.10" {
-        let num_scenarios = input.read_i32::<LE>()? as usize;
+        let num_scenarios = input.read_u32::<LE>()? as usize;
         (
-            read_variable_str(input)?.ok_or(ReadCampaignError::MissingNameError)?,
+            read_hd_or_later_string(input)?.ok_or(ReadCampaignError::MissingNameError)?,
             num_scenarios,
         )
     } else {
@@ -135,8 +128,8 @@ fn read_campaign_header<R: Read>(input: &mut R) -> Result<CampaignHeader> {
 fn read_scenario_meta_de2<R: Read>(input: &mut R) -> Result<ScenarioMeta> {
     let size = input.read_u32::<LE>()? as usize;
     let offset = input.read_u32::<LE>()? as usize;
-    let name = read_variable_str(input)?.ok_or(ReadCampaignError::MissingNameError)?;
-    let filename = read_variable_str(input)?.ok_or(ReadCampaignError::MissingNameError)?;
+    let name = read_hd_or_later_string(input)?.ok_or(ReadCampaignError::MissingNameError)?;
+    let filename = read_hd_or_later_string(input)?.ok_or(ReadCampaignError::MissingNameError)?;
 
     Ok(ScenarioMeta {
         size,
@@ -149,8 +142,8 @@ fn read_scenario_meta_de2<R: Read>(input: &mut R) -> Result<ScenarioMeta> {
 fn read_scenario_meta_de<R: Read>(input: &mut R) -> Result<ScenarioMeta> {
     let size = input.read_u64::<LE>()? as usize;
     let offset = input.read_u64::<LE>()? as usize;
-    let name = read_variable_str(input)?.ok_or(ReadCampaignError::MissingNameError)?;
-    let filename = read_variable_str(input)?.ok_or(ReadCampaignError::MissingNameError)?;
+    let name = read_hd_or_later_string(input)?.ok_or(ReadCampaignError::MissingNameError)?;
+    let filename = read_hd_or_later_string(input)?.ok_or(ReadCampaignError::MissingNameError)?;
 
     Ok(ScenarioMeta {
         size,
