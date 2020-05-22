@@ -1390,9 +1390,9 @@ impl Command {
         let len = input.read_u32::<LE>()?;
         let mut small_buffer;
         let mut big_buffer;
-        let buffer: &mut [u8] = if len > 512 {
+        let buffer: &mut [u8] = if len < 512 {
             small_buffer = [0; 512];
-            &mut small_buffer
+            &mut small_buffer[0..len as usize]
         } else {
             big_buffer = vec![0; len as usize];
             &mut big_buffer

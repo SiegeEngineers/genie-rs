@@ -26,7 +26,7 @@ use byteorder::{ReadBytesExt, LE};
 use flate2::bufread::DeflateDecoder;
 use genie_scx::DLCOptions;
 use genie_support::{fallible_try_from, fallible_try_into, infallible_try_into};
-use header::Header;
+pub use header::Header;
 use std::fmt::{self, Debug, Display};
 use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom};
 
