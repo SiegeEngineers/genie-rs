@@ -25,14 +25,36 @@ use format::SCXFormat;
 use genie_support::{ReadStringError, WriteStringError};
 use std::io::{self, Read, Write};
 
-pub use format::{ScenarioObject, ScenarioData};
-pub use genie_support::{DecodeStringError, EncodeStringError};
+pub use format::{ScenarioObject, ScenarioData, PlayerData};
 pub use genie_support::{StringKey, UnitTypeID};
 pub use header::{DLCOptions, SCXHeader};
 pub use map::{Map, Tile};
 pub use triggers::{Trigger, TriggerCondition, TriggerEffect, TriggerSystem};
-pub use types::*;
+pub use types::{
+    VersionBundle,
+    SCXVersion,
+    DLCPackage,
+    DataSet,
+    DiplomaticStance,
+    StartingAge,
+};
 pub use victory::{VictoryConditions, VictoryEntry, VictoryPointEntry};
+
+pub mod error {
+    //! Error types.
+
+    pub use genie_support::{DecodeStringError, EncodeStringError};
+    pub use crate::types::{
+        ParseDLCPackageError,
+        ParseDataSetError,
+        ParseDiplomaticStanceError,
+        ParseStartingAgeError,
+    };
+}
+
+#[deprecated = "moved to `error` submodule"]
+#[doc(hidden)]
+pub use error::*;
 
 #[deprecated = "renamed to `genie_scx::ScenarioData`"]
 #[doc(hidden)]
@@ -70,22 +92,22 @@ pub enum Error {
     CannotDisableBuildingsError,
     /// Failed to decode a string from the scenario file, probably because of a wrong encoding.
     #[error(transparent)]
-    DecodeStringError(#[from] DecodeStringError),
+    DecodeStringError(#[from] error::DecodeStringError),
     /// Failed to encode a string into the scenario file, probably because of a wrong encoding.
     #[error(transparent)]
-    EncodeStringError(#[from] EncodeStringError),
+    EncodeStringError(#[from] error::EncodeStringError),
     /// The given ID is not a known diplomatic stance.
     #[error(transparent)]
-    ParseDiplomaticStanceError(#[from] ParseDiplomaticStanceError),
+    ParseDiplomaticStanceError(#[from] error::ParseDiplomaticStanceError),
     /// The given ID is not a known data set.
     #[error(transparent)]
-    ParseDataSetError(#[from] ParseDataSetError),
+    ParseDataSetError(#[from] error::ParseDataSetError),
     /// The given ID is not a known HD Edition DLC.
     #[error(transparent)]
-    ParseDLCPackageError(#[from] ParseDLCPackageError),
+    ParseDLCPackageError(#[from] error::ParseDLCPackageError),
     /// The given ID is not a known starting age in AoE1 or AoE2.
     #[error(transparent)]
-    ParseStartingAgeError(#[from] ParseStartingAgeError),
+    ParseStartingAgeError(#[from] error::ParseStartingAgeError),
     /// The given ID is not a known error code.
     #[error(transparent)]
     ParseAIErrorCodeError(#[from] num_enum::TryFromPrimitiveError<ai::AIErrorCode>),
