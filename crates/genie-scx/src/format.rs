@@ -106,15 +106,13 @@ impl ScenarioObject {
 
 #[derive(Debug, Default, Clone)]
 pub struct PlayerData {
-    /// Names for each player.
     name: Option<String>,
-    /// Name IDs for each player.
     name_id: Option<StringKey>,
     /// Resources this player has available at the start of the game.
     pub start_resources: PlayerStartResources,
     /// Settings about the player. Is this an AI or a human? What is their civilization? etc.
     base_properties: PlayerBaseProperties,
-    /// The starting age per player.
+    /// The starting age for this player.
     pub start_age: StartingAge,
 }
 
@@ -124,15 +122,35 @@ impl PlayerData {
         self.name.as_ref().map(|s| s.as_str())
     }
 
+    /// Set or clear the name for the player.
+    pub fn set_name(&mut self, name: Option<String>) {
+        self.name = name;
+    }
+
     /// Get the string ID name for the player, if one is set.
     pub fn name_id(&self) -> Option<StringKey> {
         // clone is cheap because this is always a numeric string key.
         self.name_id.clone()
     }
 
+    /// Set or clear the string ID name for the player.
+    ///
+    /// # Panics
+    /// This function panics if an `id` with a named `StringKey` is provided. Only numeric
+    /// `StringKey`s are allowed in scenario files.
+    pub fn set_name_id(&mut self, id: Option<StringKey>) {
+        assert!(id.is_none() || id.as_ref().unwrap().is_numeric(), "only numeric `StringKey`s can be used in scenarios");
+        self.name_id = id;
+    }
+
     /// Get the civilization ID this player would play as.
     pub fn civilization(&self) -> i32 {
         self.base_properties.civilization
+    }
+
+    /// Set the civilization ID this player would play as.
+    pub fn set_civilization(&mut self, id: i32) {
+        self.base_properties.civilization = id;
     }
 
     /// Is this player slot active for this scenario? If not, it will not be used by the game.
