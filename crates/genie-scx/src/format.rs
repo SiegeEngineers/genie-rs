@@ -14,7 +14,7 @@ use crate::{Error, Result, VersionBundle};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 use genie_support::{
-    f32_eq, read_opt_u32, read_str, write_opt_str, write_str, ReadSkipExt, StringKey, UnitTypeID,
+    f32_eq, read_opt_u32, read_str, write_opt_str, write_str, StringKey, UnitTypeID,
 };
 use std::convert::{TryFrom, TryInto};
 use std::io::{self, Read, Write};

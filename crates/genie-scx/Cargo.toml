@@ -1,6 +1,6 @@
 [package]
 name = "genie-scx"
-version = "3.0.0"
+version = "4.0.0"
 authors = ["Renée Kooi <renee@kooi.me>"]
 edition = "2018"
 license = "GPL-3.0"
