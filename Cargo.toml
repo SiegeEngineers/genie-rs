@@ -33,6 +33,7 @@ members = [
   "crates/genie-lang",
   "crates/genie-rec",
   "crates/genie-scx",
+  "crates/genie-slp",
   "crates/genie-support",
   "crates/jascpal"
 ]
