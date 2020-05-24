@@ -111,7 +111,7 @@ impl ScenarioObject {
 #[derive(Debug, Clone)]
 pub struct ScenarioData {
     /// Data version.
-    pub(crate) version: f32,
+    version: f32,
     /// Names for each player.
     player_names: [Option<String>; 16],
     /// Name IDs for each player.
@@ -119,7 +119,7 @@ pub struct ScenarioData {
     player_base_properties: [PlayerBaseProperties; 16],
     victory_conquest: bool,
     /// File name of this scenario.
-    pub(crate) name: String,
+    name: String,
     description_string_table: Option<StringKey>,
     hints_string_table: Option<StringKey>,
     win_message_string_table: Option<StringKey>,
@@ -144,7 +144,7 @@ pub struct ScenarioData {
     /// Starting resources for players.
     player_start_resources: [PlayerStartResources; 16],
     /// Victory settings.
-    victory: VictoryInfo,
+    pub victory: VictoryInfo,
     /// Whether all victory conditions need to be met for victory to occur.
     victory_all_flag: bool,
     /// Type of victory condition to use in multiplayer games.
@@ -1034,10 +1034,18 @@ impl ScenarioData {
         Ok(())
     }
 
+    /// Get the version of the scenario data.
     pub fn version(&self) -> f32 {
         self.version
     }
 
+    /// Get the file name of the scenario. May be empty if this scenario data is embedded inside
+    /// some other filetype, like a saved or recorded game.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Get the description of the scenario, if any.
     pub fn description(&self) -> Option<&str> {
         self.description.as_ref().map(|s| s.as_str())
     }
@@ -1052,7 +1060,7 @@ pub struct SCXFormat {
     /// ID for the next-placed/created object.
     pub(crate) next_object_id: i32,
     /// Scenario data.
-    pub(crate) tribe_scen: ScenarioData,
+    pub(crate) data: ScenarioData,
     /// Map data.
     pub(crate) map: Map,
     /// Player data.
@@ -1073,7 +1081,7 @@ impl SCXFormat {
         VersionBundle {
             format: self.version,
             header: self.header.version,
-            data: self.tribe_scen.version(),
+            data: self.data.version(),
             triggers: self.triggers.as_ref().map(|triggers| triggers.version()),
             map: self.map.version(),
             ..VersionBundle::aoc()
@@ -1086,7 +1094,7 @@ impl SCXFormat {
         let mut input = DeflateDecoder::new(&mut input);
         let next_object_id = input.read_i32::<LE>()?;
 
-        let tribe_scen = ScenarioData::read_from(&mut input)?;
+        let data = ScenarioData::read_from(&mut input)?;
 
         let map = Map::read_from(&mut input)?;
 
@@ -1155,7 +1163,7 @@ impl SCXFormat {
             version,
             header,
             next_object_id,
-            tribe_scen,
+            data,
             map,
             world_players,
             player_objects,
@@ -1221,7 +1229,7 @@ impl SCXFormat {
             .as_ref()
             .map(|trigger_system| trigger_system.num_triggers())
             .unwrap_or(0);
-        self.tribe_scen
+        self.data
             .write_to(&mut output, version.data, num_triggers)?;
         self.map.write_to(&mut output, version.map)?;
 
@@ -1265,7 +1273,7 @@ impl SCXFormat {
     ///
     /// Returns None if no mod was used.
     pub fn mod_name(&self) -> Option<&str> {
-        self.tribe_scen.player_names[9]
+        self.data.player_names[9]
             .as_ref()
             .map(|string| string.as_str())
     }

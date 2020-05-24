@@ -176,13 +176,13 @@ impl Scenario {
     /// Get the scenario description.
     #[inline]
     pub fn description(&self) -> Option<&str> {
-        self.format.tribe_scen.description()
+        self.format.data.description()
     }
 
     /// Get the scenario filename.
     #[inline]
     pub fn filename(&self) -> &str {
-        &self.format.tribe_scen.name
+        self.format.data.name()
     }
 
     /// Get data about the game versions this scenario file was made for.

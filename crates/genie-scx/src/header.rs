@@ -26,6 +26,7 @@ impl Default for DLCOptions {
 }
 
 impl DLCOptions {
+    /// Read DLC options from an input stream.
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         // If version is 0 or 1, it's actually the dataset identifier from
         // before DLCOptions was versioned.
@@ -57,6 +58,7 @@ impl DLCOptions {
         })
     }
 
+    /// Write DLC options to an output stream.
     pub fn write_to(&self, mut output: impl Write) -> Result<()> {
         output.write_u32::<LE>(1000)?;
         output.write_i32::<LE>(self.game_data_set.into())?;
