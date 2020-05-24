@@ -25,6 +25,7 @@ use format::SCXFormat;
 use genie_support::{ReadStringError, WriteStringError};
 use std::io::{self, Read, Write};
 
+pub use player::PlayerStartResources;
 pub use format::{PlayerData, ScenarioData, ScenarioObject};
 pub use genie_support::{StringKey, UnitTypeID};
 pub use header::{DLCOptions, SCXHeader};
