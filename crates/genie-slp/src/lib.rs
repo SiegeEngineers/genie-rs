@@ -175,8 +175,8 @@ impl<Pixel: Copy> Command<Pixel> {
         match self {
             Self::Copy(pixels) => Command::Copy(pixels.into_iter().map(transform).collect()),
             Self::Fill(num, pixel) => Command::Fill(num, transform(pixel)),
-            Self::PlayerCopy(pixels) => todo!(),
-            Self::PlayerFill(num, pixel) => todo!(),
+            Self::PlayerCopy(_pixels) => todo!(),
+            Self::PlayerFill(_num, _pixel) => todo!(),
             Self::Skip(num) => Command::Skip(num),
             Self::NextLine => Command::NextLine,
         }
