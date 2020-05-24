@@ -8,6 +8,7 @@
 #![warn(unused)]
 
 use byteorder::{ReadBytesExt, LE};
+pub use jascpal::PaletteIndex;
 pub use rgb::RGBA8;
 use std::ffi::CStr;
 use std::fmt::{self, Debug, Display};
@@ -37,10 +38,10 @@ pub struct PalettePixelFormat;
 pub struct RGBAPixelFormat;
 
 impl SLPFormat for PalettePixelFormat {
-    type Pixel = u8;
+    type Pixel = PaletteIndex;
 
     fn read_pixel<R: Read>(mut reader: R) -> Result<Self::Pixel> {
-        reader.read_u8()
+        reader.read_u8().map(Into::into)
     }
 }
 
@@ -53,10 +54,7 @@ impl SLPFormat for RGBAPixelFormat {
     }
 }
 
-impl<S: SLPFormat> Format for S
-where
-    S::Pixel: Copy,
-{
+impl<S: SLPFormat> Format for S {
     type Pixel = S::Pixel;
 
     fn read_command<R: Read>(mut reader: R) -> Result<Command<Self::Pixel>> {
@@ -64,7 +62,6 @@ where
         where
             R: Read,
             S: SLPFormat,
-            S::Pixel: Copy,
         {
             let mut pixels = Vec::with_capacity(num_pixels as usize);
             for _ in 0..num_pixels {
@@ -147,32 +144,46 @@ pub enum Command<Pixel: Copy> {
     NextLine,
 }
 
-/*
-impl Command {
-    pub fn to_writer<W: Write>(&self, w: &mut W) -> Result<()> {
+impl<Pixel: Copy> Command<Pixel> {
+    pub fn map_color<OutputPixel: Copy>(
+        self,
+        mut transform: impl FnMut(Pixel) -> OutputPixel,
+    ) -> Command<OutputPixel> {
         match self {
-            Command::Copy(colors) => {
-                let n = colors.len();
-                if n >= 64 {
-                    w.write_u8(0x02 | ((n & 0xF00) >> 4))?;
-                    w.write_u8(n & 0xFF)?;
-                } else {
-                    w.write_u8(0x00 | (n << 2))?;
-                }
-                w.write_all(&colors)?;
-            }
-            _ => unimplemented!(),
+            Self::Copy(pixels) => Command::Copy(pixels.into_iter().map(transform).collect()),
+            Self::Fill(num, pixel) => Command::Fill(num, transform(pixel)),
+            Self::PlayerCopy(pixels) => todo!(),
+            Self::PlayerFill(num, pixel) => todo!(),
+            Self::Skip(num) => Command::Skip(num),
+            Self::NextLine => Command::NextLine,
         }
-        Ok(())
     }
 
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let mut v = vec![];
-        self.to_writer(&mut v).unwrap();
-        v
-    }
+    /*
+        pub fn to_writer<W: Write>(&self, w: &mut W) -> Result<()> {
+            match self {
+                Command::Copy(colors) => {
+                    let n = colors.len();
+                    if n >= 64 {
+                        w.write_u8(0x02 | ((n & 0xF00) >> 4))?;
+                        w.write_u8(n & 0xFF)?;
+                    } else {
+                        w.write_u8(0x00 | (n << 2))?;
+                    }
+                    w.write_all(&colors)?;
+                }
+                _ => unimplemented!(),
+            }
+            Ok(())
+        }
+
+        pub fn to_bytes(&self) -> Vec<u8> {
+            let mut v = vec![];
+            self.to_writer(&mut v).unwrap();
+            v
+        }
+    */
 }
-*/
 
 /// SLP file version identifier.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -220,8 +231,8 @@ struct SLPFrameMeta {
     outline_table_offset: u32,
     palette_offset: u32,
     properties: u32,
-    width: i32,
-    height: i32,
+    width: u32,
+    height: u32,
     hotspot: (i32, i32),
     outlines: Vec<Outline>,
     command_offsets: Vec<usize>,
@@ -234,8 +245,8 @@ impl SLPFrameMeta {
         frame.outline_table_offset = input.read_u32::<LE>()?;
         frame.palette_offset = input.read_u32::<LE>()?;
         frame.properties = input.read_u32::<LE>()?;
-        frame.width = input.read_i32::<LE>()?;
-        frame.height = input.read_i32::<LE>()?;
+        frame.width = input.read_u32::<LE>()?;
+        frame.height = input.read_u32::<LE>()?;
         frame.hotspot = (input.read_i32::<LE>()?, input.read_i32::<LE>()?);
         Ok(frame)
     }
@@ -269,7 +280,7 @@ impl<'slp> SLPFrame<'slp> {
     }
 
     /// Get the size of this frame in pixels. Returns `(width, height)`.
-    pub fn size(&self) -> (i32, i32) {
+    pub fn size(&self) -> (u32, u32) {
         (self.meta.width, self.meta.height)
     }
 
@@ -292,18 +303,18 @@ impl<'slp> SLPFrame<'slp> {
     ///
     /// # Panics
     /// This function panics if this frame's pixel format is not 8 bit.
-    pub fn render_8bit(&self) -> FrameCommandIterator<'_, PalettePixelFormat> {
+    pub fn render_8bit(&self) -> SLPFrameCommands<'_, PalettePixelFormat> {
         assert!(self.is_8bit(), "render_8bit() called on a 32 bit frame");
-        FrameCommandIterator::new(self.buffer, &self.meta.command_offsets)
+        SLPFrameCommands::new(self.buffer, &self.meta.command_offsets)
     }
 
     /// Iterate over the commands in this 32 bit frame.
     ///
     /// # Panics
     /// This function panics if this frame's pixel format is not 32 bit.
-    pub fn render_32bit(&self) -> FrameCommandIterator<'_, RGBAPixelFormat> {
+    pub fn render_32bit(&self) -> SLPFrameCommands<'_, RGBAPixelFormat> {
         assert!(self.is_32bit(), "render_32bit() called on an 8 bit frame");
-        FrameCommandIterator::new(self.buffer, &self.meta.command_offsets)
+        SLPFrameCommands::new(self.buffer, &self.meta.command_offsets)
     }
 }
 
@@ -382,7 +393,7 @@ impl SLP {
 }
 
 /// Iterator over commands in an SLP frame.
-pub struct FrameCommandIterator<'a, F>
+pub struct SLPFrameCommands<'a, F>
 where
     F: Format,
 {
@@ -393,7 +404,7 @@ where
     _format: std::marker::PhantomData<F>,
 }
 
-impl<'a, F> FrameCommandIterator<'a, F>
+impl<'a, F> SLPFrameCommands<'a, F>
 where
     F: Format,
 {
@@ -424,7 +435,7 @@ where
     }
 }
 
-impl<'a, F> Iterator for FrameCommandIterator<'a, F>
+impl<'a, F> Iterator for SLPFrameCommands<'a, F>
 where
     F: Format,
 {
