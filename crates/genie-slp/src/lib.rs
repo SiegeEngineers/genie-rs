@@ -57,6 +57,7 @@ impl SLPFormat for RGBAPixelFormat {
 impl<S: SLPFormat> Format for S {
     type Pixel = S::Pixel;
 
+    #[allow(clippy::verbose_bit_mask)]
     fn read_command<R: Read>(mut reader: R) -> Result<Command<Self::Pixel>> {
         fn read_pixels<R, S>(num_pixels: u32, mut reader: R) -> Result<Vec<S::Pixel>>
         where
