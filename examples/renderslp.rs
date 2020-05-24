@@ -98,12 +98,12 @@ pub fn main() -> anyhow::Result<()> {
                 Palette::read_from(f)?
             };
 
-            for command in frame.render_8bit() {
+            for command in frame.commands_8bit() {
                 let command = command?.map_color(|index| palette[index].alpha(255));
                 output.write(command);
             }
         } else {
-            for command in frame.render_32bit() {
+            for command in frame.commands_32bit() {
                 let command = command?;
                 output.write(command);
             }

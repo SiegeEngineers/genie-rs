@@ -327,8 +327,8 @@ impl<'slp> SLPFrame<'slp> {
     ///
     /// # Panics
     /// This function panics if this frame's pixel format is not 8 bit.
-    pub fn render_8bit(&self) -> SLPFrameCommands<'_, PalettePixelFormat> {
-        assert!(self.is_8bit(), "render_8bit() called on a 32 bit frame");
+    pub fn commands_8bit(&self) -> SLPFrameCommands<'_, PalettePixelFormat> {
+        assert!(self.is_8bit(), "commands_8bit() called on a 32 bit frame");
         SLPFrameCommands::new(self.buffer, &self.meta.command_offsets)
     }
 
@@ -336,8 +336,8 @@ impl<'slp> SLPFrame<'slp> {
     ///
     /// # Panics
     /// This function panics if this frame's pixel format is not 32 bit.
-    pub fn render_32bit(&self) -> SLPFrameCommands<'_, RGBAPixelFormat> {
-        assert!(self.is_32bit(), "render_32bit() called on an 8 bit frame");
+    pub fn commands_32bit(&self) -> SLPFrameCommands<'_, RGBAPixelFormat> {
+        assert!(self.is_32bit(), "commands_32bit() called on an 8 bit frame");
         SLPFrameCommands::new(self.buffer, &self.meta.command_offsets)
     }
 }
@@ -503,20 +503,20 @@ mod tests {
     }
 
     #[test]
-    fn render_32bit() -> anyhow::Result<()> {
+    fn commands_32bit() -> anyhow::Result<()> {
         let f = File::open("test/fixtures/eslogo1.slp")?;
         let slp = SLP::read_from(f)?;
-        for command in slp.frame(0).render_32bit() {
+        for command in slp.frame(0).commands_32bit() {
             let _ = command?;
         }
         Ok(())
     }
 
     #[test]
-    #[should_panic = "render_8bit() called on a 32 bit frame"]
-    fn render_32bit_slp_as_8bit() {
+    #[should_panic = "commands_8bit() called on a 32 bit frame"]
+    fn commands_32bit_slp_as_8bit() {
         let f = File::open("test/fixtures/eslogo1.slp").unwrap();
         let slp = SLP::read_from(f).unwrap();
-        for _ in slp.frame(0).render_8bit() {}
+        for _ in slp.frame(0).commands_8bit() {}
     }
 }
