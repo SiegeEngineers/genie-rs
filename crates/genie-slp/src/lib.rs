@@ -127,7 +127,7 @@ impl<S: SLPFormat> Format for S {
 }
 
 /// An SLP command.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Command<Pixel: Copy> {
     /// Copy pixels to the output.
     Copy(Vec<Pixel>),
@@ -145,6 +145,29 @@ pub enum Command<Pixel: Copy> {
 }
 
 impl<Pixel: Copy> Command<Pixel> {
+    /// Transform the pixel colour values in this command.
+    ///
+    /// # Examples
+    /// Use `map_color()` to apply a palette:
+    ///
+    /// ```rust
+    /// use genie_slp::{Command, RGBA8};
+    ///
+    /// let mut palette = vec![RGBA8::default(); 256];
+    /// palette[63] = RGBA8::new(0, 0xFF, 0x00, 0xFF); // green
+    /// palette[127] = RGBA8::new(0, 0, 0xFF, 0xFF); // blue
+    /// let command = Command::Copy(vec![127, 127, 63, 63]);
+    /// let command = command.map_color(|palette_index: u8| palette[palette_index as usize]);
+    /// assert_eq!(
+    ///     command,
+    ///     Command::Copy(vec![
+    ///         RGBA8::new(0, 0, 0xFF, 0xFF),
+    ///         RGBA8::new(0, 0, 0xFF, 0xFF),
+    ///         RGBA8::new(0, 0xFF, 0, 0xFF),
+    ///         RGBA8::new(0, 0xFF, 0, 0xFF),
+    ///     ])
+    /// );
+    /// ```
     pub fn map_color<OutputPixel: Copy>(
         self,
         mut transform: impl FnMut(Pixel) -> OutputPixel,
