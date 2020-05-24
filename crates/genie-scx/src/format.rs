@@ -113,10 +113,10 @@ pub struct ScenarioData {
     /// Data version.
     pub(crate) version: f32,
     /// Names for each player.
-    player_names: Vec<Option<String>>,
+    player_names: [Option<String>; 16],
     /// Name IDs for each player.
-    player_string_table: Vec<Option<StringKey>>,
-    player_base_properties: Vec<PlayerBaseProperties>,
+    player_string_table: [Option<StringKey>; 16],
+    player_base_properties: [PlayerBaseProperties; 16],
     victory_conquest: bool,
     /// File name of this scenario.
     pub(crate) name: String,
@@ -136,13 +136,13 @@ pub struct ScenarioData {
     victory_cinematic: Option<String>,
     loss_cinematic: Option<String>,
     mission_bmp: Option<String>,
-    player_build_lists: Vec<Option<String>>,
-    player_city_plans: Vec<Option<String>>,
-    player_ai_rules: Vec<Option<String>>,
-    player_files: Vec<PlayerFiles>,
-    ai_rules_types: Vec<i8>,
+    player_build_lists: [Option<String>; 16],
+    player_city_plans: [Option<String>; 16],
+    player_ai_rules: [Option<String>; 16],
+    player_files: [PlayerFiles; 16],
+    ai_rules_types: [i8; 16],
     /// Starting resources for players.
-    player_start_resources: Vec<PlayerStartResources>,
+    player_start_resources: [PlayerStartResources; 16],
     /// Victory settings.
     victory: VictoryInfo,
     /// Whether all victory conditions need to be met for victory to occur.
@@ -154,10 +154,10 @@ pub struct ScenarioData {
     /// Time at which the highest-scoring player will win the multiplayer match.
     victory_time: i32,
     /// Initial diplomacy stances between players.
-    diplomacy: Vec<Vec<DiplomaticStance>>,
-    legacy_victory_info: Vec<Vec<LegacyVictoryInfo>>,
+    diplomacy: [[DiplomaticStance; 16]; 16],
+    legacy_victory_info: [[LegacyVictoryInfo; 12]; 16],
     /// Whether Allied Victory is enabled for each player.
-    allied_victory: Vec<i32>,
+    allied_victory: [i32; 16],
     teams_locked: bool,
     can_change_teams: bool,
     random_start_locations: bool,
@@ -165,21 +165,21 @@ pub struct ScenarioData {
     /// Number of disabled techs per player.
     ///
     /// TODO only use `disabled_techs` for this
-    num_disabled_techs: Vec<i32>,
+    num_disabled_techs: [i32; 16],
     /// Disabled tech IDs per player.
-    disabled_techs: Vec<Vec<i32>>,
+    disabled_techs: [Vec<i32>; 16],
     /// Number of disabled units per player.
     ///
     /// TODO only use `disabled_units` for this
-    num_disabled_units: Vec<i32>,
+    num_disabled_units: [i32; 16],
     /// Disabled unit IDs per player.
-    disabled_units: Vec<Vec<i32>>,
+    disabled_units: [Vec<i32>; 16],
     /// Number of disabled buildings per player.
     ///
     /// TODO only use `disabled_buildings` for this
-    num_disabled_buildings: Vec<i32>,
+    num_disabled_buildings: [i32; 16],
     /// Disabled building IDs per player.
-    disabled_buildings: Vec<Vec<i32>>,
+    disabled_buildings: [Vec<i32>; 16],
     /// (What exactly?)
     ///
     /// According to [AoE2ScenarioParser][].
@@ -193,12 +193,12 @@ pub struct ScenarioData {
     /// Whether "All Techs" is enabled.
     all_techs: bool,
     /// The starting age per player.
-    player_start_ages: Vec<StartingAge>,
+    player_start_ages: [StartingAge; 16],
     /// The initial camera location.
     view: (i32, i32),
     /// The map type.
     map_type: Option<i32>,
-    base_priorities: Vec<i8>,
+    base_priorities: [i8; 16],
     /// The water definition type used. (DE2 and up)
     water_definition: Option<String>,
     /// The colour mood used. (DE2 and up)
@@ -217,9 +217,9 @@ impl Default for ScenarioData {
     fn default() -> Self {
         Self {
             version: 1.22,
-            player_names: vec![None; 16],
-            player_string_table: vec![None; 16],
-            player_base_properties: vec![PlayerBaseProperties::default(); 16],
+            player_names: Default::default(),
+            player_string_table: Default::default(),
+            player_base_properties: Default::default(),
             victory_conquest: false,
             name: String::new(),
             description_string_table: None,
@@ -238,37 +238,37 @@ impl Default for ScenarioData {
             victory_cinematic: None,
             loss_cinematic: None,
             mission_bmp: None,
-            player_build_lists: vec![None; 16],
-            player_city_plans: vec![None; 16],
-            player_ai_rules: vec![None; 16],
-            player_files: vec![PlayerFiles::default(); 16],
-            ai_rules_types: vec![0; 16],
-            player_start_resources: vec![PlayerStartResources::default(); 16],
+            player_build_lists: Default::default(),
+            player_city_plans: Default::default(),
+            player_ai_rules: Default::default(),
+            player_files: Default::default(),
+            ai_rules_types: Default::default(),
+            player_start_resources: Default::default(),
             victory: VictoryInfo::default(),
             victory_all_flag: true,
             mp_victory_type: 4,
             victory_score: 900,
             victory_time: 9000,
-            diplomacy: vec![vec![DiplomaticStance::Neutral; 16]; 16],
-            legacy_victory_info: vec![vec![LegacyVictoryInfo::default(); 12]; 16],
-            allied_victory: vec![0; 16],
+            diplomacy: [[DiplomaticStance::Enemy; 16]; 16],
+            legacy_victory_info: Default::default(),
+            allied_victory: Default::default(),
             teams_locked: false,
             can_change_teams: false,
             random_start_locations: false,
             max_teams: 4,
-            num_disabled_techs: vec![0; 16],
-            disabled_techs: vec![vec![]; 16],
-            num_disabled_units: vec![0; 16],
-            disabled_units: vec![vec![]; 16],
-            num_disabled_buildings: vec![0; 16],
-            disabled_buildings: vec![vec![]; 16],
+            num_disabled_techs: Default::default(),
+            disabled_techs: Default::default(),
+            num_disabled_units: Default::default(),
+            disabled_units: Default::default(),
+            num_disabled_buildings: Default::default(),
+            disabled_buildings: Default::default(),
             combat_mode: 0,
             naval_mode: 0,
             all_techs: false,
-            player_start_ages: vec![StartingAge::Default; 16],
+            player_start_ages: [StartingAge::Default; 16],
             view: (-1, -1),
             map_type: None,
-            base_priorities: vec![0; 16],
+            base_priorities: Default::default(),
             water_definition: None,
             color_mood: None,
             collide_and_correct: false,
@@ -673,7 +673,6 @@ impl ScenarioData {
         output.write_f32::<LE>(version)?;
 
         if version > 1.13 {
-            assert_eq!(self.player_names.len(), 16);
             for name in &self.player_names {
                 let mut padded_bytes = Vec::with_capacity(256);
                 if let Some(ref name) = name {
@@ -686,14 +685,12 @@ impl ScenarioData {
         }
 
         if version > 1.16 {
-            assert_eq!(self.player_string_table.len(), 16);
             for id in &self.player_string_table {
                 write_opt_string_key(&mut output, id)?;
             }
         }
 
         if version > 1.13 {
-            assert_eq!(self.player_base_properties.len(), 16);
             for props in &self.player_base_properties {
                 output.write_i32::<LE>(props.active)?;
                 output.write_i32::<LE>(props.player_type)?;
@@ -758,24 +755,20 @@ impl ScenarioData {
             output.write_u16::<LE>(1)?;
         }
 
-        assert_eq!(self.player_build_lists.len(), 16);
         for build_list in &self.player_build_lists {
             write_opt_str(&mut output, build_list)?;
         }
 
-        assert_eq!(self.player_city_plans.len(), 16);
         for city_plan in &self.player_city_plans {
             write_opt_str(&mut output, city_plan)?;
         }
 
         if version >= 1.08 {
-            assert_eq!(self.player_ai_rules.len(), 16);
             for ai_rules in &self.player_ai_rules {
                 write_opt_str(&mut output, ai_rules)?;
             }
         }
 
-        assert_eq!(self.player_files.len(), 16);
         for files in &self.player_files {
             if let Some(build_list) = &files.build_list {
                 output.write_u32::<LE>(build_list.len() as u32)?;
@@ -808,7 +801,6 @@ impl ScenarioData {
         }
 
         if version >= 1.20 {
-            assert_eq!(self.ai_rules_types.len(), 16);
             for ai_rules_type in &self.ai_rules_types {
                 output.write_i8(*ai_rules_type)?;
             }
@@ -817,7 +809,6 @@ impl ScenarioData {
         output.write_i32::<LE>(-99)?;
 
         if version <= 1.13 {
-            assert_eq!(self.player_names.len(), 16);
             for name in &self.player_names {
                 let mut padded_bytes = Vec::with_capacity(256);
                 if let Some(ref name) = name {
@@ -828,8 +819,6 @@ impl ScenarioData {
                 output.write_all(&padded_bytes)?;
             }
 
-            assert_eq!(self.player_base_properties.len(), 16);
-            assert_eq!(self.player_start_resources.len(), 16);
             for i in 0..16 {
                 let properties = &self.player_base_properties[i];
                 let resources = &self.player_start_resources[i];
@@ -840,7 +829,6 @@ impl ScenarioData {
                 output.write_i32::<LE>(properties.posture)?;
             }
         } else {
-            assert_eq!(self.player_start_resources.len(), 16);
             for start_resources in &self.player_start_resources {
                 start_resources.write_to(&mut output, version)?;
             }
@@ -859,15 +847,12 @@ impl ScenarioData {
             output.write_i32::<LE>(self.victory_time)?;
         }
 
-        assert_eq!(self.diplomacy.len(), 16);
         for player_diplomacy in &self.diplomacy {
-            assert_eq!(player_diplomacy.len(), 16);
             for stance in player_diplomacy {
                 output.write_i32::<LE>((*stance).into())?;
             }
         }
 
-        assert_eq!(self.legacy_victory_info.len(), 16);
         for list in &self.legacy_victory_info {
             for entry in list {
                 entry.write_to(&mut output)?;
@@ -1025,7 +1010,6 @@ impl ScenarioData {
         }
 
         if version >= 1.24 {
-            assert_eq!(self.base_priorities.len(), 16);
             for priority in &self.base_priorities {
                 output.write_i8(*priority)?;
             }
