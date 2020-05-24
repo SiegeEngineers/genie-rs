@@ -139,7 +139,10 @@ impl PlayerData {
     /// This function panics if an `id` with a named `StringKey` is provided. Only numeric
     /// `StringKey`s are allowed in scenario files.
     pub fn set_name_id(&mut self, id: Option<StringKey>) {
-        assert!(id.is_none() || id.as_ref().unwrap().is_numeric(), "only numeric `StringKey`s can be used in scenarios");
+        assert!(
+            id.is_none() || id.as_ref().unwrap().is_numeric(),
+            "only numeric `StringKey`s can be used in scenarios"
+        );
         self.name_id = id;
     }
 

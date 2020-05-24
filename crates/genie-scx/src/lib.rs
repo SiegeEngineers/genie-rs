@@ -25,11 +25,11 @@ use format::SCXFormat;
 use genie_support::{ReadStringError, WriteStringError};
 use std::io::{self, Read, Write};
 
-pub use player::PlayerStartResources;
 pub use format::{PlayerData, ScenarioData, ScenarioObject};
 pub use genie_support::{StringKey, UnitTypeID};
 pub use header::{DLCOptions, SCXHeader};
 pub use map::{Map, Tile};
+pub use player::PlayerStartResources;
 pub use triggers::{Trigger, TriggerCondition, TriggerEffect, TriggerSystem};
 pub use types::{DLCPackage, DataSet, DiplomaticStance, SCXVersion, StartingAge, VersionBundle};
 pub use victory::{VictoryConditions, VictoryEntry, VictoryPointEntry};
