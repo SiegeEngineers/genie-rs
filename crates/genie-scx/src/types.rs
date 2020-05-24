@@ -235,6 +235,12 @@ pub enum StartingAge {
     PostImperialAge = 4,
 }
 
+impl Default for StartingAge {
+    fn default() -> Self {
+        StartingAge::Default
+    }
+}
+
 impl StartingAge {
     /// Convert a starting age number to the appropriate enum for a particular
     /// data version.

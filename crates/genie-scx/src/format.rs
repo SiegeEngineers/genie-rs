@@ -104,6 +104,43 @@ impl ScenarioObject {
     }
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct PlayerData {
+    /// Names for each player.
+    name: Option<String>,
+    /// Name IDs for each player.
+    name_id: Option<StringKey>,
+    /// Resources this player has available at the start of the game.
+    pub start_resources: PlayerStartResources,
+    /// Settings about the player. Is this an AI or a human? What is their civilization? etc.
+    base_properties: PlayerBaseProperties,
+    /// The starting age per player.
+    pub start_age: StartingAge,
+}
+
+impl PlayerData {
+    /// Get the name for the player, if one is set.
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_ref().map(|s| s.as_str())
+    }
+
+    /// Get the string ID name for the player, if one is set.
+    pub fn name_id(&self) -> Option<StringKey> {
+        // clone is cheap because this is always a numeric string key.
+        self.name_id.clone()
+    }
+
+    /// Get the civilization ID this player would play as.
+    pub fn civilization(&self) -> i32 {
+        self.base_properties.civilization
+    }
+
+    /// Is this player slot active for this scenario? If not, it will not be used by the game.
+    pub fn is_active(&self) -> bool {
+        self.base_properties.active != 0
+    }
+}
+
 /// Embeddable scenario data. This includes all scenario settings, but not map data, triggers, and
 /// placed objects.
 ///
@@ -112,11 +149,7 @@ impl ScenarioObject {
 pub struct ScenarioData {
     /// Data version.
     version: f32,
-    /// Names for each player.
-    player_names: [Option<String>; 16],
-    /// Name IDs for each player.
-    player_string_table: [Option<StringKey>; 16],
-    player_base_properties: [PlayerBaseProperties; 16],
+    player_data: [PlayerData; 16],
     victory_conquest: bool,
     /// File name of this scenario.
     name: String,
@@ -141,8 +174,6 @@ pub struct ScenarioData {
     player_ai_rules: [Option<String>; 16],
     player_files: [PlayerFiles; 16],
     ai_rules_types: [i8; 16],
-    /// Starting resources for players.
-    player_start_resources: [PlayerStartResources; 16],
     /// Victory settings.
     pub victory: VictoryInfo,
     /// Whether all victory conditions need to be met for victory to occur.
@@ -192,8 +223,6 @@ pub struct ScenarioData {
     naval_mode: i32,
     /// Whether "All Techs" is enabled.
     all_techs: bool,
-    /// The starting age per player.
-    player_start_ages: [StartingAge; 16],
     /// The initial camera location.
     view: (i32, i32),
     /// The map type.
@@ -217,9 +246,7 @@ impl Default for ScenarioData {
     fn default() -> Self {
         Self {
             version: 1.22,
-            player_names: Default::default(),
-            player_string_table: Default::default(),
-            player_base_properties: Default::default(),
+            player_data: Default::default(),
             victory_conquest: false,
             name: String::new(),
             description_string_table: None,
@@ -243,7 +270,6 @@ impl Default for ScenarioData {
             player_ai_rules: Default::default(),
             player_files: Default::default(),
             ai_rules_types: Default::default(),
-            player_start_resources: Default::default(),
             victory: VictoryInfo::default(),
             victory_all_flag: true,
             mp_victory_type: 4,
@@ -265,7 +291,6 @@ impl Default for ScenarioData {
             combat_mode: 0,
             naval_mode: 0,
             all_techs: false,
-            player_start_ages: [StartingAge::Default; 16],
             view: (-1, -1),
             map_type: None,
             base_priorities: Default::default(),
@@ -290,26 +315,27 @@ impl ScenarioData {
         let version = input.read_f32::<LE>()?;
         log::debug!("RGEScen version {}", version);
         scen.version = version;
+        let player_data = &mut scen.player_data;
 
         // Moved around in 1.13
         if version > 1.13 {
-            for name in scen.player_names.iter_mut() {
-                *name = read_str(&mut input, 256)?;
+            for player in player_data.iter_mut() {
+                player.name = read_str(&mut input, 256)?;
             }
         }
 
         if version > 1.16 {
-            for string_id in scen.player_string_table.iter_mut() {
-                *string_id = read_opt_u32(&mut input)?;
+            for player in player_data.iter_mut() {
+                player.name_id = read_opt_u32(&mut input)?;
             }
         }
 
         if version > 1.13 {
-            for properties in scen.player_base_properties.iter_mut() {
-                properties.active = input.read_i32::<LE>()?;
-                properties.player_type = input.read_i32::<LE>()?;
-                properties.civilization = input.read_i32::<LE>()?;
-                properties.posture = input.read_i32::<LE>()?;
+            for player in player_data.iter_mut() {
+                player.base_properties.active = input.read_i32::<LE>()?;
+                player.base_properties.player_type = input.read_i32::<LE>()?;
+                player.base_properties.civilization = input.read_i32::<LE>()?;
+                player.base_properties.posture = input.read_i32::<LE>()?;
             }
         }
 
@@ -446,22 +472,20 @@ impl ScenarioData {
 
         // Moved around in 1.13
         if version <= 1.13 {
-            for name in scen.player_names.iter_mut() {
-                *name = read_str(&mut input, 256)?;
+            for player in player_data.iter_mut() {
+                player.name = read_str(&mut input, 256)?;
             }
 
-            for i in 0..16 {
-                let properties = &mut scen.player_base_properties[i];
-                properties.active = input.read_i32::<LE>()?;
-                let resources = PlayerStartResources::read_from(&mut input, version)?;
-                properties.player_type = input.read_i32::<LE>()?;
-                properties.civilization = input.read_i32::<LE>()?;
-                properties.posture = input.read_i32::<LE>()?;
-                scen.player_start_resources[i] = resources;
+            for player in player_data.iter_mut() {
+                player.base_properties.active = input.read_i32::<LE>()?;
+                player.start_resources = PlayerStartResources::read_from(&mut input, version)?;
+                player.base_properties.player_type = input.read_i32::<LE>()?;
+                player.base_properties.civilization = input.read_i32::<LE>()?;
+                player.base_properties.posture = input.read_i32::<LE>()?;
             }
         } else {
-            for resources in scen.player_start_resources.iter_mut() {
-                *resources = PlayerStartResources::read_from(&mut input, version)?;
+            for player in player_data.iter_mut() {
+                player.start_resources = PlayerStartResources::read_from(&mut input, version)?;
             }
         }
 
@@ -603,12 +627,18 @@ impl ScenarioData {
         }
 
         if version > 1.05 {
-            for start_age in scen.player_start_ages.iter_mut() {
-                *start_age = StartingAge::try_from(input.read_i32::<LE>()?, version)?;
+            for player in player_data.iter_mut() {
+                player.start_age = StartingAge::try_from(input.read_i32::<LE>()?, version)?;
             }
         }
 
-        log::debug!("starting ages: {:?}", scen.player_start_ages);
+        log::debug!(
+            "starting ages: {:?}",
+            player_data
+                .iter()
+                .map(|player| player.start_age)
+                .collect::<Vec<_>>()
+        );
 
         if version >= 1.02 {
             let sep = input.read_i32::<LE>()?;
@@ -673,9 +703,9 @@ impl ScenarioData {
         output.write_f32::<LE>(version)?;
 
         if version > 1.13 {
-            for name in &self.player_names {
+            for player in &self.player_data {
                 let mut padded_bytes = Vec::with_capacity(256);
-                if let Some(ref name) = name {
+                if let Some(ref name) = player.name {
                     let name_bytes = name.as_bytes();
                     padded_bytes.write_all(name_bytes)?;
                 }
@@ -685,17 +715,20 @@ impl ScenarioData {
         }
 
         if version > 1.16 {
-            for id in &self.player_string_table {
-                write_opt_string_key(&mut output, id)?;
+            for player in &self.player_data {
+                write_opt_string_key(&mut output, &player.name_id)?;
             }
         }
 
         if version > 1.13 {
-            for props in &self.player_base_properties {
-                output.write_i32::<LE>(props.active)?;
-                output.write_i32::<LE>(props.player_type)?;
-                output.write_i32::<LE>(props.civilization)?;
-                output.write_i32::<LE>(props.posture)?;
+            for PlayerData {
+                base_properties, ..
+            } in &self.player_data
+            {
+                output.write_i32::<LE>(base_properties.active)?;
+                output.write_i32::<LE>(base_properties.player_type)?;
+                output.write_i32::<LE>(base_properties.civilization)?;
+                output.write_i32::<LE>(base_properties.posture)?;
             }
         }
 
@@ -809,9 +842,9 @@ impl ScenarioData {
         output.write_i32::<LE>(-99)?;
 
         if version <= 1.13 {
-            for name in &self.player_names {
+            for player in &self.player_data {
                 let mut padded_bytes = Vec::with_capacity(256);
-                if let Some(ref name) = name {
+                if let Some(ref name) = player.name {
                     let name_bytes = name.as_bytes();
                     padded_bytes.write_all(name_bytes)?;
                 }
@@ -819,17 +852,18 @@ impl ScenarioData {
                 output.write_all(&padded_bytes)?;
             }
 
-            for i in 0..16 {
-                let properties = &self.player_base_properties[i];
-                let resources = &self.player_start_resources[i];
-                output.write_i32::<LE>(properties.active)?;
-                resources.write_to(&mut output, version)?;
-                output.write_i32::<LE>(properties.player_type)?;
-                output.write_i32::<LE>(properties.civilization)?;
-                output.write_i32::<LE>(properties.posture)?;
+            for player in &self.player_data {
+                output.write_i32::<LE>(player.base_properties.active)?;
+                player.start_resources.write_to(&mut output, version)?;
+                output.write_i32::<LE>(player.base_properties.player_type)?;
+                output.write_i32::<LE>(player.base_properties.civilization)?;
+                output.write_i32::<LE>(player.base_properties.posture)?;
             }
         } else {
-            for start_resources in &self.player_start_resources {
+            for PlayerData {
+                start_resources, ..
+            } in &self.player_data
+            {
                 start_resources.write_to(&mut output, version)?;
             }
         }
@@ -991,7 +1025,7 @@ impl ScenarioData {
         }
 
         if version > 1.05 {
-            for start_age in &self.player_start_ages {
+            for PlayerData { start_age, .. } in &self.player_data {
                 output.write_i32::<LE>(start_age.to_i32(version))?;
             }
         }
@@ -1048,6 +1082,21 @@ impl ScenarioData {
     /// Get the description of the scenario, if any.
     pub fn description(&self) -> Option<&str> {
         self.description.as_ref().map(|s| s.as_str())
+    }
+
+    /// Access data for the 8 usable players.
+    pub fn players(&self) -> &[PlayerData] {
+        &self.player_data[0..8]
+    }
+
+    /// Get data for a particular player ID.
+    pub fn player(&self, id: u8) -> &PlayerData {
+        &self.player_data[id as usize]
+    }
+
+    /// Iterate over the data for the active players in this scenario.
+    pub fn active_players(&self) -> impl Iterator<Item = &PlayerData> {
+        self.players().iter().filter(|player| player.is_active())
     }
 }
 
@@ -1273,9 +1322,7 @@ impl SCXFormat {
     ///
     /// Returns None if no mod was used.
     pub fn mod_name(&self) -> Option<&str> {
-        self.data.player_names[9]
-            .as_ref()
-            .map(|string| string.as_str())
+        self.data.player_data[9].name.as_ref().map(|string| string.as_str())
     }
 
     /// Hash the scenario, for comparison with other instances.

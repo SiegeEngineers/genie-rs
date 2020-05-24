@@ -24,12 +24,22 @@ pub struct PlayerFiles {
 
 #[derive(Debug, Clone)]
 pub struct PlayerStartResources {
-    pub(crate) gold: i32,
-    pub(crate) wood: i32,
-    pub(crate) food: i32,
-    pub(crate) stone: i32,
-    pub(crate) ore: i32,
-    pub(crate) goods: i32,
+    /// The amount of gold the player has at the start of the game.
+    pub gold: i32,
+    /// The amount of wood the player has at the start of the game.
+    pub wood: i32,
+    /// The amount of food the player has at the start of the game.
+    pub food: i32,
+    /// The amount of stone the player has at the start of the game.
+    pub stone: i32,
+    /// The amount of ore the player has at the start of the game.
+    ///
+    /// This resource is unused in AoC, but mods like the Portuguese Civ Mod re-enable it.
+    pub ore: i32,
+    /// The amount of Trade Goods the player has at the start of the game.
+    ///
+    /// This resource is unused by the game.
+    pub goods: i32,
     pub(crate) player_color: Option<i32>,
 }
 
