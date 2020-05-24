@@ -89,6 +89,7 @@ pub use genie_hki as hki;
 pub use genie_lang as lang;
 pub use genie_rec as rec;
 pub use genie_scx as scx;
+pub use genie_slp as slp;
 pub use jascpal as pal;
 
 pub use genie_cpx::Campaign;
@@ -98,4 +99,5 @@ pub use genie_hki::HotkeyInfo;
 pub use genie_lang::LangFile;
 pub use genie_rec::RecordedGame;
 pub use genie_scx::Scenario;
+pub use genie_slp::SLP;
 pub use jascpal::Palette;
