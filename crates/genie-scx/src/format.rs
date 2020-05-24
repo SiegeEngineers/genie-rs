@@ -1322,7 +1322,10 @@ impl SCXFormat {
     ///
     /// Returns None if no mod was used.
     pub fn mod_name(&self) -> Option<&str> {
-        self.data.player_data[9].name.as_ref().map(|string| string.as_str())
+        self.data.player_data[9]
+            .name
+            .as_ref()
+            .map(|string| string.as_str())
     }
 
     /// Hash the scenario, for comparison with other instances.

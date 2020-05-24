@@ -25,31 +25,21 @@ use format::SCXFormat;
 use genie_support::{ReadStringError, WriteStringError};
 use std::io::{self, Read, Write};
 
-pub use format::{ScenarioObject, ScenarioData, PlayerData};
+pub use format::{PlayerData, ScenarioData, ScenarioObject};
 pub use genie_support::{StringKey, UnitTypeID};
 pub use header::{DLCOptions, SCXHeader};
 pub use map::{Map, Tile};
 pub use triggers::{Trigger, TriggerCondition, TriggerEffect, TriggerSystem};
-pub use types::{
-    VersionBundle,
-    SCXVersion,
-    DLCPackage,
-    DataSet,
-    DiplomaticStance,
-    StartingAge,
-};
+pub use types::{DLCPackage, DataSet, DiplomaticStance, SCXVersion, StartingAge, VersionBundle};
 pub use victory::{VictoryConditions, VictoryEntry, VictoryPointEntry};
 
 pub mod error {
     //! Error types.
 
-    pub use genie_support::{DecodeStringError, EncodeStringError};
     pub use crate::types::{
-        ParseDLCPackageError,
-        ParseDataSetError,
-        ParseDiplomaticStanceError,
-        ParseStartingAgeError,
+        ParseDLCPackageError, ParseDataSetError, ParseDiplomaticStanceError, ParseStartingAgeError,
     };
+    pub use genie_support::{DecodeStringError, EncodeStringError};
 }
 
 #[deprecated = "moved to `error` submodule"]
