@@ -178,7 +178,7 @@ impl Scenario {
     /// Get the scenario filename.
     #[inline]
     pub fn filename(&self) -> &str {
-        &self.format.tribe_scen.base.name
+        &self.format.tribe_scen.name
     }
 
     /// Get data about the game versions this scenario file was made for.
