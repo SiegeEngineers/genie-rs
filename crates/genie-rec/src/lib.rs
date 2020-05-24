@@ -418,7 +418,7 @@ mod tests {
 
     #[test]
     // AI data parsing is incomplete: remove this attribute when the test starts passing
-    #[should_panic]
+    #[should_panic = "assertion failed"]
     fn incomplete_up_15_rec_with_ai() {
         let f = File::open("test/rec.20181208-195117.mgz").unwrap();
         let mut r = RecordedGame::new(f).unwrap();
