@@ -25,7 +25,7 @@ use format::SCXFormat;
 use genie_support::{ReadStringError, WriteStringError};
 use std::io::{self, Read, Write};
 
-pub use format::{ScenarioObject, TribeScen};
+pub use format::{ScenarioObject, ScenarioData};
 pub use genie_support::{DecodeStringError, EncodeStringError};
 pub use genie_support::{StringKey, UnitTypeID};
 pub use header::{DLCOptions, SCXHeader};
@@ -33,6 +33,10 @@ pub use map::{Map, Tile};
 pub use triggers::{Trigger, TriggerCondition, TriggerEffect, TriggerSystem};
 pub use types::*;
 pub use victory::{VictoryConditions, VictoryEntry, VictoryPointEntry};
+
+#[deprecated = "renamed to `genie_scx::ScenarioData`"]
+#[doc(hidden)]
+pub type TribeScen = ScenarioData;
 
 /// Error type for SCX methods, containing all types of errors that may occur while reading or
 /// writing scenario files.

@@ -3,7 +3,7 @@ use crate::player::Player;
 use crate::string_table::StringTable;
 use crate::{GameVersion, Result};
 use byteorder::{ReadBytesExt, LE};
-use genie_scx::TribeScen;
+use genie_scx::ScenarioData;
 use genie_support::ReadSkipExt;
 pub use genie_support::SpriteID;
 use std::convert::TryInto;
@@ -234,7 +234,7 @@ pub struct Header {
     map: Map,
     particle_system: ParticleSystem,
     players: Vec<Player>,
-    scenario: TribeScen,
+    scenario: ScenarioData,
 }
 
 impl Header {
@@ -305,7 +305,7 @@ impl Header {
             player.read_info(&mut input, header.save_version)?;
         }
 
-        header.scenario = TribeScen::read_from(&mut input)?;
+        header.scenario = ScenarioData::read_from(&mut input)?;
 
         let _difficulty = if header.save_version >= 7.16 {
             Some(input.read_u32::<LE>()?)

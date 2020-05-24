@@ -109,7 +109,7 @@ impl ScenarioObject {
 ///
 /// The game saves this structure in scenario files, and also in saved and recorded game files.
 #[derive(Debug, Clone)]
-pub struct TribeScen {
+pub struct ScenarioData {
     /// Data version.
     pub(crate) version: f32,
     /// Names for each player.
@@ -213,7 +213,7 @@ pub struct TribeScen {
     villager_force_drop: bool,
 }
 
-impl Default for TribeScen {
+impl Default for ScenarioData {
     fn default() -> Self {
         Self {
             version: 1.22,
@@ -277,8 +277,8 @@ impl Default for TribeScen {
     }
 }
 
-impl TribeScen {
-    #[deprecated = "Use TribeScen::read_from instead"]
+impl ScenarioData {
+    #[deprecated = "Use ScenarioData::read_from instead"]
     #[doc(hidden)]
     pub fn from(input: impl Read) -> Result<Self> {
         Self::read_from(input)
@@ -1068,7 +1068,7 @@ pub struct SCXFormat {
     /// ID for the next-placed/created object.
     pub(crate) next_object_id: i32,
     /// Scenario data.
-    pub(crate) tribe_scen: TribeScen,
+    pub(crate) tribe_scen: ScenarioData,
     /// Map data.
     pub(crate) map: Map,
     /// Player data.
@@ -1102,7 +1102,7 @@ impl SCXFormat {
         let mut input = DeflateDecoder::new(&mut input);
         let next_object_id = input.read_i32::<LE>()?;
 
-        let tribe_scen = TribeScen::read_from(&mut input)?;
+        let tribe_scen = ScenarioData::read_from(&mut input)?;
 
         let map = Map::read_from(&mut input)?;
 
