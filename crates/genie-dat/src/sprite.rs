@@ -46,6 +46,7 @@ pub struct SpriteDelta {
 pub struct SoundProp {
     pub sound_delay: i16,
     pub sound_id: SoundID,
+    wwise_sound_id: Option<u32>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -145,6 +146,7 @@ impl SoundProp {
         Ok(Self {
             sound_delay,
             sound_id,
+            wwise_sound_id: None,
         })
     }
 

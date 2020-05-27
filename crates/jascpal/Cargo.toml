@@ -1,6 +1,6 @@
 [package]
 name = "jascpal"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Renée Kooi <renee@kooi.me>"]
 edition = "2018"
 license = "GPL-3.0"

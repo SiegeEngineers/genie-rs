@@ -97,18 +97,30 @@ pub struct TerrainObject {
 
 #[derive(Debug, Default, Clone)]
 pub struct Terrain {
+    /// Is this terrain enabled?
     pub enabled: bool,
     random: u8,
+    /// Internal name of the terrain.
     name: TerrainName,
+    /// Internal name of the SLP graphic.
     slp_name: TerrainName,
+    /// SLP graphic ID for this terrain.
     pub slp_id: Option<GraphicID>,
+    /// The Sound ID for this terrain.
     pub sound_id: Option<SoundID>,
+    wwise_sound_id: Option<u32>,
+    wwise_stop_sound_id: Option<u32>,
     blend_priority: Option<i32>,
     blend_mode: Option<i32>,
+    /// The colour tiles with this terrain will have on the minimap when on a downhill slope.
     pub minimap_color_high: u8,
+    /// The colour tiles with this terrain will have on the minimap when on a flat tile.
     pub minimap_color_medium: u8,
+    /// The colour tiles with this terrain will have on the minimap when on an uphill slope.
     pub minimap_color_low: u8,
+    /// The colour tiles with this terrain will have on the minimap when next to a cliff.
     pub minimap_color_cliff_lt: u8,
+    /// The colour tiles with this terrain will have on the minimap when next to a cliff.
     pub minimap_color_cliff_rt: u8,
     pub passable_terrain_id: Option<u8>,
     pub impassable_terrain_id: Option<u8>,
@@ -289,9 +301,10 @@ impl Terrain {
         self.name.as_str()
     }
 
+    /// Read a Terrain object from an input stream.
     pub fn read_from(
         mut input: impl Read,
-        _version: FileVersion,
+        version: FileVersion,
         num_terrains: u16,
     ) -> Result<Self> {
         let mut terrain = Terrain::default();
@@ -299,11 +312,17 @@ impl Terrain {
         terrain.random = input.read_u8()?;
         read_terrain_name(&mut input, &mut terrain.name)?;
         read_terrain_name(&mut input, &mut terrain.slp_name)?;
+        // println!("{}", terrain.name);
         terrain.slp_id = read_opt_u32(&mut input)?;
         let _slp_pointer = input.read_i32::<LE>()?;
         terrain.sound_id = read_opt_u32(&mut input)?;
-        terrain.blend_priority = Some(input.read_i32::<LE>()?);
-        terrain.blend_mode = Some(input.read_i32::<LE>()?);
+        if version.is_de2() {
+            terrain.wwise_sound_id = read_opt_u32(&mut input)?;
+            terrain.wwise_stop_sound_id = read_opt_u32(&mut input)?;
+        } else {
+            terrain.blend_priority = Some(input.read_i32::<LE>()?);
+            terrain.blend_mode = Some(input.read_i32::<LE>()?);
+        }
         terrain.minimap_color_high = input.read_u8()?;
         terrain.minimap_color_medium = input.read_u8()?;
         terrain.minimap_color_low = input.read_u8()?;

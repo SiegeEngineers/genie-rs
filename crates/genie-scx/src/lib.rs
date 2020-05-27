@@ -25,14 +25,14 @@ use format::SCXFormat;
 use genie_support::{ReadStringError, WriteStringError};
 use std::io::{self, Read, Write};
 
-pub use ai::ParseAIErrorCodeError;
-pub use format::ScenarioObject;
+pub use format::{ScenarioObject, TribeScen};
 pub use genie_support::{DecodeStringError, EncodeStringError};
 pub use genie_support::{StringKey, UnitTypeID};
 pub use header::{DLCOptions, SCXHeader};
 pub use map::{Map, Tile};
 pub use triggers::{Trigger, TriggerCondition, TriggerEffect, TriggerSystem};
 pub use types::*;
+pub use victory::{VictoryConditions, VictoryEntry, VictoryPointEntry};
 
 /// Error type for SCX methods, containing all types of errors that may occur while reading or
 /// writing scenario files.
@@ -84,7 +84,7 @@ pub enum Error {
     ParseStartingAgeError(#[from] ParseStartingAgeError),
     /// The given ID is not a known error code.
     #[error(transparent)]
-    ParseAIErrorCodeError(#[from] ParseAIErrorCodeError),
+    ParseAIErrorCodeError(#[from] num_enum::TryFromPrimitiveError<ai::AIErrorCode>),
     /// An error occurred while reading or writing.
     #[error(transparent)]
     IoError(#[from] io::Error),
@@ -120,29 +120,28 @@ pub struct Scenario {
 
 impl Scenario {
     /// Read a scenario file.
-    #[inline]
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(input: impl Read) -> Result<Self> {
         let format = SCXFormat::load_scenario(input)?;
         let version = format.version();
 
         Ok(Self { format, version })
     }
 
+    /// Read a scenario file.
+    #[deprecated = "Use Scenario::read_from instead."]
+    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+        Self::read_from(input)
+    }
+
     /// Write the scenario file to an output stream.
     ///
     /// Equivalent to `scen.write_to_version(scen.version())`.
-    #[inline]
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    pub fn write_to(&self, output: impl Write) -> Result<()> {
         self.format.write_to(output, self.version())
     }
 
     /// Write the scenario file to an output stream, targeting specific game versions.
-    #[inline]
-    pub fn write_to_version<W: Write>(
-        &self,
-        output: &mut W,
-        version: &VersionBundle,
-    ) -> Result<()> {
+    pub fn write_to_version(&self, output: impl Write, version: &VersionBundle) -> Result<()> {
         self.format.write_to(output, version)
     }
 

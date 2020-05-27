@@ -80,20 +80,31 @@ macro_rules! fallible_try_from {
 }
 
 #[macro_export]
-/// Compare floats with some error. The left-hand side must be a variable name, the right-hand side
-/// can be any expression.
+/// Check if two 32 bit floating point numbers are equal, with some error.
 ///
 /// ```rust
-/// use genie_support::cmp_float;
+/// use genie_support::f32_eq;
 /// let zero = 0.0;
-/// assert!(cmp_float!(zero == 0.0));
-/// assert!(!cmp_float!(zero != 0.0));
+/// assert!(f32_eq!(zero, 0.0));
+/// assert!(!f32_eq!(zero, 1.0));
 /// ```
-macro_rules! cmp_float {
-    ($id:ident == $val:expr) => {
-        f32::abs($id - $val) < std::f32::EPSILON
+macro_rules! f32_eq {
+    ($left:expr, $right:expr) => {
+        f32::abs($left - $right) < std::f32::EPSILON
     };
-    ($id:ident != $val:expr) => {
-        f32::abs($id - $val) > std::f32::EPSILON
+}
+
+#[macro_export]
+/// Check if two 32 bit floating point numbers are not equal, with some error.
+///
+/// ```rust
+/// use genie_support::f32_neq;
+/// let zero = 0.0;
+/// assert!(f32_neq!(zero, 1.0));
+/// assert!(!f32_neq!(zero, 0.0));
+/// ```
+macro_rules! f32_neq {
+    ($left:expr, $right:expr) => {
+        f32::abs($left - $right) > std::f32::EPSILON
     };
 }

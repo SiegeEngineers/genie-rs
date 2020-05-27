@@ -27,6 +27,8 @@ pub type CPXVersion = [u8; 4];
 pub const AOE_AOK: CPXVersion = *b"1.00";
 /// Version identifier for AoE1: Definitive Edition campaign files.
 pub const AOE1_DE: CPXVersion = *b"1.10";
+/// Version identifier for AoE2: Definitive Edition campaign files.
+pub const AOE2_DE: CPXVersion = *b"2.00";
 
 /// Campaign header.
 #[derive(Debug, Clone)]
@@ -120,6 +122,23 @@ mod tests {
     #[test]
     fn rebuild_cpn_de() -> anyhow::Result<()> {
         let instream = File::open("./test/campaigns/10 The First Punic War.aoecpn")?;
+        let mut outstream = vec![];
+        let mut incpx = Campaign::from(instream)?;
+        incpx.write_to(&mut outstream)?;
+
+        let mut written_cpx = Campaign::from(Cursor::new(outstream))?;
+        assert_eq!(written_cpx.name(), incpx.name());
+        assert_eq!(written_cpx.len(), incpx.len());
+        assert_eq!(written_cpx.version(), incpx.version());
+        assert_eq!(written_cpx.get_name(0), incpx.get_name(0));
+        assert_eq!(written_cpx.get_filename(0), incpx.get_filename(0));
+        assert_eq!(written_cpx.by_index_raw(0)?, incpx.by_index_raw(0)?);
+        Ok(())
+    }
+
+    #[test]
+    fn rebuild_campaign_de2() -> anyhow::Result<()> {
+        let instream = File::open("./test/campaigns/AIImprovementsTest.aoe2campaign")?;
         let mut outstream = vec![];
         let mut incpx = Campaign::from(instream)?;
         incpx.write_to(&mut outstream)?;

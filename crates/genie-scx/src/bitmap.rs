@@ -24,7 +24,7 @@ pub struct BitmapInfo {
 
 impl BitmapInfo {
     /// Read a bitmap header info structure from a byte stream.
-    pub fn from<R: Read>(input: &mut R) -> Result<Self> {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut bitmap = Self::default();
         bitmap.size = input.read_u32::<LE>()?;
         bitmap.width = input.read_i32::<LE>()?;
@@ -48,7 +48,7 @@ impl BitmapInfo {
         Ok(bitmap)
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
         assert_eq!(self.colors.len(), 256);
 
         output.write_u32::<LE>(self.size)?;
@@ -85,14 +85,14 @@ pub struct Bitmap {
 }
 
 impl Bitmap {
-    pub fn from<R: Read>(input: &mut R) -> Result<Option<Self>> {
+    pub fn read_from(mut input: impl Read) -> Result<Option<Self>> {
         let own_memory = input.read_u32::<LE>()?;
         let width = input.read_u32::<LE>()?;
         let height = input.read_u32::<LE>()?;
         let orientation = input.read_u16::<LE>()?;
 
         if width > 0 && height > 0 {
-            let info = BitmapInfo::from(input)?;
+            let info = BitmapInfo::read_from(&mut input)?;
             let aligned_width = height * ((width + 3) & !3);
             let mut pixels = vec![0u8; aligned_width as usize];
             input.read_exact(&mut pixels)?;
@@ -109,17 +109,17 @@ impl Bitmap {
         }
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
         output.write_u32::<LE>(self.own_memory)?;
         output.write_u32::<LE>(self.width)?;
         output.write_u32::<LE>(self.height)?;
         output.write_u16::<LE>(self.orientation)?;
-        self.info.write_to(output)?;
+        self.info.write_to(&mut output)?;
         output.write_all(&self.pixels)?;
         Ok(())
     }
 
-    pub fn write_empty<W: Write>(output: &mut W) -> Result<()> {
+    pub fn write_empty(mut output: impl Write) -> Result<()> {
         output.write_u32::<LE>(0)?;
         output.write_u32::<LE>(0)?;
         output.write_u32::<LE>(0)?;

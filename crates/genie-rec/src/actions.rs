@@ -1,7 +1,9 @@
+//! Player actions executed during a game.
+
 use crate::{ObjectID, PlayerID, Result};
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{cmp_float, read_opt_u32, ReadSkipExt, TechID, UnitTypeID};
+use genie_support::{f32_neq, read_opt_u32, read_str, ReadSkipExt, TechID, UnitTypeID};
 use std::convert::TryInto;
 use std::io::{Read, Write};
 
@@ -442,30 +444,29 @@ impl ResignCommand {
 #[derive(Debug, Default, Clone)]
 pub struct GroupWaypointCommand {
     pub player_id: PlayerID,
-    pub object_id: ObjectID,
-    waypoints: i8,
+    pub location: (u8, u8),
+    pub objects: ObjectsList,
 }
 
 impl GroupWaypointCommand {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let player_id = input.read_u8()?.into();
-        input.skip(2)?;
-        let object_id = input.read_u32::<LE>()?.into();
-        let waypoints = input.read_i8()?;
-        input.skip(1)?;
+        let num_units = input.read_u8()?;
+        let x = input.read_u8()?;
+        let y = input.read_u8()?;
         Ok(Self {
             player_id,
-            object_id,
-            waypoints,
+            location: (x, y),
+            objects: ObjectsList::read_from(input, i32::from(num_units))?,
         })
     }
 
-    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
         output.write_u8(self.player_id.into())?;
-        output.write_all(&[0, 0])?;
-        output.write_u32::<LE>(self.object_id.into())?;
-        output.write_i8(self.waypoints)?;
-        output.write_u8(0)?;
+        output.write_u8(self.objects.len().try_into().unwrap())?;
+        output.write_u8(self.location.0)?;
+        output.write_u8(self.location.1)?;
+        self.objects.write_to(&mut output)?;
         Ok(())
     }
 }
@@ -823,10 +824,54 @@ pub enum GameCommand {
         player_id: PlayerID,
         speed: f32,
     },
+    /// Not used in game, but implemented.
+    Inventory {
+        player_id: PlayerID,
+        attribute_id: i16,
+        amount: f32,
+    },
+    /// Not implemented in game.
+    UpgradeTown {
+        player_id: PlayerID,
+    },
+    QuickBuild {
+        player_id: PlayerID,
+    },
+    AlliedVictory {
+        player_id: PlayerID,
+        status: bool,
+    },
+    Cheat {
+        player_id: PlayerID,
+        cheat_id: i16,
+    },
+    /// Not implemented in game.
+    SharedLos {
+        player_id: PlayerID,
+    },
+    Spies {
+        player_id: PlayerID,
+    },
     SetStrategicNumber {
         player_id: PlayerID,
         strategic_number: i16,
         value: i32,
+    },
+    /// Appears to be unused.
+    Unknown0x0c {
+        player_id: PlayerID,
+    },
+    AddFarmReseedQueue {
+        player_id: PlayerID,
+        amount: i16,
+    },
+    RemoveFarmReseedQueue {
+        player_id: PlayerID,
+        amount: i16,
+    },
+    FarmReseedAutoQueue {
+        player_id: PlayerID,
+        // TODO unknown vars
     },
 }
 
@@ -873,10 +918,49 @@ impl GameCommand {
                 player_id: var1.try_into().unwrap(),
                 speed: var3,
             }),
+            0x02 => Ok(Inventory {
+                player_id: var1.try_into().unwrap(),
+                attribute_id: var2,
+                amount: var3,
+            }),
+            0x03 => Ok(UpgradeTown {
+                player_id: var1.try_into().unwrap(),
+            }),
+            0x04 => Ok(QuickBuild {
+                player_id: var1.try_into().unwrap(),
+            }),
+            0x05 => Ok(AlliedVictory {
+                player_id: var1.try_into().unwrap(),
+                status: var2 != 0,
+            }),
+            0x06 => Ok(Cheat {
+                player_id: var1.try_into().unwrap(),
+                cheat_id: var2,
+            }),
+            0x07 => Ok(SharedLos {
+                player_id: var1.try_into().unwrap(),
+            }),
+            0x0a => Ok(Spies {
+                player_id: var1.try_into().unwrap(),
+            }),
             0x0b => Ok(SetStrategicNumber {
                 player_id: var1.try_into().unwrap(),
                 strategic_number: var2,
                 value: var4.try_into().unwrap(),
+            }),
+            0x0c => Ok(Unknown0x0c {
+                player_id: var1.try_into().unwrap(),
+            }),
+            0x0d => Ok(AddFarmReseedQueue {
+                player_id: var1.try_into().unwrap(),
+                amount: var2,
+            }),
+            0x0e => Ok(RemoveFarmReseedQueue {
+                player_id: var1.try_into().unwrap(),
+                amount: var2,
+            }),
+            0x10 => Ok(FarmReseedAutoQueue {
+                player_id: var1.try_into().unwrap(),
             }),
             _ => panic!("unimplemented game command {:#x}", game_command),
         }
@@ -1036,7 +1120,7 @@ impl UngarrisonCommand {
         let _padding = input.read_u16::<LE>()?;
         let x = input.read_f32::<LE>()?;
         let y = input.read_f32::<LE>()?;
-        command.location = if cmp_float!(x != -1.0) && cmp_float!(y != -1.0) {
+        command.location = if f32_neq!(x, -1.0) && f32_neq!(y, -1.0) {
             Some((x, y))
         } else {
             None
@@ -1104,7 +1188,7 @@ impl UnitOrderCommand {
         let _padding = input.read_u16::<LE>()?;
         let x = input.read_f32::<LE>()?;
         let y = input.read_f32::<LE>()?;
-        command.location = if cmp_float!(x != -1.0) && cmp_float!(y != -1.0) {
+        command.location = if f32_neq!(x, -1.0) && f32_neq!(y, -1.0) {
             Some((x, y))
         } else {
             None
@@ -1236,6 +1320,21 @@ pub struct BuyResourceCommand {
 
 buy_sell_impl!(BuyResourceCommand);
 
+#[derive(Debug, Default, Clone)]
+pub struct Unknown7FCommand {
+    pub object_id: ObjectID,
+    pub value: u32,
+}
+
+impl Unknown7FCommand {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
+        input.skip(3)?;
+        let object_id = input.read_u32::<LE>()?.into();
+        let value = input.read_u32::<LE>()?;
+        Ok(Self { object_id, value })
+    }
+}
+
 /// Send villagers back to work after they've been garrisoned into the Town Center.
 #[derive(Debug, Default, Clone)]
 pub struct BackToWorkCommand {
@@ -1282,6 +1381,7 @@ pub enum Command {
     SetGatherPoint(SetGatherPointCommand),
     SellResource(SellResourceCommand),
     BuyResource(BuyResourceCommand),
+    Unknown7F(Unknown7FCommand),
     BackToWork(BackToWorkCommand),
 }
 
@@ -1290,9 +1390,9 @@ impl Command {
         let len = input.read_u32::<LE>()?;
         let mut small_buffer;
         let mut big_buffer;
-        let buffer: &mut [u8] = if len > 512 {
+        let buffer: &mut [u8] = if len < 512 {
             small_buffer = [0; 512];
-            &mut small_buffer
+            &mut small_buffer[0..len as usize]
         } else {
             big_buffer = vec![0; len as usize];
             &mut big_buffer
@@ -1331,6 +1431,7 @@ impl Command {
             0x78 => SetGatherPointCommand::read_from(cursor).map(Command::SetGatherPoint),
             0x7a => SellResourceCommand::read_from(cursor).map(Command::SellResource),
             0x7b => BuyResourceCommand::read_from(cursor).map(Command::BuyResource),
+            0x7f => Unknown7FCommand::read_from(cursor).map(Command::Unknown7F),
             0x80 => BackToWorkCommand::read_from(cursor).map(Command::BackToWork),
             id => panic!("unsupported command type {:#x}", id),
         };
@@ -1384,6 +1485,9 @@ impl Sync {
 /// Action at the start of the game, contains settings affecting the rec format.
 #[derive(Debug, Default, Clone)]
 pub struct Meta {
+    /// The version of the action log format.
+    /// `3` for AoC 1.0, `4` for AoC 1.0c and UserPatch.
+    pub log_version: Option<u32>,
     pub checksum_interval: u32,
     pub is_multiplayer: bool,
     pub use_sequence_numbers: bool,
@@ -1429,7 +1533,10 @@ impl Meta {
     /// Read recorded game body metadata in the `mgx` format used by Age of Empires 2: The
     /// Conquerors and all subsequent versions.
     pub fn read_from_mgx(mut input: impl Read) -> Result<Self> {
+        let log_version = input.read_u32::<LE>()?;
+        assert!(matches!(log_version, 3 | 4));
         let mut meta = Self::read_from_inner(&mut input)?;
+        meta.log_version = Some(log_version);
         meta.num_chapters = Some(input.read_u32::<LE>()?);
         Ok(meta)
     }
@@ -1445,12 +1552,7 @@ impl Chat {
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         assert_eq!(input.read_i32::<LE>()?, -1);
         let length = input.read_u32::<LE>()?;
-        let mut bytes = vec![0; length as usize];
-        input.read_exact(&mut bytes)?;
-        if bytes.last() == Some(&0) {
-            bytes.pop();
-        }
-        let message = String::from_utf8(bytes).unwrap();
+        let message = read_str(input, length as usize)?.unwrap_or_default();
         Ok(Self { message })
     }
 }

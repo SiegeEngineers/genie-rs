@@ -4,6 +4,7 @@ use crate::unit_type::CompactUnitType;
 use crate::{ObjectID, PlayerID, Result};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use genie_dat::{CivilizationID, TechTree};
+use genie_scx::VictoryConditions;
 use genie_support::read_opt_u32;
 use std::convert::TryInto;
 use std::io::{Read, Write};
@@ -35,6 +36,7 @@ pub struct Player {
     pub units: Vec<Unit>,
     pub sleeping_units: Vec<Unit>,
     pub doppelganger_units: Vec<Unit>,
+    pub victory: VictoryConditions,
 }
 
 impl Player {
@@ -207,7 +209,7 @@ impl Player {
         let _update_time = input.read_f32::<LE>()?;
 
         // if is userpatch
-        if genie_support::cmp_float!(version == 11.76) {
+        if genie_support::f32_eq!(version, 11.97) {
             player.userpatch_data = Some(UserPatchData::read_from(&mut input)?);
         }
 
@@ -432,6 +434,11 @@ impl Player {
         }
 
         Ok(player)
+    }
+
+    pub fn read_info(&mut self, input: impl Read, version: f32) -> Result<()> {
+        self.victory = VictoryConditions::read_from(input, true)?;
+        Ok(())
     }
 }
 
