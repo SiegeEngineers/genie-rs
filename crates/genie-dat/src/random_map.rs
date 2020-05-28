@@ -1,5 +1,7 @@
 //! Types related to the random map data from Age of Empires 1.
 
+#![allow(missing_docs)]
+
 use crate::unit_type::UnitTypeID;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::convert::TryInto;
@@ -8,15 +10,15 @@ use std::io::{Read, Result, Write};
 #[derive(Debug, Default, Clone)]
 pub struct RandomMapInfo {
     id: i32,
-    borders: (i32, i32, i32, i32),
-    border_fade: i32,
-    water_border: i32,
-    base_terrain: i32,
-    land_percent: i32,
-    lands: Vec<RandomMapLand>,
-    terrains: Vec<RandomMapTerrain>,
-    objects: Vec<RandomMapObject>,
-    elevations: Vec<RandomMapElevation>,
+    pub borders: (i32, i32, i32, i32),
+    pub border_fade: i32,
+    pub water_border: i32,
+    pub base_terrain: i32,
+    pub land_percent: i32,
+    pub lands: Vec<RandomMapLand>,
+    pub terrains: Vec<RandomMapTerrain>,
+    pub objects: Vec<RandomMapObject>,
+    pub elevations: Vec<RandomMapElevation>,
 }
 
 impl RandomMapInfo {
@@ -140,19 +142,19 @@ impl RandomMapInfo {
 
 #[derive(Debug, Default, Clone)]
 pub struct RandomMapLand {
-    id: i32,
-    terrain_type: u8,
-    land_avoidance_tiles: i32,
-    base_square_radius: i32,
-    zone: i8,
-    placement_type: i8,
-    x: i32,
-    y: i32,
-    amount_of_land_used_percent: i8,
-    by_player_flag: i8,
-    radius: i32,
-    fade: i32,
-    clumpiness_factor: i32,
+    pub id: i32,
+    pub terrain_type: u8,
+    pub land_avoidance_tiles: i32,
+    pub base_square_radius: i32,
+    pub zone: i8,
+    pub placement_type: i8,
+    pub x: i32,
+    pub y: i32,
+    pub amount_of_land_used_percent: i8,
+    pub by_player_flag: i8,
+    pub radius: i32,
+    pub fade: i32,
+    pub clumpiness_factor: i32,
 }
 
 impl RandomMapLand {
@@ -202,12 +204,12 @@ impl RandomMapLand {
 
 #[derive(Debug, Default, Clone)]
 pub struct RandomMapTerrain {
-    percent: i32,
-    terrain_type: i32,
-    clumps: i32,
-    spacing: i32,
-    base_terrain_type: i32,
-    clumpiness_factor: i32,
+    pub percent: i32,
+    pub terrain_type: i32,
+    pub clumps: i32,
+    pub spacing: i32,
+    pub base_terrain_type: i32,
+    pub clumpiness_factor: i32,
 }
 
 impl RandomMapTerrain {
@@ -235,18 +237,18 @@ impl RandomMapTerrain {
 
 #[derive(Debug, Default, Clone)]
 pub struct RandomMapObject {
-    unit_type: UnitTypeID,
-    terrain_type: i32,
-    group_flag: i8,
-    scale_flag: i8,
-    group_size: i32,
-    group_size_variance: i32,
-    group_count: i32,
-    group_area: i32,
-    player_id: i32,
-    land_id: i32,
-    min_distance_to_players: i32,
-    max_distance_to_players: i32,
+    pub unit_type: UnitTypeID,
+    pub terrain_type: i32,
+    pub group_flag: i8,
+    pub scale_flag: i8,
+    pub group_size: i32,
+    pub group_size_variance: i32,
+    pub group_count: i32,
+    pub group_area: i32,
+    pub player_id: i32,
+    pub land_id: i32,
+    pub min_distance_to_players: i32,
+    pub max_distance_to_players: i32,
 }
 
 impl RandomMapObject {
@@ -288,12 +290,12 @@ impl RandomMapObject {
 
 #[derive(Debug, Default, Clone)]
 pub struct RandomMapElevation {
-    percent: i32,
-    height: i32,
-    clumps: i32,
-    spacing: i32,
-    base_terrain_type: i32,
-    base_elevation_type: i32,
+    pub percent: i32,
+    pub height: i32,
+    pub clumps: i32,
+    pub spacing: i32,
+    pub base_terrain_type: i32,
+    pub base_elevation: i32,
 }
 
 impl RandomMapElevation {
@@ -304,7 +306,7 @@ impl RandomMapElevation {
         elevation.clumps = input.read_i32::<LE>()?;
         elevation.spacing = input.read_i32::<LE>()?;
         elevation.base_terrain_type = input.read_i32::<LE>()?;
-        elevation.base_elevation_type = input.read_i32::<LE>()?;
+        elevation.base_elevation = input.read_i32::<LE>()?;
         Ok(elevation)
     }
 
@@ -314,7 +316,7 @@ impl RandomMapElevation {
         output.write_i32::<LE>(self.clumps)?;
         output.write_i32::<LE>(self.spacing)?;
         output.write_i32::<LE>(self.base_terrain_type)?;
-        output.write_i32::<LE>(self.base_elevation_type)?;
+        output.write_i32::<LE>(self.base_elevation)?;
         Ok(())
     }
 }
