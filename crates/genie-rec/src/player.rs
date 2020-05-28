@@ -3,7 +3,8 @@ use crate::unit::Unit;
 use crate::unit_type::CompactUnitType;
 use crate::{ObjectID, PlayerID, Result};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_dat::{CivilizationID, TechTree};
+use genie_dat::tech_tree::TechTree;
+use genie_dat::CivilizationID;
 use genie_scx::VictoryConditions;
 use genie_support::read_opt_u32;
 use std::convert::TryInto;
@@ -436,7 +437,7 @@ impl Player {
         Ok(player)
     }
 
-    pub fn read_info(&mut self, input: impl Read, version: f32) -> Result<()> {
+    pub fn read_info(&mut self, input: impl Read, _version: f32) -> Result<()> {
         self.victory = VictoryConditions::read_from(input, true)?;
         Ok(())
     }

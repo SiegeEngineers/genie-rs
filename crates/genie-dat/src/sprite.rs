@@ -1,3 +1,5 @@
+//! Types related to sprites and graphics.
+
 use crate::sound::SoundID;
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};

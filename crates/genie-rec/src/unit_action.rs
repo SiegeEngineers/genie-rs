@@ -1,7 +1,7 @@
 use crate::ObjectID;
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-pub use genie_dat::SpriteID;
+pub use genie_dat::sprite::SpriteID;
 pub use genie_support::UnitTypeID;
 use genie_support::{read_opt_u16, read_opt_u32};
 use std::io::{Read, Write};

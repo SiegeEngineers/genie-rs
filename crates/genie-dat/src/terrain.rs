@@ -1,3 +1,5 @@
+//! Types related to terrains.
+
 use crate::sound::SoundID;
 use crate::sprite::{GraphicID, SpriteID};
 use crate::unit_type::UnitTypeID;

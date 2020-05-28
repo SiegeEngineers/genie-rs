@@ -1,3 +1,5 @@
+//! Types related to unit types.
+
 use crate::sound::SoundID;
 use crate::sprite::{GraphicID, SpriteID};
 use crate::task::TaskList;
@@ -6,192 +8,302 @@ use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 pub use genie_support::UnitTypeID;
 use genie_support::{read_opt_u16, read_opt_u32, MapInto, StringKey, TechID};
-use std::convert::TryInto;
+use std::cmp::{Ordering, PartialOrd};
+use std::convert::{TryFrom, TryInto};
 use std::io::{self, Read, Result, Write};
 
-pub type UnitClass = u16;
-
-#[derive(Debug, Clone)]
-pub enum UnitType {
+/// The base class of a unit indicates which data is available for that unit type.
+///
+/// # Comparison
+/// This type implements a comparison operator. A base class value is greater-than-or-equal-to
+/// another value if the base class "inherits" from the other value. For example, the
+/// `Doppelganger` base class inherits from the `Animated` base class. No other class inherits from
+/// `Doppelganger`. Therefore, it compares like this:
+///
+/// ```rust
+/// # use genie_dat::unit_type::UnitBaseClass;
+/// assert!(UnitBaseClass::Doppelganger > UnitBaseClass::Animated);
+/// assert!(UnitBaseClass::Doppelganger == UnitBaseClass::Doppelganger);
+/// assert_eq!(UnitBaseClass::Doppelganger < UnitBaseClass::Moving, false);
+/// assert_eq!(UnitBaseClass::Doppelganger > UnitBaseClass::Moving, false);
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
+pub enum UnitBaseClass {
     /// The base unit type, for units that do not do anything.
-    Base(Box<BaseUnitType>),
-    /// The tree unit type.
-    Tree(Box<TreeUnitType>),
+    Static = 10,
     /// Unit type that supports animated sprites.
-    Animated(Box<AnimatedUnitType>),
+    Animated = 20,
     /// Unit type for the "fake" units you see in the fog of war, after the actual unit has been
     /// destroyed.
-    Doppleganger(Box<DopplegangerUnitType>),
+    Doppelganger = 25,
     /// Unit type that supports movement.
-    Moving(Box<MovingUnitType>),
+    Moving = 30,
     /// Unit type that supports being tasked by a player.
-    Action(Box<ActionUnitType>),
+    Action = 40,
     /// Unit type that supports combat.
-    BaseCombat(Box<BaseCombatUnitType>),
+    BaseCombat = 50,
     /// Unit type for projectiles/missiles/arrows.
-    Missile(Box<MissileUnitType>),
+    Missile = 60,
     /// Unit type that supports combat (with additional Age of Empires specific data).
-    Combat(Box<CombatUnitType>),
+    Combat = 70,
     /// Unit type for buildings.
-    Building(Box<BuildingUnitType>),
+    Building = 80,
+    /// The tree unit type.
+    Tree = 90,
 }
 
-macro_rules! cast_unit_type {
-    ($struct:ident, $tag:ident) => {
-        impl From<$struct> for UnitType {
-            fn from(v: $struct) -> Self {
-                UnitType::$tag(Box::new(v))
-            }
+impl PartialOrd for UnitBaseClass {
+    fn partial_cmp(&self, other: &UnitBaseClass) -> Option<Ordering> {
+        if self == other {
+            return Some(Ordering::Equal);
         }
-    };
-}
 
-macro_rules! inherit_unit_type {
-    ($struct:ident, $super:ident) => {
-        impl std::ops::Deref for $struct {
-            type Target = $super;
-            fn deref(&self) -> &Self::Target {
-                &self.superclass
-            }
-        }
-    };
-}
+        let self_n = *self as u8;
+        let other_n = *other as u8;
 
-cast_unit_type!(BaseUnitType, Base);
-cast_unit_type!(TreeUnitType, Tree);
-cast_unit_type!(AnimatedUnitType, Animated);
-cast_unit_type!(DopplegangerUnitType, Doppleganger);
-cast_unit_type!(MovingUnitType, Moving);
-cast_unit_type!(ActionUnitType, Action);
-cast_unit_type!(BaseCombatUnitType, BaseCombat);
-cast_unit_type!(MissileUnitType, Missile);
-cast_unit_type!(CombatUnitType, Combat);
-cast_unit_type!(BuildingUnitType, Building);
-
-// inherit_unit_type!(TreeUnitType, BaseUnitType);
-inherit_unit_type!(AnimatedUnitType, BaseUnitType);
-// inherit_unit_type!(DopplegangerUnitType, AnimatedUnitType);
-inherit_unit_type!(MovingUnitType, AnimatedUnitType);
-inherit_unit_type!(ActionUnitType, MovingUnitType);
-inherit_unit_type!(BaseCombatUnitType, ActionUnitType);
-inherit_unit_type!(MissileUnitType, BaseCombatUnitType);
-inherit_unit_type!(CombatUnitType, BaseCombatUnitType);
-inherit_unit_type!(BuildingUnitType, CombatUnitType);
-
-impl UnitType {
-    fn type_id(&self) -> u8 {
-        use UnitType::*;
+        // handle weird leaves specially
         match self {
-            Base(_) => 10,
-            Tree(_) => 15,
-            Animated(_) => 20,
-            Doppleganger(_) => 25,
-            Moving(_) => 30,
-            Action(_) => 40,
-            BaseCombat(_) => 50,
-            Missile(_) => 60,
-            Combat(_) => 70,
-            Building(_) => 80,
+            Self::Doppelganger => {
+                if self_n > other_n {
+                    Some(Ordering::Greater)
+                } else {
+                    None
+                }
+            }
+            Self::Missile => {
+                if self_n > other_n {
+                    Some(Ordering::Greater)
+                } else {
+                    None
+                }
+            }
+            Self::Tree => match other {
+                Self::Static => Some(Ordering::Greater),
+                _ => None,
+            },
+            _ => match other {
+                Self::Doppelganger => {
+                    if self_n < other_n {
+                        Some(Ordering::Less)
+                    } else {
+                        None
+                    }
+                }
+                Self::Missile => {
+                    if self_n < other_n {
+                        Some(Ordering::Less)
+                    } else {
+                        None
+                    }
+                }
+                Self::Tree => match self {
+                    Self::Static => Some(Ordering::Less),
+                    _ => None,
+                },
+                _ => Some(self_n.cmp(&other_n)),
+            },
         }
     }
+}
 
+/// An unexpected unit base class was found.
+#[derive(Debug, Clone, Copy, thiserror::Error)]
+#[error("unknown unit base class: {}", .0)]
+pub struct ParseUnitBaseClassError(u8);
+
+impl TryFrom<u8> for UnitBaseClass {
+    type Error = ParseUnitBaseClassError;
+
+    fn try_from(n: u8) -> std::result::Result<Self, Self::Error> {
+        match n {
+            10 => Ok(UnitBaseClass::Static),
+            20 => Ok(UnitBaseClass::Animated),
+            25 => Ok(UnitBaseClass::Doppelganger),
+            30 => Ok(UnitBaseClass::Moving),
+            40 => Ok(UnitBaseClass::Action),
+            50 => Ok(UnitBaseClass::BaseCombat),
+            60 => Ok(UnitBaseClass::Missile),
+            70 => Ok(UnitBaseClass::Combat),
+            80 => Ok(UnitBaseClass::Building),
+            90 => Ok(UnitBaseClass::Tree),
+            n => Err(ParseUnitBaseClassError(n)),
+        }
+    }
+}
+
+impl From<UnitBaseClass> for u8 {
+    fn from(class: UnitBaseClass) -> u8 {
+        class as u8
+    }
+}
+
+/// A unit class, a group identifier for runtime behaviours.
+pub type UnitClass = u16;
+
+/// Data for a unit type.
+///
+/// Unit types have a [base class][] identifier that indicates which data is available for that
+/// unit type. Data is split up into several `*Attributes` structs dictated by the unit's base class.
+///
+/// When editing the unit base class, the available attributes must also be updated. Failing to
+/// keep the two in sync will cause a panic if you try to write the unit type data to a file or
+/// other output.
+///
+/// [base class]: ./enum.UnitBaseClass.html
+#[derive(Debug, Clone)]
+pub struct UnitType {
+    /// The base class for this unit type.
+    pub unit_base_class: UnitBaseClass,
+    /// The static unit type attributes: these are always available.
+    pub static_: StaticUnitTypeAttributes,
+    /// Animated unit type attributes, available if `self.unit_base_class >= UnitBaseClass::Animated`.
+    pub animated: Option<AnimatedUnitTypeAttributes>,
+    /// Moving unit type attributes, available if `self.unit_base_class >= UnitBaseClass::Moving`.
+    pub moving: Option<MovingUnitTypeAttributes>,
+    /// Action unit type attributes, available if `self.unit_base_class >= UnitBaseClass::Action`.
+    pub action: Option<ActionUnitTypeAttributes>,
+    /// BaseCombat unit type attributes, available if `self.unit_base_class >=
+    /// UnitBaseClass::BaseCombat`.
+    pub base_combat: Option<BaseCombatUnitTypeAttributes>,
+    /// Missile unit type attributes, available if `self.unit_base_class >= UnitBaseClass::Missile`.
+    pub missile: Option<MissileUnitTypeAttributes>,
+    /// Combat unit type attributes, available if `self.unit_base_class >= UnitBaseClass::Combat`.
+    pub combat: Option<CombatUnitTypeAttributes>,
+    /// Building unit type attributes, available if `self.unit_base_class >=
+    /// UnitBaseClass::Building`.
+    pub building: Option<BuildingUnitTypeAttributes>,
+}
+
+impl UnitType {
     /// Read a unit type from an input stream.
     pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
-        let unit_type = input.read_u8()?;
-        match unit_type {
-            10 => BaseUnitType::read_from(input, version).map_into(),
-            15 => TreeUnitType::read_from(input, version).map_into(),
-            20 => AnimatedUnitType::read_from(input, version).map_into(),
-            25 => DopplegangerUnitType::read_from(input, version).map_into(),
-            30 => MovingUnitType::read_from(input, version).map_into(),
-            40 => ActionUnitType::read_from(input, version).map_into(),
-            50 => BaseCombatUnitType::read_from(input, version).map_into(),
-            60 => MissileUnitType::read_from(input, version).map_into(),
-            70 => CombatUnitType::read_from(input, version).map_into(),
-            80 => BuildingUnitType::read_from(input, version).map_into(),
-            _ => panic!("unexpected unit type {}, this is probably a bug", unit_type),
+        let unit_base_class = input.read_u8()?.try_into().unwrap();
+        let static_ = StaticUnitTypeAttributes::read_from(&mut input, version)?;
+        let mut unit = Self {
+            unit_base_class,
+            static_,
+            animated: None,
+            moving: None,
+            action: None,
+            base_combat: None,
+            missile: None,
+            combat: None,
+            building: None,
+        };
+        if unit_base_class >= UnitBaseClass::Animated {
+            unit.animated = Some(AnimatedUnitTypeAttributes::read_from(&mut input, version)?);
         }
+        if unit_base_class >= UnitBaseClass::Moving {
+            unit.moving = Some(MovingUnitTypeAttributes::read_from(&mut input, version)?);
+        }
+        if unit_base_class >= UnitBaseClass::Action {
+            unit.action = Some(ActionUnitTypeAttributes::read_from(&mut input, version)?);
+        }
+        if unit_base_class >= UnitBaseClass::BaseCombat {
+            unit.base_combat = Some(BaseCombatUnitTypeAttributes::read_from(
+                &mut input, version,
+            )?);
+        }
+        if unit_base_class >= UnitBaseClass::Missile {
+            unit.missile = Some(MissileUnitTypeAttributes::read_from(&mut input, version)?);
+        }
+        if unit_base_class >= UnitBaseClass::Combat {
+            unit.combat = Some(CombatUnitTypeAttributes::read_from(&mut input, version)?);
+        }
+        if unit_base_class >= UnitBaseClass::Building {
+            unit.building = Some(BuildingUnitTypeAttributes::read_from(&mut input, version)?);
+        }
+        Ok(unit)
     }
 
     /// Write this unit type to an output stream.
+    ///
+    /// # Panics
+    /// This function panics when trying to write a unit type whose `unit_base_class` property does
+    /// not match the available data attributes. For example, when `self.unit_base_class` is
+    /// `UnitBaseClass::Animated`, but `self.animated` is `None`.
     pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
-        use UnitType::*;
-        output.write_u8(self.type_id())?;
+        output.write_u8(self.unit_base_class.into())?;
 
-        match self {
-            Base(unit) => unit.write_to(output, version)?,
-            Tree(unit) => unit.write_to(output, version)?,
-            Animated(unit) => unit.write_to(output, version)?,
-            Doppleganger(unit) => unit.write_to(output, version)?,
-            Moving(unit) => unit.write_to(output, version)?,
-            Action(unit) => unit.write_to(output, version)?,
-            BaseCombat(unit) => unit.write_to(output, version)?,
-            Missile(unit) => unit.write_to(output, version)?,
-            Combat(unit) => unit.write_to(output, version)?,
-            Building(unit) => unit.write_to(output, version)?,
+        self.static_.write_to(&mut output, version)?;
+
+        if self.unit_base_class >= UnitBaseClass::Animated {
+            self.animated
+                .as_ref()
+                .expect("Unit's base class was Animated, but it has no Animated attributes")
+                .write_to(&mut output, version)?;
+        } else {
+            assert!(self.animated.is_none(), "Unexpected Animated attributes in a unit type whose base class does not support it");
+        }
+
+        if self.unit_base_class >= UnitBaseClass::Moving {
+            self.moving
+                .as_ref()
+                .expect("Unit's base class was Moving, but it has no Moving attributes")
+                .write_to(&mut output, version)?;
+        } else {
+            assert!(
+                self.moving.is_none(),
+                "Unexpected Moving attributes in a unit type whose base class does not support it"
+            );
+        }
+
+        if self.unit_base_class >= UnitBaseClass::Action {
+            self.action
+                .as_ref()
+                .expect("Unit's base class was Action, but it has no Action attributes")
+                .write_to(&mut output, version)?;
+        } else {
+            assert!(
+                self.action.is_none(),
+                "Unexpected Action attributes in a unit type whose base class does not support it"
+            );
+        }
+
+        if self.unit_base_class >= UnitBaseClass::BaseCombat {
+            self.base_combat
+                .as_ref()
+                .expect("Unit's base class was BaseCombat, but it has no BaseCombat attributes")
+                .write_to(&mut output, version)?;
+        } else {
+            assert!(self.base_combat.is_none(), "Unexpected BaseCombat attributes in a unit type whose base class does not support it");
+        }
+
+        if self.unit_base_class >= UnitBaseClass::Missile {
+            self.missile
+                .as_ref()
+                .expect("Unit's base class was Missile, but it has no Missile attributes")
+                .write_to(&mut output, version)?;
+        } else {
+            assert!(
+                self.missile.is_none(),
+                "Unexpected Missile attributes in a unit type whose base class does not support it"
+            );
+        }
+
+        if self.unit_base_class >= UnitBaseClass::Combat {
+            self.combat
+                .as_ref()
+                .expect("Unit's base class was Combat, but it has no Combat attributes")
+                .write_to(&mut output, version)?;
+        } else {
+            assert!(
+                self.combat.is_none(),
+                "Unexpected Combat attributes in a unit type whose base class does not support it"
+            );
+        }
+
+        if self.unit_base_class >= UnitBaseClass::Building {
+            self.building
+                .as_ref()
+                .expect("Unit's base class was Building, but it has no Building attributes")
+                .write_to(&mut output, version)?;
+        } else {
+            assert!(self.building.is_none(), "Unexpected Building attributes in a unit type whose base class does not support it");
         }
 
         Ok(())
-    }
-
-    /// Get the base unit type properties for this unit.
-    pub fn base(&self) -> &BaseUnitType {
-        use UnitType::*;
-        match self {
-            Base(unit) => &unit,
-            Tree(unit) => &unit.0,
-            Animated(unit) => &unit,
-            Doppleganger(unit) => &unit.0,
-            Moving(unit) => &unit,
-            Action(unit) => &unit,
-            BaseCombat(unit) => &unit,
-            Missile(unit) => &unit,
-            Combat(unit) => &unit,
-            Building(unit) => &unit,
-        }
-    }
-
-    /// Get the animated unit type properties for this unit.
-    pub fn animated(&self) -> Option<&AnimatedUnitType> {
-        use UnitType::*;
-        match self {
-            Base(_) | Tree(_) => None,
-            Animated(unit) => Some(&unit),
-            Doppleganger(unit) => Some(&unit.0),
-            Moving(unit) => Some(&unit),
-            Action(unit) => Some(&unit),
-            BaseCombat(unit) => Some(&unit),
-            Missile(unit) => Some(&unit),
-            Combat(unit) => Some(&unit),
-            Building(unit) => Some(&unit),
-        }
-    }
-
-    /// Get the moving unit type properties for this unit.
-    pub fn moving(&self) -> Option<&MovingUnitType> {
-        use UnitType::*;
-        match self {
-            Base(_) | Tree(_) | Animated(_) | Doppleganger(_) => None,
-            Moving(unit) => Some(&unit),
-            Action(unit) => Some(&unit),
-            BaseCombat(unit) => Some(&unit),
-            Missile(unit) => Some(&unit),
-            Combat(unit) => Some(&unit),
-            Building(unit) => Some(&unit),
-        }
-    }
-
-    /// Get the action unit type properties for this unit.
-    pub fn action(&self) -> Option<&ActionUnitType> {
-        use UnitType::*;
-        match self {
-            Base(_) | Tree(_) | Animated(_) | Doppleganger(_) | Moving(_) => None,
-            Action(unit) => Some(&unit),
-            BaseCombat(unit) => Some(&unit),
-            Missile(unit) => Some(&unit),
-            Combat(unit) => Some(&unit),
-            Building(unit) => Some(&unit),
-        }
     }
 }
 
@@ -251,7 +363,7 @@ impl DamageSprite {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct BaseUnitType {
+pub struct StaticUnitTypeAttributes {
     name: String,
     pub id: UnitTypeID,
     pub string_id: StringKey,
@@ -316,7 +428,7 @@ pub struct BaseUnitType {
     pub unit_group: u16,
 }
 
-impl BaseUnitType {
+impl StaticUnitTypeAttributes {
     pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
         let mut unit_type = Self::default();
         let name_len = input.read_u16::<LE>()?;
@@ -544,58 +656,26 @@ impl BaseUnitType {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct TreeUnitType(BaseUnitType);
-
-impl TreeUnitType {
-    pub fn read_from(input: impl Read, version: f32) -> Result<Self> {
-        BaseUnitType::read_from(input, version).map(Self)
-    }
-
-    /// Write this unit type to an output stream.
-    pub fn write_to(&self, output: impl Write, version: f32) -> Result<()> {
-        self.0.write_to(output, version)
-    }
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct AnimatedUnitType {
-    superclass: BaseUnitType,
+pub struct AnimatedUnitTypeAttributes {
     pub speed: f32,
 }
 
-impl AnimatedUnitType {
+impl AnimatedUnitTypeAttributes {
     pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
         Ok(Self {
-            superclass: BaseUnitType::read_from(&mut input, version)?,
             speed: input.read_f32::<LE>()?,
         })
     }
 
     /// Write this unit type to an output stream.
     pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
-        self.superclass.write_to(&mut output, version)?;
         output.write_f32::<LE>(self.speed)?;
         Ok(())
     }
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct DopplegangerUnitType(AnimatedUnitType);
-
-impl DopplegangerUnitType {
-    pub fn read_from(input: impl Read, version: f32) -> Result<Self> {
-        AnimatedUnitType::read_from(input, version).map(Self)
-    }
-
-    /// Write this unit type to an output stream.
-    pub fn write_to(&self, output: impl Write, version: f32) -> Result<()> {
-        self.0.write_to(output, version)
-    }
-}
-
-#[derive(Debug, Default, Clone)]
-pub struct MovingUnitType {
-    superclass: AnimatedUnitType,
+pub struct MovingUnitTypeAttributes {
     pub move_sprite: Option<SpriteID>,
     pub run_sprite: Option<SpriteID>,
     pub turn_speed: f32,
@@ -611,31 +691,27 @@ pub struct MovingUnitType {
     pub maximum_yaw_per_second_stationary: f32,
 }
 
-impl MovingUnitType {
+impl MovingUnitTypeAttributes {
     pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
-        let mut unit_type = Self {
-            superclass: AnimatedUnitType::read_from(&mut input, version)?,
-            ..Default::default()
-        };
-        unit_type.move_sprite = read_opt_u16(&mut input)?;
-        unit_type.run_sprite = read_opt_u16(&mut input)?;
-        unit_type.turn_speed = input.read_f32::<LE>()?;
-        unit_type.size_class = input.read_u8()?;
-        unit_type.trailing_unit = read_opt_u16(&mut input)?;
-        unit_type.trailing_options = input.read_u8()?;
-        unit_type.trailing_spacing = input.read_f32::<LE>()?;
-        unit_type.move_algorithm = input.read_u8()?;
-        unit_type.turn_radius = input.read_f32::<LE>()?;
-        unit_type.turn_radius_speed = input.read_f32::<LE>()?;
-        unit_type.maximum_yaw_per_second_moving = input.read_f32::<LE>()?;
-        unit_type.stationary_yaw_revolution_time = input.read_f32::<LE>()?;
-        unit_type.maximum_yaw_per_second_stationary = input.read_f32::<LE>()?;
-        Ok(unit_type)
+        let mut attrs = Self::default();
+        attrs.move_sprite = read_opt_u16(&mut input)?;
+        attrs.run_sprite = read_opt_u16(&mut input)?;
+        attrs.turn_speed = input.read_f32::<LE>()?;
+        attrs.size_class = input.read_u8()?;
+        attrs.trailing_unit = read_opt_u16(&mut input)?;
+        attrs.trailing_options = input.read_u8()?;
+        attrs.trailing_spacing = input.read_f32::<LE>()?;
+        attrs.move_algorithm = input.read_u8()?;
+        attrs.turn_radius = input.read_f32::<LE>()?;
+        attrs.turn_radius_speed = input.read_f32::<LE>()?;
+        attrs.maximum_yaw_per_second_moving = input.read_f32::<LE>()?;
+        attrs.stationary_yaw_revolution_time = input.read_f32::<LE>()?;
+        attrs.maximum_yaw_per_second_stationary = input.read_f32::<LE>()?;
+        Ok(attrs)
     }
 
     /// Write this unit type to an output stream.
     pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
-        self.superclass.write_to(&mut output, version)?;
         output.write_i16::<LE>(
             self.move_sprite
                 .map(|id| id.try_into().unwrap())
@@ -666,8 +742,7 @@ impl MovingUnitType {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct ActionUnitType {
-    superclass: MovingUnitType,
+pub struct ActionUnitTypeAttributes {
     pub default_task: Option<u16>,
     pub search_radius: f32,
     pub work_rate: f32,
@@ -682,27 +757,23 @@ pub struct ActionUnitType {
     pub run_pattern: u8,
 }
 
-impl ActionUnitType {
+impl ActionUnitTypeAttributes {
     pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
-        let mut unit_type = Self {
-            superclass: MovingUnitType::read_from(&mut input, version)?,
-            ..Default::default()
-        };
-        unit_type.default_task = read_opt_u16(&mut input)?;
-        unit_type.search_radius = input.read_f32::<LE>()?;
-        unit_type.work_rate = input.read_f32::<LE>()?;
-        unit_type.drop_site = read_opt_u16(&mut input)?;
-        unit_type.backup_drop_site = read_opt_u16(&mut input)?;
-        unit_type.task_by_group = input.read_u8()?;
-        unit_type.command_sound = read_opt_u16(&mut input)?;
-        unit_type.move_sound = read_opt_u16(&mut input)?;
-        unit_type.run_pattern = input.read_u8()?;
-        Ok(unit_type)
+        let mut attrs = Self::default();
+        attrs.default_task = read_opt_u16(&mut input)?;
+        attrs.search_radius = input.read_f32::<LE>()?;
+        attrs.work_rate = input.read_f32::<LE>()?;
+        attrs.drop_site = read_opt_u16(&mut input)?;
+        attrs.backup_drop_site = read_opt_u16(&mut input)?;
+        attrs.task_by_group = input.read_u8()?;
+        attrs.command_sound = read_opt_u16(&mut input)?;
+        attrs.move_sound = read_opt_u16(&mut input)?;
+        attrs.run_pattern = input.read_u8()?;
+        Ok(attrs)
     }
 
     /// Write this unit type to an output stream.
     pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
-        self.superclass.write_to(&mut output, version)?;
         output.write_i16::<LE>(
             self.default_task
                 .map(|id| id.try_into().unwrap())
@@ -757,8 +828,7 @@ impl WeaponInfo {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct BaseCombatUnitType {
-    superclass: ActionUnitType,
+pub struct BaseCombatUnitTypeAttributes {
     pub base_armor: u16,
     pub weapons: Vec<WeaponInfo>,
     pub armors: Vec<WeaponInfo>,
@@ -781,52 +851,48 @@ pub struct BaseCombatUnitType {
     pub displayed_reload_time: f32,
 }
 
-impl BaseCombatUnitType {
+impl BaseCombatUnitTypeAttributes {
     pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
-        let mut unit_type = Self {
-            superclass: ActionUnitType::read_from(&mut input, version)?,
-            ..Default::default()
-        };
-        unit_type.base_armor = if version < 11.52 {
+        let mut attrs = Self::default();
+        attrs.base_armor = if version < 11.52 {
             input.read_u8()?.into()
         } else {
             input.read_u16::<LE>()?
         };
         let num_weapons = input.read_u16::<LE>()?;
         for _ in 0..num_weapons {
-            unit_type.weapons.push(WeaponInfo::read_from(&mut input)?);
+            attrs.weapons.push(WeaponInfo::read_from(&mut input)?);
         }
         let num_armors = input.read_u16::<LE>()?;
         for _ in 0..num_armors {
-            unit_type.armors.push(WeaponInfo::read_from(&mut input)?);
+            attrs.armors.push(WeaponInfo::read_from(&mut input)?);
         }
-        unit_type.defense_terrain_bonus = read_opt_u16(&mut input)?;
-        unit_type.weapon_range_max = input.read_f32::<LE>()?;
-        unit_type.area_effect_range = input.read_f32::<LE>()?;
-        unit_type.attack_speed = input.read_f32::<LE>()?;
-        unit_type.missile_id = read_opt_u16(&mut input)?;
-        unit_type.base_hit_chance = input.read_i16::<LE>()?;
-        unit_type.break_off_combat = input.read_i8()?;
-        unit_type.frame_delay = input.read_i16::<LE>()?;
-        unit_type.weapon_offset = (
+        attrs.defense_terrain_bonus = read_opt_u16(&mut input)?;
+        attrs.weapon_range_max = input.read_f32::<LE>()?;
+        attrs.area_effect_range = input.read_f32::<LE>()?;
+        attrs.attack_speed = input.read_f32::<LE>()?;
+        attrs.missile_id = read_opt_u16(&mut input)?;
+        attrs.base_hit_chance = input.read_i16::<LE>()?;
+        attrs.break_off_combat = input.read_i8()?;
+        attrs.frame_delay = input.read_i16::<LE>()?;
+        attrs.weapon_offset = (
             input.read_f32::<LE>()?,
             input.read_f32::<LE>()?,
             input.read_f32::<LE>()?,
         );
-        unit_type.blast_level_offense = input.read_i8()?;
-        unit_type.weapon_range_min = input.read_f32::<LE>()?;
-        unit_type.missed_missile_spread = input.read_f32::<LE>()?;
-        unit_type.fight_sprite = read_opt_u16(&mut input)?;
-        unit_type.displayed_armor = input.read_i16::<LE>()?;
-        unit_type.displayed_attack = input.read_i16::<LE>()?;
-        unit_type.displayed_range = input.read_f32::<LE>()?;
-        unit_type.displayed_reload_time = input.read_f32::<LE>()?;
-        Ok(unit_type)
+        attrs.blast_level_offense = input.read_i8()?;
+        attrs.weapon_range_min = input.read_f32::<LE>()?;
+        attrs.missed_missile_spread = input.read_f32::<LE>()?;
+        attrs.fight_sprite = read_opt_u16(&mut input)?;
+        attrs.displayed_armor = input.read_i16::<LE>()?;
+        attrs.displayed_attack = input.read_i16::<LE>()?;
+        attrs.displayed_range = input.read_f32::<LE>()?;
+        attrs.displayed_reload_time = input.read_f32::<LE>()?;
+        Ok(attrs)
     }
 
     /// Write this unit type to an output stream.
     pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
-        self.superclass.write_to(&mut output, version)?;
         if version < 11.52 {
             output.write_u8(self.base_armor.try_into().unwrap())?;
         } else {
@@ -864,8 +930,7 @@ impl BaseCombatUnitType {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct MissileUnitType {
-    superclass: BaseCombatUnitType,
+pub struct MissileUnitTypeAttributes {
     pub missile_type: u8,
     pub targetting_type: u8,
     pub missile_hit_info: u8,
@@ -874,25 +939,21 @@ pub struct MissileUnitType {
     pub ballistics_ratio: f32,
 }
 
-impl MissileUnitType {
+impl MissileUnitTypeAttributes {
     /// Read this unit type from an input stream.
     pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
-        let mut unit_type = Self {
-            superclass: BaseCombatUnitType::read_from(&mut input, version)?,
-            ..Default::default()
-        };
-        unit_type.missile_type = input.read_u8()?;
-        unit_type.targetting_type = input.read_u8()?;
-        unit_type.missile_hit_info = input.read_u8()?;
-        unit_type.missile_die_info = input.read_u8()?;
-        unit_type.area_effect_specials = input.read_u8()?;
-        unit_type.ballistics_ratio = input.read_f32::<LE>()?;
-        Ok(unit_type)
+        let mut attrs = Self::default();
+        attrs.missile_type = input.read_u8()?;
+        attrs.targetting_type = input.read_u8()?;
+        attrs.missile_hit_info = input.read_u8()?;
+        attrs.missile_die_info = input.read_u8()?;
+        attrs.area_effect_specials = input.read_u8()?;
+        attrs.ballistics_ratio = input.read_f32::<LE>()?;
+        Ok(attrs)
     }
 
     /// Write this unit type to an output stream.
     pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
-        self.superclass.write_to(&mut output, version)?;
         output.write_u8(self.missile_type)?;
         output.write_u8(self.targetting_type)?;
         output.write_u8(self.missile_hit_info)?;
@@ -936,8 +997,7 @@ impl AttributeCost {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct CombatUnitType {
-    superclass: BaseCombatUnitType,
+pub struct CombatUnitTypeAttributes {
     /// The costs of creating a unit of this type.
     pub costs: ArrayVec<[AttributeCost; 3]>,
     pub create_time: u16,
@@ -963,28 +1023,24 @@ pub struct CombatUnitType {
     pub displayed_pierce_armor: i16,
 }
 
-impl CombatUnitType {
+impl CombatUnitTypeAttributes {
     /// Read this unit type from an input stream.
     pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
-        let mut unit_type = Self {
-            superclass: BaseCombatUnitType::read_from(&mut input, version)?,
-            ..Default::default()
-        };
-
+        let mut attrs = Self::default();
         for _ in 0..3 {
             let attr = AttributeCost::read_from(&mut input)?;
             if attr.attribute_type >= 0 {
-                unit_type.costs.push(attr);
+                attrs.costs.push(attr);
             }
         }
-        unit_type.create_time = input.read_u16::<LE>()?;
-        unit_type.create_at_building = read_opt_u16(&mut input)?;
-        unit_type.create_button = input.read_i8()?;
-        unit_type.rear_attack_modifier = input.read_f32::<LE>()?;
-        unit_type.flank_attack_modifier = input.read_f32::<LE>()?;
+        attrs.create_time = input.read_u16::<LE>()?;
+        attrs.create_at_building = read_opt_u16(&mut input)?;
+        attrs.create_button = input.read_i8()?;
+        attrs.rear_attack_modifier = input.read_f32::<LE>()?;
+        attrs.flank_attack_modifier = input.read_f32::<LE>()?;
         let _tribe_unit_type = input.read_u8()?;
-        unit_type.hero_flag = input.read_u8()?;
-        unit_type.garrison_sprite = {
+        attrs.hero_flag = input.read_u8()?;
+        attrs.garrison_sprite = {
             let n = input.read_i32::<LE>()?;
             if n < 0 {
                 None
@@ -992,21 +1048,19 @@ impl CombatUnitType {
                 Some(n.try_into().unwrap())
             }
         };
-        unit_type.volley_fire_amount = input.read_f32::<LE>()?;
-        unit_type.max_attacks_in_volley = input.read_i8()?;
-        unit_type.volley_spread = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
-        unit_type.volley_start_spread_adjustment = input.read_f32::<LE>()?;
-        unit_type.volley_missile = read_opt_u32(&mut input)?;
-        unit_type.special_attack_sprite = read_opt_u32(&mut input)?;
-        unit_type.special_attack_flag = input.read_i8()?;
-        unit_type.displayed_pierce_armor = input.read_i16::<LE>()?;
-
-        Ok(unit_type)
+        attrs.volley_fire_amount = input.read_f32::<LE>()?;
+        attrs.max_attacks_in_volley = input.read_i8()?;
+        attrs.volley_spread = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
+        attrs.volley_start_spread_adjustment = input.read_f32::<LE>()?;
+        attrs.volley_missile = read_opt_u32(&mut input)?;
+        attrs.special_attack_sprite = read_opt_u32(&mut input)?;
+        attrs.special_attack_flag = input.read_i8()?;
+        attrs.displayed_pierce_armor = input.read_i16::<LE>()?;
+        Ok(attrs)
     }
 
     /// Write this unit type to an output stream.
     pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
-        self.superclass.write_to(&mut output, version)?;
         for i in 0..3 {
             match self.costs.get(i) {
                 Some(cost) => cost.write_to(&mut output)?,
@@ -1076,8 +1130,7 @@ impl LinkedBuilding {
 
 /// Unit type class for buildings.
 #[derive(Debug, Default, Clone)]
-pub struct BuildingUnitType {
-    superclass: CombatUnitType,
+pub struct BuildingUnitTypeAttributes {
     /// Sprite to use during construction.
     pub construction_sprite: Option<SpriteID>,
     /// Sprite to use when this building is finished and built on snow.
@@ -1112,52 +1165,48 @@ pub struct BuildingUnitType {
     pub salvage_attributes: ArrayVec<[i8; 6]>,
 }
 
-impl BuildingUnitType {
+impl BuildingUnitTypeAttributes {
     /// Read this unit type from an input stream.
     pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
-        let mut unit_type = Self {
-            superclass: CombatUnitType::read_from(&mut input, version)?,
-            ..Default::default()
-        };
-        unit_type.construction_sprite = read_opt_u16(&mut input)?;
-        unit_type.snow_sprite = if version < 11.53 {
+        let mut attrs = Self::default();
+        attrs.construction_sprite = read_opt_u16(&mut input)?;
+        attrs.snow_sprite = if version < 11.53 {
             None
         } else {
             read_opt_u16(&mut input)?
         };
-        unit_type.connect_flag = input.read_u8()?;
-        unit_type.facet = input.read_i16::<LE>()?;
-        unit_type.destroy_on_build = input.read_u8()? != 0;
-        unit_type.on_build_make_unit = read_opt_u16(&mut input)?;
-        unit_type.on_build_make_tile = read_opt_u16(&mut input)?;
-        unit_type.on_build_make_overlay = input.read_i16::<LE>()?;
-        unit_type.on_build_make_tech = read_opt_u16(&mut input)?;
-        unit_type.can_burn = input.read_u8()? != 0;
-        for _ in 0..unit_type.linked_buildings.capacity() {
+        attrs.connect_flag = input.read_u8()?;
+        attrs.facet = input.read_i16::<LE>()?;
+        attrs.destroy_on_build = input.read_u8()? != 0;
+        attrs.on_build_make_unit = read_opt_u16(&mut input)?;
+        attrs.on_build_make_tile = read_opt_u16(&mut input)?;
+        attrs.on_build_make_overlay = input.read_i16::<LE>()?;
+        attrs.on_build_make_tech = read_opt_u16(&mut input)?;
+        attrs.can_burn = input.read_u8()? != 0;
+        for _ in 0..attrs.linked_buildings.capacity() {
             let link = LinkedBuilding::read_from(&mut input)?;
             if link.unit_id != 0xFFFF.into() {
-                unit_type.linked_buildings.push(link);
+                attrs.linked_buildings.push(link);
             }
         }
 
-        unit_type.construction_unit = read_opt_u16(&mut input)?;
-        unit_type.transform_unit = read_opt_u16(&mut input)?;
-        unit_type.transform_sound = read_opt_u16(&mut input)?;
-        unit_type.construction_sound = read_opt_u16(&mut input)?;
-        unit_type.garrison_type = input.read_i8()?;
-        unit_type.garrison_heal_rate = input.read_f32::<LE>()?;
-        unit_type.garrison_repair_rate = input.read_f32::<LE>()?;
-        unit_type.salvage_unit = read_opt_u16(&mut input)?;
-        for _ in 0..unit_type.salvage_attributes.capacity() {
+        attrs.construction_unit = read_opt_u16(&mut input)?;
+        attrs.transform_unit = read_opt_u16(&mut input)?;
+        attrs.transform_sound = read_opt_u16(&mut input)?;
+        attrs.construction_sound = read_opt_u16(&mut input)?;
+        attrs.garrison_type = input.read_i8()?;
+        attrs.garrison_heal_rate = input.read_f32::<LE>()?;
+        attrs.garrison_repair_rate = input.read_f32::<LE>()?;
+        attrs.salvage_unit = read_opt_u16(&mut input)?;
+        for _ in 0..attrs.salvage_attributes.capacity() {
             let attr = input.read_i8()?;
-            unit_type.salvage_attributes.push(attr);
+            attrs.salvage_attributes.push(attr);
         }
-        Ok(unit_type)
+        Ok(attrs)
     }
 
     /// Write the unit type to an output stream.
     pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
-        self.superclass.write_to(&mut output, version)?;
         output.write_u16::<LE>(self.construction_sprite.map_into().unwrap_or(0xFFFF))?;
         if version >= 11.53 {
             output.write_u16::<LE>(self.snow_sprite.map_into().unwrap_or(0xFFFF))?;

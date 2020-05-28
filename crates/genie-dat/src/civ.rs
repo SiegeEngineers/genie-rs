@@ -1,3 +1,5 @@
+//! Types related to civilizations.
+
 use crate::unit_type::{UnitType, UnitTypeID};
 use crate::GameVersion;
 use arrayvec::ArrayString;
