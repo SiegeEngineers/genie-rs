@@ -1,4 +1,5 @@
-//! Unit type data reading/writing.
+//! Types related to unit types.
+
 use crate::sound::SoundID;
 use crate::sprite::{GraphicID, SpriteID};
 use crate::task::TaskList;

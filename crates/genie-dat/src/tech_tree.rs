@@ -1,3 +1,5 @@
+//! Types related to the tech tree data.
+
 use crate::civ::CivilizationID;
 use crate::unit_type::UnitTypeID;
 use arrayvec::ArrayVec;

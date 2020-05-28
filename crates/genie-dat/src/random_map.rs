@@ -1,3 +1,5 @@
+//! Types related to the random map data from Age of Empires 1.
+
 use crate::unit_type::UnitTypeID;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::convert::TryInto;
