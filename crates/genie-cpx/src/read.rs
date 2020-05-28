@@ -1,4 +1,4 @@
-use crate::{CPXVersion, CampaignHeader, ScenarioMeta};
+use crate::{CPXVersion, CampaignHeader, ScenarioMeta, AOE1_DE, AOE2_DE};
 use byteorder::{ReadBytesExt, LE};
 use chardet::detect as detect_encoding;
 use encoding_rs::Encoding;
@@ -75,30 +75,28 @@ fn read_hd_or_later_string<R: Read>(input: &mut R) -> Result<Option<String>> {
 fn read_campaign_header<R: Read>(input: &mut R) -> Result<CampaignHeader> {
     let mut version = [0; 4];
     input.read_exact(&mut version)?;
-    let (name, num_scenarios) = if version == *b"2.00" {
-        let num_dependencies = input.read_u32::<LE>()?;
-        let mut dependencies = vec![DLCPackage::AgeOfKings; num_dependencies as usize];
-        for dependency in dependencies.iter_mut() {
-            *dependency =
-                DLCPackage::try_from(input.read_i32::<LE>()?).map_err(scx::Error::from)?;
+
+    let num_scenarios;
+    let name;
+
+    if version == AOE1_DE {
+        num_scenarios = input.read_u32::<LE>()? as usize;
+        name = read_hd_or_later_string(input)?.ok_or(ReadCampaignError::MissingNameError)?;
+    } else {
+        // DE2 added package dependency data. We don't store that right now, because DE always
+        // supports all packages.[citation needed]
+        if version == AOE2_DE {
+            let num_dependencies = input.read_u32::<LE>()?;
+            let mut dependencies = vec![DLCPackage::AgeOfKings; num_dependencies as usize];
+            for dependency in dependencies.iter_mut() {
+                *dependency =
+                    DLCPackage::try_from(input.read_i32::<LE>()?).map_err(scx::Error::from)?;
+            }
         }
 
-        let name = read_fixed_str(input, 256)?.ok_or(ReadCampaignError::MissingNameError)?;
-
-        let num_scenarios = input.read_u32::<LE>()? as usize;
-        (name, num_scenarios)
-    } else if version == *b"1.10" {
-        let num_scenarios = input.read_u32::<LE>()? as usize;
-        (
-            read_hd_or_later_string(input)?.ok_or(ReadCampaignError::MissingNameError)?,
-            num_scenarios,
-        )
-    } else {
-        (
-            read_fixed_str(input, 256)?.ok_or(ReadCampaignError::MissingNameError)?,
-            input.read_u32::<LE>()? as usize,
-        )
-    };
+        name = read_fixed_str(input, 256)?.ok_or(ReadCampaignError::MissingNameError)?;
+        num_scenarios = input.read_u32::<LE>()? as usize;
+    }
 
     Ok(CampaignHeader {
         version,
