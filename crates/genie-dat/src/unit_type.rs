@@ -1,3 +1,4 @@
+//! Unit type data reading/writing.
 use crate::sound::SoundID;
 use crate::sprite::{GraphicID, SpriteID};
 use crate::task::TaskList;
@@ -11,6 +12,20 @@ use std::convert::{TryFrom, TryInto};
 use std::io::{self, Read, Result, Write};
 
 /// The base class of a unit indicates which data is available for that unit type.
+///
+/// # Comparison
+/// This type implements a comparison operator. A base class value is greater-than-or-equal-to
+/// another value if the base class "inherits" from the other value. For example, the
+/// `Doppelganger` base class inherits from the `Animated` base class. No other class inherits from
+/// `Doppelganger`. Therefore, it compares like this:
+///
+/// ```rust
+/// # use genie_dat::unit_type::UnitBaseClass;
+/// assert!(UnitBaseClass::Doppelganger > UnitBaseClass::Animated);
+/// assert!(UnitBaseClass::Doppelganger == UnitBaseClass::Doppelganger);
+/// assert_eq!(UnitBaseClass::Doppelganger < UnitBaseClass::Moving, false);
+/// assert_eq!(UnitBaseClass::Doppelganger > UnitBaseClass::Moving, false);
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum UnitBaseClass {
@@ -125,29 +140,38 @@ impl From<UnitBaseClass> for u8 {
 /// A unit class, a group identifier for runtime behaviours.
 pub type UnitClass = u16;
 
+/// Data for a unit type.
+///
+/// Unit types have a [base class][] identifier that indicates which data is available for that
+/// unit type. Data is split up into several `*Attributes` structs dictated by the unit's base class.
+///
+/// When editing the unit base class, the available attributes must also be updated. Failing to
+/// keep the two in sync will cause a panic if you try to write the unit type data to a file or
+/// other output.
+///
+/// [base class]: ./enum.UnitBaseClass.html
 #[derive(Debug, Clone)]
 pub struct UnitType {
+    /// The base class for this unit type.
     pub unit_base_class: UnitBaseClass,
+    /// The static unit type attributes: these are always available.
     pub static_: StaticUnitTypeAttributes,
+    /// Animated unit type attributes, available if `self.unit_base_class >= UnitBaseClass::Animated`.
     pub animated: Option<AnimatedUnitTypeAttributes>,
+    /// Moving unit type attributes, available if `self.unit_base_class >= UnitBaseClass::Moving`.
     pub moving: Option<MovingUnitTypeAttributes>,
+    /// Action unit type attributes, available if `self.unit_base_class >= UnitBaseClass::Action`.
     pub action: Option<ActionUnitTypeAttributes>,
+    /// BaseCombat unit type attributes, available if `self.unit_base_class >=
+    /// UnitBaseClass::BaseCombat`.
     pub base_combat: Option<BaseCombatUnitTypeAttributes>,
+    /// Missile unit type attributes, available if `self.unit_base_class >= UnitBaseClass::Missile`.
     pub missile: Option<MissileUnitTypeAttributes>,
+    /// Combat unit type attributes, available if `self.unit_base_class >= UnitBaseClass::Combat`.
     pub combat: Option<CombatUnitTypeAttributes>,
+    /// Building unit type attributes, available if `self.unit_base_class >=
+    /// UnitBaseClass::Building`.
     pub building: Option<BuildingUnitTypeAttributes>,
-}
-
-#[test]
-fn size() {
-    dbg!(std::mem::size_of::<StaticUnitTypeAttributes>());
-    dbg!(std::mem::size_of::<AnimatedUnitTypeAttributes>());
-    dbg!(std::mem::size_of::<MovingUnitTypeAttributes>());
-    dbg!(std::mem::size_of::<ActionUnitTypeAttributes>());
-    dbg!(std::mem::size_of::<BaseCombatUnitTypeAttributes>());
-    dbg!(std::mem::size_of::<MissileUnitTypeAttributes>());
-    dbg!(std::mem::size_of::<CombatUnitTypeAttributes>());
-    dbg!(std::mem::size_of::<BuildingUnitTypeAttributes>());
 }
 
 impl UnitType {
