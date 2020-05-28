@@ -436,7 +436,7 @@ impl Player {
         Ok(player)
     }
 
-    pub fn read_info(&mut self, input: impl Read, version: f32) -> Result<()> {
+    pub fn read_info(&mut self, input: impl Read, _version: f32) -> Result<()> {
         self.victory = VictoryConditions::read_from(input, true)?;
         Ok(())
     }

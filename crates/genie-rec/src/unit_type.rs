@@ -1,104 +1,10 @@
 use crate::Result;
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-pub use genie_dat::AttributeCost;
+pub use genie_dat::{AttributeCost, UnitBaseClass, ParseUnitBaseClassError};
 pub use genie_support::{StringKey, UnitTypeID};
-use std::cmp;
-use std::convert::{TryFrom, TryInto};
-
+use std::convert::{TryInto};
 use std::io::{Read, Write};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum UnitBaseClass {
-    Static = 10,
-    Animated = 20,
-    Doppelganger = 25,
-    Moving = 30,
-    Action = 40,
-    BaseCombat = 50,
-    Missile = 60,
-    Combat = 70,
-    Building = 80,
-    Tree = 90,
-}
-
-impl cmp::PartialOrd for UnitBaseClass {
-    fn partial_cmp(&self, other: &UnitBaseClass) -> Option<cmp::Ordering> {
-        if self == other {
-            return Some(cmp::Ordering::Equal);
-        }
-
-        let self_n = *self as u8;
-        let other_n = *other as u8;
-
-        // handle weird leaves specially
-        match self {
-            Self::Doppelganger => {
-                if self_n > other_n {
-                    Some(cmp::Ordering::Greater)
-                } else {
-                    None
-                }
-            }
-            Self::Missile => {
-                if self_n > other_n {
-                    Some(cmp::Ordering::Greater)
-                } else {
-                    None
-                }
-            }
-            Self::Tree => match other {
-                Self::Static => Some(cmp::Ordering::Greater),
-                _ => None,
-            },
-            _ => match other {
-                Self::Doppelganger => {
-                    if self_n < other_n {
-                        Some(cmp::Ordering::Less)
-                    } else {
-                        None
-                    }
-                }
-                Self::Missile => {
-                    if self_n < other_n {
-                        Some(cmp::Ordering::Less)
-                    } else {
-                        None
-                    }
-                }
-                Self::Tree => match self {
-                    Self::Static => Some(cmp::Ordering::Less),
-                    _ => None,
-                },
-                _ => Some(self_n.cmp(&other_n)),
-            },
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, thiserror::Error)]
-#[error("unknown unit base class: {}", .0)]
-pub struct ParseUnitBaseClassError(u8);
-
-impl TryFrom<u8> for UnitBaseClass {
-    type Error = ParseUnitBaseClassError;
-
-    fn try_from(n: u8) -> std::result::Result<Self, Self::Error> {
-        match n {
-            10 => Ok(UnitBaseClass::Static),
-            20 => Ok(UnitBaseClass::Animated),
-            25 => Ok(UnitBaseClass::Doppelganger),
-            30 => Ok(UnitBaseClass::Moving),
-            40 => Ok(UnitBaseClass::Action),
-            50 => Ok(UnitBaseClass::BaseCombat),
-            60 => Ok(UnitBaseClass::Missile),
-            70 => Ok(UnitBaseClass::Combat),
-            80 => Ok(UnitBaseClass::Building),
-            90 => Ok(UnitBaseClass::Tree),
-            n => Err(ParseUnitBaseClassError(n)),
-        }
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct CompactUnitType {
