@@ -32,7 +32,7 @@ pub use header::{DLCOptions, SCXHeader};
 pub use map::{Map, Tile};
 pub use triggers::{Trigger, TriggerCondition, TriggerEffect, TriggerSystem};
 pub use types::*;
-pub use victory::{VictoryConditions, VictoryEntry, VictoryPointEntry};
+pub use victory::{VictoryConditions, VictoryEntry, VictoryPointEntry, VictoryState};
 
 /// Error type for SCX methods, containing all types of errors that may occur while reading or
 /// writing scenario files.
@@ -85,6 +85,9 @@ pub enum Error {
     /// The given ID is not a known error code.
     #[error(transparent)]
     ParseAIErrorCodeError(#[from] num_enum::TryFromPrimitiveError<ai::AIErrorCode>),
+    /// The given ID is not a known victory condition state.
+    #[error(transparent)]
+    ParseVictoryConditionStateError(#[from] num_enum::TryFromPrimitiveError<victory::VictoryState>),
     /// An error occurred while reading or writing.
     #[error(transparent)]
     IoError(#[from] io::Error),

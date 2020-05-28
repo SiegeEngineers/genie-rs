@@ -288,20 +288,35 @@ impl StartingAge {
     }
 }
 
+/// Known types of victory conditions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VictoryCondition {
+    /// Capture an object.
     Capture,
+    /// Create a number of objects.
     Create,
+    /// Destroy an object.
     Destroy,
+    /// Destroy a number of objects of a specific type, owned by a specific player.
     DestroyMultiple,
+    /// Bring an object into an area.
     BringToArea,
+    /// Bring an object close to another object.
     BringToObject,
+    /// Collect an amount of a specific resource.
     Attribute,
+    /// Explore a certain percentage of the map.
     Explore,
+    /// Bring a number of objects into an area.
     CreateInArea,
+    /// Destroy all objects of a specific type, owned by a specific player.
     DestroyAll,
+    /// Defeat a specific player.
     DestroyPlayer,
+    /// Collect an amount of points.
     Points,
+    /// Some unknown value, either because of a corrupt scenario file or some new unsupported
+    /// game feature.
     Other(u8),
 }
 

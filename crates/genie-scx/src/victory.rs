@@ -1,6 +1,8 @@
 use crate::types::VictoryCondition;
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
+use num_enum::{IntoPrimitive, TryFromPrimitive};
+use std::convert::TryFrom;
 use std::io::{Read, Write};
 
 /// AoE1's victory info.
@@ -21,6 +23,7 @@ pub struct LegacyVictoryInfo {
 }
 
 impl LegacyVictoryInfo {
+    /// Read old-tyle victory settings from an input stream.
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let object_type = input.read_i32::<LE>()?;
         let all_flag = input.read_i32::<LE>()? != 0;
@@ -55,6 +58,7 @@ impl LegacyVictoryInfo {
         })
     }
 
+    /// Write old-tyle victory settings to an output stream.
     pub fn write_to(&self, mut output: impl Write) -> Result<()> {
         output.write_i32::<LE>(self.object_type)?;
         output.write_i32::<LE>(if self.all_flag { 1 } else { 0 })?;
@@ -213,23 +217,56 @@ impl VictoryPointEntry {
     }
 }
 
+/// Current achieved-ness state of a victory condition.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, IntoPrimitive, TryFromPrimitive)]
+#[repr(u8)]
+pub enum VictoryState {
+    /// The condition is not yet achieved, but may be achieved in the future.
+    NotAchieved = 0,
+    /// The condition can no longer be achieved.
+    ///
+    /// For example, when a unit that has to be brought into an area has died.
+    Failed = 1,
+    /// The condition was achieved. It may be "un-achieved" in the future, depending on the
+    /// condition.
+    Achieved = 2,
+    /// The condition will no longer be updated.
+    ///
+    /// This appears to happen for invalid condition data?
+    Disabled = 3,
+}
+
+impl Default for VictoryState {
+    fn default() -> Self {
+        Self::NotAchieved
+    }
+}
+
+/// Tracks victory conditions for the scenario, used in single player.
 #[derive(Debug, Clone, Default)]
 pub struct VictoryConditions {
+    /// Version of the victory condition data.
     pub version: f32,
-    victory: bool,
+    /// TODO Can be 0/1/2 to indicate victory state
+    victory: VictoryState,
+    /// Total points out of all `point_entries` that the player has received so far.
     pub total_points: i32,
-    pub starting_points: i32,
-    pub starting_group: i32,
+    /// Unused.
+    starting_points: i32,
+    /// Unused.
+    starting_group: i32,
     pub entries: Vec<VictoryEntry>,
     pub point_entries: Vec<VictoryPointEntry>,
 }
 
 impl VictoryConditions {
     #[deprecated = "Use VictoryConditions::read_from instead"]
+    #[doc(hidden)]
     pub fn from<R: Read>(input: &mut R, has_version: bool) -> Result<Self> {
         Ok(Self::read_from(input, has_version)?)
     }
 
+    /// Read victory conditions from an input stream.
     pub fn read_from(mut input: impl Read, has_version: bool) -> Result<Self> {
         let version = if has_version {
             input.read_f32::<LE>()?
@@ -238,7 +275,7 @@ impl VictoryConditions {
         };
 
         let num_conditions = input.read_i32::<LE>()?;
-        let victory = input.read_u8()? != 0;
+        let victory = VictoryState::try_from(input.read_u8()?)?;
 
         let mut entries = Vec::with_capacity(num_conditions as usize);
         for _ in 0..num_conditions {
@@ -275,6 +312,7 @@ impl VictoryConditions {
         })
     }
 
+    /// Write victory conditions to an output stream.
     pub fn write_to(&self, mut output: impl Write, version: Option<f32>) -> Result<()> {
         if let Some(v) = version {
             output.write_f32::<LE>(v)?;
@@ -283,7 +321,7 @@ impl VictoryConditions {
         let version = version.unwrap_or(std::f32::MIN);
 
         output.write_i32::<LE>(self.entries.len() as i32)?;
-        output.write_u8(if self.victory { 1 } else { 0 })?;
+        output.write_u8(self.victory.into())?;
 
         for entry in &self.entries {
             entry.write_to(&mut output)?;
@@ -309,20 +347,25 @@ impl VictoryConditions {
 
 #[derive(Debug, Clone, Default)]
 pub struct VictoryInfo {
-    pub(crate) conquest: i32,
+    /// Is conquest victory enabled?
+    pub(crate) conquest: bool,
+    /// How many monuments need to be captured? (attribute 14)
     pub(crate) ruins: i32,
-    pub(crate) artifacts: i32,
+    /// How many relics need to be captured? (attribute 7)
+    pub(crate) relics: i32,
+    /// How many "RemarkableDiscoveries" need to be done? (attribute 13)
     pub(crate) discoveries: i32,
     pub(crate) exploration: i32,
+    /// How much gold needs to be collected?
     pub(crate) gold: i32,
 }
 
 impl VictoryInfo {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         Ok(Self {
-            conquest: input.read_i32::<LE>()?,
+            conquest: input.read_i32::<LE>()? != 0,
             ruins: input.read_i32::<LE>()?,
-            artifacts: input.read_i32::<LE>()?,
+            relics: input.read_i32::<LE>()?,
             discoveries: input.read_i32::<LE>()?,
             exploration: input.read_i32::<LE>()?,
             gold: input.read_i32::<LE>()?,
@@ -330,9 +373,9 @@ impl VictoryInfo {
     }
 
     pub fn write_to(&self, mut output: impl Write) -> Result<()> {
-        output.write_i32::<LE>(self.conquest)?;
+        output.write_i32::<LE>(if self.conquest { 1 } else { 0 })?;
         output.write_i32::<LE>(self.ruins)?;
-        output.write_i32::<LE>(self.artifacts)?;
+        output.write_i32::<LE>(self.relics)?;
         output.write_i32::<LE>(self.discoveries)?;
         output.write_i32::<LE>(self.exploration)?;
         output.write_i32::<LE>(self.gold)?;
