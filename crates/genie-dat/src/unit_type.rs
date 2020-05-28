@@ -6,8 +6,8 @@ use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 pub use genie_support::UnitTypeID;
 use genie_support::{read_opt_u16, read_opt_u32, MapInto, StringKey, TechID};
+use std::cmp::{Ordering, PartialOrd};
 use std::convert::{TryFrom, TryInto};
-use std::cmp::{PartialOrd, Ordering};
 use std::io::{self, Read, Result, Write};
 
 /// The base class of a unit indicates which data is available for that unit type.
@@ -176,7 +176,9 @@ impl UnitType {
             unit.action = Some(ActionUnitTypeAttributes::read_from(&mut input, version)?);
         }
         if unit_base_class >= UnitBaseClass::BaseCombat {
-            unit.base_combat = Some(BaseCombatUnitTypeAttributes::read_from(&mut input, version)?);
+            unit.base_combat = Some(BaseCombatUnitTypeAttributes::read_from(
+                &mut input, version,
+            )?);
         }
         if unit_base_class >= UnitBaseClass::Missile {
             unit.missile = Some(MissileUnitTypeAttributes::read_from(&mut input, version)?);
@@ -216,7 +218,10 @@ impl UnitType {
                 .expect("Unit's base class was Moving, but it has no Moving attributes")
                 .write_to(&mut output, version)?;
         } else {
-            assert!(self.moving.is_none(), "Unexpected Moving attributes in a unit type whose base class does not support it");
+            assert!(
+                self.moving.is_none(),
+                "Unexpected Moving attributes in a unit type whose base class does not support it"
+            );
         }
 
         if self.unit_base_class >= UnitBaseClass::Action {
@@ -225,7 +230,10 @@ impl UnitType {
                 .expect("Unit's base class was Action, but it has no Action attributes")
                 .write_to(&mut output, version)?;
         } else {
-            assert!(self.action.is_none(), "Unexpected Action attributes in a unit type whose base class does not support it");
+            assert!(
+                self.action.is_none(),
+                "Unexpected Action attributes in a unit type whose base class does not support it"
+            );
         }
 
         if self.unit_base_class >= UnitBaseClass::BaseCombat {
@@ -243,9 +251,11 @@ impl UnitType {
                 .expect("Unit's base class was Missile, but it has no Missile attributes")
                 .write_to(&mut output, version)?;
         } else {
-            assert!(self.missile.is_none(), "Unexpected Missile attributes in a unit type whose base class does not support it");
+            assert!(
+                self.missile.is_none(),
+                "Unexpected Missile attributes in a unit type whose base class does not support it"
+            );
         }
-
 
         if self.unit_base_class >= UnitBaseClass::Combat {
             self.combat
@@ -253,7 +263,10 @@ impl UnitType {
                 .expect("Unit's base class was Combat, but it has no Combat attributes")
                 .write_to(&mut output, version)?;
         } else {
-            assert!(self.combat.is_none(), "Unexpected Combat attributes in a unit type whose base class does not support it");
+            assert!(
+                self.combat.is_none(),
+                "Unexpected Combat attributes in a unit type whose base class does not support it"
+            );
         }
 
         if self.unit_base_class >= UnitBaseClass::Building {

@@ -1,9 +1,9 @@
 use crate::Result;
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-pub use genie_dat::{AttributeCost, UnitBaseClass, ParseUnitBaseClassError};
+pub use genie_dat::unit_type::{AttributeCost, ParseUnitBaseClassError, UnitBaseClass};
 pub use genie_support::{StringKey, UnitTypeID};
-use std::convert::{TryInto};
+use std::convert::TryInto;
 use std::io::{Read, Write};
 
 #[derive(Debug, Clone)]

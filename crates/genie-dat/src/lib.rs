@@ -12,38 +12,31 @@
 
 mod civ;
 mod color_table;
-mod random_map;
+pub mod random_map;
 mod sound;
-mod sprite;
+pub mod sprite;
 mod task;
 mod tech;
-mod tech_tree;
-mod terrain;
-mod unit_type;
+pub mod tech_tree;
+pub mod terrain;
+pub mod unit_type;
 
+pub use crate::civ::{Civilization, CivilizationID};
+pub use crate::color_table::{ColorTable, PaletteIndex};
+use crate::random_map::RandomMapInfo;
+pub use crate::sound::{Sound, SoundID, SoundItem};
+use crate::sprite::{Sprite, SpriteID};
+pub use crate::task::{Task, TaskList};
+pub use crate::tech::{Tech, TechEffect};
+use crate::tech_tree::TechTree;
+use crate::terrain::{Terrain, TerrainBorder, TerrainID, TerrainRestriction, TileSize};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-pub use civ::{Civilization, CivilizationID};
-pub use color_table::{ColorTable, PaletteIndex};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 use genie_support::{f32_eq, ReadSkipExt, TechID};
-pub use random_map::*;
-pub use sound::{Sound, SoundID, SoundItem};
-pub use sprite::{GraphicID, SoundProp, Sprite, SpriteAttackSound, SpriteDelta, SpriteID};
 use std::cmp::{Ordering, PartialOrd};
 use std::convert::TryInto;
 use std::fmt;
 use std::io::{Read, Result, Write};
-pub use task::{Task, TaskList};
-pub use tech::{Tech, TechEffect};
-pub use tech_tree::{
-    ParseTechTreeTypeError, TechTree, TechTreeAge, TechTreeBuilding, TechTreeDependencies,
-    TechTreeStatus, TechTreeTech, TechTreeType, TechTreeUnit,
-};
-pub use terrain::{
-    Terrain, TerrainAnimation, TerrainBorder, TerrainID, TerrainObject, TerrainPassGraphic,
-    TerrainRestriction, TerrainSpriteFrame, TileSize,
-};
-pub use unit_type::*;
 
 /// A game version targeted by a data file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
