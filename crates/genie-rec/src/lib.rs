@@ -11,6 +11,13 @@
 //! [recage]: https://github.com/genie-js/recage
 //! [aoc-mgz]: https://github.com/happyleavesaoc/aoc-mgz
 
+#![deny(future_incompatible)]
+#![deny(nonstandard_style)]
+#![deny(rust_2018_idioms)]
+#![deny(unsafe_code)]
+// #![warn(missing_docs)]
+#![warn(unused)]
+
 pub mod actions;
 pub mod ai;
 pub mod header;
@@ -103,13 +110,13 @@ impl Default for GameVersion {
 }
 
 impl Debug for GameVersion {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", std::str::from_utf8(&self.0).unwrap())
     }
 }
 
 impl Display for GameVersion {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", std::str::from_utf8(&self.0).unwrap())
     }
 }
