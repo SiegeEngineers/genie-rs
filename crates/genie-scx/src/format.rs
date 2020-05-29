@@ -14,7 +14,7 @@ use crate::{Error, Result, VersionBundle};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 use genie_support::{
-    f32_eq, read_opt_u32, read_str, write_opt_str, write_str, StringKey, UnitTypeID,
+    f32_eq, read_opt_u32, write_opt_str, write_str, ReadStringsExt, StringKey, UnitTypeID,
 };
 use std::convert::{TryFrom, TryInto};
 use std::io::{self, Read, Write};
@@ -151,7 +151,7 @@ impl RGEScen {
         let mut player_names = vec![None; 16];
         if version > 1.13 {
             for name in player_names.iter_mut() {
-                *name = read_str(&mut input, 256)?;
+                *name = input.read_str(256)?;
             }
         }
 
@@ -194,9 +194,8 @@ impl RGEScen {
             input.read_u32_into::<LE>(_civ_lock)?;
         }
 
-        let name_length = input.read_i16::<LE>()? as usize;
         // File name may be empty for embedded scenario data inside recorded games.
-        let name = read_str(&mut input, name_length)?.unwrap_or_default();
+        let name = input.read_u16_length_prefixed_str()?.unwrap_or_default();
 
         let (
             description_string_table,
@@ -222,26 +221,20 @@ impl RGEScen {
             Default::default()
         };
 
-        let description_length = input.read_i16::<LE>()? as usize;
-        let description = read_str(&mut input, description_length)?;
+        let description = input.read_u16_length_prefixed_str()?;
 
         let (hints, win_message, loss_message, history) = if version >= 1.11 {
-            let hints_length = input.read_i16::<LE>()? as usize;
-            let hints = read_str(&mut input, hints_length)?;
-            let win_message_length = input.read_i16::<LE>()? as usize;
-            let win_message = read_str(&mut input, win_message_length)?;
-            let loss_message_length = input.read_i16::<LE>()? as usize;
-            let loss_message = read_str(&mut input, loss_message_length)?;
-            let history_length = input.read_i16::<LE>()? as usize;
-            let history = read_str(&mut input, history_length)?;
+            let hints = input.read_u16_length_prefixed_str()?;
+            let win_message = input.read_u16_length_prefixed_str()?;
+            let loss_message = input.read_u16_length_prefixed_str()?;
+            let history = input.read_u16_length_prefixed_str()?;
             (hints, win_message, loss_message, history)
         } else {
             (None, None, None, None)
         };
 
         let scout = if version >= 1.22 {
-            let scout_length = input.read_i16::<LE>()? as usize;
-            read_str(&mut input, scout_length)?
+            input.read_u16_length_prefixed_str()?
         } else {
             None
         };
@@ -250,16 +243,12 @@ impl RGEScen {
             // skip some stuff
         }
 
-        let len = input.read_i16::<LE>()? as usize;
-        let pregame_cinematic = read_str(&mut input, len)?;
-        let len = input.read_i16::<LE>()? as usize;
-        let victory_cinematic = read_str(&mut input, len)?;
-        let len = input.read_i16::<LE>()? as usize;
-        let loss_cinematic = read_str(&mut input, len)?;
+        let pregame_cinematic = input.read_u16_length_prefixed_str()?;
+        let victory_cinematic = input.read_u16_length_prefixed_str()?;
+        let loss_cinematic = input.read_u16_length_prefixed_str()?;
 
         let mission_bmp = if version >= 1.09 {
-            let len = input.read_i16::<LE>()? as usize;
-            read_str(&mut input, len)?
+            input.read_u16_length_prefixed_str()?
         } else {
             None
         };
@@ -272,21 +261,18 @@ impl RGEScen {
 
         let mut player_build_lists = vec![None; 16];
         for build_list in player_build_lists.iter_mut() {
-            let len = input.read_u16::<LE>()? as usize;
-            *build_list = read_str(&mut input, len)?;
+            *build_list = input.read_u16_length_prefixed_str()?;
         }
 
         let mut player_city_plans = vec![None; 16];
         for city_plan in player_city_plans.iter_mut() {
-            let len = input.read_u16::<LE>()? as usize;
-            *city_plan = read_str(&mut input, len)?;
+            *city_plan = input.read_u16_length_prefixed_str()?;
         }
 
         let mut player_ai_rules = vec![None; 16];
         if version >= 1.08 {
             for ai_rules in player_ai_rules.iter_mut() {
-                let len = input.read_u16::<LE>()? as usize;
-                *ai_rules = read_str(&mut input, len)?;
+                *ai_rules = input.read_u16_length_prefixed_str()?;
             }
         }
 
@@ -300,9 +286,9 @@ impl RGEScen {
                 0
             };
 
-            files.build_list = read_str(&mut input, build_list_length)?;
-            files.city_plan = read_str(&mut input, city_plan_length)?;
-            files.ai_rules = read_str(&mut input, ai_rules_length)?;
+            files.build_list = input.read_str(build_list_length)?;
+            files.city_plan = input.read_str(city_plan_length)?;
+            files.ai_rules = input.read_str(ai_rules_length)?;
         }
 
         let mut ai_rules_types = vec![0; 16];
@@ -600,7 +586,7 @@ impl TribeScen {
         // Moved to RGEScen in 1.13
         if version <= 1.13 {
             for name in base.player_names.iter_mut() {
-                *name = read_str(&mut input, 256)?;
+                *name = input.read_str(256)?;
             }
 
             for i in 0..16 {
@@ -818,18 +804,12 @@ impl TribeScen {
         }
         if version >= 1.30 {
             let _str_signature = input.read_u16::<LE>()?;
-            water_definition = {
-                let len = input.read_u16::<LE>()?;
-                read_str(&mut input, len as usize)?
-            };
+            water_definition = input.read_u16_length_prefixed_str()?;
         }
 
         if version >= 1.32 {
             let _str_signature = input.read_u16::<LE>()?;
-            color_mood = {
-                let len = input.read_u16::<LE>()?;
-                read_str(&mut input, len as usize)?
-            };
+            color_mood = input.read_u16_length_prefixed_str()?;
         }
         if version >= 1.36 {
             collide_and_correct = input.read_u8()? != 0;

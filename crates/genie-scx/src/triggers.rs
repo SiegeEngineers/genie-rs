@@ -1,7 +1,7 @@
 use crate::Result;
 use crate::UnitTypeID;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{read_opt_u32, read_str, write_i32_str, write_opt_i32_str, StringKey};
+use genie_support::{read_opt_u32, write_i32_str, write_opt_i32_str, ReadStringsExt, StringKey};
 use std::convert::TryInto;
 use std::io::{Read, Write};
 
@@ -244,10 +244,8 @@ impl TriggerEffect {
             properties.push(-1);
         }
 
-        let len = input.read_i32::<LE>()? as usize;
-        let chat_text = read_str(&mut input, len)?;
-        let len = input.read_i32::<LE>()? as usize;
-        let audio_file = read_str(&mut input, len)?;
+        let chat_text = input.read_u32_length_prefixed_str()?;
+        let audio_file = input.read_u32_length_prefixed_str()?;
         let mut objects = vec![];
 
         if version > 1.1 {
@@ -547,19 +545,10 @@ impl Trigger {
             start_time = input.read_u32::<LE>()?;
         }
 
-        let description = {
-            let len = input.read_u32::<LE>()? as usize;
-            read_str(&mut input, len)?
-        };
-
-        let name = {
-            let len = input.read_u32::<LE>()? as usize;
-            read_str(&mut input, len)?
-        };
-
+        let description = input.read_u32_length_prefixed_str()?;
+        let name = input.read_u32_length_prefixed_str()?;
         let short_description = if version >= 1.8 {
-            let len = input.read_u32::<LE>()? as usize;
-            read_str(&mut input, len)?
+            input.read_u32_length_prefixed_str()?
         } else {
             None
         };
@@ -747,9 +736,8 @@ impl TriggerSystem {
                         id < 256,
                         "Unexpected variable number, this is probably a genie-scx bug"
                     );
-                    let len = input.read_u32::<LE>()?;
                     variable_names[id as usize] =
-                        read_str(&mut input, len as usize)?.unwrap_or_default();
+                        input.read_u32_length_prefixed_str()?.unwrap_or_default();
                 }
                 variable_names
             };

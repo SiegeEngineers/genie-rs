@@ -1,7 +1,7 @@
 use crate::victory::VictoryConditions;
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{read_str, write_opt_str};
+use genie_support::{write_opt_str, ReadStringsExt};
 use std::io::{Read, Write};
 
 #[derive(Debug, Default, Clone)]
@@ -113,8 +113,7 @@ impl ScenarioPlayerData {
 
     /// Read player data from an input stream.
     pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
-        let len = input.read_u16::<LE>()?;
-        let name = read_str(&mut input, len as usize)?;
+        let name = input.read_u16_length_prefixed_str()?;
 
         let view = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
 

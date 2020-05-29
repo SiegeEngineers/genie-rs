@@ -3,7 +3,7 @@
 use crate::unit::Waypoint;
 use crate::{ObjectID, PlayerID, Result};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{read_opt_u16, read_opt_u32, ReadSkipExt, UnitTypeID};
+use genie_support::{read_opt_u16, read_opt_u32, ReadSkipExt, ReadStringsExt, UnitTypeID};
 use std::convert::TryInto;
 use std::io::{Read, Write};
 
@@ -45,10 +45,7 @@ pub struct BuildItem {
 impl BuildItem {
     pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
         let mut item = Self::default();
-        item.name = {
-            let len = input.read_u32::<LE>()?;
-            genie_support::read_str(&mut input, len.try_into().unwrap())?
-        };
+        item.name = input.read_u32_length_prefixed_str()?;
         item.type_id = input.read_u32::<LE>()?;
         let _a2 = input.read_u32::<LE>()?;
         item.game_id = input.read_u32::<LE>()?;
@@ -98,22 +95,10 @@ impl BuildAI {
     pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
         let mut ai = Self::default();
         let build_list_len = input.read_u32::<LE>()?;
-        ai.build_list_name = {
-            let len = input.read_u32::<LE>()?;
-            genie_support::read_str(&mut input, len.try_into().unwrap())?
-        };
-        ai.last_build_item_requested = {
-            let len = input.read_u32::<LE>()?;
-            genie_support::read_str(&mut input, len.try_into().unwrap())?
-        };
-        ai.current_build_item_requested = {
-            let len = input.read_u32::<LE>()?;
-            genie_support::read_str(&mut input, len.try_into().unwrap())?
-        };
-        ai.next_build_item_requested = {
-            let len = input.read_u32::<LE>()?;
-            genie_support::read_str(&mut input, len.try_into().unwrap())?
-        };
+        ai.build_list_name = input.read_u32_length_prefixed_str()?;
+        ai.last_build_item_requested = input.read_u32_length_prefixed_str()?;
+        ai.current_build_item_requested = input.read_u32_length_prefixed_str()?;
+        ai.next_build_item_requested = input.read_u32_length_prefixed_str()?;
         let _items_into_build_queue = if version > 11.02 {
             input.read_u32::<LE>()?
         } else {
@@ -153,10 +138,7 @@ pub struct ConstructionItem {
 impl ConstructionItem {
     pub fn read_from(mut input: impl Read, _version: f32) -> Result<Self> {
         let mut item = Self::default();
-        item.name = {
-            let len = input.read_u32::<LE>()?;
-            genie_support::read_str(&mut input, len.try_into().unwrap())?
-        };
+        item.name = input.read_u32_length_prefixed_str()?;
         item.type_id = input.read_u32::<LE>()?;
         let _a2 = input.read_u32::<LE>()?;
         let _v27 = input.read_u32::<LE>()?;
@@ -186,10 +168,7 @@ impl ConstructionAI {
     pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
         let mut ai = Self::default();
         let num_lots = input.read_u32::<LE>()?;
-        ai.plan_name = {
-            let len = input.read_u32::<LE>()?;
-            genie_support::read_str(&mut input, len.try_into().unwrap())?
-        };
+        ai.plan_name = input.read_u32_length_prefixed_str()?;
         ai.reference_point = (
             input.read_f32::<LE>()?,
             input.read_f32::<LE>()?,
@@ -640,11 +619,7 @@ impl InformationAI {
         }
 
         let _save_learn_information = input.read_u32::<LE>()? != 0;
-        let _learn_path = {
-            let len = input.read_u32::<LE>()?;
-            dbg!(len);
-            genie_support::read_str(&mut input, len.try_into().unwrap())?
-        };
+        let _learn_path = input.read_u32_length_prefixed_str()?;
 
         if version < 11.25 {
             input.skip(0xFF)?;
@@ -814,10 +789,7 @@ impl StrategyAI {
         ai.target_attribute = input.read_u32::<LE>()?;
         ai.target_number = input.read_u32::<LE>()?;
         ai.victory_condition_change_timeout = input.read_u32::<LE>()?;
-        ai.ruleset_name = {
-            let len = input.read_u32::<LE>()?;
-            genie_support::read_str(&mut input, len.try_into().unwrap())?
-        };
+        ai.ruleset_name = input.read_u32_length_prefixed_str()?;
 
         ai.vc_ruleset = read_id_list(&mut input)?;
         ai.executing_rules = read_id_list(&mut input)?;

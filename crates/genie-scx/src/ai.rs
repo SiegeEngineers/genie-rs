@@ -1,6 +1,6 @@
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{read_str, write_i32_str, DecodeStringError, ReadStringError};
+use genie_support::{write_i32_str, DecodeStringError, ReadStringError, ReadStringsExt};
 use std::convert::TryFrom;
 use std::io::{Read, Write};
 
@@ -134,10 +134,12 @@ pub struct AIFile {
 impl AIFile {
     /// Read an embedded AI file from an input stream.
     pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let len = input.read_i32::<LE>()? as usize;
-        let filename = read_str(&mut input, len)?.expect("missing ai file name");
-        let len = input.read_i32::<LE>()? as usize;
-        let content = read_str(&mut input, len)?.expect("empty ai file?");
+        let filename = input
+            .read_u32_length_prefixed_str()?
+            .expect("missing ai file name");
+        let content = input
+            .read_u32_length_prefixed_str()?
+            .expect("empty ai file?");
 
         Ok(Self { filename, content })
     }

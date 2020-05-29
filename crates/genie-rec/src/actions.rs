@@ -3,7 +3,7 @@
 use crate::{ObjectID, PlayerID, Result};
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{f32_neq, read_opt_u32, read_str, ReadSkipExt, TechID, UnitTypeID};
+use genie_support::{f32_neq, read_opt_u32, ReadSkipExt, ReadStringsExt, TechID, UnitTypeID};
 use std::convert::TryInto;
 use std::io::{Read, Write};
 
@@ -1551,8 +1551,7 @@ pub struct Chat {
 impl Chat {
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         assert_eq!(input.read_i32::<LE>()?, -1);
-        let length = input.read_u32::<LE>()?;
-        let message = read_str(input, length as usize)?.unwrap_or_default();
+        let message = input.read_u32_length_prefixed_str()?.unwrap_or_default();
         Ok(Self { message })
     }
 }

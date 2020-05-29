@@ -6,7 +6,7 @@ use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use genie_dat::tech_tree::TechTree;
 use genie_dat::CivilizationID;
 use genie_scx::VictoryConditions;
-use genie_support::read_opt_u32;
+use genie_support::{read_opt_u32, ReadStringsExt};
 use std::convert::TryInto;
 use std::io::{Read, Write};
 
@@ -59,9 +59,9 @@ impl Player {
         input.read_u32_into::<LE>(&mut player.diplomacy)?;
         player.allied_los = input.read_u32::<LE>()? != 0;
         player.allied_victory = input.read_u8()? != 0;
-        let name_len = input.read_u16::<LE>()?;
-        player.name =
-            genie_support::read_str(&mut input, usize::from(name_len))?.unwrap_or_else(String::new);
+        player.name = input
+            .read_u16_length_prefixed_str()?
+            .unwrap_or_else(String::new);
         if version >= 10.55 {
             assert_eq!(input.read_u8()?, 22);
         }
@@ -644,7 +644,7 @@ impl DiplomacyOffer {
         offer.demand = input.read_u8()?;
         offer.gold = input.read_u32::<LE>()?;
         let message_len = input.read_u8()?;
-        offer.message = genie_support::read_str(&mut input, usize::from(message_len))?;
+        offer.message = input.read_str(usize::from(message_len))?;
         offer.status = input.read_u8()?;
         Ok(offer)
     }

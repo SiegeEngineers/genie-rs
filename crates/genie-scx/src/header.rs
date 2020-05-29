@@ -1,7 +1,7 @@
 use crate::types::{DLCPackage, DataSet, SCXVersion};
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{read_str, write_opt_i32_str};
+use genie_support::{write_opt_i32_str, ReadStringsExt};
 use std::convert::TryFrom;
 use std::io::{Read, Write};
 
@@ -100,14 +100,11 @@ impl SCXHeader {
         } else {
             0
         };
-        let description_length = if format_version == *b"3.13" {
-            // Skip unknown value
-            input.read_u16::<LE>()?;
-            input.read_u16::<LE>()? as usize
+        let description = if format_version == *b"3.13" {
+            input.read_hd_style_str()?
         } else {
-            input.read_u32::<LE>()? as usize
+            input.read_u32_length_prefixed_str()?
         };
-        let description = read_str(&mut input, description_length)?;
 
         let any_sp_victory = input.read_u32::<LE>()? != 0;
         let active_player_count = input.read_u32::<LE>()?;
@@ -120,10 +117,7 @@ impl SCXHeader {
 
         let author_name;
         if version >= 5 {
-            author_name = {
-                let len = input.read_u32::<LE>()?;
-                read_str(&mut input, len as usize)?
-            };
+            author_name = input.read_u32_length_prefixed_str()?;
             let _num_triggers = input.read_u32::<LE>()?;
         } else {
             author_name = None;
