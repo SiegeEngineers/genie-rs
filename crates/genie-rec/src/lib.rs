@@ -213,7 +213,10 @@ where
                     self.remaining_syncs_until_checksum = self.meta.checksum_interval;
                     Some(actions::Sync::read_from(&mut self.input).map(Action::Sync))
                 } else {
-                    Some(Err(SyncError::UnexpectedSync(self.remaining_syncs_until_checksum).into()))
+                    Some(Err(SyncError::UnexpectedSync(
+                        self.remaining_syncs_until_checksum,
+                    )
+                    .into()))
                 }
             }
             Ok(0x01) => Some(actions::Command::read_from(&mut self.input).map(Action::Command)),
