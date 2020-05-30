@@ -1349,6 +1349,7 @@ impl BackToWorkCommand {
     }
 }
 
+/// A player command.
 #[derive(Debug, Clone)]
 pub enum Command {
     Order(OrderCommand),
@@ -1442,42 +1443,44 @@ impl Command {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct Sync {
-    pub sequence: Option<u8>,
+pub struct Time {
     pub time: u32,
-    pub checksums: Option<(u32, u32, u32)>,
-    pub next_world_time: Option<u32>,
+    old_world_time: u32,
+    unknown: u32,
+}
+
+impl Time {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
+        let mut time = Self::default();
+        time.time = input.read_u32::<LE>()?;
+        let is_old_record = false;
+        if is_old_record {
+            time.old_world_time = input.read_u32::<LE>()?;
+            time.unknown = input.read_u32::<LE>()?;
+        }
+        Ok(time)
+    }
+}
+
+/// A Sync message, used to ensure that all players agree on the game state by comparing checksums
+/// and world time.
+#[derive(Debug, Default, Clone)]
+pub struct Sync {
+    pub checksum: u32,
+    pub position_checksum: u32,
+    pub action_checksum: u32,
+    pub next_world_time: u32,
 }
 
 impl Sync {
-    pub fn read_from<R: Read>(
-        input: &mut R,
-        use_sequence_numbers: bool,
-        includes_checksum: bool,
-    ) -> Result<Self> {
+    pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let mut sync = Self::default();
-        sync.sequence = if use_sequence_numbers {
-            Some(input.read_u8()?)
-        } else {
-            None
-        };
-        sync.time = input.read_u32::<LE>()?;
-        if false {
-            let _old_world_time = input.read_u32::<LE>()?;
-            let _unknown = input.read_u32::<LE>()?;
-        }
-        if includes_checksum {
-            let check_bytes = input.read_u32::<LE>()?;
-            if check_bytes == 0 {
-                let _always_zero = input.read_u32::<LE>()?;
-                let checksum = input.read_u32::<LE>()?;
-                let position_checksum = input.read_u32::<LE>()?;
-                let action_checksum = input.read_u32::<LE>()?;
-                let _always_zero = input.read_u32::<LE>()?;
-                sync.next_world_time = Some(input.read_u32::<LE>()?);
-                sync.checksums = Some((checksum, position_checksum, action_checksum));
-            }
-        }
+        let _always_zero = input.read_u32::<LE>()?;
+        sync.checksum = input.read_u32::<LE>()?;
+        sync.position_checksum = input.read_u32::<LE>()?;
+        sync.action_checksum = input.read_u32::<LE>()?;
+        let _always_zero = input.read_u32::<LE>()?;
+        sync.next_world_time = input.read_u32::<LE>()?;
         Ok(sync)
     }
 }
@@ -1560,6 +1563,7 @@ impl Chat {
 #[derive(Debug, Clone)]
 pub enum Action {
     Command(Command),
+    Time(Time),
     Sync(Sync),
     ViewLock(ViewLock),
     Chat(Chat),

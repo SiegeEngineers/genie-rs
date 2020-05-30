@@ -130,11 +130,22 @@ impl GameVersion {
     }
 }
 
+///
+#[derive(Debug, thiserror::Error)]
+pub enum SyncError {
+    #[error("Got a sync message, but the log header said there would be a sync message {0} ticks later. The recorded game file may be corrupt")]
+    UnexpectedSync(u32),
+    #[error("Expected a sync message at this point, the recorded game file may be corrupt")]
+    ExpectedSync,
+}
+
 /// Errors that may occur while reading a recorded game file.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error(transparent)]
     IoError(#[from] io::Error),
+    #[error(transparent)]
+    SyncError(#[from] SyncError),
     #[error(transparent)]
     DecodeStringError(#[from] genie_support::DecodeStringError),
     #[error("Could not read embedded scenario data: {0}")]
@@ -190,22 +201,28 @@ where
 {
     type Item = Result<Action>;
     fn next(&mut self) -> Option<Self::Item> {
+        if self.meta.use_sequence_numbers {
+            let _sequence = match self.input.read_u8() {
+                Ok(s) => s,
+                Err(err) => return Some(Err(err.into())),
+            };
+        }
         match self.input.read_i32::<LE>() {
+            Ok(0x00) => {
+                if self.remaining_syncs_until_checksum == 0 {
+                    self.remaining_syncs_until_checksum = self.meta.checksum_interval;
+                    Some(actions::Sync::read_from(&mut self.input).map(Action::Sync))
+                } else {
+                    Some(Err(SyncError::UnexpectedSync(self.remaining_syncs_until_checksum).into()))
+                }
+            }
             Ok(0x01) => Some(actions::Command::read_from(&mut self.input).map(Action::Command)),
             Ok(0x02) => {
-                self.remaining_syncs_until_checksum -= 1;
-                let includes_checksum = self.remaining_syncs_until_checksum == 0;
-                if includes_checksum {
-                    self.remaining_syncs_until_checksum = self.meta.checksum_interval;
+                match self.remaining_syncs_until_checksum.checked_sub(1) {
+                    Some(n) => self.remaining_syncs_until_checksum = n,
+                    None => return Some(Err(SyncError::ExpectedSync.into())),
                 }
-                Some(
-                    actions::Sync::read_from(
-                        &mut self.input,
-                        self.meta.use_sequence_numbers,
-                        includes_checksum,
-                    )
-                    .map(Action::Sync),
-                )
+                Some(actions::Time::read_from(&mut self.input).map(Action::Time))
             }
             Ok(0x03) => Some(actions::ViewLock::read_from(&mut self.input).map(Action::ViewLock)),
             Ok(0x04) => Some(actions::Chat::read_from(&mut self.input).map(Action::Chat)),
