@@ -5,7 +5,7 @@ use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use genie_support::{f32_neq, read_opt_u32, ReadSkipExt, ReadStringsExt, TechID, UnitTypeID};
 use std::convert::TryInto;
-use std::io::{Read, Write};
+use std::io::{ErrorKind, Read, Write};
 
 /// A location with an X and Y coordinate.
 pub type Location2 = (f32, f32);
@@ -891,7 +891,14 @@ impl RawGameCommand {
         let var2 = input.read_i16::<LE>()?;
         let _padding = input.read_u16::<LE>()?;
         let var3 = input.read_f32::<LE>()?;
-        let var4 = input.read_u32::<LE>()?;
+        // May be omitted of the GameCommand data.
+        let var4 = input.read_u32::<LE>().or_else(|err| {
+            if err.kind() == ErrorKind::UnexpectedEof {
+                Ok(0)
+            } else {
+                Err(err)
+            }
+        })?;
         Ok(Self {
             game_command,
             var1,
