@@ -1479,6 +1479,13 @@ impl Sync {
         sync.checksum = input.read_u32::<LE>()?;
         sync.position_checksum = input.read_u32::<LE>()?;
         sync.action_checksum = input.read_u32::<LE>()?;
+
+        if sync.action_checksum != 0 {
+            // From happyleaves:
+            // https://github.com/happyleavesaoc/aoc-mgz/blob/30079d29a1cb448b58f83fba5f639017fbd5a2b5/mgz/body/__init__.py#L98
+            input.skip(332)?;
+        }
+
         let _always_zero = input.read_u32::<LE>()?;
         sync.next_world_time = input.read_u32::<LE>()?;
         Ok(sync)
@@ -1537,10 +1544,16 @@ impl Meta {
     /// Conquerors and all subsequent versions.
     pub fn read_from_mgx(mut input: impl Read) -> Result<Self> {
         let log_version = input.read_u32::<LE>()?;
-        assert!(matches!(log_version, 3 | 4));
+        assert!(matches!(log_version, 3 | 4 | 5));
         let mut meta = Self::read_from_inner(&mut input)?;
         meta.log_version = Some(log_version);
-        meta.num_chapters = Some(input.read_u32::<LE>()?);
+        if log_version == 5 {
+            // One of these is likely num_chapters, but not sure which.
+            let _unknown = input.read_u32::<LE>()?;
+            let _unknown = input.read_u32::<LE>()?;
+        } else {
+            meta.num_chapters = Some(input.read_u32::<LE>()?);
+        }
         Ok(meta)
     }
 }
