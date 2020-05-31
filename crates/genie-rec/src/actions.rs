@@ -1349,6 +1349,36 @@ impl BackToWorkCommand {
     }
 }
 
+/// The combined queueing and multiqueue command used in AoE2: Definitive Edition.
+#[derive(Debug, Default, Clone)]
+pub struct DE2QueueCommand {
+    pub player_id: PlayerID,
+    pub building_type_id: UnitTypeID,
+    pub unit_type_id: UnitTypeID,
+    pub amount: u8,
+    pub buildings: ObjectsList,
+}
+
+impl DE2QueueCommand {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
+        let player_id = input.read_u8()?.into();
+        let building_type_id = input.read_u16::<LE>()?.into();
+        let num_selected = input.read_i8()?;
+        let _ = input.read_u8()?;
+        let unit_type_id = input.read_u16::<LE>()?.into();
+        let amount = input.read_u8()?;
+        let _ = input.read_u8()?;
+        let buildings = ObjectsList::read_from(&mut input, num_selected as i32)?;
+        Ok(Self {
+            player_id,
+            building_type_id,
+            unit_type_id,
+            amount,
+            buildings,
+        })
+    }
+}
+
 /// A player command.
 #[derive(Debug, Clone)]
 pub enum Command {
@@ -1384,6 +1414,7 @@ pub enum Command {
     BuyResource(BuyResourceCommand),
     Unknown7F(Unknown7FCommand),
     BackToWork(BackToWorkCommand),
+    DE2Queue(DE2QueueCommand),
 }
 
 impl Command {
@@ -1434,6 +1465,7 @@ impl Command {
             0x7b => BuyResourceCommand::read_from(cursor).map(Command::BuyResource),
             0x7f => Unknown7FCommand::read_from(cursor).map(Command::Unknown7F),
             0x80 => BackToWorkCommand::read_from(cursor).map(Command::BackToWork),
+            0x81 => DE2QueueCommand::read_from(cursor).map(Command::DE2Queue),
             id => panic!("unsupported command type {:#x}", id),
         };
 
