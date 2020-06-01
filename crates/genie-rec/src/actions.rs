@@ -1389,53 +1389,45 @@ pub enum Command {
 impl Command {
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let len = input.read_u32::<LE>()?;
-        let mut small_buffer;
-        let mut big_buffer;
-        let buffer: &mut [u8] = if len < 512 {
-            small_buffer = [0; 512];
-            &mut small_buffer[0..len as usize]
-        } else {
-            big_buffer = vec![0; len as usize];
-            &mut big_buffer
-        };
 
-        input.read_exact(buffer)?;
-        let mut cursor = std::io::Cursor::new(buffer);
+        let mut cursor = input.by_ref().take(len.into());
         let command = match cursor.read_u8()? {
-            0x00 => OrderCommand::read_from(cursor).map(Command::Order),
-            0x01 => StopCommand::read_from(cursor).map(Command::Stop),
-            0x02 => WorkCommand::read_from(cursor).map(Command::Work),
-            0x03 => MoveCommand::read_from(cursor).map(Command::Move),
-            0x04 => CreateCommand::read_from(cursor).map(Command::Create),
-            0x05 => AddResourceCommand::read_from(cursor).map(Command::AddResource),
-            0x0a => AIOrderCommand::read_from(cursor).map(Command::AIOrder),
-            0x0b => ResignCommand::read_from(cursor).map(Command::Resign),
-            0x10 => GroupWaypointCommand::read_from(cursor).map(Command::GroupWaypoint),
-            0x12 => UnitAIStateCommand::read_from(cursor).map(Command::UnitAIState),
-            0x13 => GuardCommand::read_from(cursor).map(Command::Guard),
-            0x14 => FollowCommand::read_from(cursor).map(Command::Follow),
-            0x15 => PatrolCommand::read_from(cursor).map(Command::Patrol),
-            0x17 => FormFormationCommand::read_from(cursor).map(Command::FormFormation),
-            0x35 => UserPatchAICommand::read_from(cursor, len).map(Command::UserPatchAI),
-            0x64 => MakeCommand::read_from(cursor).map(Command::Make),
-            0x65 => ResearchCommand::read_from(cursor).map(Command::Research),
-            0x66 => BuildCommand::read_from(cursor).map(Command::Build),
-            0x67 => GameCommand::read_from(cursor).map(Command::Game),
-            0x69 => BuildWallCommand::read_from(cursor).map(Command::BuildWall),
-            0x6a => CancelBuildCommand::read_from(cursor).map(Command::CancelBuild),
-            0x6b => AttackGroundCommand::read_from(cursor).map(Command::AttackGround),
-            0x6e => RepairCommand::read_from(cursor).map(Command::Repair),
-            0x6f => UngarrisonCommand::read_from(cursor).map(Command::Ungarrison),
-            0x73 => FlareCommand::read_from(cursor).map(Command::Flare),
-            0x75 => UnitOrderCommand::read_from(cursor).map(Command::UnitOrder),
-            0x77 => QueueCommand::read_from(cursor).map(Command::Queue),
-            0x78 => SetGatherPointCommand::read_from(cursor).map(Command::SetGatherPoint),
-            0x7a => SellResourceCommand::read_from(cursor).map(Command::SellResource),
-            0x7b => BuyResourceCommand::read_from(cursor).map(Command::BuyResource),
-            0x7f => Unknown7FCommand::read_from(cursor).map(Command::Unknown7F),
-            0x80 => BackToWorkCommand::read_from(cursor).map(Command::BackToWork),
+            0x00 => OrderCommand::read_from(&mut cursor).map(Command::Order),
+            0x01 => StopCommand::read_from(&mut cursor).map(Command::Stop),
+            0x02 => WorkCommand::read_from(&mut cursor).map(Command::Work),
+            0x03 => MoveCommand::read_from(&mut cursor).map(Command::Move),
+            0x04 => CreateCommand::read_from(&mut cursor).map(Command::Create),
+            0x05 => AddResourceCommand::read_from(&mut cursor).map(Command::AddResource),
+            0x0a => AIOrderCommand::read_from(&mut cursor).map(Command::AIOrder),
+            0x0b => ResignCommand::read_from(&mut cursor).map(Command::Resign),
+            0x10 => GroupWaypointCommand::read_from(&mut cursor).map(Command::GroupWaypoint),
+            0x12 => UnitAIStateCommand::read_from(&mut cursor).map(Command::UnitAIState),
+            0x13 => GuardCommand::read_from(&mut cursor).map(Command::Guard),
+            0x14 => FollowCommand::read_from(&mut cursor).map(Command::Follow),
+            0x15 => PatrolCommand::read_from(&mut cursor).map(Command::Patrol),
+            0x17 => FormFormationCommand::read_from(&mut cursor).map(Command::FormFormation),
+            0x35 => UserPatchAICommand::read_from(&mut cursor, len).map(Command::UserPatchAI),
+            0x64 => MakeCommand::read_from(&mut cursor).map(Command::Make),
+            0x65 => ResearchCommand::read_from(&mut cursor).map(Command::Research),
+            0x66 => BuildCommand::read_from(&mut cursor).map(Command::Build),
+            0x67 => GameCommand::read_from(&mut cursor).map(Command::Game),
+            0x69 => BuildWallCommand::read_from(&mut cursor).map(Command::BuildWall),
+            0x6a => CancelBuildCommand::read_from(&mut cursor).map(Command::CancelBuild),
+            0x6b => AttackGroundCommand::read_from(&mut cursor).map(Command::AttackGround),
+            0x6e => RepairCommand::read_from(&mut cursor).map(Command::Repair),
+            0x6f => UngarrisonCommand::read_from(&mut cursor).map(Command::Ungarrison),
+            0x73 => FlareCommand::read_from(&mut cursor).map(Command::Flare),
+            0x75 => UnitOrderCommand::read_from(&mut cursor).map(Command::UnitOrder),
+            0x77 => QueueCommand::read_from(&mut cursor).map(Command::Queue),
+            0x78 => SetGatherPointCommand::read_from(&mut cursor).map(Command::SetGatherPoint),
+            0x7a => SellResourceCommand::read_from(&mut cursor).map(Command::SellResource),
+            0x7b => BuyResourceCommand::read_from(&mut cursor).map(Command::BuyResource),
+            0x7f => Unknown7FCommand::read_from(&mut cursor).map(Command::Unknown7F),
+            0x80 => BackToWorkCommand::read_from(&mut cursor).map(Command::BackToWork),
             id => panic!("unsupported command type {:#x}", id),
         };
+        // Consume any excess bytes.
+        std::io::copy(&mut cursor, &mut std::io::sink())?;
 
         let _world_time = input.read_u32::<LE>()?;
         command
