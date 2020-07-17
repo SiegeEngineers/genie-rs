@@ -33,8 +33,8 @@
 #![deny(nonstandard_style)]
 #![deny(rust_2018_idioms)]
 #![deny(unsafe_code)]
-#![warn(missing_docs)]
 #![warn(unused)]
+#![allow(missing_docs)]
 
 use nom::bytes::complete::tag;
 use nom::character::complete::{digit1, one_of};

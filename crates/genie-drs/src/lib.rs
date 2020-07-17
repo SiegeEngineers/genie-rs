@@ -26,8 +26,8 @@
 #![deny(nonstandard_style)]
 #![deny(rust_2018_idioms)]
 #![deny(unsafe_code)]
-#![warn(missing_docs)]
 #![warn(unused)]
+#![allow(missing_docs)]
 
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use sorted_vec::SortedVec;

@@ -105,8 +105,8 @@
 #![deny(nonstandard_style)]
 #![deny(rust_2018_idioms)]
 #![deny(unsafe_code)]
-#![warn(missing_docs)]
 #![warn(unused)]
+#![allow(missing_docs)]
 
 use byteorder::{ReadBytesExt, LE};
 use encoding_rs::{UTF_16LE, WINDOWS_1252};
