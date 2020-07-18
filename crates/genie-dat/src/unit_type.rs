@@ -661,14 +661,14 @@ pub struct AnimatedUnitTypeAttributes {
 }
 
 impl AnimatedUnitTypeAttributes {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, _version: f32) -> Result<Self> {
         Ok(Self {
             speed: input.read_f32::<LE>()?,
         })
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write, _version: f32) -> Result<()> {
         output.write_f32::<LE>(self.speed)?;
         Ok(())
     }
@@ -692,7 +692,7 @@ pub struct MovingUnitTypeAttributes {
 }
 
 impl MovingUnitTypeAttributes {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, _version: f32) -> Result<Self> {
         let mut attrs = Self::default();
         attrs.move_sprite = read_opt_u16(&mut input)?;
         attrs.run_sprite = read_opt_u16(&mut input)?;
@@ -711,7 +711,7 @@ impl MovingUnitTypeAttributes {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write, _version: f32) -> Result<()> {
         output.write_i16::<LE>(
             self.move_sprite
                 .map(|id| id.try_into().unwrap())
@@ -758,7 +758,7 @@ pub struct ActionUnitTypeAttributes {
 }
 
 impl ActionUnitTypeAttributes {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, _version: f32) -> Result<Self> {
         let mut attrs = Self::default();
         attrs.default_task = read_opt_u16(&mut input)?;
         attrs.search_radius = input.read_f32::<LE>()?;
@@ -773,7 +773,7 @@ impl ActionUnitTypeAttributes {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write, _version: f32) -> Result<()> {
         output.write_i16::<LE>(
             self.default_task
                 .map(|id| id.try_into().unwrap())
@@ -941,7 +941,7 @@ pub struct MissileUnitTypeAttributes {
 
 impl MissileUnitTypeAttributes {
     /// Read this unit type from an input stream.
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, _version: f32) -> Result<Self> {
         let mut attrs = Self::default();
         attrs.missile_type = input.read_u8()?;
         attrs.targetting_type = input.read_u8()?;
@@ -953,7 +953,7 @@ impl MissileUnitTypeAttributes {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write, _version: f32) -> Result<()> {
         output.write_u8(self.missile_type)?;
         output.write_u8(self.targetting_type)?;
         output.write_u8(self.missile_hit_info)?;
@@ -1025,7 +1025,7 @@ pub struct CombatUnitTypeAttributes {
 
 impl CombatUnitTypeAttributes {
     /// Read this unit type from an input stream.
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, _version: f32) -> Result<Self> {
         let mut attrs = Self::default();
         for _ in 0..3 {
             let attr = AttributeCost::read_from(&mut input)?;
@@ -1060,7 +1060,7 @@ impl CombatUnitTypeAttributes {
     }
 
     /// Write this unit type to an output stream.
-    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+    pub fn write_to(&self, mut output: impl Write, _version: f32) -> Result<()> {
         for i in 0..3 {
             match self.costs.get(i) {
                 Some(cost) => cost.write_to(&mut output)?,
