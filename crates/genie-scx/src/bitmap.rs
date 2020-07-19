@@ -48,6 +48,7 @@ impl BitmapInfo {
         Ok(bitmap)
     }
 
+    #[allow(unused)]
     pub fn write_to(&self, mut output: impl Write) -> Result<()> {
         assert_eq!(self.colors.len(), 256);
 
@@ -109,6 +110,7 @@ impl Bitmap {
         }
     }
 
+    #[allow(unused)]
     pub fn write_to(&self, mut output: impl Write) -> Result<()> {
         output.write_u32::<LE>(self.own_memory)?;
         output.write_u32::<LE>(self.width)?;
@@ -119,6 +121,7 @@ impl Bitmap {
         Ok(())
     }
 
+    #[allow(unused)]
     pub fn write_empty(mut output: impl Write) -> Result<()> {
         output.write_u32::<LE>(0)?;
         output.write_u32::<LE>(0)?;

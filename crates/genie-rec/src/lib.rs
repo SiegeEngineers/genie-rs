@@ -170,7 +170,6 @@ where
     R: BufRead,
 {
     input: R,
-    version: f32,
     meta: Meta,
     remaining_syncs_until_checksum: u32,
 }
@@ -179,8 +178,8 @@ impl<R> BodyActions<R>
 where
     R: BufRead,
 {
-    pub fn new(mut input: R, version: f32) -> Result<Self> {
-        let meta = if version >= 11.76 {
+    pub fn new(mut input: R, data_version: f32) -> Result<Self> {
+        let meta = if data_version >= 11.76 {
             Meta::read_from_mgx(&mut input)?
         } else {
             Meta::read_from_mgl(&mut input)?
@@ -188,7 +187,6 @@ where
         let remaining_syncs_until_checksum = meta.checksum_interval;
         Ok(Self {
             input,
-            version,
             meta,
             remaining_syncs_until_checksum,
         })
@@ -362,7 +360,9 @@ where
     /// Size of the compressed header.
     header_end: u64,
     /// Offset of the next header, for saved chapters.
+    #[allow(unused)]
     next_header: Option<u64>,
+    #[allow(unused)]
     game_version: GameVersion,
     save_version: f32,
 }

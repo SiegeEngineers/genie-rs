@@ -489,11 +489,7 @@ impl TerrainBorder {
         }
         output.write_i8(self.draw_tile)?;
         output.write_u8(0)?; // padding
-        output.write_i16::<LE>(
-            self.underlay_terrain
-                .map(|id| id.try_into().unwrap())
-                .unwrap_or(-1),
-        )?;
+        output.write_i16::<LE>(self.underlay_terrain.unwrap_or(-1))?;
         output.write_i16::<LE>(self.border_style)?;
         Ok(())
     }

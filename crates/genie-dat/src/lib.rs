@@ -207,7 +207,6 @@ impl DatFile {
         // Two lists of pointers
         input.skip(4 * u64::from(num_terrain_tables) + 4 * u64::from(num_terrain_tables))?;
 
-        #[must_use]
         fn read_array<T>(num: usize, mut read: impl FnMut() -> Result<T>) -> Result<Vec<T>> {
             let mut list = vec![];
             for _ in 0..num {

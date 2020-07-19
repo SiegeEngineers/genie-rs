@@ -157,7 +157,7 @@ impl TechTreeDependency {
 
     fn raw_id(&self) -> i32 {
         match *self {
-            Self::Age(id) => id.into(),
+            Self::Age(id) => id,
             Self::Building(id) => id.into(),
             Self::Unit(id) => id.into(),
             Self::Research(id) => {
@@ -355,9 +355,7 @@ impl TechTreeDependencies {
         for (&id, &ty) in ids.iter().zip(types.iter()).take(num as usize) {
             let dep_type: TechTreeDependencyType = ty.try_into().map_err(invalid_data)?;
             deps.0.push(match dep_type {
-                TechTreeDependencyType::Age => {
-                    TechTreeDependency::Age(id.try_into().map_err(invalid_data)?)
-                }
+                TechTreeDependencyType::Age => TechTreeDependency::Age(id),
                 TechTreeDependencyType::Building => {
                     TechTreeDependency::Building(id.try_into().map_err(invalid_data)?)
                 }

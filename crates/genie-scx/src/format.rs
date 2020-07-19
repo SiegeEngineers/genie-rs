@@ -589,14 +589,16 @@ impl TribeScen {
                 *name = input.read_str(256)?;
             }
 
-            for i in 0..16 {
-                let properties = &mut base.player_base_properties[i];
+            for (properties, start_resources) in base
+                .player_base_properties
+                .iter_mut()
+                .zip(player_start_resources.iter_mut())
+            {
                 properties.active = input.read_i32::<LE>()?;
-                let resources = PlayerStartResources::read_from(&mut input, version)?;
+                *start_resources = PlayerStartResources::read_from(&mut input, version)?;
                 properties.player_type = input.read_i32::<LE>()?;
                 properties.civilization = input.read_i32::<LE>()?;
                 properties.posture = input.read_i32::<LE>()?;
-                player_start_resources[i] = resources;
             }
         } else {
             for resources in player_start_resources.iter_mut() {
@@ -778,10 +780,7 @@ impl TribeScen {
             match input.read_i32::<LE>()? {
                 // HD Edition uses -2 instead of -1?
                 -2 | -1 => None,
-                id => Some(
-                    id.try_into()
-                        .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, err))?,
-                ),
+                id => Some(id),
             }
         } else {
             None
@@ -1096,8 +1095,7 @@ impl TribeScen {
     }
 
     pub fn description(&self) -> Option<&str> {
-        // Convert String to &str: https://stackoverflow.com/a/31234028
-        self.base.description.as_ref().map(|s| &**s)
+        self.base.description.as_deref()
     }
 }
 
@@ -1114,11 +1112,11 @@ pub struct SCXFormat {
     /// Map data.
     pub(crate) map: Map,
     /// Player data.
-    world_players: Vec<WorldPlayerData>,
+    pub(crate) world_players: Vec<WorldPlayerData>,
     /// Objects data.
     pub(crate) player_objects: Vec<Vec<ScenarioObject>>,
     /// Player data.
-    scenario_players: Vec<ScenarioPlayerData>,
+    pub(crate) scenario_players: Vec<ScenarioPlayerData>,
     /// Triggers (only in AoK and up).
     pub(crate) triggers: Option<TriggerSystem>,
     /// AI information (AoK and up).
@@ -1323,9 +1321,7 @@ impl SCXFormat {
     ///
     /// Returns None if no mod was used.
     pub fn mod_name(&self) -> Option<&str> {
-        self.tribe_scen.base.player_names[9]
-            .as_ref()
-            .map(|string| string.as_str())
+        self.tribe_scen.base.player_names[9].as_deref()
     }
 
     /// Hash the scenario, for comparison with other instances.

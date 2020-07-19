@@ -30,6 +30,7 @@ pub use genie_support::{DecodeStringError, EncodeStringError};
 pub use genie_support::{StringKey, UnitTypeID};
 pub use header::{DLCOptions, SCXHeader};
 pub use map::{Map, Tile};
+pub use player::{ScenarioPlayerData, WorldPlayerData};
 pub use triggers::{Trigger, TriggerCondition, TriggerEffect, TriggerSystem};
 pub use types::*;
 pub use victory::{VictoryConditions, VictoryEntry, VictoryPointEntry, VictoryState};
@@ -225,6 +226,14 @@ impl Scenario {
             .iter_mut()
             .map(|list| list.iter_mut())
             .flatten()
+    }
+
+    pub fn world_players(&self) -> &[WorldPlayerData] {
+        &self.format.world_players
+    }
+
+    pub fn scenario_players(&self) -> &[ScenarioPlayerData] {
+        &self.format.scenario_players
     }
 
     /// Get the map/terrain data for this scenario.

@@ -15,7 +15,6 @@ pub enum WriteCampaignError {
     NotFoundError(usize),
 }
 
-#[must_use]
 fn write_variable_str<W: Write>(output: &mut W, value: &str) -> io::Result<()> {
     output.write_u16::<LE>(0x0A60)?;
     let len = value.as_bytes().len();

@@ -162,7 +162,7 @@ pub trait ReadStringsExt: Read {
         let open = self.read_u16::<LE>()?;
         // Check that this actually is the start of a string
         if open != 0x0A60 {
-            Err(DecodeStringError)?;
+            return Err(DecodeStringError.into());
         }
         let len = self.read_u16::<LE>()? as usize;
         let mut bytes = vec![0; len];

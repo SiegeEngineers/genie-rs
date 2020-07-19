@@ -1128,8 +1128,8 @@ impl HotkeyInfo {
             for hotkey in group.iter() {
                 bindings
                     .entry(hotkey.key)
-                    .or_insert_with(|| vec![])
-                    .push(hotkey.clone());
+                    .or_insert_with(Vec::new)
+                    .push(*hotkey);
             }
         }
         bindings
