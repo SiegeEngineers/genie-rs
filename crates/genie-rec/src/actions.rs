@@ -1258,8 +1258,24 @@ impl SetGatherPointCommand {
         Ok(command)
     }
 
-    pub fn write_to<W: Write>(&self, _output: &mut W) -> Result<()> {
-        todo!()
+    pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
+        output.write_u8(self.buildings.len().try_into().unwrap())?;
+        output.write_all(&[0, 0])?;
+        output.write_u32::<LE>(self.target_id.map(|id| id.into()).unwrap_or(0xFFFF_FFFF))?;
+        output.write_u16::<LE>(self.target_type_id.map(|id| id.into()).unwrap_or(0xFFFF))?;
+        output.write_all(&[0, 0])?;
+        match self.location {
+            Some((x, y)) => {
+                output.write_f32::<LE>(x)?;
+                output.write_f32::<LE>(y)?;
+            }
+            None => {
+                output.write_f32::<LE>(0.0)?;
+                output.write_f32::<LE>(0.0)?;
+            }
+        }
+        self.buildings.write_to(output)?;
+        Ok(())
     }
 }
 
