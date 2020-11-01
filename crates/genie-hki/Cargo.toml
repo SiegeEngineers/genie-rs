@@ -10,10 +10,10 @@ repository = "https://github.com/SiegeEngineers/genie-rs"
 exclude = ["test/files"]
 
 [dependencies]
-byteorder = "^1.3.1"
-flate2 = "^1.0.0"
+byteorder = "1.3.4"
+flate2 = "1.0.18"
 genie-lang = { version = "^0.2.0", path = "../genie-lang" }
-thiserror = "1.0.13"
+thiserror = "1.0.21"
 
 [dev-dependencies]
-anyhow = "1.0.27"
+anyhow = "1.0.33"
