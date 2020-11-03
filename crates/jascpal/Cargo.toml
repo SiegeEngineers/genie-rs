@@ -9,9 +9,9 @@ homepage = "https://github.com/SiegeEngineers/genie-rs"
 repository = "https://github.com/SiegeEngineers/genie-rs"
 
 [dependencies]
-nom = { version = "^5.0.0", default-features = false, features = ["std"] }
-rgb = "^0.8.13"
-thiserror = "1.0.13"
+nom = { version = "6.0.0", default-features = false, features = ["std"] }
+rgb = "0.8.25"
+thiserror = "1.0.21"
 
 [dev-dependencies]
-anyhow = "1.0.27"
+anyhow = "1.0.33"
