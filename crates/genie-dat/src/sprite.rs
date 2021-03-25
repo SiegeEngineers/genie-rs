@@ -53,7 +53,7 @@ pub struct SoundProp {
 
 #[derive(Debug, Default, Clone)]
 pub struct SpriteAttackSound {
-    pub sound_props: ArrayVec<[SoundProp; 3]>,
+    pub sound_props: ArrayVec<SoundProp, 3>,
 }
 
 #[derive(Debug, Default, Clone)]

@@ -1045,7 +1045,7 @@ pub struct BuildingUnitAttributes {
     /// Center.
     pub linked_owner: Option<ObjectID>,
     /// The IDs of the children of this building object, also known as "annex buildings".
-    pub linked_children: ArrayVec<[ObjectID; 4]>,
+    pub linked_children: ArrayVec<ObjectID, 4>,
     pub captured_unit_count: u8,
     pub extra_actions: Vec<UnitAction>,
     pub research_actions: Vec<UnitAction>,
@@ -1102,7 +1102,7 @@ impl BuildingUnitAttributes {
         }
         attrs.linked_owner = read_opt_u32(&mut input)?;
         attrs.linked_children = {
-            let mut children: ArrayVec<[ObjectID; 4]> = Default::default();
+            let mut children: ArrayVec<ObjectID, 4> = Default::default();
             for _ in 0..4 {
                 let id = input.read_i32::<LE>()?;
                 if id != -1 {

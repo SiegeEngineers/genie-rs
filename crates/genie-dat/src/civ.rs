@@ -51,7 +51,7 @@ fallible_try_from!(CivilizationID, u16);
 fallible_try_from!(CivilizationID, i32);
 fallible_try_from!(CivilizationID, u32);
 
-type CivName = ArrayString<[u8; 20]>;
+type CivName = ArrayString<20>;
 
 /// Information about a civilization.
 #[derive(Debug, Default, Clone)]

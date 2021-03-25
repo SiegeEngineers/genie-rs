@@ -570,7 +570,7 @@ impl FollowCommand {
 #[derive(Debug, Default, Clone)]
 pub struct PatrolCommand {
     /// The waypoints that this patrol should pass through.
-    pub waypoints: ArrayVec<[Location2; 10]>,
+    pub waypoints: ArrayVec<Location2, 10>,
     /// The objects to include in this formation.
     pub objects: ObjectsList,
 }
@@ -664,7 +664,7 @@ pub struct UserPatchAICommand {
     /// 14: unload object
     /// 15: nothing?
     pub ai_action: u8,
-    pub params: ArrayVec<[u32; 4]>,
+    pub params: ArrayVec<u32, 4>,
 }
 
 impl UserPatchAICommand {
@@ -678,7 +678,7 @@ impl UserPatchAICommand {
         let ai_action = input.read_u8()?;
         let player_id = input.read_u8()?.into();
         let _padding = input.read_u8()?;
-        let mut params: ArrayVec<[u32; 4]> = Default::default();
+        let mut params: ArrayVec<u32, 4> = Default::default();
         for _ in 0..num_params {
             params.push(input.read_u32::<LE>()?);
         }

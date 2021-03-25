@@ -418,7 +418,7 @@ pub struct StaticUnitTypeAttributes {
     pub civilization: u8,
     pub attribute_piece: u8,
     pub outline_radius: (f32, f32, f32),
-    pub attributes: ArrayVec<[UnitAttribute; 3]>,
+    pub attributes: ArrayVec<UnitAttribute, 3>,
     pub damage_sprites: Vec<DamageSprite>,
     pub selected_sound: Option<SoundID>,
     pub death_sound: Option<SoundID>,
@@ -999,7 +999,7 @@ impl AttributeCost {
 #[derive(Debug, Default, Clone)]
 pub struct CombatUnitTypeAttributes {
     /// The costs of creating a unit of this type.
-    pub costs: ArrayVec<[AttributeCost; 3]>,
+    pub costs: ArrayVec<AttributeCost, 3>,
     pub create_time: u16,
     /// Unit type ID of the building or unit where this unit can be created.
     pub create_at_building: Option<UnitTypeID>,
@@ -1153,7 +1153,7 @@ pub struct BuildingUnitTypeAttributes {
     ///
     /// TODO document the details
     pub can_burn: bool,
-    pub linked_buildings: ArrayVec<[LinkedBuilding; 4]>,
+    pub linked_buildings: ArrayVec<LinkedBuilding, 4>,
     pub construction_unit: Option<UnitTypeID>,
     pub transform_unit: Option<UnitTypeID>,
     pub transform_sound: Option<SoundID>,
@@ -1162,7 +1162,7 @@ pub struct BuildingUnitTypeAttributes {
     pub garrison_heal_rate: f32,
     pub garrison_repair_rate: f32,
     pub salvage_unit: Option<UnitTypeID>,
-    pub salvage_attributes: ArrayVec<[i8; 6]>,
+    pub salvage_attributes: ArrayVec<i8, 6>,
 }
 
 impl BuildingUnitTypeAttributes {

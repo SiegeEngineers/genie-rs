@@ -45,7 +45,7 @@ infallible_try_into!(TerrainID, u32);
 fallible_try_from!(TerrainID, i32);
 fallible_try_from!(TerrainID, u32);
 
-type TerrainName = ArrayString<[u8; 13]>;
+type TerrainName = ArrayString<13>;
 
 #[derive(Debug, Default, Clone)]
 pub struct TerrainPassGraphic {
