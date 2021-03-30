@@ -53,7 +53,7 @@ pub struct Sound {
 #[derive(Debug, Default, Clone)]
 pub struct SoundItem {
     /// Internal file name for this sound file.
-    pub filename: ArrayString<[u8; 13]>,
+    pub filename: ArrayString<13>,
     /// DRS file ID for this sound file.
     pub resource_id: i32,
     /// The probability out of 100% that this file will be used for any given playback.

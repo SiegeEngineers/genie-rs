@@ -266,7 +266,7 @@ impl MissileUnitAttributes {
 
 #[derive(Debug, Default, Clone)]
 pub struct CombatUnitAttributes {
-    pub costs: ArrayVec<[AttributeCost; 3]>,
+    pub costs: ArrayVec<AttributeCost, 3>,
     pub create_time: u16,
     pub original_pierce_armor: Option<u16>,
     pub original_armor: Option<u16>,

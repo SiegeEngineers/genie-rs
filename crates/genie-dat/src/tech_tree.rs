@@ -201,7 +201,7 @@ impl Into<i32> for TechTreeDependencyType {
 }
 
 #[derive(Debug, Default, Clone)]
-pub struct TechTreeDependencies(ArrayVec<[TechTreeDependency; 10]>);
+pub struct TechTreeDependencies(ArrayVec<TechTreeDependency, 10>);
 
 #[derive(Debug, Default, Clone)]
 pub struct TechTreeAge {

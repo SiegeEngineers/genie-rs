@@ -16,7 +16,7 @@ pub struct EffectCommand {
     pub params: (i16, i16, i16, f32),
 }
 
-type TechEffectName = ArrayString<[u8; 31]>;
+type TechEffectName = ArrayString<31>;
 
 /// A tech effect is a group of attribute changes that are applied when the effect is triggered.
 #[derive(Debug, Default, Clone)]
@@ -36,8 +36,8 @@ pub struct TechEffectRef {
 
 #[derive(Debug, Default, Clone)]
 pub struct Tech {
-    required_techs: ArrayVec<[TechID; 6]>,
-    effects: ArrayVec<[TechEffectRef; 3]>,
+    required_techs: ArrayVec<TechID, 6>,
+    effects: ArrayVec<TechEffectRef, 3>,
     civilization_id: Option<CivilizationID>,
     full_tech_mode: u16,
     location: Option<UnitTypeID>,

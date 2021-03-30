@@ -4,7 +4,9 @@ use genie_support::{write_i32_str, DecodeStringError, ReadStringError, ReadStrin
 use std::convert::TryFrom;
 use std::io::{Read, Write};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, num_enum::IntoPrimitive, num_enum::TryFromPrimitive)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, num_enum::IntoPrimitive, num_enum::TryFromPrimitive,
+)]
 #[repr(u32)]
 pub enum AIErrorCode {
     ///
