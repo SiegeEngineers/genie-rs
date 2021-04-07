@@ -14,7 +14,13 @@ fn main() {
         .unwrap_or(LevelFilter::Warn);
     let infile = std::env::args().nth(1).expect("usage: inspectscx <input>");
 
-    TermLogger::init(log_level, Default::default(), TerminalMode::Mixed, ColorChoice::Auto).unwrap();
+    TermLogger::init(
+        log_level,
+        Default::default(),
+        TerminalMode::Mixed,
+        ColorChoice::Auto,
+    )
+    .unwrap();
 
     let f = File::open(infile).expect("could not read file");
     let scen = Scenario::read_from(f).expect("invalid scenario file");
