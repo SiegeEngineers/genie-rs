@@ -29,10 +29,11 @@ pub mod unit_action;
 pub mod unit_type;
 
 use crate::actions::{Action, Meta};
+use crate::Difficulty::{Easiest, Extreme, Hard, Hardest, Moderate, Standard};
 use byteorder::{ReadBytesExt, LE};
 use flate2::bufread::DeflateDecoder;
 use genie_scx::DLCOptions;
-use genie_support::{fallible_try_from, fallible_try_into, infallible_try_into};
+use genie_support::{fallible_try_from, fallible_try_into, infallible_try_into, Tracker};
 pub use header::Header;
 use std::fmt::{self, Debug, Display};
 use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom};
@@ -150,6 +151,18 @@ pub enum Error {
     DecodeStringError(#[from] genie_support::DecodeStringError),
     #[error("Could not read embedded scenario data: {0}")]
     ReadScenarioError(#[from] genie_scx::Error),
+    #[error("Failed to parse DE JSON chat message: {0}")]
+    DEChatMessageJsonError(#[from] serde_json::Error),
+    #[error(
+        "Failed to parse DE JSON chat message, JSON is missing the key {0}, or value is invalid"
+    )]
+    ParseDEChatMessageError(&'static str),
+    #[error(
+    "Failed to find static marker in recording (expected {1}, found {2}, version {0}, {3}:{4}, found next {1} {5} bytes further)"
+    )]
+    MissingMarker(f32, u128, u128, &'static str, u32, u64),
+    #[error("Failed parsing header at position {0}: {1}")]
+    HeaderError(u64, Box<Error>),
 }
 
 impl From<genie_support::ReadStringError> for Error {
@@ -169,6 +182,7 @@ pub struct BodyActions<R>
 where
     R: BufRead,
 {
+    data_version: f32,
     input: R,
     meta: Meta,
     remaining_syncs_until_checksum: u32,
@@ -186,6 +200,7 @@ where
         };
         let remaining_syncs_until_checksum = meta.checksum_interval;
         Ok(Self {
+            data_version,
             input,
             meta,
             remaining_syncs_until_checksum,
@@ -227,6 +242,17 @@ where
             }
             Ok(0x03) => Some(actions::ViewLock::read_from(&mut self.input).map(Action::ViewLock)),
             Ok(0x04) => Some(actions::Chat::read_from(&mut self.input).map(Action::Chat)),
+            // I think that's the cut off point for AoE2:DE? might be wrong
+            // AoE2:DE however uses the op field as length field
+            Ok(length) if self.data_version >= 20.0 => {
+                let mut buffer = vec![0u8; length as usize];
+                match self.input.read_exact(&mut buffer) {
+                    Ok(_) => {
+                        Some(actions::EmbeddedAction::from_buffer(buffer).map(Action::Embedded))
+                    }
+                    Err(err) => Some(Err(err.into())),
+                }
+            }
             Ok(id) => panic!("unsupported action type {:#x}", id),
             Err(err) if err.kind() == io::ErrorKind::UnexpectedEof => None,
             Err(err) => Some(Err(err.into())),
@@ -237,12 +263,34 @@ where
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Difficulty {
     Easiest,
+    // ???
     Easy,
     Standard,
+    Moderate,
     Hard,
     Hardest,
     /// Age of Empires 2: Definitive Edition only.
     Extreme,
+}
+
+impl From<u32> for Difficulty {
+    fn from(val: u32) -> Self {
+        match val {
+            0 => Hardest,
+            1 => Hard,
+            2 => Moderate,
+            3 => Standard,
+            4 => Easiest,
+            5 => Extreme,
+            _ => unimplemented!("Don't know any difficulty with value {}", val),
+        }
+    }
+}
+
+impl Default for Difficulty {
+    fn default() -> Self {
+        Difficulty::Standard
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -373,6 +421,7 @@ where
 {
     pub fn new(mut input: R) -> Result<Self> {
         let file_size = {
+            input.seek(SeekFrom::Start(0))?;
             let size = input.seek(SeekFrom::End(0))?;
             input.seek(SeekFrom::Start(0))?;
             size
@@ -414,18 +463,40 @@ where
         Ok(())
     }
 
+    pub fn get_header_data(&mut self) -> Result<Vec<u8>> {
+        let mut header = vec![];
+        let mut deflate = self.get_header_deflate()?;
+        deflate.read_to_end(&mut header)?;
+        Ok(header)
+    }
+
     fn seek_to_body(&mut self) -> Result<()> {
         self.inner.seek(SeekFrom::Start(self.header_end))?;
 
         Ok(())
     }
 
-    pub fn header(&mut self) -> Result<Header> {
+    fn get_header_deflate(&mut self) -> Result<DeflateDecoder<io::Take<BufReader<&mut R>>>> {
         self.seek_to_first_header()?;
         let reader = BufReader::new(&mut self.inner).take(self.header_end - self.header_start);
-        let deflate = DeflateDecoder::new(reader);
-        let header = Header::read_from(deflate)?;
-        Ok(header)
+        Ok(DeflateDecoder::new(reader))
+    }
+
+    pub fn header(&mut self) -> Result<Header> {
+        let deflate = self.get_header_deflate()?;
+        let mut tracker = Tracker::new(deflate);
+        Header::read_from(&mut tracker).map_err(|err| match err {
+            Error::MissingMarker(version, expected, found, filename, line, offset) => {
+                Error::HeaderError(
+                    tracker.position() - offset,
+                    Box::new(Error::MissingMarker(
+                        version, expected, found, filename, line, offset,
+                    )),
+                )
+            }
+
+            err => Error::HeaderError(tracker.position(), Box::new(err)),
+        })
     }
 
     pub fn actions(&mut self) -> Result<BodyActions<BufReader<&mut R>>> {
@@ -445,7 +516,7 @@ mod tests {
 
     #[test]
     // AI data parsing is incomplete: remove this attribute when the test starts passing
-    #[should_panic = "assertion failed"]
+    #[should_panic = "AI data cannot be fully parsed"]
     fn incomplete_up_15_rec_with_ai() {
         let f = File::open("test/rec.20181208-195117.mgz").unwrap();
         let mut r = RecordedGame::new(f).unwrap();
@@ -478,7 +549,18 @@ mod tests {
         let mut r = RecordedGame::new(f)?;
         r.header()?;
         for act in r.actions()? {
-            println!("{:?}", act?);
+            let _ = act?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn aoe2de_rec() -> anyhow::Result<()> {
+        let f = File::open("test/AgeIIDE_Replay_90889731.aoe2record")?;
+        let mut r = RecordedGame::new(f)?;
+        let _header = r.header()?;
+        for act in r.actions()? {
+            let _ = act?;
         }
         Ok(())
     }

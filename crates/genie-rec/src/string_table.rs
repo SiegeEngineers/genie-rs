@@ -42,7 +42,7 @@ impl StringTable {
 
         for string in &self.strings {
             let len = string.len();
-            assert!(len < u32::max_value() as usize);
+            assert!(len < u32::MAX as usize);
             handle.write_u32::<LE>(len as u32)?;
             handle.write_all(string.as_bytes())?;
         }
@@ -56,7 +56,7 @@ impl StringTable {
 
     pub fn num_strings(&self) -> u16 {
         let len = self.strings.len();
-        assert!(len < u16::max_value() as usize);
+        assert!(len < u16::MAX as usize);
         len as u16
     }
 

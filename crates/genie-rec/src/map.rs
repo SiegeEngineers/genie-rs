@@ -1,6 +1,6 @@
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::ReadSkipExt;
+use genie_support::{ReadSkipExt, DE_VERSION};
 use std::convert::TryInto;
 use std::io::{Read, Write};
 
@@ -18,8 +18,26 @@ pub struct Tile {
 
 impl Tile {
     /// Read a tile from an input stream.
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
         let terrain = input.read_u8()?;
+        if version >= DE_VERSION {
+            input.skip(1)?;
+            let elevation = input.read_u8()?;
+            input.skip(4)?;
+
+            // there's another DE version (12.97) that does this,
+            // but for that we need peek/seek support and I'm not rewriting all of this project rn
+            if version >= 13.03 {
+                input.skip(2)?;
+            }
+
+            return Ok(Tile {
+                terrain,
+                elevation,
+                original_terrain: None,
+            });
+        }
+
         let (terrain, elevation, original_terrain) = if terrain == 0xFF {
             (input.read_u8()?, input.read_u8()?, Some(input.read_u8()?))
         } else {
@@ -74,17 +92,22 @@ impl Default for MapZone {
 }
 
 impl MapZone {
-    pub fn read_from(mut input: impl Read, map_size: (u32, u32)) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, map_size: (u32, u32), version: f32) -> Result<Self> {
         let mut zone = Self::default();
-        input.read_i8_into(&mut zone.info)?;
-        input.read_i32_into::<LE>(&mut zone.tiles)?;
-        zone.zone_map = vec![0; (map_size.0 * map_size.1).try_into().unwrap()];
-        input.read_i8_into(&mut zone.zone_map)?;
 
+        // this changed in HD/DE, but I have no clue
+        if version > 11.93 {
+            let size: usize = (map_size.0 * map_size.1) as usize;
+            input.skip((2048 + (size * 2)) as u64)?
+        } else {
+            input.read_i8_into(&mut zone.info)?;
+            input.read_i32_into::<LE>(&mut zone.tiles)?;
+            zone.zone_map = vec![0; (map_size.0 * map_size.1) as usize];
+            input.read_i8_into(&mut zone.zone_map)?;
+        }
         let num_rules = input.read_u32::<LE>()?;
-        zone.passability_rules = vec![0.0; num_rules.try_into().unwrap()];
+        zone.passability_rules = vec![0.0; num_rules as usize];
         input.read_f32_into::<LE>(&mut zone.passability_rules)?;
-
         zone.num_zones = input.read_u32::<LE>()?;
         Ok(zone)
     }
@@ -183,21 +206,26 @@ pub struct Map {
 
 impl Map {
     /// Read map data from an input stream.
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
         let mut map = Self::default();
         map.width = input.read_u32::<LE>()?;
         map.height = input.read_u32::<LE>()?;
+        dbg!(map.width, map.height);
         let num_zones = input.read_u32::<LE>()?;
+        dbg!(num_zones);
         map.zones = Vec::with_capacity(num_zones.try_into().unwrap());
         for _ in 0..num_zones {
-            map.zones
-                .push(MapZone::read_from(&mut input, (map.width, map.height))?);
+            map.zones.push(MapZone::read_from(
+                &mut input,
+                (map.width, map.height),
+                version,
+            )?);
         }
         map.all_visible = input.read_u8()? != 0;
         map.fog_of_war = input.read_u8()? != 0;
         map.tiles = Vec::with_capacity((map.width * map.height).try_into().unwrap());
         for _ in 0..(map.width * map.height) {
-            map.tiles.push(Tile::read_from(&mut input)?);
+            map.tiles.push(Tile::read_from(&mut input, version)?);
         }
 
         let _umv = {

@@ -76,3 +76,27 @@ impl<T: Read> ReadSkipExt for T {
         Ok(())
     }
 }
+
+/// Very simple struct that tracks the position inside a `Read`
+pub struct Tracker<T> {
+    inner: T,
+    position: u64,
+}
+
+impl<T> Tracker<T> {
+    pub fn new(inner: T) -> Self {
+        Tracker { inner, position: 0 }
+    }
+
+    pub fn position(&self) -> u64 {
+        self.position
+    }
+}
+
+impl<T: Read> Read for Tracker<T> {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+        let read = self.inner.read(buf)?;
+        self.position += read as u64;
+        Ok(read)
+    }
+}

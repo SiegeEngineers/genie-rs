@@ -148,6 +148,7 @@ impl RGEScen {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let version = input.read_f32::<LE>()?;
         log::debug!("RGEScen version {}", version);
+        dbg!(version, version.to_le_bytes());
         let mut player_names = vec![None; 16];
         if version > 1.13 {
             for name in player_names.iter_mut() {
