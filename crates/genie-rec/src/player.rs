@@ -1,18 +1,21 @@
 use crate::ai::PlayerAI;
+use crate::element::{OptionalReadableElement, ReadableHeaderElement, WritableHeaderElement};
+use crate::reader::RecordingHeaderReader;
 use crate::unit::Unit;
 use crate::unit_type::CompactUnitType;
+use crate::GameVariant::DefinitiveEdition;
 use crate::{Error, ObjectID, PlayerID, Result};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use genie_dat::tech_tree::TechTree;
 use genie_dat::CivilizationID;
 use genie_scx::VictoryConditions;
 use genie_support::ReadSkipExt;
-use genie_support::{read_opt_u32, ReadStringsExt, DE_VERSION};
+use genie_support::{read_opt_u32, ReadStringsExt};
 use std::convert::TryInto;
 use std::io::{Read, Write};
 
 macro_rules! assert_marker {
-    ($version:expr, $val:expr, $marker:expr) => {
+    ($val:expr, $marker:expr) => {
         let found = $val.read_u8()?;
         if found != $marker {
             let mut skipped: u64 = 1;
@@ -23,7 +26,7 @@ macro_rules! assert_marker {
             dbg!(skipped);
 
             return Err(Error::MissingMarker(
-                $version,
+                $val.version(),
                 $marker as u128,
                 found as u128,
                 file!(),
@@ -83,16 +86,23 @@ impl Player {
         &self.name
     }
 
+    pub fn read_info<R: Read>(&mut self, input: &mut RecordingHeaderReader<R>) -> Result<()> {
+        self.victory = VictoryConditions::read_from(input, true)?;
+        Ok(())
+    }
+}
+
+impl ReadableHeaderElement for Player {
     #[allow(clippy::cognitive_complexity)]
-    pub fn read_from(mut input: impl Read, version: f32, num_players: u8) -> Result<Self> {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut player = Self::default();
 
         player.player_type = input.read_u8()?;
         dbg!(player.player_type);
-        if version >= 10.55 {
-            assert_marker!(version, input, 11);
+        if input.version() >= 10.55 {
+            assert_marker!(input, 11);
         }
-        player.relations = vec![0; usize::from(num_players)];
+        player.relations = vec![0; input.num_players() as usize];
         input.read_exact(&mut player.relations)?;
         input.read_u32_into::<LE>(&mut player.diplomacy)?;
         player.allied_los = input.read_u32::<LE>()? != 0;
@@ -100,28 +110,22 @@ impl Player {
         player.name = input
             .read_u16_length_prefixed_str()?
             .unwrap_or_else(String::new);
-        if version >= 10.55 {
-            assert_marker!(version, input, 22);
+
+        if input.version() >= 10.55 {
+            assert_marker!(input, 22);
         }
         let num_attributes = input.read_u32::<LE>()?;
-        if version >= 10.55 {
-            assert_marker!(version, input, 33);
+        if input.version() >= 10.55 {
+            assert_marker!(input, 33);
         }
         player.attributes = vec![0.0; num_attributes.try_into().unwrap()];
         input.read_f32_into::<LE>(&mut player.attributes)?;
-
-        if version >= 20.0 {
-            // full region of zeroes?
-            input.skip((num_attributes * 4) as u64)?;
-        }
-
-        dbg!(version);
-        if version >= 10.55 {
-            assert_marker!(version, input, 11);
+        if input.version() >= 10.55 {
+            assert_marker!(input, 11);
         }
 
         player.initial_view = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
-        if version >= 11.62 {
+        if input.version() >= 11.62 {
             let num_saved_views = input.read_i32::<LE>()?;
             // saved view count can be negative
             player.saved_views = vec![(0.0, 0.0); num_saved_views.try_into().unwrap_or(0)];
@@ -134,20 +138,20 @@ impl Player {
         player.civilization_id = input.read_u8()?.into();
         player.game_status = input.read_u8()?;
         player.resigned = input.read_u8()? != 0;
-        if version >= 10.55 {
+        if input.version() >= 10.55 {
             assert_eq!(input.read_u8()?, 11);
         }
         let _color = input.read_u8()?;
-        if version >= 10.55 {
+        if input.version() >= 10.55 {
             assert_eq!(input.read_u8()?, 11);
         }
         let _pathing_attempt_cap = input.read_u32::<LE>()?;
         let _pathing_delay_cap = input.read_u32::<LE>()?;
 
         // Unit counts
-        let counts = if version >= 11.65 {
+        let counts = if input.version() >= 11.65 {
             (900, 100, 900, 100)
-        } else if version >= 11.51 {
+        } else if input.version() >= 11.51 {
             (850, 100, 850, 100)
         } else {
             (750, 100, 750, 100)
@@ -175,7 +179,7 @@ impl Player {
         let _column_to_line_distance = input.read_u32::<LE>()?;
         let _auto_formations = input.read_u32::<LE>()?;
         let _formations_influence_distance = input.read_f32::<LE>()?;
-        let _break_auto_formations_by_speed = if version >= 10.81 {
+        let _break_auto_formations_by_speed = if input.version() >= 10.81 {
             input.read_f32::<LE>()?
         } else {
             0.0
@@ -202,7 +206,7 @@ impl Player {
         );
 
         // view scrolling
-        if version >= 10.51 {
+        if input.version() >= 10.51 {
             let _scroll_vector = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
             let _scroll_end = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
             let _scroll_start = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
@@ -211,14 +215,14 @@ impl Player {
         }
 
         // AI state
-        if version >= 11.45 {
+        if input.version() >= 11.45 {
             let _easiest_reaction_percent = input.read_f32::<LE>()?;
             let _easier_reaction_percent = input.read_f32::<LE>()?;
             let _task_ungrouped_soldiers = input.read_u8()? != 0;
         }
 
         // selected units
-        if version >= 11.72 {
+        if input.version() >= 11.72 {
             let num_selections = input.read_u32::<LE>()?;
             dbg!(num_selections);
             let _selection = if num_selections > 0 {
@@ -234,22 +238,22 @@ impl Player {
             };
         }
 
-        if version >= DE_VERSION {
+        if input.variant() == DefinitiveEdition {
             let mut skipped = 0;
             let mut pre_skipped = 32435;
-            if version >= 13.0 {
+            if input.version() >= 13.0 {
                 pre_skipped += 8;
             }
 
-            if version >= 13.07 {
+            if input.version() >= 13.07 {
                 pre_skipped += 1;
             }
 
-            if version >= 13.13 {
+            if input.version() >= 13.13 {
                 pre_skipped += 5;
             }
 
-            if version >= 13.34 {
+            if input.version() >= 13.34 {
                 pre_skipped += 4;
             }
 
@@ -273,9 +277,9 @@ impl Player {
             skipped -= 2;
 
             dbg!(skipped, pre_skipped, pre_skipped + skipped);
-        } else if version >= 10.55 {
-            assert_marker!(version, input, 11);
-            assert_marker!(version, input, 11);
+        } else if input.version() >= 10.55 {
+            assert_marker!(input, 11);
+            assert_marker!(input, 11);
         }
 
         let _ty = input.read_u8()?;
@@ -284,7 +288,7 @@ impl Player {
         let _update_count_need_help = input.read_u32::<LE>()?;
 
         // ai attack data
-        if version >= 10.02 {
+        if input.version() >= 10.02 {
             let _alerted_enemy_count = input.read_u32::<LE>()?;
             let _regular_attack_count = input.read_u32::<LE>()?;
             let _regular_attack_mode = input.read_u8()?;
@@ -297,26 +301,26 @@ impl Player {
         let _fog_update = input.read_u32::<LE>()?;
         let _update_time = input.read_f32::<LE>()?;
         // if is userpatch
-        if genie_support::f32_eq!(version, 11.97) {
-            player.userpatch_data = Some(UserPatchData::read_from(&mut input)?);
+        if genie_support::f32_eq!(input.version(), 11.97) {
+            player.userpatch_data = Some(UserPatchData::read_from(input)?);
         }
 
-        player.tech_state = PlayerTech::read_from(&mut input, version)?;
+        player.tech_state = PlayerTech::read_from(input)?;
 
         let _update_history_count = input.read_u32::<LE>()?;
-        player.history_info = HistoryInfo::read_from(&mut input, version)?;
+        player.history_info = HistoryInfo::read_from(input)?;
 
-        if version >= 5.30 {
+        if input.version() >= 5.30 {
             let _ruin_held_time = input.read_u32::<LE>()?;
             let _artifact_held_time = input.read_u32::<LE>()?;
         }
 
-        if version >= 10.55 {
-            assert_marker!(version, input, 11);
+        if input.version() >= 10.55 {
+            assert_marker!(input, 11);
         }
 
         // diplomacy
-        if version >= 9.13 {
+        if input.version() >= 9.13 {
             let mut diplomacy = [0; 9];
             let mut intelligence = [0; 9];
             let mut trade = [0; 9];
@@ -326,32 +330,32 @@ impl Player {
                 intelligence[i] = input.read_u8()?;
                 trade[i] = input.read_u8()?;
 
-                offer.push(DiplomacyOffer::read_from(&mut input)?);
+                offer.push(DiplomacyOffer::read_from(input)?);
             }
             let _fealty = input.read_u16::<LE>()?;
         }
 
-        if version >= 10.55 {
-            assert_marker!(version, input, 11);
+        if input.version() >= 10.55 {
+            assert_marker!(input, 11);
         }
 
         // off-map trade
-        if version >= 9.17 {
+        if input.version() >= 9.17 {
             let mut off_map_trade_route_explored = [0; 20];
             input.read_exact(&mut off_map_trade_route_explored)?;
         }
 
-        if version >= 9.18 {
+        if input.version() >= 9.18 {
             let mut off_map_trade_route_being_explored = [0; 20];
             input.read_exact(&mut off_map_trade_route_being_explored)?;
         }
 
-        if version >= 10.55 {
-            assert_marker!(version, input, 11);
+        if input.version() >= 10.55 {
+            assert_marker!(input, 11);
         }
 
         // market trading
-        if version >= 9.22 {
+        if input.version() >= 9.22 {
             let _max_trade_amount = input.read_u32::<LE>()?;
             let _old_max_trade_amount = input.read_u32::<LE>()?;
             let _max_trade_limit = input.read_u32::<LE>()?;
@@ -365,35 +369,35 @@ impl Player {
             let _trade_refresh_rate = input.read_u32::<LE>()?;
         }
 
-        let _prod_queue_enabled = if version >= 9.67 {
+        let _prod_queue_enabled = if input.version() >= 9.67 {
             input.read_u8()? != 0
         } else {
             true
         };
 
         // ai dodging ability
-        if version >= 9.90 {
+        if input.version() >= 9.90 {
             let _chance_to_dodge_missiles = input.read_u8()?;
             let _chance_for_archers_to_maintain_distance = input.read_u8()?;
         }
 
-        let _open_gates_for_pathing_count = if version >= 11.42 {
+        let _open_gates_for_pathing_count = if input.version() >= 11.42 {
             input.read_u32::<LE>()?
         } else {
             0
         };
-        let _farm_queue_count = if version >= 11.57 {
+        let _farm_queue_count = if input.version() >= 11.57 {
             input.read_u32::<LE>()?
         } else {
             0
         };
-        let _nomad_build_lock = if version >= 11.75 {
+        let _nomad_build_lock = if input.version() >= 11.75 {
             input.read_u32::<LE>()? != 0
         } else {
             false
         };
 
-        if version >= 9.30 {
+        if input.version() >= 9.30 {
             let _old_kills = input.read_u32::<LE>()?;
             let _old_razings = input.read_u32::<LE>()?;
             let _battle_mode = input.read_u32::<LE>()?;
@@ -402,43 +406,43 @@ impl Player {
             let _total_razings = input.read_u32::<LE>()?;
         }
 
-        if version >= 9.31 {
+        if input.version() >= 9.31 {
             let _old_hit_points = input.read_u32::<LE>()?;
             let _total_hit_points = input.read_u32::<LE>()?;
         }
 
-        if version >= 9.32 {
+        if input.version() >= 9.32 {
             let mut old_player_kills = [0; 9];
             input.read_u32_into::<LE>(&mut old_player_kills)?;
         }
 
-        player.tech_tree = if version >= 9.38 {
-            Some(TechTree::read_from(&mut input)?)
+        player.tech_tree = if input.version() >= 9.38 {
+            Some(TechTree::read_from(&mut *input)?)
         } else {
             None
         };
 
-        if version >= 10.55 {
-            assert_marker!(version, input, 11);
+        if input.version() >= 10.55 {
+            assert_marker!(input, 11);
         }
 
         let _player_ai = if player.player_type == 3 && input.read_u32::<LE>()? == 1 {
-            Some(PlayerAI::read_from(&mut input, version)?)
+            Some(PlayerAI::read_from(input)?)
         } else {
             None
         };
 
-        if version >= 10.55 {
-            assert_marker!(version, input, 11);
+        if input.version() >= 10.55 {
+            assert_marker!(input, 11);
         }
 
         player.gaia = if player.player_type == 2 {
-            Some(GaiaData::read_from(&mut input)?)
+            Some(GaiaData::read_from(input)?)
         } else {
             None
         };
 
-        if version >= 10.55 {
+        if input.version() >= 10.55 {
             assert_eq!(input.read_u8()?, 11);
         }
 
@@ -448,7 +452,7 @@ impl Player {
             *available = input.read_u32::<LE>()? != 0;
         }
 
-        if version >= 10.55 {
+        if input.version() >= 10.55 {
             assert_eq!(input.read_u8()?, 11);
         }
 
@@ -457,25 +461,25 @@ impl Player {
             player.unit_types.push(if !available {
                 None
             } else {
-                if version >= 10.55 {
+                if input.version() >= 10.55 {
                     assert_eq!(input.read_u8()?, 22);
                 }
-                let ty = CompactUnitType::read_from(&mut input, version)?;
-                if version >= 10.55 {
+                let ty = CompactUnitType::read_from(input)?;
+                if input.version() >= 10.55 {
                     assert_eq!(input.read_u8()?, 33);
                 }
                 Some(ty)
             });
         }
 
-        if version >= 10.55 {
+        if input.version() >= 10.55 {
             assert_eq!(input.read_u8()?, 11);
         }
 
-        player.visible_map = VisibleMap::read_from(&mut input, version)?;
-        player.visible_resources = VisibleResources::read_from(&mut input)?;
+        player.visible_map = VisibleMap::read_from(input)?;
+        player.visible_resources = VisibleResources::read_from(input)?;
 
-        if version >= 10.55 {
+        if input.version() >= 10.55 {
             assert_eq!(input.read_u8()?, 11);
         }
 
@@ -483,13 +487,13 @@ impl Player {
             let _list_size = input.read_u32::<LE>()?;
             let _grow_size = input.read_u32::<LE>()?;
             let mut units = vec![];
-            while let Some(unit) = Unit::read_from(&mut input, version)? {
+            while let Some(unit) = Unit::read_from(input)? {
                 units.push(unit);
             }
             units
         };
 
-        if version >= 10.55 {
+        if input.version() >= 10.55 {
             assert_eq!(input.read_u8()?, 11);
         }
 
@@ -497,13 +501,13 @@ impl Player {
             let _list_size = input.read_u32::<LE>()?;
             let _grow_size = input.read_u32::<LE>()?;
             let mut units = vec![];
-            while let Some(unit) = Unit::read_from(&mut input, version)? {
+            while let Some(unit) = Unit::read_from(input)? {
                 units.push(unit);
             }
             units
         };
 
-        if version >= 10.55 {
+        if input.version() >= 10.55 {
             assert_eq!(input.read_u8()?, 11);
         }
 
@@ -511,22 +515,17 @@ impl Player {
             let _list_size = input.read_u32::<LE>()?;
             let _grow_size = input.read_u32::<LE>()?;
             let mut units = vec![];
-            while let Some(unit) = Unit::read_from(&mut input, version)? {
+            while let Some(unit) = Unit::read_from(input)? {
                 units.push(unit);
             }
             units
         };
 
-        if version >= 10.55 {
+        if input.version() >= 10.55 {
             assert_eq!(input.read_u8()?, 11);
         }
 
         Ok(player)
-    }
-
-    pub fn read_info(&mut self, input: impl Read, _version: f32) -> Result<()> {
-        self.victory = VictoryConditions::read_from(input, true)?;
-        Ok(())
     }
 }
 
@@ -539,12 +538,12 @@ pub struct VisibleMap {
     pub tiles: Vec<i8>,
 }
 
-impl VisibleMap {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+impl ReadableHeaderElement for VisibleMap {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut map = Self::default();
         map.width = input.read_u32::<LE>()?;
         map.height = input.read_u32::<LE>()?;
-        if version >= 6.70 {
+        if input.version() >= 6.70 {
             map.explored_tiles_count = input.read_u32::<LE>()?;
         }
         map.player_id = input.read_u16::<LE>()?.try_into().unwrap();
@@ -562,8 +561,8 @@ pub struct VisibleResource {
     pub location: (u8, u8),
 }
 
-impl VisibleResource {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for VisibleResource {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut vis = Self::default();
         vis.object_id = input.read_u32::<LE>()?.into();
         vis.distance = input.read_u8()?;
@@ -578,8 +577,8 @@ pub struct VisibleResources {
     lists: Vec<Vec<VisibleResource>>,
 }
 
-impl VisibleResources {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for VisibleResources {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let num_lists = input.read_u32::<LE>()?;
         let mut sizes = vec![];
         for _ in 0..num_lists {
@@ -590,7 +589,7 @@ impl VisibleResources {
         for size in sizes {
             let mut list = Vec::with_capacity(size.try_into().unwrap());
             for _ in 0..size {
-                list.push(VisibleResource::read_from(&mut input)?);
+                list.push(VisibleResource::read_from(input)?);
             }
             lists.push(list);
         }
@@ -617,13 +616,13 @@ pub struct GaiaData {
     wolf_counts: [u32; 10],
 }
 
-impl GaiaData {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for GaiaData {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut gaia = Self::default();
         gaia.update_time = input.read_u32::<LE>()?;
         gaia.update_nature = input.read_u32::<LE>()?;
         for creature in gaia.creatures.iter_mut() {
-            *creature = GaiaCreature::read_from(&mut input)?;
+            *creature = GaiaCreature::read_from(input)?;
         }
         gaia.next_wolf_attack_update_time = input.read_u32::<LE>()?;
         gaia.wolf_attack_update_interval = input.read_u32::<LE>()?;
@@ -639,12 +638,12 @@ impl GaiaData {
         for v in gaia.wolf_current_villagers.iter_mut() {
             *v = input.read_u32::<LE>()?;
         }
-        gaia.wolf_current_villager = read_opt_u32(&mut input)?;
+        gaia.wolf_current_villager = read_opt_u32(input)?;
         gaia.wolf_villager_count = input.read_u32::<LE>()?;
         for wolf in gaia.wolves.iter_mut() {
-            *wolf = GaiaWolfInfo::read_from(&mut input)?;
+            *wolf = GaiaWolfInfo::read_from(input)?;
         }
-        gaia.current_wolf = read_opt_u32(&mut input)?;
+        gaia.current_wolf = read_opt_u32(input)?;
         input.read_u32_into::<LE>(&mut gaia.wolf_counts[..])?;
         Ok(gaia)
     }
@@ -657,16 +656,18 @@ pub struct GaiaCreature {
     pub max: u32,
 }
 
-impl GaiaCreature {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for GaiaCreature {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut creature = Self::default();
         creature.growth_rate = input.read_f32::<LE>()?;
         creature.remainder = input.read_f32::<LE>()?;
         creature.max = input.read_u32::<LE>()?;
         Ok(creature)
     }
+}
 
-    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+impl WritableHeaderElement for GaiaCreature {
+    fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_f32::<LE>(self.growth_rate)?;
         output.write_f32::<LE>(self.remainder)?;
         output.write_u32::<LE>(self.max)?;
@@ -680,15 +681,17 @@ pub struct GaiaWolfInfo {
     pub distance: f32,
 }
 
-impl GaiaWolfInfo {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for GaiaWolfInfo {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut wolf = Self::default();
         wolf.id = input.read_u32::<LE>()?;
         wolf.distance = input.read_f32::<LE>()?;
         Ok(wolf)
     }
+}
 
-    pub fn write_to(self, mut output: impl Write) -> Result<()> {
+impl WritableHeaderElement for GaiaWolfInfo {
+    fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u32::<LE>(self.id)?;
         output.write_f32::<LE>(self.distance)?;
         Ok(())
@@ -714,8 +717,8 @@ struct DiplomacyOffer {
     status: u8,
 }
 
-impl DiplomacyOffer {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for DiplomacyOffer {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut offer = Self::default();
         offer.sequence = input.read_u8()?;
         offer.started_by = input.read_u8()?;
@@ -743,10 +746,10 @@ pub struct HistoryInfo {
     pub events: Vec<HistoryEvent>,
 }
 
-impl HistoryInfo {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+impl ReadableHeaderElement for HistoryInfo {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let _padding = input.read_u8()?;
-        if version >= DE_VERSION {
+        if input.variant() >= DefinitiveEdition {
             input.skip(6)?;
         }
 
@@ -758,7 +761,7 @@ impl HistoryInfo {
         let entries_capacity = input.read_u32::<LE>()?;
         let mut entries = Vec::with_capacity(entries_capacity.try_into().unwrap());
         for _ in 0..num_entries {
-            entries.push(HistoryEntry::read_from(&mut input, version)?);
+            entries.push(HistoryEntry::read_from(input)?);
         }
 
         // if version >= DE_VERSION {
@@ -768,13 +771,13 @@ impl HistoryInfo {
         // 22 for gaia, but 0 for players?
         // let _value = input.read_u8()?;
         // dbg!(_value);
-        assert_marker!(version, input, 22);
+        assert_marker!(input, 22);
 
         let num_events = input.read_u32::<LE>()?;
         dbg!(num_events);
         let mut events = Vec::with_capacity(num_events.try_into().unwrap());
         for _ in 0..num_events {
-            events.push(HistoryEvent::read_from(&mut input)?);
+            events.push(HistoryEvent::read_from(input)?);
         }
 
         let _razings = input.read_i32::<LE>()?;
@@ -822,8 +825,8 @@ pub struct HistoryEvent {
     pub params: (f32, f32, f32),
 }
 
-impl HistoryEvent {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for HistoryEvent {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut event = Self::default();
         event.event_type = input.read_i8()?;
         event.time_slice = input.read_u32::<LE>()?;
@@ -844,12 +847,13 @@ pub struct HistoryEntry {
     pub military_population: u16,
 }
 
-impl HistoryEntry {
-    pub fn read_from(mut input: impl Read, _version: f32) -> Result<Self> {
+impl ReadableHeaderElement for HistoryEntry {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let civilian_population = input.read_u16::<LE>()?;
         let military_population = input.read_u16::<LE>()?;
-        if _version >= DE_VERSION {
-            input.skip(5);
+        dbg!(input.variant());
+        if input.variant() >= DefinitiveEdition {
+            input.skip(5)?;
         }
         Ok(HistoryEntry {
             civilian_population,
@@ -866,8 +870,8 @@ pub struct TechState {
     pub time_modifier: i16,
 }
 
-impl TechState {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+impl ReadableHeaderElement for TechState {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut state = Self::default();
         state.progress = input.read_f32::<LE>()?;
         state.state = input.read_i16::<LE>()?;
@@ -878,7 +882,7 @@ impl TechState {
         );
         state.time_modifier = input.read_i16::<LE>()?;
 
-        if version >= DE_VERSION {
+        if input.variant() >= DefinitiveEdition {
             input.skip(8)?;
         }
 
@@ -891,13 +895,13 @@ pub struct PlayerTech {
     pub tech_states: Vec<TechState>,
 }
 
-impl PlayerTech {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+impl ReadableHeaderElement for PlayerTech {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let num_techs = input.read_u16::<LE>()?;
         dbg!(num_techs);
         let mut tech_states = Vec::with_capacity(usize::from(num_techs));
         for _ in 0..num_techs {
-            tech_states.push(TechState::read_from(&mut input, version)?);
+            tech_states.push(TechState::read_from(input)?);
         }
         Ok(Self { tech_states })
     }
@@ -906,8 +910,8 @@ impl PlayerTech {
 #[derive(Debug, Clone)]
 pub struct UserPatchData {}
 
-impl UserPatchData {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for UserPatchData {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         {
             let mut bytes = vec![0; 4080];
             input.read_exact(&mut bytes)?;
