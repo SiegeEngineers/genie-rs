@@ -1,5 +1,7 @@
 //! Read and write player AI state.
 
+use crate::element::{ReadableHeaderElement, WritableHeaderElement};
+use crate::reader::RecordingHeaderReader;
 use crate::unit::Waypoint;
 use crate::{ObjectID, PlayerID, Result};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
@@ -13,8 +15,8 @@ pub struct MainAI {
     pub objects: Vec<ObjectID>,
 }
 
-impl MainAI {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for MainAI {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let num_objects = input.read_u32::<LE>()?;
         let mut objects = vec![];
         for _ in 0..num_objects {
@@ -42,13 +44,14 @@ pub struct BuildItem {
     pub is_forward: bool,
 }
 
-impl BuildItem {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+impl ReadableHeaderElement for BuildItem {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut item = BuildItem {
             name: input.read_u32_length_prefixed_str()?,
             type_id: input.read_u32::<LE>()?,
             ..Default::default()
         };
+
         let _a2 = input.read_u32::<LE>()?;
         item.game_id = input.read_u32::<LE>()?;
         let _v21 = input.read_u32::<LE>()?;
@@ -72,7 +75,7 @@ impl BuildItem {
         let _v12 = input.read_u32::<LE>()?;
         let _v29 = input.read_u32::<LE>()?;
         let _v31 = input.read_u8()?;
-        item.is_forward = if version > 10.87 {
+        item.is_forward = if input.version() > 10.87 {
             input.read_u32::<LE>()? != 0
         } else {
             false
@@ -93,15 +96,15 @@ pub struct BuildAI {
     pub queued_unit_count: u32,
 }
 
-impl BuildAI {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+impl ReadableHeaderElement for BuildAI {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut ai = Self::default();
         let build_list_len = input.read_u32::<LE>()?;
         ai.build_list_name = input.read_u32_length_prefixed_str()?;
         ai.last_build_item_requested = input.read_u32_length_prefixed_str()?;
         ai.current_build_item_requested = input.read_u32_length_prefixed_str()?;
         ai.next_build_item_requested = input.read_u32_length_prefixed_str()?;
-        let _items_into_build_queue = if version > 11.02 {
+        let _items_into_build_queue = if input.version() > 11.02 {
             input.read_u32::<LE>()?
         } else {
             build_list_len
@@ -109,8 +112,7 @@ impl BuildAI {
 
         let num_build_items = input.read_u32::<LE>()?;
         for _ in 0..num_build_items {
-            ai.build_queue
-                .push(BuildItem::read_from(&mut input, version)?);
+            ai.build_queue.push(BuildItem::read_from(input)?);
         }
 
         for _ in 0..600 {
@@ -137,13 +139,14 @@ pub struct ConstructionItem {
     pub built: u32,
 }
 
-impl ConstructionItem {
-    pub fn read_from(mut input: impl Read, _version: f32) -> Result<Self> {
+impl ReadableHeaderElement for ConstructionItem {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut item = ConstructionItem {
             name: input.read_u32_length_prefixed_str()?,
             type_id: input.read_u32::<LE>()?,
             ..Default::default()
         };
+
         let _a2 = input.read_u32::<LE>()?;
         let _v27 = input.read_u32::<LE>()?;
         item.x = input.read_f32::<LE>()?;
@@ -159,6 +162,7 @@ impl ConstructionItem {
         Ok(item)
     }
 }
+
 #[derive(Debug, Default, Clone)]
 pub struct ConstructionAI {
     pub plan_name: Option<String>,
@@ -168,8 +172,8 @@ pub struct ConstructionAI {
     pub random_construction_lots: Vec<ConstructionItem>,
 }
 
-impl ConstructionAI {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+impl ReadableHeaderElement for ConstructionAI {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut ai = Self::default();
         let num_lots = input.read_u32::<LE>()?;
         ai.plan_name = input.read_u32_length_prefixed_str()?;
@@ -181,12 +185,12 @@ impl ConstructionAI {
         ai.map_size = (input.read_u32::<LE>()?, input.read_u32::<LE>()?);
         for _ in 0..num_lots {
             ai.construction_lots
-                .push(ConstructionItem::read_from(&mut input, version)?);
+                .push(ConstructionItem::read_from(input)?);
         }
         let num_lots = input.read_u32::<LE>()?;
         for _ in 0..num_lots {
             ai.random_construction_lots
-                .push(ConstructionItem::read_from(&mut input, version)?);
+                .push(ConstructionItem::read_from(input)?);
         }
         Ok(ai)
     }
@@ -201,8 +205,8 @@ pub struct DiplomacyAI {
     pub changeable: [u8; 10],
 }
 
-impl DiplomacyAI {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for DiplomacyAI {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut ai = Self::default();
         for i in 0..10 {
             ai.dislike[i] = input.read_u32::<LE>()?;
@@ -218,8 +222,8 @@ pub struct EmotionalAI {
     pub state: [u32; 6],
 }
 
-impl EmotionalAI {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for EmotionalAI {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut ai = Self::default();
         input.read_u32_into::<LE>(&mut ai.state)?;
         Ok(ai)
@@ -243,12 +247,12 @@ pub struct ImportantObjectMemory {
     pub is_garrisoned: u32,
 }
 
-impl ImportantObjectMemory {
-    pub fn read_from(mut input: impl Read, _version: f32) -> Result<Self> {
+impl ReadableHeaderElement for ImportantObjectMemory {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         Ok(ImportantObjectMemory {
-            id: read_opt_u32(&mut input)?,
-            unit_type_id: read_opt_u16(&mut input)?,
-            unit_class: read_opt_u16(&mut input)?,
+            id: read_opt_u32(input)?,
+            unit_type_id: read_opt_u16(input)?,
+            unit_class: read_opt_u16(input)?,
             location: (input.read_u8()?, input.read_u8()?, input.read_u8()?),
             owner: input.read_u8()?.into(),
             hit_points: input.read_u16::<LE>()?,
@@ -257,7 +261,7 @@ impl ImportantObjectMemory {
             damage_capability: input.read_f32::<LE>()?,
             rate_of_fire: input.read_f32::<LE>()?,
             range: input.read_f32::<LE>()?,
-            time_seen: read_opt_u32(&mut input)?,
+            time_seen: read_opt_u32(input)?,
             is_garrisoned: input.read_u32::<LE>()?,
         })
     }
@@ -270,9 +274,9 @@ pub struct BuildingLot {
     pub location: (u8, u8),
 }
 
-impl BuildingLot {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let unit_type_id = read_opt_u32(&mut input)?;
+impl ReadableHeaderElement for BuildingLot {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
+        let unit_type_id = read_opt_u32(input)?;
         let status = input.read_u8()?;
         let x = input.read_u8()?;
         let y = input.read_u8()?;
@@ -297,21 +301,21 @@ pub struct WallLine {
     pub line_end: (u32, u32),
 }
 
-impl WallLine {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+impl ReadableHeaderElement for WallLine {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut line = Self::default();
-        if version >= 10.78 {
+        if input.version() >= 10.78 {
             line.line_type = input.read_u32::<LE>()?;
         }
-        line.wall_type = read_opt_u32(&mut input)?;
-        if version >= 10.78 {
+        line.wall_type = read_opt_u32(input)?;
+        if input.version() >= 10.78 {
             line.gate_count = input.read_u32::<LE>()?;
         }
         line.segment_count = input.read_u32::<LE>()?;
-        if version >= 11.34 {
+        if input.version() >= 11.34 {
             line.invisible_segment_count = input.read_u32::<LE>()?;
         }
-        if version >= 11.29 {
+        if input.version() >= 11.29 {
             line.unfinished_segment_count = input.read_u32::<LE>()?;
         }
         line.line_start = (input.read_u32::<LE>()?, input.read_u32::<LE>()?);
@@ -334,10 +338,10 @@ pub struct PerimeterWall {
     pub next_segment_to_refresh: u32,
 }
 
-impl PerimeterWall {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+impl ReadableHeaderElement for PerimeterWall {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut wall = PerimeterWall {
-            enabled: if version >= 11.22 {
+            enabled: if input.version() >= 11.22 {
                 input.read_u32::<LE>()? != 0
             } else {
                 true
@@ -345,16 +349,16 @@ impl PerimeterWall {
             ..Default::default()
         };
         let num_lines = input.read_u32::<LE>()?;
-        if version >= 11.20 {
+        if input.version() >= 11.20 {
             wall.gate_count = input.read_u32::<LE>()?;
             wall.percentage_complete = input.read_u32::<LE>()?;
             wall.segment_count = input.read_u32::<LE>()?;
-            if version >= 11.34 {
+            if input.version() >= 11.34 {
                 wall.invisible_segment_count = input.read_u32::<LE>()?;
             }
             wall.unfinished_segment_count = input.read_u32::<LE>()?;
         }
-        if version >= 11.29 {
+        if input.version() >= 11.29 {
             wall.next_line_to_refresh = input.read_u32::<LE>()?;
             wall.next_segment_to_refresh = input.read_u32::<LE>()?;
         }
@@ -362,7 +366,7 @@ impl PerimeterWall {
         wall.lines = {
             let mut list = vec![];
             for _ in 0..num_lines {
-                list.push(WallLine::read_from(&mut input, version)?);
+                list.push(WallLine::read_from(input)?);
             }
             list
         };
@@ -387,10 +391,10 @@ pub struct AttackMemory {
     pub play: Option<i32>,
 }
 
-impl AttackMemory {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for AttackMemory {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut mem = AttackMemory {
-            id: read_opt_u32(&mut input)?,
+            id: read_opt_u32(input)?,
             typ: input.read_u8()?,
             min_x: input.read_u8()?,
             min_y: input.read_u8()?,
@@ -410,8 +414,8 @@ impl AttackMemory {
         mem.kills = input.read_u16::<LE>()?;
         mem.success = input.read_u8()? != 0;
         input.skip(1)?;
-        mem.timestamp = read_opt_u32(&mut input)?;
-        mem.play = read_opt_u32(&mut input)?;
+        mem.timestamp = read_opt_u32(input)?;
+        mem.play = read_opt_u32(input)?;
         Ok(mem)
     }
 }
@@ -430,8 +434,8 @@ pub struct ResourceMemory {
     pub attacked_time: Option<u32>,
 }
 
-impl ResourceMemory {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+impl ReadableHeaderElement for ResourceMemory {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut mem = ResourceMemory {
             id: input.read_u32::<LE>()?.into(),
             location: (input.read_u8()?, input.read_u8()?),
@@ -444,8 +448,9 @@ impl ResourceMemory {
             dropsite_id: input.read_u32::<LE>()?.into(),
             ..Default::default()
         };
-        if version >= 10.91 {
-            mem.attacked_time = read_opt_u32(&mut input)?;
+
+        if input.version() >= 10.91 {
+            mem.attacked_time = read_opt_u32(input)?;
         }
         Ok(mem)
     }
@@ -460,8 +465,8 @@ pub struct InfluenceMap {
     pub values: Vec<i8>,
 }
 
-impl InfluenceMap {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for InfluenceMap {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut map = Self::default();
         map.width = input.read_u32::<LE>()?;
         map.height = input.read_u32::<LE>()?;
@@ -480,8 +485,8 @@ pub struct QuadrantLog {
     pub attacks_by_us: u32,
 }
 
-impl QuadrantLog {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for QuadrantLog {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let explored_tiles = input.read_u32::<LE>()?;
         let attacks_on_us = input.read_u32::<LE>()?;
         let attacks_by_us = input.read_u32::<LE>()?;
@@ -516,9 +521,9 @@ pub struct InformationAI {
     pub quadrant_log: [QuadrantLog; 4],
 }
 
-impl InformationAI {
+impl ReadableHeaderElement for InformationAI {
     #[allow(clippy::cognitive_complexity)]
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut ai = Self::default();
         for _ in 0..4096 {
             let _garbage = input.read_u32::<LE>()?;
@@ -557,7 +562,7 @@ impl InformationAI {
             let max_important_object_memory = input.read_u32::<LE>()?;
             let mut important_objects = vec![];
             for _ in 0..max_important_object_memory {
-                let important_object = ImportantObjectMemory::read_from(&mut input, version)?;
+                let important_object = ImportantObjectMemory::read_from(input)?;
                 if important_object.id.is_none() {
                     continue;
                 }
@@ -570,7 +575,7 @@ impl InformationAI {
             let len = input.read_u32::<LE>()?;
             let mut lots = vec![];
             for _ in 0..len {
-                let lot = BuildingLot::read_from(&mut input)?;
+                let lot = BuildingLot::read_from(input)?;
                 if lot.unit_type_id.is_none() {
                     continue;
                 }
@@ -580,15 +585,15 @@ impl InformationAI {
         };
 
         ai.perimeter_walls = (
-            PerimeterWall::read_from(&mut input, version)?,
-            PerimeterWall::read_from(&mut input, version)?,
+            PerimeterWall::read_from(input)?,
+            PerimeterWall::read_from(input)?,
         );
 
         ai.attack_memories = {
             let len = input.read_u32::<LE>()?;
             let mut attacks = vec![];
             for _ in 0..len {
-                let attack = AttackMemory::read_from(&mut input)?;
+                let attack = AttackMemory::read_from(input)?;
                 // if attack.unit_type_id.is_none() {
                 //     continue;
                 // }
@@ -597,17 +602,17 @@ impl InformationAI {
             attacks
         };
 
-        ai.important_object_ids = read_id_list(&mut input)?;
-        ai.important_unit_ids = read_id_list(&mut input)?;
-        ai.important_misc_ids = read_id_list(&mut input)?;
-        ai.items_to_defend = read_id_list(&mut input)?;
-        ai.player_buildings = read_id_list(&mut input)?;
-        ai.player_objects = read_id_list(&mut input)?;
+        ai.important_object_ids = read_id_list(input)?;
+        ai.important_unit_ids = read_id_list(input)?;
+        ai.important_misc_ids = read_id_list(input)?;
+        ai.items_to_defend = read_id_list(input)?;
+        ai.player_buildings = read_id_list(input)?;
+        ai.player_objects = read_id_list(input)?;
 
         ai.object_counts = {
-            let num_counts = if version < 11.51 {
+            let num_counts = if input.version() < 11.51 {
                 750
-            } else if version < 11.65 {
+            } else if input.version() < 11.65 {
                 850
             } else {
                 900
@@ -620,26 +625,26 @@ impl InformationAI {
 
         let _building_count = input.read_u32::<LE>()?;
 
-        ai.path_map = InfluenceMap::read_from(&mut input)?;
+        ai.path_map = InfluenceMap::read_from(input)?;
         let _last_wall_position = (input.read_i32::<LE>()?, input.read_i32::<LE>()?);
         let _last_wall_position_2 = (input.read_i32::<LE>()?, input.read_i32::<LE>()?);
 
-        if version < 10.78 {
+        if input.version() < 10.78 {
             input.skip(4 + 4 * 16)?;
         }
 
         let _save_learn_information = input.read_u32::<LE>()? != 0;
         let _learn_path = input.read_u32_length_prefixed_str()?;
 
-        if version < 11.25 {
+        if input.version() < 11.25 {
             input.skip(0xFF)?;
         }
 
         ai.quadrant_log = [
-            QuadrantLog::read_from(&mut input)?,
-            QuadrantLog::read_from(&mut input)?,
-            QuadrantLog::read_from(&mut input)?,
-            QuadrantLog::read_from(&mut input)?,
+            QuadrantLog::read_from(input)?,
+            QuadrantLog::read_from(input)?,
+            QuadrantLog::read_from(input)?,
+            QuadrantLog::read_from(input)?,
         ];
 
         let _max_resources = [
@@ -660,7 +665,7 @@ impl InformationAI {
             for (list, &num) in resources.iter_mut().zip(num_resources.iter()) {
                 list.reserve(num as usize);
                 for _ in 0..num {
-                    list.push(ResourceMemory::read_from(&mut input, version)?);
+                    list.push(ResourceMemory::read_from(input)?);
                 }
             }
             resources
@@ -689,18 +694,18 @@ impl InformationAI {
         ];
         let _found_forest_tiles = input.read_u32::<LE>()?;
 
-        if version < 10.85 {
+        if input.version() < 10.85 {
             input.skip(64_000)?;
         }
 
-        if version >= 10.90 {
+        if input.version() >= 10.90 {
             let mut relics_victory = [0; 9];
             input.read_exact(&mut relics_victory)?;
             let mut wonder_victory = [0; 9];
             input.read_exact(&mut wonder_victory)?;
         }
 
-        if version >= 10.94 {
+        if input.version() >= 10.94 {
             let should_farm = input.read_u32::<LE>()?;
             let have_seen_forage = input.read_u32::<LE>()?;
             let have_seen_gold = input.read_u32::<LE>()?;
@@ -712,28 +717,28 @@ impl InformationAI {
                 have_seen_stone,
             );
         }
-        if version >= 10.95 {
+        if input.version() >= 10.95 {
             let have_seen_forest = input.read_u32::<LE>()?;
             dbg!(have_seen_forest);
         }
 
-        if version > 10.99 {
+        if input.version() > 10.99 {
             let last_player_count_refresh_time = input.read_u32::<LE>()?;
             dbg!(last_player_count_refresh_time);
         }
 
-        let player_unit_counts_size = if version >= 11.51 { 120 } else { 102 };
+        let player_unit_counts_size = if input.version() >= 11.51 { 120 } else { 102 };
         let mut player_unit_counts = vec![vec![0; player_unit_counts_size as usize]; 8];
         for unit_counts in player_unit_counts.iter_mut() {
             input.read_u32_into::<LE>(unit_counts)?;
         }
 
-        if version >= 11.09 {
+        if input.version() >= 11.09 {
             let mut player_total_building_counts = [0; 8];
             input.read_u32_into::<LE>(&mut player_total_building_counts)?;
 
             let mut player_real_total_building_counts = [0; 8];
-            if version >= 11.21 {
+            if input.version() >= 11.21 {
                 input.read_u32_into::<LE>(&mut player_real_total_building_counts)?;
             }
 
@@ -757,13 +762,15 @@ pub struct ResourceAI {
     pub num_resources: u32,
 }
 
-impl ResourceAI {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for ResourceAI {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let num_resources = input.read_u32::<LE>()?;
         Ok(Self { num_resources })
     }
+}
 
-    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+impl WritableHeaderElement for ResourceAI {
+    fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u32::<LE>(self.num_resources)?;
         Ok(())
     }
@@ -787,32 +794,28 @@ pub struct StrategyAI {
     pub expert_list_id: Option<u32>,
 }
 
-impl StrategyAI {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+impl ReadableHeaderElement for StrategyAI {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         Ok(StrategyAI {
             current_victory_condition: input.read_u32::<LE>()?,
             target_id: input.read_u32::<LE>()?,
             second_target_id: input.read_u32::<LE>()?,
             second_target_type: input.read_u32::<LE>()?,
-            target_point: Waypoint::read_from(&mut input)?,
-            target_point_2: Waypoint::read_from(&mut input)?,
+            target_point: Waypoint::read_from(input)?,
+            target_point_2: Waypoint::read_from(input)?,
             target_attribute: input.read_u32::<LE>()?,
             target_number: input.read_u32::<LE>()?,
             victory_condition_change_timeout: input.read_u32::<LE>()?,
             ruleset_name: input.read_u32_length_prefixed_str()?,
-            vc_ruleset: read_id_list(&mut input)?,
-            executing_rules: read_id_list(&mut input)?,
-            idle_rules: read_id_list(&mut input)?,
-            expert_list_id: if version >= 9.71 {
+            vc_ruleset: read_id_list(input)?,
+            executing_rules: read_id_list(input)?,
+            idle_rules: read_id_list(input)?,
+            expert_list_id: if input.version() >= 9.71 {
                 Some(input.read_u32::<LE>()?)
             } else {
                 None
             },
         })
-    }
-
-    pub fn write_to(&self, _output: impl Write) -> Result<()> {
-        todo!()
     }
 }
 
@@ -841,11 +844,11 @@ pub struct TacticalAI {
     pub groups: Vec<()>,
 }
 
-impl TacticalAI {
-    pub fn read_from(mut input: impl Read, _version: f32) -> Result<Self> {
+impl ReadableHeaderElement for TacticalAI {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut ai = TacticalAI {
-            civilians: read_id_list(&mut input)?,
-            civilian_explorers: read_id_list(&mut input)?,
+            civilians: read_id_list(input)?,
+            civilian_explorers: read_id_list(input)?,
             ..Default::default()
         };
 
@@ -854,20 +857,16 @@ impl TacticalAI {
 
         // FIXME: more stuff here
 
-        ai.soldiers = read_id_list(&mut input)?;
-        ai.ungrouped_soldiers = read_id_list(&mut input)?;
-        ai.boats = read_id_list(&mut input)?;
-        ai.war_boats = read_id_list(&mut input)?;
-        ai.fishing_boats = read_id_list(&mut input)?;
-        ai.trade_boats = read_id_list(&mut input)?;
-        ai.transport_boats = read_id_list(&mut input)?;
-        ai.artifacts = read_id_list(&mut input)?;
-        ai.trade_carts = read_id_list(&mut input)?;
+        ai.soldiers = read_id_list(input)?;
+        ai.ungrouped_soldiers = read_id_list(input)?;
+        ai.boats = read_id_list(input)?;
+        ai.war_boats = read_id_list(input)?;
+        ai.fishing_boats = read_id_list(input)?;
+        ai.trade_boats = read_id_list(input)?;
+        ai.transport_boats = read_id_list(input)?;
+        ai.artifacts = read_id_list(input)?;
+        ai.trade_carts = read_id_list(input)?;
 
-        todo!()
-    }
-
-    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
         todo!()
     }
 }
@@ -884,16 +883,16 @@ pub struct PlayerAI {
     pub strategy_ai: StrategyAI,
 }
 
-impl PlayerAI {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
-        let main_ai = MainAI::read_from(&mut input)?;
-        let build_ai = BuildAI::read_from(&mut input, version)?;
-        let construction_ai = ConstructionAI::read_from(&mut input, version)?;
-        let diplomacy_ai = DiplomacyAI::read_from(&mut input)?;
-        let emotional_ai = EmotionalAI::read_from(&mut input)?;
-        let information_ai = InformationAI::read_from(&mut input, version)?;
-        let resource_ai = ResourceAI::read_from(&mut input)?;
-        let strategy_ai = StrategyAI::read_from(&mut input, version)?;
+impl ReadableHeaderElement for PlayerAI {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
+        let main_ai = MainAI::read_from(input)?;
+        let build_ai = BuildAI::read_from(input)?;
+        let construction_ai = ConstructionAI::read_from(input)?;
+        let diplomacy_ai = DiplomacyAI::read_from(input)?;
+        let emotional_ai = EmotionalAI::read_from(input)?;
+        let information_ai = InformationAI::read_from(input)?;
+        let resource_ai = ResourceAI::read_from(input)?;
+        let strategy_ai = StrategyAI::read_from(input)?;
 
         Ok(Self {
             main_ai,
@@ -906,13 +905,9 @@ impl PlayerAI {
             strategy_ai,
         })
     }
-
-    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
-        todo!()
-    }
 }
 
-fn read_id_list<T: From<u32>>(mut input: impl Read) -> Result<Vec<T>> {
+fn read_id_list<T: From<u32>, R: Read>(input: &mut R) -> Result<Vec<T>> {
     let len = input.read_u32::<LE>()?;
     let mut ids = vec![];
     for _ in 0..len {

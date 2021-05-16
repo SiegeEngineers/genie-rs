@@ -20,22 +20,28 @@
 
 pub mod actions;
 pub mod ai;
+pub mod element;
 pub mod header;
 pub mod map;
 pub mod player;
+pub mod reader;
 pub mod string_table;
 pub mod unit;
 pub mod unit_action;
 pub mod unit_type;
+pub mod version;
 
 use crate::actions::{Action, Meta};
+use crate::element::ReadableHeaderElement;
+use crate::reader::{RecordingHeaderReader, SmallBufReader};
 use byteorder::{ReadBytesExt, LE};
 use flate2::bufread::DeflateDecoder;
 use genie_scx::DLCOptions;
 use genie_support::{fallible_try_from, fallible_try_into, infallible_try_into};
 pub use header::Header;
-use std::fmt::{self, Debug, Display};
+use std::fmt::Debug;
 use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom};
+pub use version::*;
 
 /// ID identifying a player (0-8).
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -98,37 +104,6 @@ fallible_try_from!(ObjectID, i16);
 fallible_try_from!(ObjectID, i32);
 fallible_try_into!(ObjectID, i16);
 fallible_try_into!(ObjectID, i32);
-
-/// The game data version string. In practice, this does not really reflect the game version.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub struct GameVersion([u8; 8]);
-
-impl Default for GameVersion {
-    fn default() -> Self {
-        Self([0; 8])
-    }
-}
-
-impl Debug for GameVersion {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", std::str::from_utf8(&self.0).unwrap())
-    }
-}
-
-impl Display for GameVersion {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", std::str::from_utf8(&self.0).unwrap())
-    }
-}
-
-impl GameVersion {
-    /// Read the game version string from an input stream.
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let mut game_version = [0; 8];
-        input.read_exact(&mut game_version)?;
-        Ok(Self(game_version))
-    }
-}
 
 ///
 #[derive(Debug, thiserror::Error)]
@@ -302,53 +277,6 @@ pub struct HDGameOptions {
     pub scenario_player_indices: Vec<i32>,
 }
 
-/// A struct implementing `BufRead` that uses a small, single-use, stack-allocated buffer, intended
-/// for reading only the first few bytes from a file.
-struct SmallBufReader<R>
-where
-    R: Read,
-{
-    buffer: [u8; 256],
-    pointer: usize,
-    reader: R,
-}
-
-impl<R> SmallBufReader<R>
-where
-    R: Read,
-{
-    fn new(reader: R) -> Self {
-        Self {
-            buffer: [0; 256],
-            pointer: 0,
-            reader,
-        }
-    }
-}
-
-impl<R> Read for SmallBufReader<R>
-where
-    R: Read,
-{
-    fn read(&mut self, output: &mut [u8]) -> io::Result<usize> {
-        self.reader.read(output)
-    }
-}
-
-impl<R> BufRead for SmallBufReader<R>
-where
-    R: Read,
-{
-    fn fill_buf(&mut self) -> io::Result<&[u8]> {
-        self.reader.read_exact(&mut self.buffer[self.pointer..])?;
-        Ok(&self.buffer[self.pointer..])
-    }
-
-    fn consume(&mut self, len: usize) {
-        self.pointer += len;
-    }
-}
-
 /// Recorded game reader.
 pub struct RecordedGame<R>
 where
@@ -424,7 +352,7 @@ where
         self.seek_to_first_header()?;
         let reader = BufReader::new(&mut self.inner).take(self.header_end - self.header_start);
         let deflate = DeflateDecoder::new(reader);
-        let header = Header::read_from(deflate)?;
+        let header = Header::read_from(&mut RecordingHeaderReader::new(deflate))?;
         Ok(header)
     }
 

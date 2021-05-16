@@ -1,3 +1,5 @@
+use crate::element::{ReadableHeaderElement, WritableHeaderElement};
+use crate::reader::RecordingHeaderReader;
 use crate::Result;
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
@@ -19,10 +21,10 @@ pub struct CompactUnitType {
     pub building: Option<BuildingUnitAttributes>,
 }
 
-impl CompactUnitType {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+impl ReadableHeaderElement for CompactUnitType {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let unit_base_class = input.read_u8()?.try_into().unwrap();
-        let static_ = StaticUnitAttributes::read_from(&mut input)?;
+        let static_ = StaticUnitAttributes::read_from(input)?;
         let mut unit = Self {
             unit_base_class,
             static_,
@@ -35,25 +37,25 @@ impl CompactUnitType {
             building: None,
         };
         if unit_base_class >= UnitBaseClass::Animated {
-            unit.animated = Some(AnimatedUnitAttributes::read_from(&mut input)?);
+            unit.animated = Some(AnimatedUnitAttributes::read_from(input)?);
         }
         if unit_base_class >= UnitBaseClass::Moving {
-            unit.moving = Some(MovingUnitAttributes::read_from(&mut input)?);
+            unit.moving = Some(MovingUnitAttributes::read_from(input)?);
         }
         if unit_base_class >= UnitBaseClass::Action {
-            unit.action = Some(ActionUnitAttributes::read_from(&mut input)?);
+            unit.action = Some(ActionUnitAttributes::read_from(input)?);
         }
         if unit_base_class >= UnitBaseClass::BaseCombat {
-            unit.base_combat = Some(BaseCombatUnitAttributes::read_from(&mut input, version)?);
+            unit.base_combat = Some(BaseCombatUnitAttributes::read_from(input)?);
         }
         if unit_base_class >= UnitBaseClass::Missile {
-            unit.missile = Some(MissileUnitAttributes::read_from(&mut input)?);
+            unit.missile = Some(MissileUnitAttributes::read_from(input)?);
         }
         if unit_base_class >= UnitBaseClass::Combat {
-            unit.combat = Some(CombatUnitAttributes::read_from(&mut input)?);
+            unit.combat = Some(CombatUnitAttributes::read_from(input)?);
         }
         if unit_base_class >= UnitBaseClass::Building {
-            unit.building = Some(BuildingUnitAttributes::read_from(&mut input)?);
+            unit.building = Some(BuildingUnitAttributes::read_from(input)?);
         }
         Ok(unit)
     }
@@ -84,8 +86,8 @@ pub struct StaticUnitAttributes {
     disabled: bool,
 }
 
-impl StaticUnitAttributes {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for StaticUnitAttributes {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut attrs = StaticUnitAttributes {
             id: input.read_u16::<LE>()?.into(),
             copy_id: input.read_u16::<LE>()?.into(),
@@ -130,13 +132,15 @@ pub struct AnimatedUnitAttributes {
     pub speed: f32,
 }
 
-impl AnimatedUnitAttributes {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for AnimatedUnitAttributes {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let speed = input.read_f32::<LE>()?;
         Ok(Self { speed })
     }
+}
 
-    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+impl WritableHeaderElement for AnimatedUnitAttributes {
+    fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_f32::<LE>(self.speed)?;
         Ok(())
     }
@@ -147,13 +151,15 @@ pub struct MovingUnitAttributes {
     pub turn_speed: f32,
 }
 
-impl MovingUnitAttributes {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for MovingUnitAttributes {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let turn_speed = input.read_f32::<LE>()?;
         Ok(Self { turn_speed })
     }
+}
 
-    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+impl WritableHeaderElement for MovingUnitAttributes {
+    fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_f32::<LE>(self.turn_speed)?;
         Ok(())
     }
@@ -165,8 +171,8 @@ pub struct ActionUnitAttributes {
     pub work_rate: f32,
 }
 
-impl ActionUnitAttributes {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for ActionUnitAttributes {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let search_radius = input.read_f32::<LE>()?;
         let work_rate = input.read_f32::<LE>()?;
         Ok(Self {
@@ -174,8 +180,10 @@ impl ActionUnitAttributes {
             work_rate,
         })
     }
+}
 
-    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+impl WritableHeaderElement for ActionUnitAttributes {
+    fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_f32::<LE>(self.search_radius)?;
         output.write_f32::<LE>(self.work_rate)?;
         Ok(())
@@ -188,8 +196,8 @@ pub struct HitType {
     pub amount: i16,
 }
 
-impl HitType {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for HitType {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let hit_type = input.read_u16::<LE>()?;
         let amount = input.read_i16::<LE>()?;
         Ok(Self { hit_type, amount })
@@ -211,10 +219,10 @@ pub struct BaseCombatUnitAttributes {
     pub weapon_range_min: f32,
 }
 
-impl BaseCombatUnitAttributes {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+impl ReadableHeaderElement for BaseCombatUnitAttributes {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut attrs = BaseCombatUnitAttributes {
-            base_armor: if version >= 11.52 {
+            base_armor: if input.version() >= 11.52 {
                 input.read_u16::<LE>()?
             } else {
                 input.read_u8()?.into()
@@ -223,11 +231,11 @@ impl BaseCombatUnitAttributes {
         };
         let num_attacks = input.read_u16::<LE>()?;
         for _ in 0..num_attacks {
-            attrs.attacks.push(HitType::read_from(&mut input)?);
+            attrs.attacks.push(HitType::read_from(input)?);
         }
         let num_armors = input.read_u16::<LE>()?;
         for _ in 0..num_armors {
-            attrs.armors.push(HitType::read_from(&mut input)?);
+            attrs.armors.push(HitType::read_from(input)?);
         }
         attrs.attack_speed = input.read_f32::<LE>()?;
         attrs.weapon_range_max = input.read_f32::<LE>()?;
@@ -245,10 +253,6 @@ impl BaseCombatUnitAttributes {
         attrs.weapon_range_min = input.read_f32::<LE>()?;
         Ok(attrs)
     }
-
-    pub fn write_to(&self, _output: impl Write) -> Result<()> {
-        todo!()
-    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -256,13 +260,15 @@ pub struct MissileUnitAttributes {
     pub targeting_type: u8,
 }
 
-impl MissileUnitAttributes {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for MissileUnitAttributes {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let targeting_type = input.read_u8()?;
         Ok(Self { targeting_type })
     }
+}
 
-    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+impl WritableHeaderElement for MissileUnitAttributes {
+    fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u8(self.targeting_type)?;
         Ok(())
     }
@@ -286,11 +292,11 @@ pub struct CombatUnitAttributes {
     pub max_attacks_in_volley: u8,
 }
 
-impl CombatUnitAttributes {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for CombatUnitAttributes {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut attrs = Self::default();
         for _ in 0..3 {
-            let attr = AttributeCost::read_from(&mut input)?;
+            let attr = AttributeCost::read_from(&mut *input)?;
             if attr.attribute_type >= 0 {
                 attrs.costs.push(attr);
             }
@@ -319,10 +325,6 @@ impl CombatUnitAttributes {
         attrs.max_attacks_in_volley = input.read_u8()?;
         Ok(attrs)
     }
-
-    pub fn write_to(&self, _output: impl Write) -> Result<()> {
-        todo!()
-    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -335,8 +337,8 @@ pub struct BuildingUnitAttributes {
     pub garrison_heal_rate: Option<f32>,
 }
 
-impl BuildingUnitAttributes {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for BuildingUnitAttributes {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut attrs = Self::default();
         let facet = input.read_i16::<LE>()?;
         // UserPatch data
@@ -350,10 +352,6 @@ impl BuildingUnitAttributes {
         }
         Ok(attrs)
     }
-
-    pub fn write_to(&self, _output: impl Write) -> Result<()> {
-        todo!()
-    }
 }
 
 #[cfg(test)]
@@ -362,7 +360,7 @@ mod tests {
 
     #[test]
     fn cmp_unit_base_class() {
-        assert!(UnitBaseClass::Static == UnitBaseClass::Static);
+        assert_eq!(UnitBaseClass::Static, UnitBaseClass::Static);
         assert!(UnitBaseClass::Static < UnitBaseClass::Animated);
         assert!(UnitBaseClass::Static < UnitBaseClass::Doppelganger);
         assert!(UnitBaseClass::Animated < UnitBaseClass::Doppelganger);
