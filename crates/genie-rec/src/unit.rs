@@ -1,3 +1,5 @@
+use crate::element::{OptionalReadableElement, ReadableHeaderElement, WritableHeaderElement};
+use crate::reader::RecordingHeaderReader;
 use crate::unit_action::UnitAction;
 use crate::unit_type::UnitBaseClass;
 use crate::Result;
@@ -26,14 +28,14 @@ pub struct Unit {
     pub building: Option<BuildingUnitAttributes>,
 }
 
-impl Unit {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Option<Self>> {
+impl OptionalReadableElement for Unit {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Option<Self>> {
         let raw_class = input.read_u8()?;
         if raw_class == 0 {
             return Ok(None);
         }
         let unit_base_class = raw_class.try_into().unwrap();
-        let static_ = StaticUnitAttributes::read_from(&mut input, version)?;
+        let static_ = StaticUnitAttributes::read_from(input)?;
         let mut unit = Self {
             unit_base_class,
             static_,
@@ -46,50 +48,52 @@ impl Unit {
             building: None,
         };
         if unit_base_class >= UnitBaseClass::Animated {
-            unit.animated = Some(AnimatedUnitAttributes::read_from(&mut input)?);
+            unit.animated = Some(AnimatedUnitAttributes::read_from(input)?);
         }
         if unit_base_class >= UnitBaseClass::Moving {
-            unit.moving = Some(MovingUnitAttributes::read_from(&mut input, version)?);
+            unit.moving = Some(MovingUnitAttributes::read_from(input)?);
         }
         if unit_base_class >= UnitBaseClass::Action {
-            unit.action = Some(ActionUnitAttributes::read_from(&mut input, version)?);
+            unit.action = Some(ActionUnitAttributes::read_from(input)?);
         }
         if unit_base_class >= UnitBaseClass::BaseCombat {
-            unit.base_combat = Some(BaseCombatUnitAttributes::read_from(&mut input, version)?);
+            unit.base_combat = Some(BaseCombatUnitAttributes::read_from(input)?);
         }
         if unit_base_class >= UnitBaseClass::Missile {
-            unit.missile = Some(MissileUnitAttributes::read_from(&mut input, version)?);
+            unit.missile = Some(MissileUnitAttributes::read_from(input)?);
         }
         if unit_base_class >= UnitBaseClass::Combat {
-            unit.combat = Some(CombatUnitAttributes::read_from(&mut input, version)?);
+            unit.combat = Some(CombatUnitAttributes::read_from(input)?);
         }
         if unit_base_class >= UnitBaseClass::Building {
-            unit.building = Some(BuildingUnitAttributes::read_from(&mut input, version)?);
+            unit.building = Some(BuildingUnitAttributes::read_from(input)?);
         }
         Ok(Some(unit))
     }
+}
 
-    pub fn write_to(&self, mut output: impl Write, version: f32) -> Result<()> {
+impl WritableHeaderElement for Unit {
+    fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         let raw_class = self.unit_base_class as u8;
         output.write_u8(raw_class)?;
-        self.static_.write_to(&mut output, version)?;
+        self.static_.write_to(output)?;
         if let Some(animated) = &self.animated {
-            animated.write_to(&mut output)?;
+            animated.write_to(output)?;
         }
         if let Some(moving) = &self.moving {
-            moving.write_to(&mut output)?;
+            moving.write_to(output)?;
         }
         if let Some(action) = &self.action {
-            action.write_to(&mut output, version)?;
+            action.write_to(output)?;
         }
         if let Some(base_combat) = &self.base_combat {
-            base_combat.write_to(&mut output, version)?;
+            base_combat.write_to(output)?;
         }
         if let Some(missile) = &self.missile {
-            missile.write_to(&mut output, version)?;
+            missile.write_to(output)?;
         }
         if let Some(combat) = &self.combat {
-            combat.write_to(&mut output, version)?;
+            combat.write_to(output)?;
         }
         Ok(())
     }
@@ -106,8 +110,8 @@ pub struct SpriteNodeAnimation {
     pub last_speed: f32,
 }
 
-impl SpriteNodeAnimation {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for SpriteNodeAnimation {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut animation = Self::default();
         animation.animate_interval = input.read_u32::<LE>()?;
         animation.animate_last = input.read_u32::<LE>()?;
@@ -118,8 +122,10 @@ impl SpriteNodeAnimation {
         animation.last_speed = input.read_f32::<LE>()?;
         Ok(animation)
     }
+}
 
-    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+impl WritableHeaderElement for SpriteNodeAnimation {
+    fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u32::<LE>(self.animate_interval)?;
         output.write_u32::<LE>(self.animate_last)?;
         output.write_u16::<LE>(self.last_frame)?;
@@ -144,8 +150,8 @@ pub struct SpriteNode {
     pub count: u8,
 }
 
-impl SpriteNode {
-    pub fn read_from(mut input: impl Read) -> Result<Option<Self>> {
+impl OptionalReadableElement for SpriteNode {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Option<Self>> {
         let ty = input.read_u8()?;
         if ty == 0 {
             return Ok(None);
@@ -158,15 +164,17 @@ impl SpriteNode {
         node.frame = input.read_u16::<LE>()?;
         node.invisible = input.read_u8()? != 0;
         if ty == 2 {
-            node.animation = Some(SpriteNodeAnimation::read_from(&mut input)?);
+            node.animation = Some(SpriteNodeAnimation::read_from(input)?);
         }
         node.order = input.read_u8()?;
         node.flag = input.read_u8()?;
         node.count = input.read_u8()?;
         Ok(Some(node))
     }
+}
 
-    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+impl WritableHeaderElement for SpriteNode {
+    fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         let ty = if self.animation.is_some() { 2 } else { 1 };
         output.write_u8(ty)?;
         output.write_u16::<LE>(self.id.into())?;
@@ -175,7 +183,7 @@ impl SpriteNode {
         output.write_u16::<LE>(self.frame)?;
         output.write_u8(if self.invisible { 1 } else { 0 })?;
         if let Some(animation) = &self.animation {
-            animation.write_to(&mut output)?;
+            animation.write_to(output)?;
         }
         output.write_u8(self.order)?;
         output.write_u8(self.flag)?;
@@ -189,18 +197,20 @@ pub struct SpriteList {
     pub sprites: Vec<SpriteNode>,
 }
 
-impl SpriteList {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for SpriteList {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut sprites = vec![];
-        while let Some(node) = SpriteNode::read_from(&mut input)? {
+        while let Some(node) = SpriteNode::read_from(input)? {
             sprites.push(node);
         }
         Ok(Self { sprites })
     }
+}
 
-    pub fn write_to(&self, mut output: impl Write, _version: f32) -> Result<()> {
+impl WritableHeaderElement for SpriteList {
+    fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         for sprite in &self.sprites {
-            sprite.write_to(&mut output)?;
+            sprite.write_to(output)?;
         }
         output.write_u8(0)?;
         Ok(())
@@ -236,13 +246,13 @@ pub struct StaticUnitAttributes {
     pub sprite_list: Option<SpriteList>,
 }
 
-impl StaticUnitAttributes {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+impl ReadableHeaderElement for StaticUnitAttributes {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut attrs = Self::default();
         attrs.owner_id = input.read_u8()?.into();
         attrs.unit_type_id = input.read_u16::<LE>()?.into();
         attrs.sprite_id = input.read_u16::<LE>()?.into();
-        attrs.garrisoned_in_id = read_opt_u32(&mut input)?;
+        attrs.garrisoned_in_id = read_opt_u32(input)?;
         attrs.hit_points = input.read_f32::<LE>()?;
         attrs.object_state = input.read_u8()?;
         attrs.sleep_flag = input.read_u8()? != 0;
@@ -257,7 +267,7 @@ impl StaticUnitAttributes {
         );
         attrs.screen_offset = (input.read_u16::<LE>()?, input.read_u16::<LE>()?);
         attrs.shadow_offset = (input.read_u16::<LE>()?, input.read_u16::<LE>()?);
-        if version < 11.58 {
+        if input.version() < 11.58 {
             attrs.selected_group = match input.read_i8()? {
                 -1 => None,
                 id => Some(id.try_into().unwrap()),
@@ -277,15 +287,17 @@ impl StaticUnitAttributes {
             }
             members
         };
-        attrs.group_id = read_opt_u32(&mut input)?;
+        attrs.group_id = read_opt_u32(input)?;
         attrs.roo_already_called = input.read_u8()?;
         if input.read_u8()? != 0 {
-            attrs.sprite_list = Some(SpriteList::read_from(&mut input)?);
+            attrs.sprite_list = Some(SpriteList::read_from(input)?);
         }
         Ok(attrs)
     }
+}
 
-    pub fn write_to(&self, mut output: impl Write, _version: f32) -> Result<()> {
+impl WritableHeaderElement for StaticUnitAttributes {
+    fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u8(self.owner_id.into())?;
         output.write_u16::<LE>(self.unit_type_id.into())?;
         output.write_u16::<LE>(self.sprite_id.into())?;
@@ -298,13 +310,15 @@ pub struct AnimatedUnitAttributes {
     pub speed: f32,
 }
 
-impl AnimatedUnitAttributes {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for AnimatedUnitAttributes {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let speed = input.read_f32::<LE>()?;
         Ok(Self { speed })
     }
+}
 
-    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+impl WritableHeaderElement for AnimatedUnitAttributes {
+    fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_f32::<LE>(self.speed)?;
         Ok(())
     }
@@ -327,17 +341,17 @@ pub struct PathData {
     pub flags: u32,
 }
 
-impl PathData {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+impl ReadableHeaderElement for PathData {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut path = Self::default();
         path.id = input.read_u32::<LE>()?;
         path.linked_path_type = input.read_u32::<LE>()?;
         path.waypoint_level = input.read_u32::<LE>()?;
         path.path_id = input.read_u32::<LE>()?;
         path.waypoint = input.read_u32::<LE>()?;
-        if version < 10.25 {
+        if input.version() < 10.25 {
             path.disable_flags = Some(input.read_u32::<LE>()?);
-            if version >= 10.20 {
+            if input.version() >= 10.20 {
                 path.enable_flags = Some(input.read_u32::<LE>()?);
             }
         }
@@ -349,10 +363,6 @@ impl PathData {
         path.flags = input.read_u32::<LE>()?;
         Ok(path)
     }
-
-    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
-        todo!()
-    }
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -362,7 +372,7 @@ pub struct MovementData {
 }
 
 impl MovementData {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let velocity = (
             input.read_f32::<LE>()?,
             input.read_f32::<LE>()?,
@@ -414,8 +424,8 @@ pub struct MovingUnitAttributes {
     pub consecutive_substitute_count: u32,
 }
 
-impl MovingUnitAttributes {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+impl ReadableHeaderElement for MovingUnitAttributes {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut attrs = Self::default();
         attrs.trail_remainder = input.read_u32::<LE>()?;
         attrs.velocity = (
@@ -427,7 +437,7 @@ impl MovingUnitAttributes {
         attrs.turn_towards_time = input.read_u32::<LE>()?;
         attrs.turn_timer = input.read_u32::<LE>()?;
         attrs.continue_counter = input.read_u32::<LE>()?;
-        attrs.current_terrain_exception = (read_opt_u32(&mut input)?, read_opt_u32(&mut input)?);
+        attrs.current_terrain_exception = (read_opt_u32(input)?, read_opt_u32(input)?);
         attrs.waiting_to_move = input.read_u8()?;
         attrs.wait_delays_count = input.read_u8()?;
         attrs.on_ground = input.read_u8()?;
@@ -435,15 +445,15 @@ impl MovingUnitAttributes {
             let num_paths = input.read_u32::<LE>()?;
             let mut paths = vec![];
             for _ in 0..num_paths {
-                paths.push(PathData::read_from(&mut input, version)?);
+                paths.push(PathData::read_from(input)?);
             }
             paths
         };
         if input.read_u32::<LE>()? != 0 {
-            attrs.future_path_data = Some(PathData::read_from(&mut input, version)?);
+            attrs.future_path_data = Some(PathData::read_from(input)?);
         }
         if input.read_u32::<LE>()? != 0 {
-            attrs.movement_data = Some(MovementData::read_from(&mut input)?);
+            attrs.movement_data = Some(MovementData::read_from(input)?);
         }
         attrs.position = (
             input.read_f32::<LE>()?,
@@ -487,11 +497,9 @@ impl MovingUnitAttributes {
         attrs.consecutive_substitute_count = input.read_u32::<LE>()?;
         Ok(attrs)
     }
-
-    pub fn write_to(&self, _output: impl Write) -> Result<()> {
-        todo!()
-    }
 }
+
+impl WritableHeaderElement for MovingUnitAttributes {}
 
 #[derive(Debug, Default, Clone)]
 pub struct ActionUnitAttributes {
@@ -501,24 +509,22 @@ pub struct ActionUnitAttributes {
     pub actions: Vec<UnitAction>,
 }
 
-impl ActionUnitAttributes {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+impl ReadableHeaderElement for ActionUnitAttributes {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut attrs = Self::default();
         attrs.waiting = input.read_u8()? != 0;
-        if version >= 6.5 {
+        if input.version() >= 6.5 {
             attrs.command_flag = input.read_u8()?;
         }
-        if version >= 11.58 {
+        if input.version() >= 11.58 {
             attrs.selected_group_info = input.read_u16::<LE>()?;
         }
-        attrs.actions = UnitAction::read_list_from(input, version)?;
+        attrs.actions = UnitAction::read_list_from(input)?;
         Ok(attrs)
     }
-
-    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
-        todo!()
-    }
 }
+
+impl WritableHeaderElement for ActionUnitAttributes {}
 
 #[derive(Debug, Default, Clone)]
 pub struct BaseCombatUnitAttributes {
@@ -532,32 +538,30 @@ pub struct BaseCombatUnitAttributes {
     pub attack_count: u32,
 }
 
-impl BaseCombatUnitAttributes {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+impl ReadableHeaderElement for BaseCombatUnitAttributes {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut attrs = Self::default();
-        if version >= 9.05 {
+        if input.version() >= 9.05 {
             attrs.formation_id = input.read_u8()?;
             attrs.formation_row = input.read_u8()?;
             attrs.formation_column = input.read_u8()?;
         }
         attrs.attack_timer = input.read_f32::<LE>()?;
-        if version >= 2.01 {
+        if input.version() >= 2.01 {
             attrs.capture_flag = input.read_u8()?;
         }
-        if version >= 9.09 {
+        if input.version() >= 9.09 {
             attrs.multi_unified_points = input.read_u8()?;
             attrs.large_object_radius = input.read_u8()?;
         }
-        if version >= 10.02 {
+        if input.version() >= 10.02 {
             attrs.attack_count = input.read_u32::<LE>()?;
         }
         Ok(attrs)
     }
-
-    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
-        todo!()
-    }
 }
+
+impl WritableHeaderElement for BaseCombatUnitAttributes {}
 
 #[derive(Debug, Default, Clone)]
 pub struct MissileUnitAttributes {
@@ -566,8 +570,8 @@ pub struct MissileUnitAttributes {
     pub own_base: Option<UnitType>,
 }
 
-impl MissileUnitAttributes {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+impl ReadableHeaderElement for MissileUnitAttributes {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut attrs = Self::default();
         attrs.max_range = input.read_f32::<LE>()?;
         attrs.fired_from_id = input.read_u32::<LE>()?.into();
@@ -575,16 +579,15 @@ impl MissileUnitAttributes {
             if input.read_u8()? == 0 {
                 None
             } else {
-                Some(UnitType::read_from(&mut input, version)?)
+                let version = input.version();
+                Some(UnitType::read_from(&mut *input, version)?)
             }
         };
         Ok(attrs)
     }
-
-    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
-        todo!()
-    }
 }
+
+impl WritableHeaderElement for MissileUnitAttributes {}
 
 #[derive(Debug, Default, Clone)]
 pub struct UnitAIOrder {
@@ -597,8 +600,8 @@ pub struct UnitAIOrder {
     range: f32,
 }
 
-impl UnitAIOrder {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for UnitAIOrder {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut order = Self::default();
         order.issuer = input.read_u32::<LE>()?;
         order.order_type = input.read_u32::<LE>()?;
@@ -613,10 +616,6 @@ impl UnitAIOrder {
         order.range = input.read_f32::<LE>()?;
         Ok(order)
     }
-
-    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
-        todo!()
-    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -627,8 +626,8 @@ pub struct UnitAINotification {
     pub params: (u32, u32, u32),
 }
 
-impl UnitAINotification {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for UnitAINotification {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut notify = Self::default();
         notify.caller = input.read_u32::<LE>()?;
         notify.recipient = input.read_u32::<LE>()?;
@@ -639,10 +638,6 @@ impl UnitAINotification {
             input.read_u32::<LE>()?,
         );
         Ok(notify)
-    }
-
-    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
-        todo!()
     }
 }
 
@@ -657,8 +652,8 @@ pub struct UnitAIOrderHistory {
     target_position: (f32, f32, f32),
 }
 
-impl UnitAIOrderHistory {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+impl ReadableHeaderElement for UnitAIOrderHistory {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut order = Self::default();
         order.order = input.read_u32::<LE>()?;
         order.action = input.read_u32::<LE>()?;
@@ -669,8 +664,8 @@ impl UnitAIOrderHistory {
             input.read_f32::<LE>()?,
         );
         order.target_id = input.read_u32::<LE>()?.into();
-        if version >= 10.50 {
-            order.target_attack_category = read_opt_u32(&mut input)?;
+        if input.version() >= 10.50 {
+            order.target_attack_category = read_opt_u32(input)?;
         }
         order.target_position = (
             input.read_f32::<LE>()?,
@@ -678,10 +673,6 @@ impl UnitAIOrderHistory {
             input.read_f32::<LE>()?,
         );
         Ok(order)
-    }
-
-    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
-        todo!()
     }
 }
 
@@ -691,18 +682,14 @@ pub struct UnitAIRetargetEntry {
     pub retarget_timeout: u32,
 }
 
-impl UnitAIRetargetEntry {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for UnitAIRetargetEntry {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let target_id = input.read_u32::<LE>()?.into();
         let retarget_timeout = input.read_u32::<LE>()?;
         Ok(Self {
             target_id,
             retarget_timeout,
         })
-    }
-
-    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
-        todo!()
     }
 }
 
@@ -712,8 +699,8 @@ pub struct Waypoint {
     pub facet_to_next_waypoint: u8,
 }
 
-impl Waypoint {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for Waypoint {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut waypoint = Self::default();
         waypoint.location = (
             input.read_f32::<LE>()?,
@@ -726,22 +713,14 @@ impl Waypoint {
         let _padding = input.read_u8()?;
         Ok(waypoint)
     }
-
-    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
-        todo!()
-    }
 }
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct PatrolPath {}
 
-impl PatrolPath {
-    pub fn read_from(_input: impl Read) -> Result<Self> {
-        todo!()
-    }
-
-    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
-        todo!()
+impl ReadableHeaderElement for PatrolPath {
+    fn read_from<R: Read>(_: &mut RecordingHeaderReader<R>) -> Result<Self> {
+        unimplemented!()
     }
 }
 
@@ -788,14 +767,14 @@ pub struct UnitAI {
     formation_type: u8,
 }
 
-impl UnitAI {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+impl ReadableHeaderElement for UnitAI {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut ai = Self::default();
-        ai.mood = read_opt_u32(&mut input)?;
-        ai.current_order = read_opt_u32(&mut input)?;
-        ai.current_order_priority = read_opt_u32(&mut input)?;
-        ai.current_action = read_opt_u32(&mut input)?;
-        ai.current_target = read_opt_u32(&mut input)?;
+        ai.mood = read_opt_u32(input)?;
+        ai.current_order = read_opt_u32(input)?;
+        ai.current_order_priority = read_opt_u32(input)?;
+        ai.current_action = read_opt_u32(input)?;
+        ai.current_target = read_opt_u32(input)?;
         ai.current_target_type = match input.read_u16::<LE>()? {
             0xFFFF => None,
             id => Some(id.try_into().unwrap()),
@@ -807,25 +786,25 @@ impl UnitAI {
             input.read_f32::<LE>()?,
         );
         ai.desired_target_distance = input.read_f32::<LE>()?;
-        ai.last_action = read_opt_u32(&mut input)?;
-        ai.last_order = read_opt_u32(&mut input)?;
-        ai.last_target = read_opt_u32(&mut input)?;
-        ai.last_target_type = read_opt_u32(&mut input)?;
-        ai.last_update_type = read_opt_u32(&mut input)?;
+        ai.last_action = read_opt_u32(input)?;
+        ai.last_order = read_opt_u32(input)?;
+        ai.last_target = read_opt_u32(input)?;
+        ai.last_target_type = read_opt_u32(input)?;
+        ai.last_update_type = read_opt_u32(input)?;
         ai.idle_timer = input.read_u32::<LE>()?;
         ai.idle_timeout = input.read_u32::<LE>()?;
         ai.adjusted_idle_timeout = input.read_u32::<LE>()?;
         ai.secondary_timer = input.read_u32::<LE>()?;
         ai.lookaround_timer = input.read_u32::<LE>()?;
         ai.lookaround_timeout = input.read_u32::<LE>()?;
-        ai.defend_target = read_opt_u32(&mut input)?;
+        ai.defend_target = read_opt_u32(input)?;
         ai.defense_buffer = input.read_f32::<LE>()?;
-        ai.last_world_position = Waypoint::read_from(&mut input)?;
+        ai.last_world_position = Waypoint::read_from(input)?;
         ai.orders = {
             let num_orders = input.read_u32::<LE>()?;
             let mut orders = vec![];
             for _ in 0..num_orders {
-                orders.push(UnitAIOrder::read_from(&mut input)?);
+                orders.push(UnitAIOrder::read_from(input)?);
             }
             orders
         };
@@ -833,7 +812,7 @@ impl UnitAI {
             let num_notifications = input.read_u32::<LE>()?;
             let mut notifications = vec![];
             for _ in 0..num_notifications {
-                notifications.push(UnitAINotification::read_from(&mut input)?);
+                notifications.push(UnitAINotification::read_from(input)?);
             }
             notifications
         };
@@ -850,53 +829,49 @@ impl UnitAI {
         ai.state_position = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
         ai.time_since_enemy_sighting = input.read_u32::<LE>()?;
         ai.alert_mode = input.read_u8()?;
-        ai.alert_mode_object_id = read_opt_u32(&mut input)?;
+        ai.alert_mode_object_id = read_opt_u32(input)?;
         ai.patrol_path = {
             let has_path = input.read_u32::<LE>()? != 0;
             if has_path {
-                Some(PatrolPath::read_from(&mut input)?)
+                Some(PatrolPath::read_from(input)?)
             } else {
                 None
             }
         };
         ai.patrol_current_waypoint = input.read_u32::<LE>()?;
-        if version >= 10.48 {
+        if input.version() >= 10.48 {
             ai.order_history = {
                 let num_orders = input.read_u32::<LE>()?;
                 let mut orders = vec![];
                 for _ in 0..num_orders {
-                    orders.push(UnitAIOrderHistory::read_from(&mut input, version)?);
+                    orders.push(UnitAIOrderHistory::read_from(input)?);
                 }
                 orders
             };
         }
-        if version >= 10.50 {
+        if input.version() >= 10.50 {
             ai.last_retarget_time = input.read_u32::<LE>()?;
         }
-        if version >= 11.04 {
+        if input.version() >= 11.04 {
             ai.randomized_retarget_timer = input.read_u32::<LE>()?;
         }
-        if version >= 11.05 {
+        if input.version() >= 11.05 {
             ai.retarget_entries = {
                 let num_entries = input.read_u32::<LE>()?;
                 let mut entries = vec![];
                 for _ in 0..num_entries {
-                    entries.push(UnitAIRetargetEntry::read_from(&mut input)?);
+                    entries.push(UnitAIRetargetEntry::read_from(input)?);
                 }
                 entries
             };
         }
-        if version >= 11.14 {
-            ai.best_unit_to_attack = read_opt_u32(&mut input)?;
+        if input.version() >= 11.14 {
+            ai.best_unit_to_attack = read_opt_u32(input)?;
         }
-        if version >= 11.44 {
+        if input.version() >= 11.44 {
             ai.formation_type = input.read_u8()?;
         }
         Ok(ai)
-    }
-
-    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
-        todo!()
     }
 }
 
@@ -922,8 +897,8 @@ pub struct CombatUnitAttributes {
     pub num_healers: u8,
 }
 
-impl CombatUnitAttributes {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+impl ReadableHeaderElement for CombatUnitAttributes {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut attrs = Self::default();
         attrs.next_volley = input.read_u8()?;
         attrs.using_special_attack_animation = input.read_u8()?;
@@ -931,35 +906,36 @@ impl CombatUnitAttributes {
             if input.read_u8()? == 0 {
                 None
             } else {
-                Some(UnitType::read_from(&mut input, version)?)
+                let version = input.version();
+                Some(UnitType::read_from(&mut *input, version)?)
             }
         };
         for amount in attrs.attribute_amounts.iter_mut() {
             *amount = input.read_u16::<LE>()?;
         }
-        if version >= 9.16 {
+        if input.version() >= 9.16 {
             attrs.decay_timer = input.read_u16::<LE>()?;
         }
-        if version >= 9.61 {
+        if input.version() >= 9.61 {
             attrs.raider_build_countdown = input.read_u32::<LE>()?;
         }
-        if version >= 9.65 {
+        if input.version() >= 9.65 {
             attrs.locked_down_count = input.read_u32::<LE>()?;
         }
-        if version >= 11.56 {
+        if input.version() >= 11.56 {
             attrs.inside_garrison_count = input.read_u8()?;
         }
         attrs.unit_ai = {
             let has_ai = input.read_u32::<LE>()? != 0;
             if has_ai {
-                Some(UnitAI::read_from(&mut input, version)?)
+                Some(UnitAI::read_from(input)?)
             } else {
                 None
             }
         };
-        if version >= 10.30 {
+        if input.version() >= 10.30 {
             attrs.town_bell_flag = input.read_i8()?;
-            attrs.town_bell_target_id = read_opt_u32(&mut input)?;
+            attrs.town_bell_target_id = read_opt_u32(input)?;
             attrs.town_bell_target_location = {
                 let location = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
                 if location.0 >= 0.0 {
@@ -969,29 +945,27 @@ impl CombatUnitAttributes {
                 }
             };
         }
-        if version >= 11.71 {
-            attrs.town_bell_target_id_2 = read_opt_u32(&mut input)?;
+        if input.version() >= 11.71 {
+            attrs.town_bell_target_id_2 = read_opt_u32(input)?;
             attrs.town_bell_target_type = input.read_u32::<LE>()?;
         }
-        if version >= 11.74 {
+        if input.version() >= 11.74 {
             attrs.town_bell_action = input.read_u32::<LE>()?;
         }
-        if version >= 10.42 {
+        if input.version() >= 10.42 {
             attrs.berserker_timer = input.read_f32::<LE>()?;
         }
-        if version >= 10.46 {
+        if input.version() >= 10.46 {
             attrs.num_builders = input.read_u8()?;
         }
-        if version >= 11.69 {
+        if input.version() >= 11.69 {
             attrs.num_healers = input.read_u8()?;
         }
         Ok(attrs)
     }
-
-    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
-        todo!()
-    }
 }
+
+impl WritableHeaderElement for CombatUnitAttributes {}
 
 #[derive(Debug, Clone)]
 pub enum GatherPoint {
@@ -1005,8 +979,8 @@ pub struct ProductionQueueEntry {
     pub count: u16,
 }
 
-impl ProductionQueueEntry {
-    fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for ProductionQueueEntry {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let unit_type_id = input.read_u16::<LE>()?.into();
         let count = input.read_u16::<LE>()?;
         Ok(Self {
@@ -1066,12 +1040,12 @@ pub struct BuildingUnitAttributes {
     pub snow_flag: bool,
 }
 
-impl BuildingUnitAttributes {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+impl ReadableHeaderElement for BuildingUnitAttributes {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut attrs = Self::default();
         attrs.built = input.read_u8()? != 0;
         attrs.build_points = input.read_f32::<LE>()?;
-        attrs.unique_build_id = read_opt_u32(&mut input)?;
+        attrs.unique_build_id = read_opt_u32(input)?;
         attrs.culture = input.read_u8()?;
         attrs.burning = input.read_u8()?;
         attrs.last_burn_time = input.read_u32::<LE>()?;
@@ -1097,10 +1071,10 @@ impl BuildingUnitAttributes {
             }
         };
         attrs.desolid_flag = input.read_u8()? != 0;
-        if version >= 10.54 {
+        if input.version() >= 10.54 {
             attrs.pending_order = input.read_u32::<LE>()?;
         }
-        attrs.linked_owner = read_opt_u32(&mut input)?;
+        attrs.linked_owner = read_opt_u32(input)?;
         attrs.linked_children = {
             let mut children: ArrayVec<ObjectID, 4> = Default::default();
             for _ in 0..4 {
@@ -1112,21 +1086,21 @@ impl BuildingUnitAttributes {
             children
         };
         attrs.captured_unit_count = input.read_u8()?;
-        attrs.extra_actions = UnitAction::read_list_from(&mut input, version)?;
-        attrs.research_actions = UnitAction::read_list_from(&mut input, version)?;
+        attrs.extra_actions = UnitAction::read_list_from(input)?;
+        attrs.research_actions = UnitAction::read_list_from(input)?;
         attrs.production_queue = {
             let capacity = input.read_u16::<LE>()?;
             let mut queue = vec![ProductionQueueEntry::default(); capacity as usize];
             for entry in queue.iter_mut() {
-                *entry = ProductionQueueEntry::read_from(&mut input)?;
+                *entry = ProductionQueueEntry::read_from(input)?;
             }
             let _size = input.read_u16::<LE>()?;
             queue
         };
         attrs.production_queue_total_units = input.read_u16::<LE>()?;
         attrs.production_queue_enabled = input.read_u8()? != 0;
-        attrs.production_queue_actions = UnitAction::read_list_from(&mut input, version)?;
-        if version >= 10.65 {
+        attrs.production_queue_actions = UnitAction::read_list_from(input)?;
+        if input.version() >= 10.65 {
             // game reads into the same value twice, while there are two separate fields of this
             // type. likely a bug, but it doesn't appear to cause issues? is this unused?
             attrs.endpoint = (
@@ -1143,19 +1117,15 @@ impl BuildingUnitAttributes {
             attrs.first_update = input.read_u32::<LE>()?;
             attrs.close_timer = input.read_u32::<LE>()?;
         }
-        if version >= 10.67 {
+        if input.version() >= 10.67 {
             attrs.terrain_type = Some(input.read_u8()?.into());
         }
-        if version >= 11.43 {
+        if input.version() >= 11.43 {
             attrs.semi_asleep = input.read_u8()? != 0;
         }
-        if version >= 11.54 {
+        if input.version() >= 11.54 {
             attrs.snow_flag = input.read_u8()? != 0;
         }
         Ok(attrs)
-    }
-
-    pub fn write_to(&self, _output: impl Write, _version: f32) -> Result<()> {
-        todo!()
     }
 }
