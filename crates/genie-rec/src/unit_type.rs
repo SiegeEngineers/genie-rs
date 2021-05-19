@@ -1,9 +1,11 @@
 use crate::element::{ReadableHeaderElement, WritableHeaderElement};
 use crate::reader::RecordingHeaderReader;
+use crate::GameVariant::DefinitiveEdition;
 use crate::Result;
 use arrayvec::ArrayVec;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 pub use genie_dat::unit_type::{AttributeCost, ParseUnitBaseClassError, UnitBaseClass};
+use genie_support::{read_opt_u16, ReadSkipExt};
 pub use genie_support::{StringKey, UnitTypeID};
 use std::convert::TryInto;
 use std::io::{Read, Write};
@@ -25,6 +27,7 @@ impl ReadableHeaderElement for CompactUnitType {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let unit_base_class = input.read_u8()?.try_into().unwrap();
         let static_ = StaticUnitAttributes::read_from(input)?;
+
         let mut unit = Self {
             unit_base_class,
             static_,
@@ -36,6 +39,7 @@ impl ReadableHeaderElement for CompactUnitType {
             combat: None,
             building: None,
         };
+
         if unit_base_class >= UnitBaseClass::Animated {
             unit.animated = Some(AnimatedUnitAttributes::read_from(input)?);
         }
@@ -57,6 +61,7 @@ impl ReadableHeaderElement for CompactUnitType {
         if unit_base_class >= UnitBaseClass::Building {
             unit.building = Some(BuildingUnitAttributes::read_from(input)?);
         }
+
         Ok(unit)
     }
 }
@@ -84,6 +89,17 @@ pub struct StaticUnitAttributes {
     attribute_max_amount: u16,
     attribute_amount_held: f32,
     disabled: bool,
+    de: Option<StaticUnitAttributesDeExtension>,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct StaticUnitAttributesDeExtension {
+    name_id: StringKey,
+    creation_id: StringKey,
+    terrain_table: i16,
+    dead_unit: Option<UnitTypeID>,
+    icon: Option<i16>,
+    blast_defense: u8,
 }
 
 impl ReadableHeaderElement for StaticUnitAttributes {
@@ -92,6 +108,10 @@ impl ReadableHeaderElement for StaticUnitAttributes {
         attrs.id = input.read_u16::<LE>()?.into();
         attrs.copy_id = input.read_u16::<LE>()?.into();
         attrs.base_id = input.read_u16::<LE>()?.into();
+        if input.variant() >= DefinitiveEdition {
+            // repeat of id??
+            input.skip(2)?;
+        }
         attrs.unit_class = input.read_u16::<LE>()?;
         attrs.hotkey_id = input.read_u32::<LE>()?;
         attrs.available = input.read_u8()? != 0;
@@ -121,6 +141,18 @@ impl ReadableHeaderElement for StaticUnitAttributes {
         attrs.attribute_max_amount = input.read_u16::<LE>()?;
         attrs.attribute_amount_held = input.read_f32::<LE>()?;
         attrs.disabled = input.read_u8()? != 0;
+
+        if input.variant() >= DefinitiveEdition {
+            attrs.de = Some(StaticUnitAttributesDeExtension {
+                name_id: input.read_u32::<LE>()?.into(),
+                creation_id: input.read_u32::<LE>()?.into(),
+                terrain_table: input.read_i16::<LE>()?,
+                dead_unit: read_opt_u16(input)?,
+                icon: read_opt_u16(input)?,
+                blast_defense: input.read_u8()?,
+            });
+        }
+
         Ok(attrs)
     }
 }
@@ -215,6 +247,16 @@ pub struct BaseCombatUnitAttributes {
     pub weapon_range_max_2: f32,
     pub area_of_effect: f32,
     pub weapon_range_min: f32,
+    pub de: Option<BaseCombatUnitAttributesDeExtension>,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct BaseCombatUnitAttributesDeExtension {
+    pub frame_delay: i16,
+    pub blast_attack_level: u8,
+    pub shown_melee_armor: i16,
+    pub shown_attack: i16,
+    pub shown_range: f32,
 }
 
 impl ReadableHeaderElement for BaseCombatUnitAttributes {
@@ -247,6 +289,17 @@ impl ReadableHeaderElement for BaseCombatUnitAttributes {
         attrs.weapon_range_max_2 = input.read_f32::<LE>()?;
         attrs.area_of_effect = input.read_f32::<LE>()?;
         attrs.weapon_range_min = input.read_f32::<LE>()?;
+
+        if input.variant() >= DefinitiveEdition {
+            attrs.de = Some(BaseCombatUnitAttributesDeExtension {
+                frame_delay: input.read_i16::<LE>()?,
+                blast_attack_level: input.read_u8()?,
+                shown_melee_armor: input.read_i16::<LE>()?,
+                shown_attack: input.read_i16::<LE>()?,
+                shown_range: input.read_f32::<LE>()?,
+            });
+        }
+
         Ok(attrs)
     }
 }
@@ -286,6 +339,16 @@ pub struct CombatUnitAttributes {
     pub hero_flag: Option<u8>,
     pub volley_fire_amount: f32,
     pub max_attacks_in_volley: u8,
+    pub de: Option<CombatUnitAttributesDeExtension>,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct CombatUnitAttributesDeExtension {
+    pub hero_flag: bool,
+    pub shown_pierce_armor: i16,
+    pub train_location: Option<i16>,
+    pub train_button: u8,
+    pub health_regen: f32,
 }
 
 impl ReadableHeaderElement for CombatUnitAttributes {
@@ -297,6 +360,7 @@ impl ReadableHeaderElement for CombatUnitAttributes {
                 attrs.costs.push(attr);
             }
         }
+
         let create_time = input.read_u16::<LE>()?;
         // UserPatch data
         if create_time == u16::max_value() - 15 {
@@ -319,6 +383,19 @@ impl ReadableHeaderElement for CombatUnitAttributes {
         };
         attrs.volley_fire_amount = input.read_f32::<LE>()?;
         attrs.max_attacks_in_volley = input.read_u8()?;
+
+        if input.variant() >= DefinitiveEdition {
+            let mut de = CombatUnitAttributesDeExtension::default();
+            let hero_flag = input.read_u8()?;
+            attrs.hero_flag = Some(hero_flag);
+            de.hero_flag = hero_flag == 1;
+            de.train_location = read_opt_u16(input)?;
+            de.train_button = input.read_u8()?;
+            de.shown_pierce_armor = input.read_i16::<LE>()?;
+            de.health_regen = input.read_f32::<LE>()?;
+            attrs.de = Some(de);
+        }
+
         Ok(attrs)
     }
 }
@@ -346,6 +423,13 @@ impl ReadableHeaderElement for BuildingUnitAttributes {
         } else {
             attrs.facet = facet;
         }
+
+        if input.variant() >= DefinitiveEdition {
+            attrs.garrison_heal_rate = Some(input.read_f32::<LE>()?);
+            // every item I've found so far is 0
+            input.skip(4)?;
+        }
+
         Ok(attrs)
     }
 }

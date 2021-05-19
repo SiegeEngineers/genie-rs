@@ -99,6 +99,7 @@ pub enum ActionType {
     Guard,
     Make(ActionMake),
     Artifact,
+    Unknown(u16),
 }
 
 impl ActionType {
@@ -106,6 +107,8 @@ impl ActionType {
         input: &mut RecordingHeaderReader<R>,
         action_type: u16,
     ) -> Result<Self> {
+        println!("{} {}", input.position(), action_type);
+
         let data = match action_type {
             1 => Self::MoveTo(ActionMoveTo::read_from(input)?),
             3 => Self::Enter(ActionEnter::read_from(input)?),
@@ -116,7 +119,7 @@ impl ActionType {
             13 => Self::Guard,
             21 => Self::Make(ActionMake::read_from(input)?),
             107 => Self::Artifact,
-            _ => unimplemented!("action type {} not yet implemented", action_type),
+            unknown => Self::Unknown(unknown),
         };
         Ok(data)
     }

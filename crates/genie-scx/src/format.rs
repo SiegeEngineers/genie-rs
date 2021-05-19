@@ -14,7 +14,8 @@ use crate::{Error, Result, VersionBundle};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use flate2::{read::DeflateDecoder, write::DeflateEncoder, Compression};
 use genie_support::{
-    f32_eq, read_opt_u32, write_opt_str, write_str, ReadStringsExt, StringKey, UnitTypeID,
+    f32_eq, read_opt_u32, write_opt_str, write_str, ReadSkipExt, ReadStringsExt, StringKey,
+    UnitTypeID,
 };
 use std::convert::{TryFrom, TryInto};
 use std::io::{self, Read, Write};
@@ -197,7 +198,6 @@ impl RGEScen {
 
         // File name may be empty for embedded scenario data inside recorded games.
         let name = input.read_u16_length_prefixed_str()?.unwrap_or_default();
-
         let (
             description_string_table,
             hints_string_table,
@@ -259,6 +259,16 @@ impl RGEScen {
         } else {
             None
         };
+
+        if version >= 1.41 {
+            // 6 zeroes?
+            input.skip(6)?;
+            // what is this data?, just repeating 0xFEFF_FFFF
+            input.skip(24)?;
+            let _description = input.read_u16_length_prefixed_str()?;
+            // ??
+            input.skip(32)?;
+        }
 
         let mut player_build_lists = vec![None; 16];
         for build_list in player_build_lists.iter_mut() {
@@ -614,7 +624,6 @@ impl TribeScen {
 
         let victory = VictoryInfo::read_from(&mut input)?;
         let victory_all_flag = input.read_i32::<LE>()? != 0;
-
         let mp_victory_type = if version >= 1.13 {
             input.read_i32::<LE>()?
         } else {

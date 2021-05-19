@@ -97,7 +97,7 @@ impl<R: Read> Peek for InflatableReader<R> {
         let buffered_data_length = self.inflatable_buffer.len() - self.position_in_buffer;
 
         // quick return because we have all the data to peek already
-        if buffered_data_length <= amount {
+        if buffered_data_length >= amount {
             return Ok(
                 &self.inflatable_buffer[self.position_in_buffer..self.position_in_buffer + amount]
             );
@@ -187,6 +187,8 @@ pub struct RecordingHeaderReader<R> {
     inner: InflatableReader<R>,
     /// Current state tracker by reader, stores version and map info
     state: RecordingState,
+    /// Our current position in the header
+    position: usize,
 }
 
 impl<R> RecordingHeaderReader<R> {
@@ -194,7 +196,12 @@ impl<R> RecordingHeaderReader<R> {
         Self {
             inner: InflatableReader::new(inner),
             state: Default::default(),
+            position: 0,
         }
+    }
+
+    pub fn position(&self) -> usize {
+        self.position
     }
 
     pub fn version(&self) -> f32 {
@@ -249,7 +256,9 @@ impl<R> RecordingHeaderReader<R> {
 
 impl<R: Read> Read for RecordingHeaderReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        self.inner.read(buf)
+        let read = self.inner.read(buf)?;
+        self.position += read;
+        Ok(read)
     }
 }
 

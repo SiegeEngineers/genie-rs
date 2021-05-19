@@ -19,7 +19,7 @@ pub trait ReadableHeaderElement: Sized {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> crate::Result<Self>;
 }
 
-impl<T: ReadableHeaderElement> ReadableElement<T> for T {
+impl<T: 'static + ReadableHeaderElement> ReadableElement<T> for T {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> crate::Result<T> {
         ReadableHeaderElement::read_from(input)
     }

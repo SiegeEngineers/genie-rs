@@ -32,7 +32,7 @@ pub mod unit_type;
 pub mod version;
 
 use crate::actions::{Action, Meta};
-use crate::element::ReadableHeaderElement;
+use crate::element::ReadableElement;
 use crate::reader::{RecordingHeaderReader, SmallBufReader};
 use crate::Difficulty::{Easiest, Extreme, Hard, Hardest, Moderate, Standard};
 use byteorder::{ReadBytesExt, LE};
@@ -133,7 +133,7 @@ pub enum Error {
     )]
     ParseDEChatMessageError(&'static str),
     #[error(
-    "Failed to find static marker in recording (expected {1}, found {2}, version {0}, {3}:{4}, found next {1} {5} bytes further)"
+    "Failed to find static marker in recording (expected {1:#x} ({1}), found {2:#x} ({2}), version {0}, {3}:{4}, found next {1:#x} ({1}) {5} bytes further)"
     )]
     MissingMarker(f32, u128, u128, &'static str, u32, u64),
     #[error("Failed parsing header at position {0}: {1}")]
@@ -217,9 +217,8 @@ where
             }
             Ok(0x03) => Some(actions::ViewLock::read_from(&mut self.input).map(Action::ViewLock)),
             Ok(0x04) => Some(actions::Chat::read_from(&mut self.input).map(Action::Chat)),
-            // I think that's the cut off point for AoE2:DE? might be wrong
-            // AoE2:DE however uses the op field as length field
-            Ok(length) if self.data_version >= 20.0 => {
+            // AoE2:DE however (also) uses the op field as length field
+            Ok(length) if self.data_version >= DE_SAVE_VERSION => {
                 let mut buffer = vec![0u8; length as usize];
                 match self.input.read_exact(&mut buffer) {
                     Ok(_) => {
@@ -385,6 +384,10 @@ where
         })
     }
 
+    pub fn save_version(&self) -> f32 {
+        self.save_version
+    }
+
     fn seek_to_first_header(&mut self) -> Result<()> {
         self.inner.seek(SeekFrom::Start(self.header_start))?;
 
@@ -404,7 +407,7 @@ where
         Ok(())
     }
 
-    fn get_header_deflate(&mut self) -> Result<DeflateDecoder<io::Take<BufReader<&mut R>>>> {
+    pub fn get_header_deflate(&mut self) -> Result<DeflateDecoder<io::Take<BufReader<&mut R>>>> {
         self.seek_to_first_header()?;
         let reader = BufReader::new(&mut self.inner).take(self.header_end - self.header_start);
         Ok(DeflateDecoder::new(reader))
@@ -412,7 +415,11 @@ where
 
     pub fn header(&mut self) -> Result<Header> {
         let deflate = self.get_header_deflate()?;
-        let header = Header::read_from(&mut RecordingHeaderReader::new(deflate))?;
+        let mut reader = RecordingHeaderReader::new(deflate);
+        let header = Header::read_from(&mut reader).map_err(|err| match err {
+            Error::HeaderError(pos, err) => Error::HeaderError(pos, err),
+            err => Error::HeaderError(reader.position() as u64, Box::new(err)),
+        })?;
         Ok(header)
     }
 
@@ -449,13 +456,7 @@ mod tests {
         let mut r = RecordedGame::new(f)?;
         r.header()?;
         for act in r.actions()? {
-            match act {
-                Ok(act) => println!("{:?}", act),
-                Err(Error::DecodeStringError(_)) => {
-                    // Skip invalid utf8 chat for now
-                }
-                Err(err) => return Err(err.into()),
-            }
+            let _ = act?;
         }
         Ok(())
     }
@@ -473,8 +474,21 @@ mod tests {
 
     #[test]
     fn aoe2de_rec() -> anyhow::Result<()> {
+        let f = File::open("test/AgeIIDE_Replay_90000059.aoe2record")?;
+        let mut r = RecordedGame::new(f)?;
+        println!("aoe2de save version {}", r.save_version);
+        let _header = r.header()?;
+        for act in r.actions()? {
+            let _ = act?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn aoe2de_2_rec() -> anyhow::Result<()> {
         let f = File::open("test/AgeIIDE_Replay_90889731.aoe2record")?;
         let mut r = RecordedGame::new(f)?;
+        println!("aoe2de save version {}", r.save_version);
         let _header = r.header()?;
         for act in r.actions()? {
             let _ = act?;

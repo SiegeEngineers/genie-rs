@@ -321,6 +321,10 @@ impl ReadableHeaderElement for Header {
 
         header.scenario = TribeScen::read_from(&mut *input)?;
 
+        if input.variant() >= DefinitiveEdition {
+            input.skip(133)?;
+        }
+
         let _difficulty = if header.save_version >= 7.16 {
             Some(input.read_u32::<LE>()?)
         } else {
@@ -509,8 +513,6 @@ impl ReadableHeaderElement for DeExtensionHeader {
         header.guid = input.read_u128::<LE>()?;
         header.lobby_name = input.read_hd_style_str()?.unwrap_or_default();
         header.modded_dataset = input.read_hd_style_str()?.unwrap_or_default();
-
-        dbg!(&header);
 
         input.skip(19)?;
 

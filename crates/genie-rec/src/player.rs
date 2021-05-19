@@ -23,15 +23,16 @@ macro_rules! assert_marker {
                 skipped += 1;
             }
 
-            dbg!(skipped);
-
-            return Err(Error::MissingMarker(
-                $val.version(),
-                $marker as u128,
-                found as u128,
-                file!(),
-                line!(),
-                skipped,
+            return Err(Error::HeaderError(
+                $val.position() as u64 - skipped,
+                Box::new(Error::MissingMarker(
+                    $val.version(),
+                    $marker as u128,
+                    found as u128,
+                    file!(),
+                    line!(),
+                    skipped,
+                )),
             ));
         }
     };
@@ -98,7 +99,6 @@ impl ReadableHeaderElement for Player {
         let mut player = Self::default();
 
         player.player_type = input.read_u8()?;
-        dbg!(player.player_type);
         if input.version() >= 10.55 {
             assert_marker!(input, 11);
         }
@@ -120,6 +120,11 @@ impl ReadableHeaderElement for Player {
         }
         player.attributes = vec![0.0; num_attributes.try_into().unwrap()];
         input.read_f32_into::<LE>(&mut player.attributes)?;
+
+        if input.variant() >= DefinitiveEdition {
+            input.skip((num_attributes * 4) as u64)?;
+        }
+
         if input.version() >= 10.55 {
             assert_marker!(input, 11);
         }
@@ -224,7 +229,6 @@ impl ReadableHeaderElement for Player {
         // selected units
         if input.version() >= 11.72 {
             let num_selections = input.read_u32::<LE>()?;
-            dbg!(num_selections);
             let _selection = if num_selections > 0 {
                 let object_id: ObjectID = input.read_u32::<LE>()?.into();
                 let object_properties = input.read_u32::<LE>()?;
@@ -239,7 +243,6 @@ impl ReadableHeaderElement for Player {
         }
 
         if input.variant() == DefinitiveEdition {
-            let mut skipped = 0;
             let mut pre_skipped = 32435;
             if input.version() >= 13.0 {
                 pre_skipped += 8;
@@ -261,22 +264,16 @@ impl ReadableHeaderElement for Player {
             // I am crying
             loop {
                 let first = input.read_u8()?;
-                skipped += 1;
                 if first != 11 {
                     continue;
                 }
                 let second = input.read_u8()?;
-                skipped += 1;
                 if second != 11 {
                     continue;
                 }
 
                 break;
             }
-
-            skipped -= 2;
-
-            dbg!(skipped, pre_skipped, pre_skipped + skipped);
         } else if input.version() >= 10.55 {
             assert_marker!(input, 11);
             assert_marker!(input, 11);
@@ -308,6 +305,9 @@ impl ReadableHeaderElement for Player {
         player.tech_state = PlayerTech::read_from(input)?;
 
         let _update_history_count = input.read_u32::<LE>()?;
+
+        assert_marker!(input, 11);
+
         player.history_info = HistoryInfo::read_from(input)?;
 
         if input.version() >= 5.30 {
@@ -416,11 +416,24 @@ impl ReadableHeaderElement for Player {
             input.read_u32_into::<LE>(&mut old_player_kills)?;
         }
 
+        if input.variant() >= DefinitiveEdition {
+            input.skip(11)?;
+        }
+
         player.tech_tree = if input.version() >= 9.38 {
             Some(TechTree::read_from(&mut *input)?)
         } else {
             None
         };
+
+        if input.variant() >= DefinitiveEdition {
+            // Just, random 4 zero bytes :)
+            input.skip(4)?;
+
+            if player.player_type != 2 {
+                input.skip(4)?;
+            }
+        }
 
         if input.version() >= 10.55 {
             assert_marker!(input, 11);
@@ -443,7 +456,7 @@ impl ReadableHeaderElement for Player {
         };
 
         if input.version() >= 10.55 {
-            assert_eq!(input.read_u8()?, 11);
+            assert_marker!(input, 11);
         }
 
         let num_unit_types = input.read_u32::<LE>()?;
@@ -453,7 +466,7 @@ impl ReadableHeaderElement for Player {
         }
 
         if input.version() >= 10.55 {
-            assert_eq!(input.read_u8()?, 11);
+            assert_marker!(input, 11);
         }
 
         player.unit_types.reserve(available_unit_types.len());
@@ -462,11 +475,11 @@ impl ReadableHeaderElement for Player {
                 None
             } else {
                 if input.version() >= 10.55 {
-                    assert_eq!(input.read_u8()?, 22);
+                    assert_marker!(input, 22);
                 }
                 let ty = CompactUnitType::read_from(input)?;
                 if input.version() >= 10.55 {
-                    assert_eq!(input.read_u8()?, 33);
+                    assert_marker!(input, 33);
                 }
                 Some(ty)
             });
@@ -494,7 +507,7 @@ impl ReadableHeaderElement for Player {
         };
 
         if input.version() >= 10.55 {
-            assert_eq!(input.read_u8()?, 11);
+            assert_marker!(input, 11);
         }
 
         player.sleeping_units = {
@@ -535,7 +548,7 @@ pub struct VisibleMap {
     pub height: u32,
     pub explored_tiles_count: u32,
     pub player_id: PlayerID,
-    pub tiles: Vec<i8>,
+    pub tiles: Vec<i16>,
 }
 
 impl ReadableHeaderElement for VisibleMap {
@@ -547,8 +560,14 @@ impl ReadableHeaderElement for VisibleMap {
             map.explored_tiles_count = input.read_u32::<LE>()?;
         }
         map.player_id = input.read_u16::<LE>()?.try_into().unwrap();
-        map.tiles = vec![0; (map.width * map.height).try_into().unwrap()];
-        input.read_i8_into(&mut map.tiles)?;
+        if input.variant() >= DefinitiveEdition {
+            map.tiles = vec![0; (map.width * map.height) as usize];
+            input.read_i16_into::<LE>(&mut map.tiles)?;
+        } else {
+            let mut tiles = vec![0i8; (map.width * map.height) as usize];
+            input.read_i8_into(&mut tiles)?;
+            map.tiles.extend(tiles.iter().map(|x| *x as i16));
+        }
         Ok(map)
     }
 }
@@ -748,15 +767,7 @@ pub struct HistoryInfo {
 
 impl ReadableHeaderElement for HistoryInfo {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
-        let _padding = input.read_u8()?;
-        if input.variant() >= DefinitiveEdition {
-            input.skip(6)?;
-        }
-
         let num_entries = input.read_u32::<LE>()?;
-        // assert_marker!(num_entries eq 0, version);
-        dbg!(num_entries);
-
         let _num_events = input.read_u32::<LE>()?;
         let entries_capacity = input.read_u32::<LE>()?;
         let mut entries = Vec::with_capacity(entries_capacity.try_into().unwrap());
@@ -764,17 +775,9 @@ impl ReadableHeaderElement for HistoryInfo {
             entries.push(HistoryEntry::read_from(input)?);
         }
 
-        // if version >= DE_VERSION {
-        //     input.skip(2)?;
-        // }
-
         // 22 for gaia, but 0 for players?
-        // let _value = input.read_u8()?;
-        // dbg!(_value);
-        assert_marker!(input, 22);
-
+        let _value = input.read_u8()?;
         let num_events = input.read_u32::<LE>()?;
-        dbg!(num_events);
         let mut events = Vec::with_capacity(num_events.try_into().unwrap());
         for _ in 0..num_events {
             events.push(HistoryEvent::read_from(input)?);
@@ -851,10 +854,7 @@ impl ReadableHeaderElement for HistoryEntry {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let civilian_population = input.read_u16::<LE>()?;
         let military_population = input.read_u16::<LE>()?;
-        dbg!(input.variant());
-        if input.variant() >= DefinitiveEdition {
-            input.skip(5)?;
-        }
+
         Ok(HistoryEntry {
             civilian_population,
             military_population,
@@ -883,7 +883,7 @@ impl ReadableHeaderElement for TechState {
         state.time_modifier = input.read_i16::<LE>()?;
 
         if input.variant() >= DefinitiveEdition {
-            input.skip(8)?;
+            input.skip(15)?;
         }
 
         Ok(state)
@@ -898,7 +898,7 @@ pub struct PlayerTech {
 impl ReadableHeaderElement for PlayerTech {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let num_techs = input.read_u16::<LE>()?;
-        dbg!(num_techs);
+
         let mut tech_states = Vec::with_capacity(usize::from(num_techs));
         for _ in 0..num_techs {
             tech_states.push(TechState::read_from(input)?);

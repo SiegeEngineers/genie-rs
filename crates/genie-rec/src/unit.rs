@@ -1,7 +1,8 @@
 use crate::element::{OptionalReadableElement, ReadableHeaderElement, WritableHeaderElement};
-use crate::reader::RecordingHeaderReader;
+use crate::reader::{Peek, RecordingHeaderReader};
 use crate::unit_action::UnitAction;
 use crate::unit_type::UnitBaseClass;
+use crate::GameVariant::DefinitiveEdition;
 use crate::Result;
 use crate::{ObjectID, PlayerID};
 use arrayvec::ArrayVec;
@@ -10,7 +11,7 @@ pub use genie_dat::sprite::SpriteID;
 pub use genie_dat::terrain::TerrainID;
 pub use genie_dat::unit_type::AttributeCost;
 use genie_dat::unit_type::UnitType;
-use genie_support::{read_opt_u32, ReadSkipExt};
+use genie_support::{read_opt_u32, ReadSkipExt, ReadStringsExt};
 pub use genie_support::{StringKey, UnitTypeID};
 use std::convert::TryInto;
 use std::io::{Read, Write};
@@ -68,6 +69,11 @@ impl OptionalReadableElement for Unit {
         if unit_base_class >= UnitBaseClass::Building {
             unit.building = Some(BuildingUnitAttributes::read_from(input)?);
         }
+
+        if unit_base_class == UnitBaseClass::Moving && input.variant() >= DefinitiveEdition {
+            input.skip(17)?;
+        }
+
         Ok(Some(unit))
     }
 }
@@ -244,6 +250,13 @@ pub struct StaticUnitAttributes {
     pub group_id: Option<u32>,
     pub roo_already_called: u8,
     pub sprite_list: Option<SpriteList>,
+    pub de_effect_block: Option<DeEffectBlock>,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct DeEffectBlock {
+    pub has_effect: bool,
+    pub effect_name: Option<String>,
 }
 
 impl ReadableHeaderElement for StaticUnitAttributes {
@@ -289,9 +302,54 @@ impl ReadableHeaderElement for StaticUnitAttributes {
         };
         attrs.group_id = read_opt_u32(input)?;
         attrs.roo_already_called = input.read_u8()?;
+
+        if input.variant() >= DefinitiveEdition {
+            input.skip(19)?;
+        }
+
         if input.read_u8()? != 0 {
             attrs.sprite_list = Some(SpriteList::read_from(input)?);
         }
+
+        if input.variant() >= DefinitiveEdition {
+            input.skip(4)?;
+            let has_effect = input.read_u8()? == 1;
+
+            let effect_name = if has_effect {
+                input.skip(1)?;
+
+                let effect_name = input.read_hd_style_str()?;
+                if effect_name.is_some() {
+                    // effect arguments?
+                    input.skip(34)?;
+                }
+
+                effect_name
+            } else {
+                input.skip(1)?;
+                None
+            };
+
+            input.skip(4)?;
+
+            if input.version() >= 13.15 {
+                input.skip(5)?;
+            }
+
+            if input.version() >= 13.17 {
+                input.skip(2)?;
+            }
+
+            if input.version() >= 13.34 {
+                input.skip(12)?;
+            }
+
+            attrs.de_effect_block = Some(DeEffectBlock {
+                has_effect,
+                effect_name,
+            });
+        }
+
         Ok(attrs)
     }
 }
@@ -455,6 +513,11 @@ impl ReadableHeaderElement for MovingUnitAttributes {
         if input.read_u32::<LE>()? != 0 {
             attrs.movement_data = Some(MovementData::read_from(input)?);
         }
+
+        if input.variant() >= DefinitiveEdition && input.version() < 13.2 {
+            input.skip(2)?;
+        }
+
         attrs.position = (
             input.read_f32::<LE>()?,
             input.read_f32::<LE>()?,
@@ -800,6 +863,11 @@ impl ReadableHeaderElement for UnitAI {
         ai.defend_target = read_opt_u32(input)?;
         ai.defense_buffer = input.read_f32::<LE>()?;
         ai.last_world_position = Waypoint::read_from(input)?;
+
+        if input.version() >= 20.06 {
+            input.skip(8)?;
+        }
+
         ai.orders = {
             let num_orders = input.read_u32::<LE>()?;
             let mut orders = vec![];
@@ -871,6 +939,11 @@ impl ReadableHeaderElement for UnitAI {
         if input.version() >= 11.44 {
             ai.formation_type = input.read_u8()?;
         }
+
+        if input.variant() >= DefinitiveEdition {
+            input.skip(4)?;
+        }
+
         Ok(ai)
     }
 }
@@ -900,6 +973,11 @@ pub struct CombatUnitAttributes {
 impl ReadableHeaderElement for CombatUnitAttributes {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut attrs = Self::default();
+
+        if input.variant() >= DefinitiveEdition {
+            input.skip(18)?;
+        }
+
         attrs.next_volley = input.read_u8()?;
         attrs.using_special_attack_animation = input.read_u8()?;
         attrs.own_base = {
@@ -933,6 +1011,13 @@ impl ReadableHeaderElement for CombatUnitAttributes {
                 None
             }
         };
+
+        // https://github.com/happyleavesaoc/aoc-mgz/blob/ce4e5dc6184fcd005d0c50d3abac58dd863778be/mgz/header/objects.py#L361
+        // ???
+        if input.peek(5)? != b"\x00\xff\xff\xff\xff" {
+            input.skip(13)?;
+        }
+
         if input.version() >= 10.30 {
             attrs.town_bell_flag = input.read_i8()?;
             attrs.town_bell_target_id = read_opt_u32(input)?;
@@ -961,6 +1046,11 @@ impl ReadableHeaderElement for CombatUnitAttributes {
         if input.version() >= 11.69 {
             attrs.num_healers = input.read_u8()?;
         }
+
+        if input.version() >= 20.06 {
+            input.skip(4)?;
+        }
+
         Ok(attrs)
     }
 }
@@ -1077,7 +1167,14 @@ impl ReadableHeaderElement for BuildingUnitAttributes {
         attrs.linked_owner = read_opt_u32(input)?;
         attrs.linked_children = {
             let mut children: ArrayVec<ObjectID, 4> = Default::default();
-            for _ in 0..4 {
+
+            let num_children = if input.variant() >= DefinitiveEdition {
+                3
+            } else {
+                4
+            };
+
+            for _ in 0..num_children {
                 let id = input.read_i32::<LE>()?;
                 if id != -1 {
                     children.push(id.try_into().unwrap());
@@ -1087,7 +1184,11 @@ impl ReadableHeaderElement for BuildingUnitAttributes {
         };
         attrs.captured_unit_count = input.read_u8()?;
         attrs.extra_actions = UnitAction::read_list_from(input)?;
-        attrs.research_actions = UnitAction::read_list_from(input)?;
+
+        if input.variant() != DefinitiveEdition {
+            attrs.research_actions = UnitAction::read_list_from(input)?;
+        }
+
         attrs.production_queue = {
             let capacity = input.read_u16::<LE>()?;
             let mut queue = vec![ProductionQueueEntry::default(); capacity as usize];
@@ -1126,6 +1227,11 @@ impl ReadableHeaderElement for BuildingUnitAttributes {
         if input.version() >= 11.54 {
             attrs.snow_flag = input.read_u8()? != 0;
         }
+
+        if input.variant() >= DefinitiveEdition {
+            input.skip(1)?;
+        }
+
         Ok(attrs)
     }
 }

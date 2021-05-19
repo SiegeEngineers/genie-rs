@@ -121,14 +121,10 @@ impl MapZone {
 impl ReadableHeaderElement for MapZone {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut zone = Self::default();
-        input.read_i8_into(&mut zone.info)?;
-        input.read_i32_into::<LE>(&mut zone.tiles)?;
-        zone.zone_map = vec![0; input.tile_count()];
-        input.read_i8_into(&mut zone.zone_map)?;
 
         // this changed in HD/DE, but I have no clue
         if input.version() > 11.93 {
-            input.skip((2048 + (input.tile_count() * 2)) as u64)?
+            input.skip((2048 + (input.tile_count() * 2)) as u64)?;
         } else {
             input.read_i8_into(&mut zone.info)?;
             input.read_i32_into::<LE>(&mut zone.tiles)?;
@@ -226,15 +222,14 @@ impl ReadableHeaderElement for Map {
         map.height = input.read_u32::<LE>()?;
         input.set_map_size(map.width, map.height);
         let num_zones = input.read_u32::<LE>()?;
-        dbg!(num_zones);
         map.zones = Vec::with_capacity(num_zones.try_into().unwrap());
         for _ in 0..num_zones {
             map.zones.push(MapZone::read_from(input)?);
         }
         map.all_visible = input.read_u8()? != 0;
         map.fog_of_war = input.read_u8()? != 0;
-        map.tiles = Vec::with_capacity((map.width * map.height).try_into().unwrap());
-        for _ in 0..(map.width * map.height) {
+        map.tiles = Vec::with_capacity(input.tile_count());
+        for _ in 0..input.tile_count() {
             map.tiles.push(Tile::read_from(input)?);
         }
 
