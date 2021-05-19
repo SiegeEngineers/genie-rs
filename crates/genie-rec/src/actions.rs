@@ -1,11 +1,13 @@
 //! Player actions executed during a game.
 
-use crate::{ObjectID, PlayerID, Result};
+use crate::{Error, ObjectID, PlayerID, Result};
 use arrayvec::ArrayVec;
-use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use genie_support::{f32_neq, read_opt_u32, ReadSkipExt, ReadStringsExt, TechID, UnitTypeID};
+use byteorder::ByteOrder;
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt, LE};
+use genie_support::{f32_neq, read_opt_u32, read_str, ReadSkipExt, TechID, UnitTypeID};
+use serde_json::Value;
 use std::convert::TryInto;
-use std::io::{Read, Write};
+use std::io::{Cursor, Read, Write};
 
 /// A location with an X and Y coordinate.
 pub type Location2 = (f32, f32);
@@ -66,11 +68,12 @@ impl Default for ObjectsList {
 
 impl ObjectsList {
     /// Read a list of objects from an input stream.
-    pub fn read_from(mut input: impl Read, count: i32) -> Result<Self> {
-        if count < 0xFF {
+    pub fn read_from(mut input: impl Read, count: i8) -> Result<Self> {
+        if count != -1 {
             let mut list = vec![];
             for _ in 0..count {
-                list.push(input.read_i32::<LE>()?.try_into().unwrap());
+                let id = input.read_u32::<LE>()?;
+                list.push(id.into());
             }
             Ok(ObjectsList::List(list))
         } else {
@@ -124,7 +127,8 @@ impl OrderCommand {
         command.player_id = input.read_u8()?.into();
         input.skip(2)?;
         command.target_id = read_opt_u32(&mut input)?;
-        let selected_count = input.read_i32::<LE>()?;
+        let selected_count = input.read_i8()?;
+        input.skip(3)?;
         command.location = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
         command.objects = ObjectsList::read_from(input, selected_count)?;
         Ok(command)
@@ -159,7 +163,7 @@ impl StopCommand {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut command = Self::default();
         let selected_count = input.read_i8()?;
-        command.objects = ObjectsList::read_from(input, selected_count as i32)?;
+        command.objects = ObjectsList::read_from(input, selected_count)?;
         Ok(command)
     }
 
@@ -191,7 +195,7 @@ impl WorkCommand {
         let selected_count = input.read_i8()?;
         input.skip(3)?;
         command.location = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
-        command.objects = ObjectsList::read_from(input, selected_count as i32)?;
+        command.objects = ObjectsList::read_from(input, selected_count)?;
         Ok(command)
     }
 
@@ -217,6 +221,8 @@ pub struct MoveCommand {
     pub target_id: Option<ObjectID>,
     /// The target location of this command.
     pub location: Location2,
+    /// ???
+    pub flags: Option<[bool; 8]>,
     /// The objects being tasked.
     pub objects: ObjectsList,
 }
@@ -231,7 +237,25 @@ impl MoveCommand {
         let selected_count = input.read_i8()?;
         input.skip(3)?;
         command.location = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
-        command.objects = ObjectsList::read_from(input, selected_count as i32)?;
+
+        let mut buffer = vec![];
+        input.read_to_end(&mut buffer)?;
+
+        let size_with_flags = 8 + (selected_count.max(0) as usize * 4);
+        let mut buffer_cursor = Cursor::new(&buffer);
+
+        command.flags = if buffer.len() == size_with_flags {
+            let mut flags = [false; 8];
+            for i in 0..8 {
+                flags[i] = buffer_cursor.read_u8()? == 1
+            }
+
+            Some(flags)
+        } else {
+            None
+        };
+
+        command.objects = ObjectsList::read_from(buffer_cursor, selected_count)?;
         Ok(command)
     }
 
@@ -247,6 +271,7 @@ impl MoveCommand {
         Ok(())
     }
 }
+
 /// A command that instantly places a unit type at a given location.
 ///
 /// Typically used for cheats and the like.
@@ -345,7 +370,7 @@ pub struct AIOrderCommand {
 impl AIOrderCommand {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut command = Self::default();
-        let selected_count = i32::from(input.read_i8()?);
+        let selected_count = input.read_i8()?;
         command.player_id = input.read_u8()?.into();
         command.issuer = input.read_u8()?.into();
         let object_id = input.read_u32::<LE>()?;
@@ -451,13 +476,13 @@ pub struct GroupWaypointCommand {
 impl GroupWaypointCommand {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let player_id = input.read_u8()?.into();
-        let num_units = input.read_u8()?;
+        let num_units = input.read_i8()?;
         let x = input.read_u8()?;
         let y = input.read_u8()?;
         Ok(Self {
             player_id,
             location: (x, y),
-            objects: ObjectsList::read_from(input, i32::from(num_units))?,
+            objects: ObjectsList::read_from(input, num_units)?,
         })
     }
 
@@ -483,9 +508,9 @@ pub struct UnitAIStateCommand {
 impl UnitAIStateCommand {
     /// Read a UnitAIState command from an input stream.
     pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let selected_count = input.read_u8()?;
+        let selected_count = input.read_i8()?;
         let state = input.read_i8()?;
-        let objects = ObjectsList::read_from(input, i32::from(selected_count))?;
+        let objects = ObjectsList::read_from(input, selected_count)?;
         Ok(Self { state, objects })
     }
 
@@ -511,7 +536,7 @@ impl GuardCommand {
     /// Read a Guard command from an input stream.
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut command = Self::default();
-        let selected_count = i32::from(input.read_u8()?);
+        let selected_count = input.read_i8()?;
         input.skip(2)?;
         command.target_id = read_opt_u32(&mut input)?;
         command.objects = ObjectsList::read_from(input, selected_count)?;
@@ -545,7 +570,7 @@ impl FollowCommand {
     /// Read a Follow command from an input stream.
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut command = Self::default();
-        let selected_count = i32::from(input.read_u8()?);
+        let selected_count = input.read_i8()?;
         input.skip(2)?;
         command.target_id = read_opt_u32(&mut input)?;
         command.objects = ObjectsList::read_from(input, selected_count)?;
@@ -592,7 +617,7 @@ impl PatrolCommand {
             .waypoints
             .try_extend_from_slice(&raw_waypoints[0..usize::from(waypoint_count)])
             .unwrap();
-        command.objects = ObjectsList::read_from(input, i32::from(selected_count))?;
+        command.objects = ObjectsList::read_from(input, selected_count)?;
         Ok(command)
     }
 
@@ -629,7 +654,7 @@ impl FormFormationCommand {
         command.player_id = input.read_u8()?.into();
         let _padding = input.read_u8()?;
         command.formation_type = input.read_i32::<LE>()?;
-        command.objects = ObjectsList::read_from(input, i32::from(selected_count))?;
+        command.objects = ObjectsList::read_from(input, selected_count)?;
         Ok(command)
     }
 
@@ -812,7 +837,7 @@ impl BuildCommand {
         command.unique_id = read_opt_u32(&mut input)?;
         command.frame = input.read_u8()?;
         input.skip(3)?;
-        command.builders = ObjectsList::read_from(input, i32::from(selected_count))?;
+        command.builders = ObjectsList::read_from(input, selected_count)?;
         Ok(command)
     }
 }
@@ -971,19 +996,40 @@ impl GameCommand {
 #[derive(Debug, Default, Clone)]
 pub struct BuildWallCommand {
     pub player_id: PlayerID,
-    pub start: (u8, u8),
-    pub end: (u8, u8),
+    pub start: (u16, u16),
+    pub end: (u16, u16),
     pub unit_type_id: UnitTypeID,
+    pub flags: Option<u32>,
     pub builders: ObjectsList,
 }
 
 impl BuildWallCommand {
     fn read_from(mut input: impl Read) -> Result<Self> {
+        let mut data = vec![];
+        input.read_to_end(&mut data)?;
+        let data_size = data.len();
+        let mut input = Cursor::new(&data);
+
         let selected_count = input.read_i8()?;
+
+        // TODO: Check for a more elegant way? I would love to have parser state here
+        //  But requires "full rewrite"
+        let is_de = data_size - 15 - (selected_count as usize * 4) == 8;
+
         let player_id = input.read_u8()?.into();
-        let start = (input.read_u8()?, input.read_u8()?);
-        let end = (input.read_u8()?, input.read_u8()?);
-        let _padding = input.read_u8()?;
+
+        let (start, end) = if is_de {
+            let _padding = input.read_u8()?;
+            let start = (input.read_u16::<LE>()?, input.read_u16::<LE>()?);
+            let end = (input.read_u16::<LE>()?, input.read_u16::<LE>()?).into();
+            (start, end)
+        } else {
+            let start = (input.read_u8()?.into(), input.read_u8()?.into());
+            let end = (input.read_u8()?.into(), input.read_u8()?.into());
+            let _padding = input.read_u8()?;
+            (start, end)
+        };
+
         let unit_type_id = input.read_u16::<LE>()?.into();
         let _padding = input.read_u16::<LE>()?;
         assert_eq!(
@@ -991,6 +1037,9 @@ impl BuildWallCommand {
             0xFFFF_FFFF,
             "check out what this is for"
         );
+
+        let flags = is_de.then(|| input.read_u32::<LE>()).transpose()?;
+
         let builders = if selected_count == -1 {
             ObjectsList::SameAsLast
         } else {
@@ -1006,6 +1055,7 @@ impl BuildWallCommand {
             start,
             end,
             unit_type_id,
+            flags,
             builders,
         })
     }
@@ -1052,10 +1102,10 @@ impl AttackGroundCommand {
     /// Read a AttackGround command from an input stream.
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut command = Self::default();
-        let selected_count = i32::from(input.read_i8()?);
+        let selected_count = input.read_i8()?;
         input.skip(2)?;
         command.location = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
-        command.objects = ObjectsList::read_from(input, selected_count as i32)?;
+        command.objects = ObjectsList::read_from(input, selected_count)?;
         Ok(command)
     }
 
@@ -1083,7 +1133,7 @@ impl RepairCommand {
     /// Read a Repair command from an input stream.
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut command = Self::default();
-        let selected_count = i32::from(input.read_u8()?);
+        let selected_count = input.read_i8()?;
         input.skip(2)?;
         command.target_id = read_opt_u32(&mut input)?;
         command.repairers = ObjectsList::read_from(input, selected_count)?;
@@ -1128,7 +1178,7 @@ impl UngarrisonCommand {
         command.ungarrison_type = input.read_i8()?;
         input.skip(3)?;
         command.unit_type_id = read_opt_u32(&mut input)?;
-        command.objects = ObjectsList::read_from(input, i32::from(selected_count))?;
+        command.objects = ObjectsList::read_from(input, selected_count)?;
         Ok(command)
     }
 }
@@ -1194,7 +1244,7 @@ impl UnitOrderCommand {
             None
         };
         command.unique_id = read_opt_u32(&mut input)?;
-        command.objects = ObjectsList::read_from(input, i32::from(selected_count))?;
+        command.objects = ObjectsList::read_from(input, selected_count)?;
         Ok(command)
     }
 }
@@ -1245,7 +1295,7 @@ pub struct SetGatherPointCommand {
 impl SetGatherPointCommand {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
         let mut command = Self::default();
-        let selected_count = i32::from(input.read_i8()?);
+        let selected_count = input.read_i8()?;
         input.skip(2)?;
         command.target_id = read_opt_u32(&mut input)?;
         command.target_type_id = match input.read_u16::<LE>()? {
@@ -1365,6 +1415,37 @@ impl BackToWorkCommand {
     }
 }
 
+/// AoE2: DE uses a different queue command that combines multi and single queue
+#[derive(Debug, Default, Clone)]
+pub struct DEQueueCommand {
+    pub player_id: PlayerID,
+    pub building_type: UnitTypeID,
+    pub unit_type: UnitTypeID,
+    pub queue_amount: u8,
+    pub buildings: ObjectsList,
+}
+
+impl DEQueueCommand {
+    pub fn read_from(mut input: impl Read) -> Result<Self> {
+        let player_id = input.read_u8()?.into();
+        let building_type = input.read_u16::<LE>()?.into();
+        let selected = input.read_i8()?;
+        let _padding = input.read_u8()?;
+        let unit_type = input.read_u16::<LE>()?.into();
+        let queue_amount = input.read_u8()?;
+        let _padding = input.read_u8()?;
+        let buildings = ObjectsList::read_from(input, selected)?;
+
+        Ok(DEQueueCommand {
+            player_id,
+            building_type,
+            unit_type,
+            queue_amount,
+            buildings,
+        })
+    }
+}
+
 /// A player command.
 #[derive(Debug, Clone)]
 pub enum Command {
@@ -1400,14 +1481,19 @@ pub enum Command {
     BuyResource(BuyResourceCommand),
     Unknown7F(Unknown7FCommand),
     BackToWork(BackToWorkCommand),
+    DEQueue(DEQueueCommand),
+    Unknown(u8, Vec<u8>),
 }
 
 impl Command {
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         let len = input.read_u32::<LE>()?;
+        let mut data = vec![0u8; (len - 1) as usize];
+        let command_id = input.read_u8()?;
+        input.read_exact(&mut data)?;
+        let mut cursor = Cursor::new(&data);
 
-        let mut cursor = input.by_ref().take(len.into());
-        let command = match cursor.read_u8()? {
+        let command = match command_id {
             0x00 => OrderCommand::read_from(&mut cursor).map(Command::Order),
             0x01 => StopCommand::read_from(&mut cursor).map(Command::Stop),
             0x02 => WorkCommand::read_from(&mut cursor).map(Command::Work),
@@ -1440,10 +1526,9 @@ impl Command {
             0x7b => BuyResourceCommand::read_from(&mut cursor).map(Command::BuyResource),
             0x7f => Unknown7FCommand::read_from(&mut cursor).map(Command::Unknown7F),
             0x80 => BackToWorkCommand::read_from(&mut cursor).map(Command::BackToWork),
-            id => panic!("unsupported command type {:#x}", id),
+            0x81 => DEQueueCommand::read_from(&mut cursor).map(Command::DEQueue),
+            id => Ok(Command::Unknown(id, data)),
         };
-        // Consume any excess bytes.
-        std::io::copy(&mut cursor, &mut std::io::sink())?;
 
         let _world_time = input.read_u32::<LE>()?;
         command
@@ -1570,13 +1655,76 @@ impl Meta {
 #[derive(Debug, Clone)]
 pub struct Chat {
     message: String,
+    de_info: Option<ChatDeInfo>,
+}
+
+/// DE introduces chat, but JSON, ye..
+#[derive(Debug, Clone)]
+pub struct ChatDeInfo {
+    player: PlayerID,
+    // since it's JSON, we kinda have to assume it's f64,
+    // but let's assume the folks at FE don't make channels on
+    channel: u32,
+    message: String,
 }
 
 impl Chat {
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
         assert_eq!(input.read_i32::<LE>()?, -1);
-        let message = input.read_u32_length_prefixed_str()?.unwrap_or_default();
-        Ok(Self { message })
+        let length = input.read_u32::<LE>()?;
+        let mut buffer = vec![0u8; length as usize];
+        input.read_exact(&mut buffer)?;
+        Self::parse_from_buffer(buffer)
+    }
+
+    pub fn parse_from_buffer<T: AsRef<[u8]>>(buffer: T) -> Result<Self> {
+        let buffer = buffer.as_ref();
+        if buffer.is_empty() {
+            return Ok(Chat {
+                message: "".to_string(),
+                de_info: None,
+            });
+        }
+
+        // Both latin-1 and UTF-8 have '{' on the same codepoint
+        // old aoe messages _can't_ start with {
+        if buffer[0] != b'{' {
+            let message = read_str(buffer)?.unwrap_or_default();
+            Ok(Self {
+                message,
+                de_info: None,
+            })
+        } else {
+            let mut value: serde_json::Map<String, Value> = serde_json::from_slice(buffer)?;
+            let player = (value
+                .remove("player")
+                .and_then(|x| x.as_u64())
+                .ok_or(Error::ParseDEChatMessageError("player"))? as u8)
+                .into();
+            let channel = value
+                .remove("channel")
+                .and_then(|x| x.as_u64())
+                .ok_or(Error::ParseDEChatMessageError("channel"))? as u32;
+            let message = value
+                .remove("message")
+                .and_then(|x| x.as_str().map(str::to_string))
+                .ok_or(Error::ParseDEChatMessageError("message"))?
+                .to_string();
+            let fallback_message = value
+                .remove("messageAGP")
+                .and_then(|x| x.as_str().map(str::to_string))
+                .ok_or(Error::ParseDEChatMessageError("messageAGP"))?
+                .to_string();
+
+            Ok(Self {
+                message: fallback_message,
+                de_info: Some(ChatDeInfo {
+                    player,
+                    channel,
+                    message,
+                }),
+            })
+        }
     }
 }
 
@@ -1588,4 +1736,31 @@ pub enum Action {
     Sync(Sync),
     ViewLock(ViewLock),
     Chat(Chat),
+    Embedded(EmbeddedAction),
+}
+
+#[derive(Debug, Clone)]
+pub enum EmbeddedAction {
+    Chat(Chat),
+    // TODO, I think it's _just_ a header?
+    SavedChapter,
+    // TODO: aoc-mgz says something about it being a partial action?
+    Other,
+    // ???
+    Unknown,
+}
+
+impl EmbeddedAction {
+    pub fn from_buffer<T: AsRef<[u8]>>(buffer: T) -> Result<EmbeddedAction> {
+        let data = buffer.as_ref();
+        let op: u32 = LittleEndian::read_u32(&data[..4]);
+        let action = match op {
+            0 => EmbeddedAction::SavedChapter,
+            9024 => EmbeddedAction::Chat(Chat::parse_from_buffer(&data[4..])?),
+            65535 => EmbeddedAction::Other,
+            _ => EmbeddedAction::Unknown,
+        };
+
+        Ok(action)
+    }
 }

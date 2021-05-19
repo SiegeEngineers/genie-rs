@@ -115,6 +115,20 @@ fn decode_str(bytes: &[u8]) -> Result<String, DecodeStringError> {
     }
 }
 
+/// Read and decode NUL delimited string from buffer
+pub fn read_str<T: AsRef<[u8]>>(bytes: T) -> Result<Option<String>, ReadStringError> {
+    let bytes = bytes.as_ref();
+    let end = bytes
+        .iter()
+        .position(|&byte| byte == 0)
+        .unwrap_or(bytes.len());
+    if end == 0 {
+        Ok(None)
+    } else {
+        Ok(Some(decode_str(&bytes[..end])?))
+    }
+}
+
 /// Functions to read various kinds of strings from input streams.
 /// Extension trait for reading strings in several common formats used by AoE2.
 pub trait ReadStringsExt: Read {
@@ -123,14 +137,7 @@ pub trait ReadStringsExt: Read {
         if length > 0 {
             let mut bytes = vec![0; length as usize];
             self.read_exact(&mut bytes)?;
-            if let Some(end) = bytes.iter().position(|&byte| byte == 0) {
-                bytes.truncate(end);
-            }
-            if bytes.is_empty() {
-                Ok(None)
-            } else {
-                Ok(Some(decode_str(&bytes)?))
-            }
+            read_str(bytes)
         } else {
             Ok(None)
         }

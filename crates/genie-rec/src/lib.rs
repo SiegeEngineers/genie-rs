@@ -20,22 +20,29 @@
 
 pub mod actions;
 pub mod ai;
+pub mod element;
 pub mod header;
 pub mod map;
 pub mod player;
+pub mod reader;
 pub mod string_table;
 pub mod unit;
 pub mod unit_action;
 pub mod unit_type;
+pub mod version;
 
 use crate::actions::{Action, Meta};
+use crate::element::ReadableElement;
+use crate::reader::{RecordingHeaderReader, SmallBufReader};
+use crate::Difficulty::{Easiest, Extreme, Hard, Hardest, Moderate, Standard};
 use byteorder::{ReadBytesExt, LE};
 use flate2::bufread::DeflateDecoder;
 use genie_scx::DLCOptions;
 use genie_support::{fallible_try_from, fallible_try_into, infallible_try_into};
 pub use header::Header;
-use std::fmt::{self, Debug, Display};
+use std::fmt::Debug;
 use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom};
+pub use version::*;
 
 /// ID identifying a player (0-8).
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -99,37 +106,6 @@ fallible_try_from!(ObjectID, i32);
 fallible_try_into!(ObjectID, i16);
 fallible_try_into!(ObjectID, i32);
 
-/// The game data version string. In practice, this does not really reflect the game version.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub struct GameVersion([u8; 8]);
-
-impl Default for GameVersion {
-    fn default() -> Self {
-        Self([0; 8])
-    }
-}
-
-impl Debug for GameVersion {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", std::str::from_utf8(&self.0).unwrap())
-    }
-}
-
-impl Display for GameVersion {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", std::str::from_utf8(&self.0).unwrap())
-    }
-}
-
-impl GameVersion {
-    /// Read the game version string from an input stream.
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let mut game_version = [0; 8];
-        input.read_exact(&mut game_version)?;
-        Ok(Self(game_version))
-    }
-}
-
 ///
 #[derive(Debug, thiserror::Error)]
 pub enum SyncError {
@@ -150,6 +126,18 @@ pub enum Error {
     DecodeStringError(#[from] genie_support::DecodeStringError),
     #[error("Could not read embedded scenario data: {0}")]
     ReadScenarioError(#[from] genie_scx::Error),
+    #[error("Failed to parse DE JSON chat message: {0}")]
+    DEChatMessageJsonError(#[from] serde_json::Error),
+    #[error(
+        "Failed to parse DE JSON chat message, JSON is missing the key {0}, or value is invalid"
+    )]
+    ParseDEChatMessageError(&'static str),
+    #[error(
+    "Failed to find static marker in recording (expected {1:#x} ({1}), found {2:#x} ({2}), version {0}, {3}:{4}, found next {1:#x} ({1}) {5} bytes further)"
+    )]
+    MissingMarker(f32, u128, u128, &'static str, u32, u64),
+    #[error("Failed parsing header at position {0}: {1}")]
+    HeaderError(u64, Box<Error>),
 }
 
 impl From<genie_support::ReadStringError> for Error {
@@ -169,6 +157,7 @@ pub struct BodyActions<R>
 where
     R: BufRead,
 {
+    data_version: f32,
     input: R,
     meta: Meta,
     remaining_syncs_until_checksum: u32,
@@ -186,6 +175,7 @@ where
         };
         let remaining_syncs_until_checksum = meta.checksum_interval;
         Ok(Self {
+            data_version,
             input,
             meta,
             remaining_syncs_until_checksum,
@@ -227,6 +217,16 @@ where
             }
             Ok(0x03) => Some(actions::ViewLock::read_from(&mut self.input).map(Action::ViewLock)),
             Ok(0x04) => Some(actions::Chat::read_from(&mut self.input).map(Action::Chat)),
+            // AoE2:DE however (also) uses the op field as length field
+            Ok(length) if self.data_version >= DE_SAVE_VERSION => {
+                let mut buffer = vec![0u8; length as usize];
+                match self.input.read_exact(&mut buffer) {
+                    Ok(_) => {
+                        Some(actions::EmbeddedAction::from_buffer(buffer).map(Action::Embedded))
+                    }
+                    Err(err) => Some(Err(err.into())),
+                }
+            }
             Ok(id) => panic!("unsupported action type {:#x}", id),
             Err(err) if err.kind() == io::ErrorKind::UnexpectedEof => None,
             Err(err) => Some(Err(err.into())),
@@ -237,12 +237,34 @@ where
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Difficulty {
     Easiest,
+    // ???
     Easy,
     Standard,
+    Moderate,
     Hard,
     Hardest,
     /// Age of Empires 2: Definitive Edition only.
     Extreme,
+}
+
+impl From<u32> for Difficulty {
+    fn from(val: u32) -> Self {
+        match val {
+            0 => Hardest,
+            1 => Hard,
+            2 => Moderate,
+            3 => Standard,
+            4 => Easiest,
+            5 => Extreme,
+            _ => unimplemented!("Don't know any difficulty with value {}", val),
+        }
+    }
+}
+
+impl Default for Difficulty {
+    fn default() -> Self {
+        Difficulty::Standard
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -302,53 +324,6 @@ pub struct HDGameOptions {
     pub scenario_player_indices: Vec<i32>,
 }
 
-/// A struct implementing `BufRead` that uses a small, single-use, stack-allocated buffer, intended
-/// for reading only the first few bytes from a file.
-struct SmallBufReader<R>
-where
-    R: Read,
-{
-    buffer: [u8; 256],
-    pointer: usize,
-    reader: R,
-}
-
-impl<R> SmallBufReader<R>
-where
-    R: Read,
-{
-    fn new(reader: R) -> Self {
-        Self {
-            buffer: [0; 256],
-            pointer: 0,
-            reader,
-        }
-    }
-}
-
-impl<R> Read for SmallBufReader<R>
-where
-    R: Read,
-{
-    fn read(&mut self, output: &mut [u8]) -> io::Result<usize> {
-        self.reader.read(output)
-    }
-}
-
-impl<R> BufRead for SmallBufReader<R>
-where
-    R: Read,
-{
-    fn fill_buf(&mut self) -> io::Result<&[u8]> {
-        self.reader.read_exact(&mut self.buffer[self.pointer..])?;
-        Ok(&self.buffer[self.pointer..])
-    }
-
-    fn consume(&mut self, len: usize) {
-        self.pointer += len;
-    }
-}
-
 /// Recorded game reader.
 pub struct RecordedGame<R>
 where
@@ -373,6 +348,7 @@ where
 {
     pub fn new(mut input: R) -> Result<Self> {
         let file_size = {
+            input.seek(SeekFrom::Start(0))?;
             let size = input.seek(SeekFrom::End(0))?;
             input.seek(SeekFrom::Start(0))?;
             size
@@ -408,10 +384,21 @@ where
         })
     }
 
+    pub fn save_version(&self) -> f32 {
+        self.save_version
+    }
+
     fn seek_to_first_header(&mut self) -> Result<()> {
         self.inner.seek(SeekFrom::Start(self.header_start))?;
 
         Ok(())
+    }
+
+    pub fn get_header_data(&mut self) -> Result<Vec<u8>> {
+        let mut header = vec![];
+        let mut deflate = self.get_header_deflate()?;
+        deflate.read_to_end(&mut header)?;
+        Ok(header)
     }
 
     fn seek_to_body(&mut self) -> Result<()> {
@@ -420,11 +407,19 @@ where
         Ok(())
     }
 
-    pub fn header(&mut self) -> Result<Header> {
+    pub fn get_header_deflate(&mut self) -> Result<DeflateDecoder<io::Take<BufReader<&mut R>>>> {
         self.seek_to_first_header()?;
         let reader = BufReader::new(&mut self.inner).take(self.header_end - self.header_start);
-        let deflate = DeflateDecoder::new(reader);
-        let header = Header::read_from(deflate)?;
+        Ok(DeflateDecoder::new(reader))
+    }
+
+    pub fn header(&mut self) -> Result<Header> {
+        let deflate = self.get_header_deflate()?;
+        let mut reader = RecordingHeaderReader::new(deflate);
+        let header = Header::read_from(&mut reader).map_err(|err| match err {
+            Error::HeaderError(pos, err) => Error::HeaderError(pos, err),
+            err => Error::HeaderError(reader.position() as u64, Box::new(err)),
+        })?;
         Ok(header)
     }
 
@@ -445,7 +440,7 @@ mod tests {
 
     #[test]
     // AI data parsing is incomplete: remove this attribute when the test starts passing
-    #[should_panic = "assertion failed"]
+    #[should_panic = "AI data cannot be fully parsed"]
     fn incomplete_up_15_rec_with_ai() {
         let f = File::open("test/rec.20181208-195117.mgz").unwrap();
         let mut r = RecordedGame::new(f).unwrap();
@@ -461,13 +456,7 @@ mod tests {
         let mut r = RecordedGame::new(f)?;
         r.header()?;
         for act in r.actions()? {
-            match act {
-                Ok(act) => println!("{:?}", act),
-                Err(Error::DecodeStringError(_)) => {
-                    // Skip invalid utf8 chat for now
-                }
-                Err(err) => return Err(err.into()),
-            }
+            let _ = act?;
         }
         Ok(())
     }
@@ -478,7 +467,31 @@ mod tests {
         let mut r = RecordedGame::new(f)?;
         r.header()?;
         for act in r.actions()? {
-            println!("{:?}", act?);
+            let _ = act?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn aoe2de_rec() -> anyhow::Result<()> {
+        let f = File::open("test/AgeIIDE_Replay_90000059.aoe2record")?;
+        let mut r = RecordedGame::new(f)?;
+        println!("aoe2de save version {}", r.save_version);
+        let _header = r.header()?;
+        for act in r.actions()? {
+            let _ = act?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn aoe2de_2_rec() -> anyhow::Result<()> {
+        let f = File::open("test/AgeIIDE_Replay_90889731.aoe2record")?;
+        let mut r = RecordedGame::new(f)?;
+        println!("aoe2de save version {}", r.save_version);
+        let _header = r.header()?;
+        for act in r.actions()? {
+            let _ = act?;
         }
         Ok(())
     }

@@ -1,11 +1,14 @@
+use crate::element::ReadableHeaderElement;
 use crate::map::Map;
 use crate::player::Player;
+use crate::reader::RecordingHeaderReader;
 use crate::string_table::StringTable;
-use crate::{GameVersion, Result};
+use crate::GameVariant::DefinitiveEdition;
+use crate::{Difficulty, GameVersion, Result};
 use byteorder::{ReadBytesExt, LE};
 use genie_scx::TribeScen;
-use genie_support::ReadSkipExt;
 pub use genie_support::SpriteID;
+use genie_support::{ReadSkipExt, ReadStringsExt};
 use std::convert::TryInto;
 use std::fmt::{self, Debug};
 use std::io::Read;
@@ -17,8 +20,8 @@ pub struct AICommand {
     pub parameters: [i32; 4],
 }
 
-impl AICommand {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for AICommand {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut cmd = Self::default();
         cmd.command_type = input.read_i32::<LE>()?;
         cmd.id = input.read_u16::<LE>()?;
@@ -38,8 +41,8 @@ pub struct AIListRule {
     actions: Vec<AICommand>,
 }
 
-impl AIListRule {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for AIListRule {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut rule = Self::default();
         rule.in_use = input.read_u32::<LE>()? != 0;
         rule.enable = input.read_u32::<LE>()? != 0;
@@ -49,7 +52,7 @@ impl AIListRule {
         let num_facts_actions = input.read_u8()?;
         input.read_u16::<LE>()?;
         for i in 0..16 {
-            let cmd = AICommand::read_from(&mut input)?;
+            let cmd = AICommand::read_from(input)?;
             if i < num_facts {
                 rule.facts.push(cmd);
             } else if i < num_facts_actions {
@@ -68,8 +71,8 @@ pub struct AIList {
     rules: Vec<AIListRule>,
 }
 
-impl AIList {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for AIList {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut list = Self::default();
         list.in_use = input.read_u32::<LE>()? != 0;
         list.id = input.read_i32::<LE>()?;
@@ -77,7 +80,7 @@ impl AIList {
         let num_rules = input.read_u16::<LE>()?;
         input.read_u32::<LE>()?;
         for _ in 0..num_rules {
-            list.rules.push(AIListRule::read_from(&mut input)?);
+            list.rules.push(AIListRule::read_from(input)?);
         }
         Ok(list)
     }
@@ -89,8 +92,8 @@ pub struct AIGroupTable {
     groups: Vec<u16>,
 }
 
-impl AIGroupTable {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for AIGroupTable {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut table = Self::default();
         table.max_groups = input.read_u16::<LE>()?;
         let num_groups = input.read_u16::<LE>()?;
@@ -143,8 +146,8 @@ impl Debug for AIFactState {
     }
 }
 
-impl AIFactState {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for AIFactState {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let save_version = input.read_f32::<LE>()?;
         let version = input.read_f32::<LE>()?;
         let death_match = input.read_u32::<LE>()? != 0;
@@ -198,24 +201,24 @@ pub struct AIScripts {
     pub fact_state: AIFactState,
 }
 
-impl AIScripts {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let string_table = StringTable::read_from(&mut input)?;
+impl ReadableHeaderElement for AIScripts {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
+        let string_table = StringTable::read_from(input)?;
         let _max_facts = input.read_u16::<LE>()?;
         let _max_actions = input.read_u16::<LE>()?;
         let max_lists = input.read_u16::<LE>()?;
 
         let mut lists = vec![];
         for _ in 0..max_lists {
-            lists.push(AIList::read_from(&mut input)?);
+            lists.push(AIList::read_from(input)?);
         }
 
         let mut groups = vec![];
         for _ in 0..max_lists {
-            groups.push(AIGroupTable::read_from(&mut input)?);
+            groups.push(AIGroupTable::read_from(input)?);
         }
 
-        let fact_state = AIFactState::read_from(&mut input)?;
+        let fact_state = AIFactState::read_from(input)?;
 
         Ok(AIScripts {
             string_table,
@@ -230,6 +233,7 @@ impl AIScripts {
 pub struct Header {
     game_version: GameVersion,
     save_version: f32,
+    de_extension_header: Option<DeExtensionHeader>,
     ai_scripts: Option<AIScripts>,
     map: Map,
     particle_system: ParticleSystem,
@@ -241,15 +245,23 @@ impl Header {
     pub fn players(&self) -> impl Iterator<Item = &Player> {
         self.players.iter()
     }
+}
 
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for Header {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut header = Header::default();
-        header.game_version = GameVersion::read_from(&mut input)?;
+        header.game_version = GameVersion::read_from(input)?;
         header.save_version = input.read_f32::<LE>()?;
+        // update reader state
+        input.set_version(header.game_version, header.save_version);
+
+        if input.variant() >= DefinitiveEdition {
+            header.de_extension_header = Some(DeExtensionHeader::read_from(input)?)
+        }
 
         let includes_ai = input.read_u32::<LE>()? != 0;
         if includes_ai {
-            header.ai_scripts = Some(AIScripts::read_from(&mut input)?);
+            header.ai_scripts = Some(AIScripts::read_from(input)?);
         }
 
         let _old_time = input.read_u32::<LE>()?;
@@ -266,7 +278,8 @@ impl Header {
         let _random_seed2 = input.read_u32::<LE>()?;
         let _current_player = input.read_u16::<LE>()?;
         let num_players = input.read_u16::<LE>()?;
-        if header.save_version >= 11.76 {
+        input.set_num_players(num_players);
+        if input.version() >= 11.76 {
             let _aegis_enabled = input.read_u8()? != 0;
             let _cheats_enabled = input.read_u8()? != 0;
         }
@@ -274,7 +287,7 @@ impl Header {
         let _campaign = input.read_u32::<LE>()?;
         let _campaign_player = input.read_u32::<LE>()?;
         let _campaign_scenario = input.read_u32::<LE>()?;
-        if header.save_version >= 10.13 {
+        if input.version() >= 10.13 {
             let _king_campaign = input.read_u32::<LE>()?;
             let _king_campaign_player = input.read_u8()?;
             let _king_campaign_scenario = input.read_u8()?;
@@ -283,11 +296,16 @@ impl Header {
         let mut player_time_delta = [0; 9];
         input.read_u32_into::<LE>(&mut player_time_delta[..])?;
 
-        header.map = Map::read_from(&mut input)?;
+        if header.save_version >= 12.97 {
+            // ???
+            input.skip(8)?;
+        }
+
+        header.map = Map::read_from(input)?;
 
         // TODO is there another num_players here for restored games?
 
-        header.particle_system = ParticleSystem::read_from(&mut input)?;
+        header.particle_system = ParticleSystem::read_from(input)?;
 
         if header.save_version >= 11.07 {
             let _identifier = input.read_u32::<LE>()?;
@@ -295,17 +313,17 @@ impl Header {
 
         header.players.reserve(num_players.try_into().unwrap());
         for _ in 0..num_players {
-            header.players.push(Player::read_from(
-                &mut input,
-                header.save_version,
-                num_players as u8,
-            )?);
+            header.players.push(Player::read_from(input)?);
         }
         for player in &mut header.players {
-            player.read_info(&mut input, header.save_version)?;
+            player.read_info(input)?;
         }
 
-        header.scenario = TribeScen::read_from(&mut input)?;
+        header.scenario = TribeScen::read_from(&mut *input)?;
+
+        if input.variant() >= DefinitiveEdition {
+            input.skip(133)?;
+        }
 
         let _difficulty = if header.save_version >= 7.16 {
             Some(input.read_u32::<LE>()?)
@@ -361,6 +379,231 @@ impl Header {
 }
 
 #[derive(Debug, Default, Clone)]
+pub struct DeExtensionHeader {
+    pub version: f32,
+    pub interval_version: u32,
+    pub game_options_version: u32,
+    pub dlc_ids: Vec<u32>,
+    pub dataset_ref: u32,
+    pub difficulty: Difficulty,
+    pub selected_map_id: u32,
+    pub resolved_map_id: u32,
+    pub reveal_map: u32,
+    pub victory_condition: u32,
+    pub resource_level: u32,
+    pub starting_age: u32,
+    pub ending_age: u32,
+    pub game_type: u32,
+    pub speed: f32,
+    pub treaty_length: u32,
+    pub population_limit: u32,
+    pub num_players: u32,
+    // what the fuck
+    pub unused_player_color: u32,
+    pub victory_amount: u32,
+    pub trade_enabled: bool,
+    pub team_bonus_disabled: bool,
+    pub random_positions: bool,
+    pub all_techs: bool,
+    pub num_starting_units: u8,
+    pub lock_teams: bool,
+    pub lock_speeds: bool,
+    pub multiplayer: bool,
+    pub cheats_enabled: bool,
+    pub record_game: bool,
+    pub animals_enabled: bool,
+    pub predators_enabled: bool,
+    pub turbo_enabled: bool,
+    pub shared_exploration: bool,
+    pub team_positions: bool,
+    pub players: [DePlayer; 8],
+    pub fog_of_war: bool,
+    pub cheat_notifications: bool,
+    pub colored_chat: bool,
+    pub guid: u128,
+    pub lobby_name: String,
+    pub modded_dataset: String,
+}
+
+const DE_HEADER_SEPARATOR: u32 = u32::from_le_bytes(*b"\xa3_\x02\x00");
+
+impl ReadableHeaderElement for DeExtensionHeader {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
+        let mut header = Self::default();
+        header.version = input.read_f32::<LE>()?;
+        header.interval_version = input.read_u32::<LE>()?;
+        header.game_options_version = input.read_u32::<LE>()?;
+        let dlcs = input.read_u32::<LE>()?;
+        for _ in 0..dlcs {
+            header.dlc_ids.push(input.read_u32::<LE>()?)
+        }
+
+        header.dataset_ref = input.read_u32::<LE>()?;
+        header.difficulty = input.read_u32::<LE>()?.into();
+        header.selected_map_id = input.read_u32::<LE>()?;
+        header.resolved_map_id = input.read_u32::<LE>()?;
+        header.reveal_map = input.read_u32::<LE>()?;
+        header.victory_condition = input.read_u32::<LE>()?.into();
+        header.resource_level = input.read_u32::<LE>()?.into();
+        header.starting_age = input.read_u32::<LE>()?.into();
+        header.ending_age = input.read_u32::<LE>()?.into();
+        header.game_type = input.read_u32::<LE>()?;
+        assert_eq!(input.read_u32::<LE>()?, DE_HEADER_SEPARATOR);
+        assert_eq!(input.read_u32::<LE>()?, DE_HEADER_SEPARATOR);
+        header.speed = input.read_f32::<LE>()?;
+        header.treaty_length = input.read_u32::<LE>()?;
+        header.population_limit = input.read_u32::<LE>()?;
+        header.num_players = input.read_u32::<LE>()?;
+        header.unused_player_color = input.read_u32::<LE>()?;
+        header.victory_amount = input.read_u32::<LE>()?;
+        assert_eq!(input.read_u32::<LE>()?, DE_HEADER_SEPARATOR);
+        header.trade_enabled = input.read_u8()? == 1;
+        header.team_bonus_disabled = input.read_u8()? == 1;
+        header.random_positions = input.read_u8()? == 1;
+        header.all_techs = input.read_u8()? == 1;
+        header.num_starting_units = input.read_u8()?;
+        header.lock_teams = input.read_u8()? == 1;
+        header.lock_speeds = input.read_u8()? == 1;
+        header.multiplayer = input.read_u8()? == 1;
+        header.cheats_enabled = input.read_u8()? == 1;
+        header.record_game = input.read_u8()? == 1;
+        header.animals_enabled = input.read_u8()? == 1;
+        header.predators_enabled = input.read_u8()? == 1;
+        header.turbo_enabled = input.read_u8()? == 1;
+        header.shared_exploration = input.read_u8()? == 1;
+        header.team_positions = input.read_u8()? == 1;
+        if input.version() >= 13.34 {
+            input.skip(8)?;
+        }
+
+        assert_eq!(input.read_u32::<LE>()?, DE_HEADER_SEPARATOR);
+
+        for i in 0..8 {
+            header.players[i].apply_from(input)?;
+        }
+
+        header.fog_of_war = input.read_u8()? == 1;
+        header.cheats_enabled = input.read_u8()? == 1;
+        header.colored_chat = input.read_u8()? == 1;
+        input.skip(9)?;
+        assert_eq!(input.read_u32::<LE>()?, DE_HEADER_SEPARATOR);
+        input.skip(12)?;
+
+        if input.version() >= 13.13 {
+            input.skip(5)?;
+        }
+
+        // what the actual fuck is this shit
+        for _ in 0..23 {
+            let _string = input.read_hd_style_str()?;
+            while [3, 21, 23, 42, 44, 45].contains(&input.read_u32::<LE>()?) {}
+        }
+
+        // "strategic numbers" or what the fuck that may be
+        input.skip(59 * 4)?;
+        // num ai files
+        let num_ai_files = input.read_u64::<LE>()?;
+
+        for _ in 0..num_ai_files {
+            input.skip(4)?;
+            input.read_hd_style_str()?;
+            input.skip(4)?;
+        }
+
+        header.guid = input.read_u128::<LE>()?;
+        header.lobby_name = input.read_hd_style_str()?.unwrap_or_default();
+        header.modded_dataset = input.read_hd_style_str()?.unwrap_or_default();
+
+        input.skip(19)?;
+
+        if input.version() >= 13.13 {
+            input.skip(5)?;
+        }
+
+        if input.version() >= 13.17 {
+            input.skip(9)?;
+        }
+
+        if input.version() >= 20.06 {
+            input.skip(1)?;
+        }
+
+        input.read_hd_style_str()?;
+
+        input.skip(5)?;
+
+        if input.version() >= 13.13 {
+            input.skip(1)?;
+        }
+
+        if input.version() < 13.17 {
+            input.read_hd_style_str()?;
+            input.skip(8)?;
+        }
+
+        if input.version() >= 13.17 {
+            input.skip(2)?;
+        }
+
+        Ok(header)
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct DePlayer {
+    dlc_id: u32,
+    color_id: i32,
+    selected_color: i8,
+    selected_team: u8,
+    resolved_team: u8,
+    dat_crc: u64,
+    mp_game_version: u8,
+    civ_id: u8,
+    ai_type: String,
+    ai_civ_name_index: u8,
+    ai_name: String,
+    name: String,
+    r#type: u32,
+    profile_id: u32,
+    player_number: i32,
+    hd_rm_elo: u32,
+    // becomes empire wars soon?
+    hd_dm_elo: u32,
+    animated_destruction_enabled: bool,
+    custom_ai: bool,
+}
+
+impl DePlayer {
+    pub fn apply_from<R: Read>(&mut self, input: &mut RecordingHeaderReader<R>) -> Result<()> {
+        self.dlc_id = input.read_u32::<LE>()?;
+        self.color_id = input.read_i32::<LE>()?;
+        self.selected_color = input.read_i8()?;
+        self.selected_team = input.read_u8()?;
+        self.resolved_team = input.read_u8()?;
+        self.dat_crc = input.read_u64::<LE>()?;
+        self.mp_game_version = input.read_u8()?;
+        self.civ_id = input.read_u8()?;
+
+        input.skip(3)?;
+
+        self.ai_type = input.read_hd_style_str()?.unwrap_or_default();
+        self.ai_civ_name_index = input.read_u8()?;
+        self.ai_name = input.read_hd_style_str()?.unwrap_or_default();
+        self.name = input.read_hd_style_str()?.unwrap_or_default();
+        self.r#type = input.read_u32::<LE>()?;
+        self.profile_id = input.read_u32::<LE>()?;
+        assert_eq!(input.read_u32::<LE>()?, 0);
+        self.player_number = input.read_i32::<LE>()?;
+        self.hd_rm_elo = input.read_u32::<LE>()?;
+        self.hd_dm_elo = input.read_u32::<LE>()?;
+        self.animated_destruction_enabled = input.read_u8()? == 1;
+        self.custom_ai = input.read_u8()? == 1;
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, Default, Clone)]
 struct Particle {
     pub start: u32,
     pub facet: u32,
@@ -370,8 +613,8 @@ struct Particle {
     pub flags: u8,
 }
 
-impl Particle {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for Particle {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut particle = Self::default();
         particle.start = input.read_u32::<LE>()?;
         particle.facet = input.read_u32::<LE>()?;
@@ -393,13 +636,13 @@ struct ParticleSystem {
     pub particles: Vec<Particle>,
 }
 
-impl ParticleSystem {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for ParticleSystem {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let world_time = input.read_u32::<LE>()?;
         let num_particles = input.read_u32::<LE>()?;
         let mut particles = Vec::with_capacity(num_particles.try_into().unwrap());
         for _ in 0..num_particles {
-            particles.push(Particle::read_from(&mut input)?);
+            particles.push(Particle::read_from(input)?);
         }
         Ok(Self {
             world_time,

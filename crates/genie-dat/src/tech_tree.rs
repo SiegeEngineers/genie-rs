@@ -252,7 +252,7 @@ pub struct TechTreeUnit {
     status: TechTreeStatus,
     node_type: TechTreeType,
     depends_tech_id: Option<TechID>,
-    building: UnitTypeID,
+    building: Option<UnitTypeID>,
     requires_tech_id: Option<TechID>,
     dependent_units: Vec<UnitTypeID>,
     prerequisites: TechTreeDependencies,
@@ -523,7 +523,7 @@ impl TechTreeUnit {
         let mut unit = Self::default();
         unit.unit_id = input.read_i32::<LE>()?.try_into().map_err(invalid_data)?;
         unit.status = input.read_u8()?.try_into().map_err(invalid_data)?;
-        unit.building = input.read_i32::<LE>()?.try_into().map_err(invalid_data)?;
+        unit.building = read_opt_u32(&mut input)?;
         unit.prerequisites = TechTreeDependencies::read_from(&mut input)?;
         unit.group_id = input.read_i32::<LE>()?;
         unit.dependent_units = read_dependents(&mut input)?;
@@ -537,7 +537,7 @@ impl TechTreeUnit {
     pub fn write_to(&self, mut output: impl Write) -> Result<()> {
         output.write_u32::<LE>(u16::from(self.unit_id).into())?;
         output.write_u8(self.status.into())?;
-        output.write_u32::<LE>(self.building.into())?;
+        output.write_u32::<LE>(self.building.map(Into::into).unwrap_or(0xFFFF_FFFF))?;
         self.prerequisites.write_to(&mut output)?;
         output.write_i32::<LE>(self.group_id)?;
         output.write_u8(self.dependent_units.len() as u8)?;

@@ -1,3 +1,5 @@
+use crate::element::{ReadableHeaderElement, WritableHeaderElement};
+use crate::reader::RecordingHeaderReader;
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use std::io::{Read, Write};
@@ -16,7 +18,23 @@ impl StringTable {
         }
     }
 
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+    pub fn max_strings(&self) -> u16 {
+        self.max_strings
+    }
+
+    pub fn num_strings(&self) -> u16 {
+        let len = self.strings.len();
+        assert!(len < u16::max_value() as usize);
+        len as u16
+    }
+
+    pub fn strings(&self) -> &Vec<String> {
+        &self.strings
+    }
+}
+
+impl ReadableHeaderElement for StringTable {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let max_strings = input.read_u16::<LE>()?;
         let num_strings = input.read_u16::<LE>()?;
         let _ptr = input.read_u32::<LE>()?;
@@ -34,34 +52,22 @@ impl StringTable {
             strings,
         })
     }
+}
 
-    pub fn write_to<W: Write>(&self, handle: &mut W) -> Result<()> {
+impl WritableHeaderElement for StringTable {
+    fn write_to<W: Write>(&self, handle: &mut W) -> Result<()> {
         handle.write_u16::<LE>(self.max_strings)?;
         handle.write_u16::<LE>(self.num_strings())?;
         handle.write_u32::<LE>(0)?;
 
         for string in &self.strings {
             let len = string.len();
-            assert!(len < u32::max_value() as usize);
+            assert!(len < u32::MAX as usize);
             handle.write_u32::<LE>(len as u32)?;
             handle.write_all(string.as_bytes())?;
         }
 
         Ok(())
-    }
-
-    pub fn max_strings(&self) -> u16 {
-        self.max_strings
-    }
-
-    pub fn num_strings(&self) -> u16 {
-        let len = self.strings.len();
-        assert!(len < u16::max_value() as usize);
-        len as u16
-    }
-
-    pub fn strings(&self) -> &Vec<String> {
-        &self.strings
     }
 }
 
