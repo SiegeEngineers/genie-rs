@@ -693,21 +693,21 @@ pub struct MovingUnitTypeAttributes {
 
 impl MovingUnitTypeAttributes {
     pub fn read_from(mut input: impl Read, _version: f32) -> Result<Self> {
-        let mut attrs = Self::default();
-        attrs.move_sprite = read_opt_u16(&mut input)?;
-        attrs.run_sprite = read_opt_u16(&mut input)?;
-        attrs.turn_speed = input.read_f32::<LE>()?;
-        attrs.size_class = input.read_u8()?;
-        attrs.trailing_unit = read_opt_u16(&mut input)?;
-        attrs.trailing_options = input.read_u8()?;
-        attrs.trailing_spacing = input.read_f32::<LE>()?;
-        attrs.move_algorithm = input.read_u8()?;
-        attrs.turn_radius = input.read_f32::<LE>()?;
-        attrs.turn_radius_speed = input.read_f32::<LE>()?;
-        attrs.maximum_yaw_per_second_moving = input.read_f32::<LE>()?;
-        attrs.stationary_yaw_revolution_time = input.read_f32::<LE>()?;
-        attrs.maximum_yaw_per_second_stationary = input.read_f32::<LE>()?;
-        Ok(attrs)
+        Ok(MovingUnitTypeAttributes {
+            move_sprite: read_opt_u16(&mut input)?,
+            run_sprite: read_opt_u16(&mut input)?,
+            turn_speed: input.read_f32::<LE>()?,
+            size_class: input.read_u8()?,
+            trailing_unit: read_opt_u16(&mut input)?,
+            trailing_options: input.read_u8()?,
+            trailing_spacing: input.read_f32::<LE>()?,
+            move_algorithm: input.read_u8()?,
+            turn_radius: input.read_f32::<LE>()?,
+            turn_radius_speed: input.read_f32::<LE>()?,
+            maximum_yaw_per_second_moving: input.read_f32::<LE>()?,
+            stationary_yaw_revolution_time: input.read_f32::<LE>()?,
+            maximum_yaw_per_second_stationary: input.read_f32::<LE>()?,
+        })
     }
 
     /// Write this unit type to an output stream.
@@ -759,17 +759,18 @@ pub struct ActionUnitTypeAttributes {
 
 impl ActionUnitTypeAttributes {
     pub fn read_from(mut input: impl Read, _version: f32) -> Result<Self> {
-        let mut attrs = Self::default();
-        attrs.default_task = read_opt_u16(&mut input)?;
-        attrs.search_radius = input.read_f32::<LE>()?;
-        attrs.work_rate = input.read_f32::<LE>()?;
-        attrs.drop_site = read_opt_u16(&mut input)?;
-        attrs.backup_drop_site = read_opt_u16(&mut input)?;
-        attrs.task_by_group = input.read_u8()?;
-        attrs.command_sound = read_opt_u16(&mut input)?;
-        attrs.move_sound = read_opt_u16(&mut input)?;
-        attrs.run_pattern = input.read_u8()?;
-        Ok(attrs)
+        Ok(ActionUnitTypeAttributes {
+            default_task: read_opt_u16(&mut input)?,
+            search_radius: input.read_f32::<LE>()?,
+            work_rate: input.read_f32::<LE>()?,
+            drop_site: read_opt_u16(&mut input)?,
+            backup_drop_site: read_opt_u16(&mut input)?,
+            task_by_group: input.read_u8()?,
+            command_sound: read_opt_u16(&mut input)?,
+            move_sound: read_opt_u16(&mut input)?,
+            run_pattern: input.read_u8()?,
+            ..Default::default()
+        })
     }
 
     /// Write this unit type to an output stream.
@@ -853,11 +854,13 @@ pub struct BaseCombatUnitTypeAttributes {
 
 impl BaseCombatUnitTypeAttributes {
     pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
-        let mut attrs = Self::default();
-        attrs.base_armor = if version < 11.52 {
-            input.read_u8()?.into()
-        } else {
-            input.read_u16::<LE>()?
+        let mut attrs = BaseCombatUnitTypeAttributes {
+            base_armor: if version < 11.52 {
+                input.read_u8()?.into()
+            } else {
+                input.read_u16::<LE>()?
+            },
+            ..Default::default()
         };
         let num_weapons = input.read_u16::<LE>()?;
         for _ in 0..num_weapons {
@@ -942,14 +945,14 @@ pub struct MissileUnitTypeAttributes {
 impl MissileUnitTypeAttributes {
     /// Read this unit type from an input stream.
     pub fn read_from(mut input: impl Read, _version: f32) -> Result<Self> {
-        let mut attrs = Self::default();
-        attrs.missile_type = input.read_u8()?;
-        attrs.targetting_type = input.read_u8()?;
-        attrs.missile_hit_info = input.read_u8()?;
-        attrs.missile_die_info = input.read_u8()?;
-        attrs.area_effect_specials = input.read_u8()?;
-        attrs.ballistics_ratio = input.read_f32::<LE>()?;
-        Ok(attrs)
+        Ok(MissileUnitTypeAttributes {
+            missile_type: input.read_u8()?,
+            targetting_type: input.read_u8()?,
+            missile_hit_info: input.read_u8()?,
+            missile_die_info: input.read_u8()?,
+            area_effect_specials: input.read_u8()?,
+            ballistics_ratio: input.read_f32::<LE>()?,
+        })
     }
 
     /// Write this unit type to an output stream.
@@ -1168,21 +1171,23 @@ pub struct BuildingUnitTypeAttributes {
 impl BuildingUnitTypeAttributes {
     /// Read this unit type from an input stream.
     pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
-        let mut attrs = Self::default();
-        attrs.construction_sprite = read_opt_u16(&mut input)?;
-        attrs.snow_sprite = if version < 11.53 {
-            None
-        } else {
-            read_opt_u16(&mut input)?
+        let mut attrs = BuildingUnitTypeAttributes {
+            construction_sprite: read_opt_u16(&mut input)?,
+            snow_sprite: if version < 11.53 {
+                None
+            } else {
+                read_opt_u16(&mut input)?
+            },
+            connect_flag: input.read_u8()?,
+            facet: input.read_i16::<LE>()?,
+            destroy_on_build: input.read_u8()? != 0,
+            on_build_make_unit: read_opt_u16(&mut input)?,
+            on_build_make_tile: read_opt_u16(&mut input)?,
+            on_build_make_overlay: input.read_i16::<LE>()?,
+            on_build_make_tech: read_opt_u16(&mut input)?,
+            can_burn: input.read_u8()? != 0,
+            ..Default::default()
         };
-        attrs.connect_flag = input.read_u8()?;
-        attrs.facet = input.read_i16::<LE>()?;
-        attrs.destroy_on_build = input.read_u8()? != 0;
-        attrs.on_build_make_unit = read_opt_u16(&mut input)?;
-        attrs.on_build_make_tile = read_opt_u16(&mut input)?;
-        attrs.on_build_make_overlay = input.read_i16::<LE>()?;
-        attrs.on_build_make_tech = read_opt_u16(&mut input)?;
-        attrs.can_burn = input.read_u8()? != 0;
         for _ in 0..attrs.linked_buildings.capacity() {
             let link = LinkedBuilding::read_from(&mut input)?;
             if link.unit_id != 0xFFFF.into() {

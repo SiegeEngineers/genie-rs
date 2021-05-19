@@ -44,9 +44,11 @@ pub struct BuildItem {
 
 impl BuildItem {
     pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
-        let mut item = Self::default();
-        item.name = input.read_u32_length_prefixed_str()?;
-        item.type_id = input.read_u32::<LE>()?;
+        let mut item = BuildItem {
+            name: input.read_u32_length_prefixed_str()?,
+            type_id: input.read_u32::<LE>()?,
+            ..Default::default()
+        };
         let _a2 = input.read_u32::<LE>()?;
         item.game_id = input.read_u32::<LE>()?;
         let _v21 = input.read_u32::<LE>()?;
@@ -137,9 +139,11 @@ pub struct ConstructionItem {
 
 impl ConstructionItem {
     pub fn read_from(mut input: impl Read, _version: f32) -> Result<Self> {
-        let mut item = Self::default();
-        item.name = input.read_u32_length_prefixed_str()?;
-        item.type_id = input.read_u32::<LE>()?;
+        let mut item = ConstructionItem {
+            name: input.read_u32_length_prefixed_str()?,
+            type_id: input.read_u32::<LE>()?,
+            ..Default::default()
+        };
         let _a2 = input.read_u32::<LE>()?;
         let _v27 = input.read_u32::<LE>()?;
         item.x = input.read_f32::<LE>()?;
@@ -241,21 +245,21 @@ pub struct ImportantObjectMemory {
 
 impl ImportantObjectMemory {
     pub fn read_from(mut input: impl Read, _version: f32) -> Result<Self> {
-        let mut object = Self::default();
-        object.id = read_opt_u32(&mut input)?;
-        object.unit_type_id = read_opt_u16(&mut input)?;
-        object.unit_class = read_opt_u16(&mut input)?;
-        object.location = (input.read_u8()?, input.read_u8()?, input.read_u8()?);
-        object.owner = input.read_u8()?.into();
-        object.hit_points = input.read_u16::<LE>()?;
-        object.attack_attempts = input.read_u32::<LE>()?;
-        object.kills = input.read_u8()?;
-        object.damage_capability = input.read_f32::<LE>()?;
-        object.rate_of_fire = input.read_f32::<LE>()?;
-        object.range = input.read_f32::<LE>()?;
-        object.time_seen = read_opt_u32(&mut input)?;
-        object.is_garrisoned = input.read_u32::<LE>()?;
-        Ok(object)
+        Ok(ImportantObjectMemory {
+            id: read_opt_u32(&mut input)?,
+            unit_type_id: read_opt_u16(&mut input)?,
+            unit_class: read_opt_u16(&mut input)?,
+            location: (input.read_u8()?, input.read_u8()?, input.read_u8()?),
+            owner: input.read_u8()?.into(),
+            hit_points: input.read_u16::<LE>()?,
+            attack_attempts: input.read_u32::<LE>()?,
+            kills: input.read_u8()?,
+            damage_capability: input.read_f32::<LE>()?,
+            rate_of_fire: input.read_f32::<LE>()?,
+            range: input.read_f32::<LE>()?,
+            time_seen: read_opt_u32(&mut input)?,
+            is_garrisoned: input.read_u32::<LE>()?,
+        })
     }
 }
 
@@ -332,11 +336,13 @@ pub struct PerimeterWall {
 
 impl PerimeterWall {
     pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
-        let mut wall = Self::default();
-        wall.enabled = if version >= 11.22 {
-            input.read_u32::<LE>()? != 0
-        } else {
-            true
+        let mut wall = PerimeterWall {
+            enabled: if version >= 11.22 {
+                input.read_u32::<LE>()? != 0
+            } else {
+                true
+            },
+            ..Default::default()
         };
         let num_lines = input.read_u32::<LE>()?;
         if version >= 11.20 {
@@ -383,20 +389,22 @@ pub struct AttackMemory {
 
 impl AttackMemory {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let mut mem = Self::default();
-        mem.id = read_opt_u32(&mut input)?;
-        mem.typ = input.read_u8()?;
-        mem.min_x = input.read_u8()?;
-        mem.min_y = input.read_u8()?;
-        mem.max_x = input.read_u8()?;
-        mem.max_y = input.read_u8()?;
-        mem.attacking_owner = match input.read_i8()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
-        };
-        mem.target_owner = match input.read_i8()? {
-            -1 => None,
-            id => Some(id.try_into().unwrap()),
+        let mut mem = AttackMemory {
+            id: read_opt_u32(&mut input)?,
+            typ: input.read_u8()?,
+            min_x: input.read_u8()?,
+            min_y: input.read_u8()?,
+            max_x: input.read_u8()?,
+            max_y: input.read_u8()?,
+            attacking_owner: match input.read_i8()? {
+                -1 => None,
+                id => Some(id.try_into().unwrap()),
+            },
+            target_owner: match input.read_i8()? {
+                -1 => None,
+                id => Some(id.try_into().unwrap()),
+            },
+            ..Default::default()
         };
         input.skip(1)?;
         mem.kills = input.read_u16::<LE>()?;
@@ -424,16 +432,18 @@ pub struct ResourceMemory {
 
 impl ResourceMemory {
     pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
-        let mut mem = Self::default();
-        mem.id = input.read_u32::<LE>()?.into();
-        mem.location = (input.read_u8()?, input.read_u8()?);
-        mem.gather_attempts = input.read_u8()?;
-        mem.gather = input.read_u32::<LE>()?;
-        mem.valid = input.read_u8()? != 0;
-        mem.gone = input.read_u8()? != 0;
-        mem.drop_distance = input.read_u8()?;
-        mem.resource_type = input.read_u8()?;
-        mem.dropsite_id = input.read_u32::<LE>()?.into();
+        let mut mem = ResourceMemory {
+            id: input.read_u32::<LE>()?.into(),
+            location: (input.read_u8()?, input.read_u8()?),
+            gather_attempts: input.read_u8()?,
+            gather: input.read_u32::<LE>()?,
+            valid: input.read_u8()? != 0,
+            gone: input.read_u8()? != 0,
+            drop_distance: input.read_u8()?,
+            resource_type: input.read_u8()?,
+            dropsite_id: input.read_u32::<LE>()?.into(),
+            ..Default::default()
+        };
         if version >= 10.91 {
             mem.attacked_time = read_opt_u32(&mut input)?;
         }
@@ -779,26 +789,26 @@ pub struct StrategyAI {
 
 impl StrategyAI {
     pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
-        let mut ai = Self::default();
-        ai.current_victory_condition = input.read_u32::<LE>()?;
-        ai.target_id = input.read_u32::<LE>()?;
-        ai.second_target_id = input.read_u32::<LE>()?;
-        ai.second_target_type = input.read_u32::<LE>()?;
-        ai.target_point = Waypoint::read_from(&mut input)?;
-        ai.target_point_2 = Waypoint::read_from(&mut input)?;
-        ai.target_attribute = input.read_u32::<LE>()?;
-        ai.target_number = input.read_u32::<LE>()?;
-        ai.victory_condition_change_timeout = input.read_u32::<LE>()?;
-        ai.ruleset_name = input.read_u32_length_prefixed_str()?;
-
-        ai.vc_ruleset = read_id_list(&mut input)?;
-        ai.executing_rules = read_id_list(&mut input)?;
-        ai.idle_rules = read_id_list(&mut input)?;
-        if version >= 9.71 {
-            ai.expert_list_id = Some(input.read_u32::<LE>()?);
-        }
-
-        Ok(ai)
+        Ok(StrategyAI {
+            current_victory_condition: input.read_u32::<LE>()?,
+            target_id: input.read_u32::<LE>()?,
+            second_target_id: input.read_u32::<LE>()?,
+            second_target_type: input.read_u32::<LE>()?,
+            target_point: Waypoint::read_from(&mut input)?,
+            target_point_2: Waypoint::read_from(&mut input)?,
+            target_attribute: input.read_u32::<LE>()?,
+            target_number: input.read_u32::<LE>()?,
+            victory_condition_change_timeout: input.read_u32::<LE>()?,
+            ruleset_name: input.read_u32_length_prefixed_str()?,
+            vc_ruleset: read_id_list(&mut input)?,
+            executing_rules: read_id_list(&mut input)?,
+            idle_rules: read_id_list(&mut input)?,
+            expert_list_id: if version >= 9.71 {
+                Some(input.read_u32::<LE>()?)
+            } else {
+                None
+            },
+        })
     }
 
     pub fn write_to(&self, _output: impl Write) -> Result<()> {
@@ -833,15 +843,16 @@ pub struct TacticalAI {
 
 impl TacticalAI {
     pub fn read_from(mut input: impl Read, _version: f32) -> Result<Self> {
-        let mut ai = Self::default();
-
-        ai.civilians = read_id_list(&mut input)?;
-        ai.civilian_explorers = read_id_list(&mut input)?;
+        let mut ai = TacticalAI {
+            civilians: read_id_list(&mut input)?,
+            civilian_explorers: read_id_list(&mut input)?,
+            ..Default::default()
+        };
 
         let _num_gatherers = input.read_u32::<LE>()?;
         let _desired_num_gatherers = input.read_u32::<LE>()?;
 
-        // more stuff here
+        // FIXME: more stuff here
 
         ai.soldiers = read_id_list(&mut input)?;
         ai.ungrouped_soldiers = read_id_list(&mut input)?;

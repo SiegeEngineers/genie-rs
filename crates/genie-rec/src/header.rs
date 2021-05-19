@@ -19,9 +19,11 @@ pub struct AICommand {
 
 impl AICommand {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let mut cmd = Self::default();
-        cmd.command_type = input.read_i32::<LE>()?;
-        cmd.id = input.read_u16::<LE>()?;
+        let mut cmd = AICommand {
+            command_type: input.read_i32::<LE>()?,
+            id: input.read_u16::<LE>()?,
+            ..Default::default()
+        };
         input.skip(2)?;
         input.read_i32_into::<LE>(&mut cmd.parameters)?;
         Ok(cmd)
@@ -40,11 +42,13 @@ pub struct AIListRule {
 
 impl AIListRule {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let mut rule = Self::default();
-        rule.in_use = input.read_u32::<LE>()? != 0;
-        rule.enable = input.read_u32::<LE>()? != 0;
-        rule.rule_id = input.read_u16::<LE>()?;
-        rule.next_in_group = input.read_u16::<LE>()?;
+        let mut rule = AIListRule {
+            in_use: input.read_u32::<LE>()? != 0,
+            enable: input.read_u32::<LE>()? != 0,
+            rule_id: input.read_u16::<LE>()?,
+            next_in_group: input.read_u16::<LE>()?,
+            ..Default::default()
+        };
         let num_facts = input.read_u8()?;
         let num_facts_actions = input.read_u8()?;
         input.read_u16::<LE>()?;
@@ -70,10 +74,12 @@ pub struct AIList {
 
 impl AIList {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let mut list = Self::default();
-        list.in_use = input.read_u32::<LE>()? != 0;
-        list.id = input.read_i32::<LE>()?;
-        list.max_rules = input.read_u16::<LE>()?;
+        let mut list = AIList {
+            in_use: input.read_u32::<LE>()? != 0,
+            id: input.read_i32::<LE>()?,
+            max_rules: input.read_u16::<LE>()?,
+            ..Default::default()
+        };
         let num_rules = input.read_u16::<LE>()?;
         input.read_u32::<LE>()?;
         for _ in 0..num_rules {
@@ -91,8 +97,10 @@ pub struct AIGroupTable {
 
 impl AIGroupTable {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let mut table = Self::default();
-        table.max_groups = input.read_u16::<LE>()?;
+        let mut table = AIGroupTable {
+            max_groups: input.read_u16::<LE>()?,
+            ..Default::default()
+        };
         let num_groups = input.read_u16::<LE>()?;
         input.read_u32::<LE>()?;
         for _ in 0..num_groups {
@@ -243,9 +251,11 @@ impl Header {
     }
 
     pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let mut header = Header::default();
-        header.game_version = GameVersion::read_from(&mut input)?;
-        header.save_version = input.read_f32::<LE>()?;
+        let mut header = Header {
+            game_version: GameVersion::read_from(&mut input)?,
+            save_version: input.read_f32::<LE>()?,
+            ..Default::default()
+        };
 
         let includes_ai = input.read_u32::<LE>()? != 0;
         if includes_ai {
@@ -372,18 +382,18 @@ struct Particle {
 
 impl Particle {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let mut particle = Self::default();
-        particle.start = input.read_u32::<LE>()?;
-        particle.facet = input.read_u32::<LE>()?;
-        particle.update = input.read_u32::<LE>()?;
-        particle.sprite_id = input.read_u16::<LE>()?.into();
-        particle.location = (
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-        );
-        particle.flags = input.read_u8()?;
-        Ok(particle)
+        Ok(Particle {
+            start: input.read_u32::<LE>()?,
+            facet: input.read_u32::<LE>()?,
+            update: input.read_u32::<LE>()?,
+            sprite_id: input.read_u16::<LE>()?.into(),
+            location: (
+                input.read_f32::<LE>()?,
+                input.read_f32::<LE>()?,
+                input.read_f32::<LE>()?,
+            ),
+            flags: input.read_u8()?,
+        })
     }
 }
 

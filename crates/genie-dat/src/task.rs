@@ -69,37 +69,36 @@ impl TaskList {
 
 impl Task {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let mut task = Self::default();
-        task.id = input.read_u16::<LE>()?;
-        task.is_default = input.read_u8()? != 0;
-        task.action_type = input.read_u16::<LE>()?;
-        task.object_class = input.read_i16::<LE>()?;
-        task.object_id = read_opt_u16(&mut input)?;
-        task.terrain_id = input.read_i16::<LE>()?;
-        task.attribute_types = (
-            input.read_i16::<LE>()?,
-            input.read_i16::<LE>()?,
-            input.read_i16::<LE>()?,
-            input.read_i16::<LE>()?,
-        );
-        task.work_values = (input.read_f32::<LE>()?, input.read_f32::<LE>()?);
-        task.work_range = input.read_f32::<LE>()?;
-        task.auto_search_targets = input.read_u8()? != 0;
-        task.search_wait_time = input.read_f32::<LE>()?;
-        task.enable_targeting = input.read_u8()? != 0;
-        task.combat_level = input.read_u8()?;
-        task.work_flags = (input.read_u16::<LE>()?, input.read_u16::<LE>()?);
-        task.owner_type = input.read_u8()?;
-        task.holding_attribute = input.read_u8()?;
-        task.state_building = input.read_u8()?;
-        task.move_sprite = read_opt_u16(&mut input)?;
-        task.work_sprite = read_opt_u16(&mut input)?;
-        task.work_sprite2 = read_opt_u16(&mut input)?;
-        task.carry_sprite = read_opt_u16(&mut input)?;
-        task.work_sound = read_opt_u16(&mut input)?;
-        task.work_sound2 = read_opt_u16(&mut input)?;
-
-        Ok(task)
+        Ok(Task {
+            id: input.read_u16::<LE>()?,
+            is_default: input.read_u8()? != 0,
+            action_type: input.read_u16::<LE>()?,
+            object_class: input.read_i16::<LE>()?,
+            object_id: read_opt_u16(&mut input)?,
+            terrain_id: input.read_i16::<LE>()?,
+            attribute_types: (
+                input.read_i16::<LE>()?,
+                input.read_i16::<LE>()?,
+                input.read_i16::<LE>()?,
+                input.read_i16::<LE>()?,
+            ),
+            work_values: (input.read_f32::<LE>()?, input.read_f32::<LE>()?),
+            work_range: input.read_f32::<LE>()?,
+            auto_search_targets: input.read_u8()? != 0,
+            search_wait_time: input.read_f32::<LE>()?,
+            enable_targeting: input.read_u8()? != 0,
+            combat_level: input.read_u8()?,
+            work_flags: (input.read_u16::<LE>()?, input.read_u16::<LE>()?),
+            owner_type: input.read_u8()?,
+            holding_attribute: input.read_u8()?,
+            state_building: input.read_u8()?,
+            move_sprite: read_opt_u16(&mut input)?,
+            work_sprite: read_opt_u16(&mut input)?,
+            work_sprite2: read_opt_u16(&mut input)?,
+            carry_sprite: read_opt_u16(&mut input)?,
+            work_sound: read_opt_u16(&mut input)?,
+            work_sound2: read_opt_u16(&mut input)?,
+        })
     }
 
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {

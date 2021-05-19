@@ -42,6 +42,6 @@ fn main() -> anyhow::Result<()> {
     let info = HotkeyInfo::from(&mut f_hki)?;
     let aoc_him = hki::default_him();
 
-    println!("{}", info.to_string_lang(&lang_file, &aoc_him));
+    println!("{}", info.get_string_from_lang(&lang_file, &aoc_him));
     Ok(())
 }

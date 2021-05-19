@@ -400,10 +400,8 @@ impl DatFile {
                 None => 0,
             })?;
         }
-        for maybe_sprite in &self.sprites {
-            if let Some(sprite) = maybe_sprite {
-                sprite.write_to(&mut output)?;
-            }
+        for sprite in self.sprites.iter().flatten() {
+            sprite.write_to(&mut output)?;
         }
 
         output.write_u32::<LE>(0)?; // map vtable pointer
