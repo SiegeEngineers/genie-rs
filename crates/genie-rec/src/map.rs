@@ -184,9 +184,11 @@ pub struct Map {
 impl Map {
     /// Read map data from an input stream.
     pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let mut map = Self::default();
-        map.width = input.read_u32::<LE>()?;
-        map.height = input.read_u32::<LE>()?;
+        let mut map = Map {
+            width: input.read_u32::<LE>()?,
+            height: input.read_u32::<LE>()?,
+            ..Default::default()
+        };
         let num_zones = input.read_u32::<LE>()?;
         map.zones = Vec::with_capacity(num_zones.try_into().unwrap());
         for _ in 0..num_zones {

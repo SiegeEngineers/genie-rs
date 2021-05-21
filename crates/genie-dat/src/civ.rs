@@ -129,10 +129,8 @@ impl Civilization {
                 None => 0,
             })?;
         }
-        for opt in &self.unit_types {
-            if let Some(unit_type) = opt {
-                unit_type.write_to(&mut output, version.as_f32())?;
-            }
+        for unit_type in self.unit_types.iter().flatten() {
+            unit_type.write_to(&mut output, version.as_f32())?;
         }
         Ok(())
     }

@@ -23,18 +23,20 @@ pub struct RandomMapInfo {
 
 impl RandomMapInfo {
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
-        let mut info = Self::default();
-        info.id = input.read_i32::<LE>()?;
-        info.borders = (
-            input.read_i32::<LE>()?,
-            input.read_i32::<LE>()?,
-            input.read_i32::<LE>()?,
-            input.read_i32::<LE>()?,
-        );
-        info.border_fade = input.read_i32::<LE>()?;
-        info.water_border = input.read_i32::<LE>()?;
-        info.base_terrain = input.read_i32::<LE>()?;
-        info.land_percent = input.read_i32::<LE>()?;
+        let mut info = RandomMapInfo {
+            id: input.read_i32::<LE>()?,
+            borders: (
+                input.read_i32::<LE>()?,
+                input.read_i32::<LE>()?,
+                input.read_i32::<LE>()?,
+                input.read_i32::<LE>()?,
+            ),
+            border_fade: input.read_i32::<LE>()?,
+            water_border: input.read_i32::<LE>()?,
+            base_terrain: input.read_i32::<LE>()?,
+            land_percent: input.read_i32::<LE>()?,
+            ..Default::default()
+        };
 
         let _some_id = input.read_i32::<LE>()?;
         let num_lands = input.read_u32::<LE>()?;
@@ -159,9 +161,11 @@ pub struct RandomMapLand {
 
 impl RandomMapLand {
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
-        let mut land = Self::default();
-        land.id = input.read_i32::<LE>()?;
-        land.terrain_type = input.read_u8()?;
+        let mut land = RandomMapLand {
+            id: input.read_i32::<LE>()?,
+            terrain_type: input.read_u8()?,
+            ..Default::default()
+        };
         let _padding = input.read_u16::<LE>()?;
         let _padding = input.read_u8()?;
         land.land_avoidance_tiles = input.read_i32::<LE>()?;
@@ -214,14 +218,14 @@ pub struct RandomMapTerrain {
 
 impl RandomMapTerrain {
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
-        let mut terrain = Self::default();
-        terrain.percent = input.read_i32::<LE>()?;
-        terrain.terrain_type = input.read_i32::<LE>()?;
-        terrain.clumps = input.read_i32::<LE>()?;
-        terrain.spacing = input.read_i32::<LE>()?;
-        terrain.base_terrain_type = input.read_i32::<LE>()?;
-        terrain.clumpiness_factor = input.read_i32::<LE>()?;
-        Ok(terrain)
+        Ok(RandomMapTerrain {
+            percent: input.read_i32::<LE>()?,
+            terrain_type: input.read_i32::<LE>()?,
+            clumps: input.read_i32::<LE>()?,
+            spacing: input.read_i32::<LE>()?,
+            base_terrain_type: input.read_i32::<LE>()?,
+            clumpiness_factor: input.read_i32::<LE>()?,
+        })
     }
 
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
@@ -253,11 +257,13 @@ pub struct RandomMapObject {
 
 impl RandomMapObject {
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
-        let mut object = Self::default();
-        object.unit_type = input.read_u32::<LE>()?.try_into().unwrap();
-        object.terrain_type = input.read_i32::<LE>()?;
-        object.group_flag = input.read_i8()?;
-        object.scale_flag = input.read_i8()?;
+        let mut object = RandomMapObject {
+            unit_type: input.read_u32::<LE>()?.try_into().unwrap(),
+            terrain_type: input.read_i32::<LE>()?,
+            group_flag: input.read_i8()?,
+            scale_flag: input.read_i8()?,
+            ..Default::default()
+        };
         let _padding = input.read_u16::<LE>()?;
         object.group_size = input.read_i32::<LE>()?;
         object.group_size_variance = input.read_i32::<LE>()?;
@@ -300,14 +306,14 @@ pub struct RandomMapElevation {
 
 impl RandomMapElevation {
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
-        let mut elevation = Self::default();
-        elevation.percent = input.read_u32::<LE>()?.try_into().unwrap();
-        elevation.height = input.read_i32::<LE>()?;
-        elevation.clumps = input.read_i32::<LE>()?;
-        elevation.spacing = input.read_i32::<LE>()?;
-        elevation.base_terrain_type = input.read_i32::<LE>()?;
-        elevation.base_elevation = input.read_i32::<LE>()?;
-        Ok(elevation)
+        Ok(RandomMapElevation {
+            percent: input.read_u32::<LE>()?.try_into().unwrap(),
+            height: input.read_i32::<LE>()?,
+            clumps: input.read_i32::<LE>()?,
+            spacing: input.read_i32::<LE>()?,
+            base_terrain_type: input.read_i32::<LE>()?,
+            base_elevation: input.read_i32::<LE>()?,
+        })
     }
 
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {

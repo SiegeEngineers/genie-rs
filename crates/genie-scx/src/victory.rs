@@ -263,7 +263,8 @@ impl VictoryConditions {
     #[deprecated = "Use VictoryConditions::read_from instead"]
     #[doc(hidden)]
     pub fn from<R: Read>(input: &mut R, has_version: bool) -> Result<Self> {
-        Ok(Self::read_from(input, has_version)?)
+        let result = Self::read_from(input, has_version)?;
+        Ok(result)
     }
 
     /// Read victory conditions from an input stream.

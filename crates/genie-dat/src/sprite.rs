@@ -113,8 +113,10 @@ pub struct Sprite {
 
 impl SpriteDelta {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let mut delta = SpriteDelta::default();
-        delta.sprite_id = read_opt_u16(&mut input)?;
+        let mut delta = SpriteDelta {
+            sprite_id: read_opt_u16(&mut input)?,
+            ..Default::default()
+        };
         let _padding = input.read_i16::<LE>()?;
         let _parent_sprite_pointer = input.read_i32::<LE>()?;
         delta.offset_x = input.read_i16::<LE>()?;

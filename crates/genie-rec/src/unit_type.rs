@@ -86,13 +86,15 @@ pub struct StaticUnitAttributes {
 
 impl StaticUnitAttributes {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let mut attrs = Self::default();
-        attrs.id = input.read_u16::<LE>()?.into();
-        attrs.copy_id = input.read_u16::<LE>()?.into();
-        attrs.base_id = input.read_u16::<LE>()?.into();
-        attrs.unit_class = input.read_u16::<LE>()?;
-        attrs.hotkey_id = input.read_u32::<LE>()?;
-        attrs.available = input.read_u8()? != 0;
+        let mut attrs = StaticUnitAttributes {
+            id: input.read_u16::<LE>()?.into(),
+            copy_id: input.read_u16::<LE>()?.into(),
+            base_id: input.read_u16::<LE>()?.into(),
+            unit_class: input.read_u16::<LE>()?,
+            hotkey_id: input.read_u32::<LE>()?,
+            available: input.read_u8()? != 0,
+            ..Default::default()
+        };
         let hidden_in_editor = input.read_i8()?;
         // UserPatch data
         let hidden_flags = if hidden_in_editor == -16 {
@@ -211,11 +213,13 @@ pub struct BaseCombatUnitAttributes {
 
 impl BaseCombatUnitAttributes {
     pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
-        let mut attrs = Self::default();
-        attrs.base_armor = if version >= 11.52 {
-            input.read_u16::<LE>()?
-        } else {
-            input.read_u8()?.into()
+        let mut attrs = BaseCombatUnitAttributes {
+            base_armor: if version >= 11.52 {
+                input.read_u16::<LE>()?
+            } else {
+                input.read_u8()?.into()
+            },
+            ..Default::default()
         };
         let num_attacks = input.read_u16::<LE>()?;
         for _ in 0..num_attacks {
