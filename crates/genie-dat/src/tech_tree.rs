@@ -194,11 +194,9 @@ impl TryFrom<i32> for TechTreeDependencyType {
     }
 }
 
-// FIXME: implementation of `From` is preferred since it gives you `Into<_>`
-// for free where the reverse isn't true
-impl Into<i32> for TechTreeDependencyType {
-    fn into(self) -> i32 {
-        self as i32
+impl From<TechTreeDependencyType> for i32 {
+    fn from(tech_tree_dependency_type: TechTreeDependencyType) -> i32 {
+        tech_tree_dependency_type as i32
     }
 }
 
