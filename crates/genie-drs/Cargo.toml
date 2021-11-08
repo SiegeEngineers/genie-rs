@@ -12,7 +12,7 @@ exclude = ["*.drs"]
 
 [dependencies]
 byteorder = "1.4.3"
-sorted-vec = "0.5.2"
+sorted-vec = "0.6.2"
 thiserror = "1.0.24"
 
 [dev-dependencies]
