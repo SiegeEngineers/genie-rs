@@ -104,13 +104,19 @@ impl TriggerCondition {
     }
 
     /// Get the "unit type" value for this trigger condition.
-    pub fn unit_type(&self) -> UnitTypeID {
-        self.properties[4].try_into().unwrap()
+    pub fn unit_type(&self) -> Option<UnitTypeID> {
+        match self.properties[4] {
+            -1 => None,
+            unit_type => Some(unit_type.try_into().unwrap()),
+        }
     }
 
     /// Set the "unit type" value for this trigger condition.
-    pub fn set_unit_type(&mut self, unit_type: UnitTypeID) {
-        self.properties[4] = unit_type.try_into().unwrap();
+    pub fn set_unit_type(&mut self, unit_type: Option<UnitTypeID>) {
+        self.properties[4] = match unit_type {
+            Some(unit_type) => i32::from(unit_type),
+            None => -1,
+        };
     }
 
     /// Get the "player ID" value for this trigger condition.
@@ -186,13 +192,19 @@ impl TriggerCondition {
     }
 
     /// Get the "Object Type" value for this trigger condition.
-    pub fn object_type(&self) -> UnitTypeID {
-        self.properties[14].try_into().unwrap()
+    pub fn object_type(&self) -> Option<UnitTypeID> {
+        match self.properties[14] {
+            -1 => None,
+            object_type => Some(object_type.try_into().unwrap()),
+        }
     }
 
     /// Set the "Object Type" value for this trigger condition.
-    pub fn set_object_type(&mut self, object_type: UnitTypeID) {
-        self.properties[14] = i32::from(object_type);
+    pub fn set_object_type(&mut self, object_type: Option<UnitTypeID>) {
+        self.properties[14] = match object_type {
+            Some(object_type) => i32::from(object_type),
+            None => -1,
+        };
     }
 
     /// Get the "AI Signal" value for this trigger condition.
@@ -347,13 +359,19 @@ impl TriggerEffect {
     }
 
     /// Get the "Unit Type" value for this trigger effect.
-    pub fn unit_type(&self) -> UnitTypeID {
-        self.properties[6].try_into().unwrap()
+    pub fn unit_type(&self) -> Option<UnitTypeID> {
+        match self.properties[6] {
+            -1 => None,
+            unit_type => Some(unit_type.try_into().unwrap()),
+        }
     }
 
     /// Set the "Unit Type" value for this trigger effect.
-    pub fn set_unit_type(&mut self, unit_type: UnitTypeID) {
-        self.properties[6] = i32::from(unit_type);
+    pub fn set_unit_type(&mut self, unit_type: Option<UnitTypeID>) {
+        self.properties[6] = match unit_type {
+            Some(unit_type) => i32::from(unit_type),
+            None => -1,
+        };
     }
 
     /// Get the "Source Player" value for this trigger effect.
@@ -466,13 +484,19 @@ impl TriggerEffect {
     }
 
     /// Get the "Object Type" value for this trigger effect.
-    pub fn object_type(&self) -> UnitTypeID {
-        self.properties[21].try_into().unwrap()
+    pub fn object_type(&self) -> Option<UnitTypeID> {
+        match self.properties[21] {
+            -1 => None,
+            object_type => Some(object_type.try_into().unwrap()),
+        }
     }
 
     /// Set the "Object Type" value for this trigger effect.
-    pub fn set_object_type(&mut self, object_type: UnitTypeID) {
-        self.properties[21] = i32::from(object_type);
+    pub fn set_object_type(&mut self, object_type: Option<UnitTypeID>) {
+        self.properties[21] = match object_type {
+            Some(object_type) => i32::from(object_type),
+            None => -1,
+        };
     }
 
     /// Get the "Line ID" value for this trigger effect.

@@ -162,6 +162,10 @@ pub enum DLCPackage {
     AgeOfKings,
     /// The Age of Conquerors expansion.
     AgeOfConquerors,
+    /// The Age of Kings base game. (HD DLC version, what's the difference?)
+    DLCAgeOfKings,
+    /// The Age of Conquerors expansion. (HD DLC version, what's the difference?)
+    DLCAgeOfConquerors,
     /// The Forgotten expansion.
     TheForgotten,
     /// The African Kingdoms expansion.
@@ -176,8 +180,10 @@ impl TryFrom<i32> for DLCPackage {
     type Error = ParseDLCPackageError;
     fn try_from(n: i32) -> Result<Self, Self::Error> {
         match n {
-            2 => Ok(DLCPackage::AgeOfKings),
-            3 => Ok(DLCPackage::AgeOfConquerors),
+            0 => Ok(DLCPackage::AgeOfKings),
+            1 => Ok(DLCPackage::AgeOfConquerors),
+            2 => Ok(DLCPackage::DLCAgeOfKings),
+            3 => Ok(DLCPackage::DLCAgeOfConquerors),
             4 => Ok(DLCPackage::TheForgotten),
             5 => Ok(DLCPackage::AfricanKingdoms),
             6 => Ok(DLCPackage::RiseOfTheRajas),
@@ -190,8 +196,10 @@ impl TryFrom<i32> for DLCPackage {
 impl From<DLCPackage> for i32 {
     fn from(dlc_id: DLCPackage) -> i32 {
         match dlc_id {
-            DLCPackage::AgeOfKings => 2,
-            DLCPackage::AgeOfConquerors => 3,
+            DLCPackage::AgeOfKings => 0,
+            DLCPackage::AgeOfConquerors => 1,
+            DLCPackage::DLCAgeOfKings => 2,
+            DLCPackage::DLCAgeOfConquerors => 3,
             DLCPackage::TheForgotten => 4,
             DLCPackage::AfricanKingdoms => 5,
             DLCPackage::RiseOfTheRajas => 6,
