@@ -9,13 +9,13 @@ homepage = "https://github.com/SiegeEngineers/genie-rs"
 repository = "https://github.com/SiegeEngineers/genie-rs"
 
 [dependencies]
-arrayvec = "0.7.0"
+arrayvec = "0.7.2"
 byteorder = "1.4.3"
-encoding_rs = "0.8.28"
-flate2 = { version = "1.0.20", features = ["rust_backend"], default-features = false }
+encoding_rs = "0.8.31"
+flate2 = { version = "1.0.24", features = ["rust_backend"], default-features = false }
 genie-support = { version = "^1.0.0", path = "../genie-support" }
 jascpal = { version = "^0.1.0", path = "../jascpal" }
-thiserror = "1.0.24"
+thiserror = "1.0.35"
 
 [dev-dependencies]
-anyhow = "1.0.40"
+anyhow = "1.0.65"

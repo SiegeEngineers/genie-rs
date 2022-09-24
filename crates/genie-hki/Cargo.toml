@@ -11,9 +11,9 @@ exclude = ["test/files"]
 
 [dependencies]
 byteorder = "1.4.3"
-flate2 = "1.0.20"
+flate2 = "1.0.24"
 genie-lang = { version = "^0.2.0", path = "../genie-lang" }
-thiserror = "1.0.24"
+thiserror = "1.0.35"
 
 [dev-dependencies]
-anyhow = "1.0.40"
+anyhow = "1.0.65"
