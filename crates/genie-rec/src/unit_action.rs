@@ -1,3 +1,5 @@
+use crate::element::{ReadableHeaderElement, WritableHeaderElement};
+use crate::reader::RecordingHeaderReader;
 use crate::ObjectID;
 use crate::Result;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
@@ -21,27 +23,30 @@ pub struct UnitAction {
     pub params: ActionType,
 }
 
-impl UnitAction {
-    pub fn read_from(mut input: impl Read, version: f32) -> Result<Self> {
+impl ReadableHeaderElement for UnitAction {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let action_type = input.read_u16::<LE>()?;
-        Self::read_from_inner(&mut input, action_type, version)
+        Self::read_from_inner(input, action_type)
     }
+}
 
-    // `dyn` because this is a recursive function; taking &mut from a `impl Read` here
-    // would cause infinite recursion in the types.
-    fn read_from_inner(mut input: &mut dyn Read, action_type: u16, version: f32) -> Result<Self> {
+impl UnitAction {
+    fn read_from_inner<R: Read>(
+        input: &mut RecordingHeaderReader<R>,
+        action_type: u16,
+    ) -> Result<Self> {
         // TODO this is different between AoC 1.0 and AoC 1.0c. This version check is a guess
         // and may not actually be when it changed. May have to become more specific in the
         // future!
-        let state = if version <= 11.76 {
+        let state = if input.version() <= 11.76 {
             input.read_u8()? as u32
         } else {
             input.read_u32::<LE>()?
         };
         let _target_object_pointer = input.read_u32::<LE>()?;
         let _target_object_pointer_2 = input.read_u32::<LE>()?;
-        let target_object_id = read_opt_u32(&mut input)?;
-        let target_object_id_2 = read_opt_u32(&mut input)?;
+        let target_object_id = read_opt_u32(input)?;
+        let target_object_id_2 = read_opt_u32(input)?;
         let target_position = (
             input.read_f32::<LE>()?,
             input.read_f32::<LE>()?,
@@ -49,11 +54,11 @@ impl UnitAction {
         );
         let timer = input.read_f32::<LE>()?;
         let target_moved_state = input.read_u8()?;
-        let task_id = read_opt_u16(&mut input)?;
+        let task_id = read_opt_u16(input)?;
         let sub_action_value = input.read_u8()?;
-        let sub_actions = UnitAction::read_list_from(&mut input, version)?;
-        let sprite_id = read_opt_u16(&mut input)?;
-        let params = ActionType::read_from(&mut input, action_type)?;
+        let sub_actions = UnitAction::read_list_from(input)?;
+        let sprite_id = read_opt_u16(input)?;
+        let params = ActionType::read_from(input, action_type)?;
 
         Ok(UnitAction {
             state,
@@ -70,14 +75,14 @@ impl UnitAction {
         })
     }
 
-    pub fn read_list_from(mut input: impl Read, version: f32) -> Result<Vec<Self>> {
+    pub fn read_list_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Vec<Self>> {
         let mut list = vec![];
         loop {
             let action_type = input.read_u16::<LE>()?;
             if action_type == 0 {
                 return Ok(list);
             }
-            let action = Self::read_from_inner(&mut input, action_type, version)?;
+            let action = Self::read_from_inner(input, action_type)?;
             list.push(action);
         }
     }
@@ -97,7 +102,10 @@ pub enum ActionType {
 }
 
 impl ActionType {
-    pub fn read_from(input: impl Read, action_type: u16) -> Result<Self> {
+    pub fn read_from<R: Read>(
+        input: &mut RecordingHeaderReader<R>,
+        action_type: u16,
+    ) -> Result<Self> {
         let data = match action_type {
             1 => Self::MoveTo(ActionMoveTo::read_from(input)?),
             3 => Self::Enter(ActionEnter::read_from(input)?),
@@ -119,13 +127,15 @@ pub struct ActionMoveTo {
     pub range: f32,
 }
 
-impl ActionMoveTo {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for ActionMoveTo {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let range = input.read_f32::<LE>()?;
         Ok(Self { range })
     }
+}
 
-    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+impl WritableHeaderElement for ActionMoveTo {
+    fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_f32::<LE>(self.range)?;
         Ok(())
     }
@@ -136,13 +146,15 @@ pub struct ActionEnter {
     pub first_time: u32,
 }
 
-impl ActionEnter {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for ActionEnter {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let first_time = input.read_u32::<LE>()?;
         Ok(Self { first_time })
     }
+}
 
-    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+impl WritableHeaderElement for ActionEnter {
+    fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u32::<LE>(self.first_time)?;
         Ok(())
     }
@@ -163,8 +175,8 @@ pub struct ActionAttack {
     last_target_position: (f32, f32, f32),
 }
 
-impl ActionAttack {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for ActionAttack {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         Ok(ActionAttack {
             range: input.read_f32::<LE>()?,
             min_range: input.read_f32::<LE>()?,
@@ -173,9 +185,9 @@ impl ActionAttack {
             need_to_attack: input.read_u16::<LE>()?,
             was_same_owner: input.read_u16::<LE>()?,
             indirect_fire_flag: input.read_u8()?,
-            move_sprite_id: read_opt_u16(&mut input)?,
-            fight_sprite_id: read_opt_u16(&mut input)?,
-            wait_sprite_id: read_opt_u16(&mut input)?,
+            move_sprite_id: read_opt_u16(input)?,
+            fight_sprite_id: read_opt_u16(input)?,
+            wait_sprite_id: read_opt_u16(input)?,
             last_target_position: (
                 input.read_f32::<LE>()?,
                 input.read_f32::<LE>()?,
@@ -190,13 +202,15 @@ pub struct ActionMake {
     pub work_timer: f32,
 }
 
-impl ActionMake {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for ActionMake {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let work_timer = input.read_f32::<LE>()?;
         Ok(Self { work_timer })
     }
+}
 
-    pub fn write_to(&self, mut output: impl Write) -> Result<()> {
+impl WritableHeaderElement for ActionMake {
+    fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_f32::<LE>(self.work_timer)?;
         Ok(())
     }

@@ -1,5 +1,7 @@
+use crate::element::ReadableHeaderElement;
 use crate::map::Map;
 use crate::player::Player;
+use crate::reader::RecordingHeaderReader;
 use crate::string_table::StringTable;
 use crate::{GameVersion, Result};
 use byteorder::{ReadBytesExt, LE};
@@ -17,13 +19,14 @@ pub struct AICommand {
     pub parameters: [i32; 4],
 }
 
-impl AICommand {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for AICommand {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut cmd = AICommand {
             command_type: input.read_i32::<LE>()?,
             id: input.read_u16::<LE>()?,
             ..Default::default()
         };
+
         input.skip(2)?;
         input.read_i32_into::<LE>(&mut cmd.parameters)?;
         Ok(cmd)
@@ -40,8 +43,8 @@ pub struct AIListRule {
     actions: Vec<AICommand>,
 }
 
-impl AIListRule {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for AIListRule {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut rule = AIListRule {
             in_use: input.read_u32::<LE>()? != 0,
             enable: input.read_u32::<LE>()? != 0,
@@ -53,7 +56,7 @@ impl AIListRule {
         let num_facts_actions = input.read_u8()?;
         input.read_u16::<LE>()?;
         for i in 0..16 {
-            let cmd = AICommand::read_from(&mut input)?;
+            let cmd = AICommand::read_from(input)?;
             if i < num_facts {
                 rule.facts.push(cmd);
             } else if i < num_facts_actions {
@@ -72,8 +75,8 @@ pub struct AIList {
     rules: Vec<AIListRule>,
 }
 
-impl AIList {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for AIList {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut list = AIList {
             in_use: input.read_u32::<LE>()? != 0,
             id: input.read_i32::<LE>()?,
@@ -83,7 +86,7 @@ impl AIList {
         let num_rules = input.read_u16::<LE>()?;
         input.read_u32::<LE>()?;
         for _ in 0..num_rules {
-            list.rules.push(AIListRule::read_from(&mut input)?);
+            list.rules.push(AIListRule::read_from(input)?);
         }
         Ok(list)
     }
@@ -95,12 +98,13 @@ pub struct AIGroupTable {
     groups: Vec<u16>,
 }
 
-impl AIGroupTable {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for AIGroupTable {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut table = AIGroupTable {
             max_groups: input.read_u16::<LE>()?,
             ..Default::default()
         };
+
         let num_groups = input.read_u16::<LE>()?;
         input.read_u32::<LE>()?;
         for _ in 0..num_groups {
@@ -151,8 +155,8 @@ impl Debug for AIFactState {
     }
 }
 
-impl AIFactState {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for AIFactState {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let save_version = input.read_f32::<LE>()?;
         let version = input.read_f32::<LE>()?;
         let death_match = input.read_u32::<LE>()? != 0;
@@ -206,24 +210,24 @@ pub struct AIScripts {
     pub fact_state: AIFactState,
 }
 
-impl AIScripts {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let string_table = StringTable::read_from(&mut input)?;
+impl ReadableHeaderElement for AIScripts {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
+        let string_table = StringTable::read_from(input)?;
         let _max_facts = input.read_u16::<LE>()?;
         let _max_actions = input.read_u16::<LE>()?;
         let max_lists = input.read_u16::<LE>()?;
 
         let mut lists = vec![];
         for _ in 0..max_lists {
-            lists.push(AIList::read_from(&mut input)?);
+            lists.push(AIList::read_from(input)?);
         }
 
         let mut groups = vec![];
         for _ in 0..max_lists {
-            groups.push(AIGroupTable::read_from(&mut input)?);
+            groups.push(AIGroupTable::read_from(input)?);
         }
 
-        let fact_state = AIFactState::read_from(&mut input)?;
+        let fact_state = AIFactState::read_from(input)?;
 
         Ok(AIScripts {
             string_table,
@@ -249,17 +253,22 @@ impl Header {
     pub fn players(&self) -> impl Iterator<Item = &Player> {
         self.players.iter()
     }
+}
 
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for Header {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut header = Header {
-            game_version: GameVersion::read_from(&mut input)?,
+            game_version: GameVersion::read_from(input)?,
             save_version: input.read_f32::<LE>()?,
             ..Default::default()
         };
 
+        // update reader state
+        input.set_version(header.game_version, header.save_version);
+
         let includes_ai = input.read_u32::<LE>()? != 0;
         if includes_ai {
-            header.ai_scripts = Some(AIScripts::read_from(&mut input)?);
+            header.ai_scripts = Some(AIScripts::read_from(input)?);
         }
 
         let _old_time = input.read_u32::<LE>()?;
@@ -276,7 +285,8 @@ impl Header {
         let _random_seed2 = input.read_u32::<LE>()?;
         let _current_player = input.read_u16::<LE>()?;
         let num_players = input.read_u16::<LE>()?;
-        if header.save_version >= 11.76 {
+        input.set_num_players(num_players);
+        if input.version() >= 11.76 {
             let _aegis_enabled = input.read_u8()? != 0;
             let _cheats_enabled = input.read_u8()? != 0;
         }
@@ -284,7 +294,7 @@ impl Header {
         let _campaign = input.read_u32::<LE>()?;
         let _campaign_player = input.read_u32::<LE>()?;
         let _campaign_scenario = input.read_u32::<LE>()?;
-        if header.save_version >= 10.13 {
+        if input.version() >= 10.13 {
             let _king_campaign = input.read_u32::<LE>()?;
             let _king_campaign_player = input.read_u8()?;
             let _king_campaign_scenario = input.read_u8()?;
@@ -293,11 +303,11 @@ impl Header {
         let mut player_time_delta = [0; 9];
         input.read_u32_into::<LE>(&mut player_time_delta[..])?;
 
-        header.map = Map::read_from(&mut input)?;
+        header.map = Map::read_from(input)?;
 
         // TODO is there another num_players here for restored games?
 
-        header.particle_system = ParticleSystem::read_from(&mut input)?;
+        header.particle_system = ParticleSystem::read_from(input)?;
 
         if header.save_version >= 11.07 {
             let _identifier = input.read_u32::<LE>()?;
@@ -305,17 +315,13 @@ impl Header {
 
         header.players.reserve(num_players.try_into().unwrap());
         for _ in 0..num_players {
-            header.players.push(Player::read_from(
-                &mut input,
-                header.save_version,
-                num_players as u8,
-            )?);
+            header.players.push(Player::read_from(input)?);
         }
         for player in &mut header.players {
-            player.read_info(&mut input, header.save_version)?;
+            player.read_info(input)?;
         }
 
-        header.scenario = TribeScen::read_from(&mut input)?;
+        header.scenario = TribeScen::read_from(&mut *input)?;
 
         let _difficulty = if header.save_version >= 7.16 {
             Some(input.read_u32::<LE>()?)
@@ -380,8 +386,8 @@ struct Particle {
     pub flags: u8,
 }
 
-impl Particle {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for Particle {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         Ok(Particle {
             start: input.read_u32::<LE>()?,
             facet: input.read_u32::<LE>()?,
@@ -403,13 +409,13 @@ struct ParticleSystem {
     pub particles: Vec<Particle>,
 }
 
-impl ParticleSystem {
-    pub fn read_from(mut input: impl Read) -> Result<Self> {
+impl ReadableHeaderElement for ParticleSystem {
+    fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let world_time = input.read_u32::<LE>()?;
         let num_particles = input.read_u32::<LE>()?;
         let mut particles = Vec::with_capacity(num_particles.try_into().unwrap());
         for _ in 0..num_particles {
-            particles.push(Particle::read_from(&mut input)?);
+            particles.push(Particle::read_from(input)?);
         }
         Ok(Self {
             world_time,

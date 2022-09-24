@@ -16,7 +16,7 @@ use std::io::{self, Error, ErrorKind, Read, Result};
 /// assert_eq!(read_opt_u16(&mut zero).unwrap(), Some(0));
 /// ```
 #[inline]
-pub fn read_opt_u16<T, R>(mut input: R) -> Result<Option<T>>
+pub fn read_opt_u16<T, R>(input: &mut R) -> Result<Option<T>>
 where
     T: TryFrom<u16>,
     T::Error: std::error::Error + Send + Sync + 'static,
@@ -46,7 +46,7 @@ where
 /// assert_eq!(read_opt_u32(&mut one).unwrap(), Some(1));
 /// ```
 #[inline]
-pub fn read_opt_u32<T, R>(mut input: R) -> Result<Option<T>>
+pub fn read_opt_u32<T, R>(input: &mut R) -> Result<Option<T>>
 where
     T: TryFrom<u32>,
     T::Error: std::error::Error + Send + Sync + 'static,
