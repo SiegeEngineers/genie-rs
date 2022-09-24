@@ -14,6 +14,8 @@ use genie_support::{read_opt_u32, ReadStringsExt};
 use std::convert::TryInto;
 use std::io::{Read, Write};
 
+// TODO! reset to warn before merging
+#[allow(unused_macro_rules)]
 macro_rules! assert_marker {
     ($val:expr, $marker:expr) => {
         let found = $val.read_u8()?;
