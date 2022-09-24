@@ -43,10 +43,10 @@ fn list(args: List) {
         .map(|entry| entry.filename.to_string())
         .collect::<Vec<String>>();
 
-    for i in 0..campaign.len() {
+    (0..campaign.len()).for_each(|i| {
         let bytes = campaign.by_index_raw(i).expect("missing scenario data");
         println!("- {} ({})", names[i], format_bytes(bytes.len() as u32));
-    }
+    });
 }
 
 fn extract(args: Extract) {
@@ -62,11 +62,11 @@ fn extract(args: Extract) {
         .map(|entry| entry.filename.to_string())
         .collect::<Vec<String>>();
 
-    for i in 0..campaign.len() {
+    (0..campaign.len()).for_each(|i| {
         let bytes = campaign.by_index_raw(i).expect("missing scenario data");
         println!("{}", names[i]);
         std::fs::write(dir.join(&names[i]), bytes).expect("failed to write");
-    }
+    });
 }
 
 /// Derived from https://github.com/banyan/rust-pretty-bytes/blob/master/src/converter.rs

@@ -183,7 +183,7 @@ impl WritableHeaderElement for SpriteNode {
         output.write_u32::<LE>(self.x)?;
         output.write_u32::<LE>(self.y)?;
         output.write_u16::<LE>(self.frame)?;
-        output.write_u8(if self.invisible { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.invisible))?;
         if let Some(animation) = &self.animation {
             animation.write_to(output)?;
         }
@@ -600,6 +600,7 @@ impl ReadableHeaderElement for MissileUnitAttributes {
 
 impl WritableHeaderElement for MissileUnitAttributes {}
 
+#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 pub struct UnitAIOrder {
     issuer: u32,
@@ -652,6 +653,7 @@ impl ReadableHeaderElement for UnitAINotification {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 pub struct UnitAIOrderHistory {
     order: u32,
@@ -738,6 +740,7 @@ impl ReadableHeaderElement for PatrolPath {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 pub struct UnitAI {
     mood: Option<u32>,

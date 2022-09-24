@@ -213,7 +213,7 @@ impl ReadableHeaderElement for Map {
             map.tiles.push(Tile::read_from(input)?);
         }
 
-        let _umv = {
+        {
             let data_count = input.read_u32::<LE>()?;
             let _capacity = input.read_u32::<LE>()?;
             input.skip(u64::from(data_count) * 4)?;

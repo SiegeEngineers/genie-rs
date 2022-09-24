@@ -97,7 +97,7 @@ where
             });
             for _ in &table.resources {
                 let bytes = data.next().expect("genie-drs bug: mismatch between InMemoryStrategy resources and DRSWriter table data");
-                drs.output.write_all(&bytes)?;
+                drs.output.write_all(bytes)?;
             }
         }
 

@@ -151,7 +151,7 @@ impl Map {
             output.write_u32::<LE>(version)?;
         }
         if version >= 2 {
-            output.write_u8(if self.render_waves { 0 } else { 1 })?;
+            output.write_u8(u8::from(!self.render_waves))?;
         }
 
         output.write_u32::<LE>(self.width)?;

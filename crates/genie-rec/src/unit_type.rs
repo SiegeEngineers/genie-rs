@@ -61,6 +61,7 @@ impl ReadableHeaderElement for CompactUnitType {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 pub struct StaticUnitAttributes {
     id: UnitTypeID,
@@ -358,6 +359,7 @@ impl ReadableHeaderElement for BuildingUnitAttributes {
 mod tests {
     use super::*;
 
+    #[allow(clippy::neg_cmp_op_on_partial_ord)]
     #[test]
     fn cmp_unit_base_class() {
         assert_eq!(UnitBaseClass::Static, UnitBaseClass::Static);

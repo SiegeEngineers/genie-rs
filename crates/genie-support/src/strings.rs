@@ -79,7 +79,7 @@ pub fn write_opt_str<W: Write>(
     option: &Option<String>,
 ) -> Result<(), WriteStringError> {
     if let Some(ref string) = option {
-        write_str(output, &string)
+        write_str(output, string)
     } else {
         output.write_i16::<LE>(0)?;
         Ok(())
@@ -94,7 +94,7 @@ pub fn write_opt_i32_str<W: Write>(
     option: &Option<String>,
 ) -> Result<(), WriteStringError> {
     if let Some(ref string) = option {
-        write_i32_str(output, &string)
+        write_i32_str(output, string)
     } else {
         output.write_i32::<LE>(0)?;
         Ok(())
@@ -107,7 +107,7 @@ fn decode_str(bytes: &[u8]) -> Result<String, DecodeStringError> {
         return Ok("".to_string());
     }
 
-    let (decoded, _enc, failed) = WINDOWS_1252.decode(&bytes);
+    let (decoded, _enc, failed) = WINDOWS_1252.decode(bytes);
     if failed {
         Err(DecodeStringError)
     } else {

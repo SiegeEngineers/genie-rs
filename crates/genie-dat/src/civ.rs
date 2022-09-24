@@ -76,7 +76,7 @@ impl Civilization {
         let mut bytes = [0; 20];
         input.read_exact(&mut bytes)?;
         let bytes = &bytes[..bytes.iter().position(|&c| c == 0).unwrap_or(bytes.len())];
-        let (name, _encoding, _failed) = WINDOWS_1252.decode(&bytes);
+        let (name, _encoding, _failed) = WINDOWS_1252.decode(bytes);
         civ.name = CivName::from(&name).unwrap();
         let num_attributes = input.read_u16::<LE>()?;
         civ.civ_effect = input.read_u16::<LE>()?;
@@ -112,7 +112,7 @@ impl Civilization {
     /// Write civilization data to an output stream.
     pub fn write_to(&self, mut output: impl Write, version: GameVersion) -> Result<()> {
         let mut name = [0; 20];
-        (&mut name[..self.name.len()]).copy_from_slice(self.name.as_bytes());
+        (name[..self.name.len()]).copy_from_slice(self.name.as_bytes());
         output.write_all(&name)?;
         output.write_u16::<LE>(self.attributes.len().try_into().unwrap())?;
         output.write_u16::<LE>(self.civ_effect)?;
