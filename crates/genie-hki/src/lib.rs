@@ -769,9 +769,9 @@ impl Hotkey {
     pub(crate) fn write_to<W: Write>(&self, output: &mut W) -> io::Result<()> {
         output.write_i32::<LE>(self.key)?;
         output.write_i32::<LE>(self.string_id)?;
-        output.write_u8(if self.ctrl { 1 } else { 0 })?;
-        output.write_u8(if self.alt { 1 } else { 0 })?;
-        output.write_u8(if self.shift { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.ctrl))?;
+        output.write_u8(u8::from(self.alt))?;
+        output.write_u8(u8::from(self.shift))?;
         output.write_i8(self.mouse)?;
         Ok(())
     }
@@ -926,7 +926,7 @@ impl HotkeyGroup {
         let hotkeys: Vec<String> = self
             .hotkeys
             .iter()
-            .map(|hki| hki.get_string_from_lang(&lang_file))
+            .map(|hki| hki.get_string_from_lang(lang_file))
             .collect();
         format!("{}{}", group_name, hotkeys.join("\n  "))
     }
@@ -1147,7 +1147,7 @@ impl HotkeyInfo {
             .groups
             .iter()
             .zip(him.iter())
-            .map(|(grp, sk)| grp.get_string_from_lang(&lang_file, sk))
+            .map(|(grp, sk)| grp.get_string_from_lang(lang_file, sk))
             .collect();
         format!("Version: {}\n{}", self.version, groups.join("\n"))
     }

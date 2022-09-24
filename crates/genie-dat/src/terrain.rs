@@ -264,7 +264,7 @@ impl TerrainAnimation {
 
     /// Serialize this object to a binary output stream.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        output.write_u8(if self.enabled { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.enabled))?;
         output.write_i16::<LE>(self.num_frames)?;
         output.write_i16::<LE>(self.num_pause_frames)?;
         output.write_f32::<LE>(self.frame_interval)?;
@@ -272,8 +272,8 @@ impl TerrainAnimation {
         output.write_i16::<LE>(self.frame)?;
         output.write_i16::<LE>(self.draw_frame)?;
         output.write_f32::<LE>(self.animate_last)?;
-        output.write_u8(if self.frame_changed { 1 } else { 0 })?;
-        output.write_u8(if self.drawn { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.frame_changed))?;
+        output.write_u8(u8::from(self.drawn))?;
         Ok(())
     }
 }
@@ -384,7 +384,7 @@ impl Terrain {
         num_terrains: u16,
     ) -> Result<()> {
         assert_eq!(self.borders.len(), num_terrains as usize);
-        output.write_u8(if self.enabled { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.enabled))?;
         output.write_u8(self.random)?;
         write_terrain_name(output, &self.name)?;
         write_terrain_name(output, &self.slp_name)?;
@@ -477,7 +477,7 @@ impl TerrainBorder {
 
     /// Serialize this object to a binary output stream.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        output.write_u8(if self.enabled { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.enabled))?;
         output.write_u8(self.random)?;
         write_terrain_name(output, &self.name)?;
         write_terrain_name(output, &self.slp_name)?;
@@ -515,7 +515,7 @@ fn read_terrain_name<R: Read>(input: &mut R, output: &mut TerrainName) -> Result
 
 fn write_terrain_name<W: Write>(output: &mut W, name: &TerrainName) -> Result<()> {
     let bytes = &mut [0; 13];
-    (&mut bytes[..name.len()]).copy_from_slice(name.as_bytes());
+    bytes[..name.len()].copy_from_slice(name.as_bytes());
     output.write_all(bytes)?;
     Ok(())
 }

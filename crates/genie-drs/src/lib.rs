@@ -129,7 +129,7 @@ impl From<&[u8]> for ResourceType {
     fn from(u: &[u8]) -> Self {
         assert!(u.len() <= 4);
         let mut bytes = [b' '; 4];
-        (&mut bytes[0..u.len()]).copy_from_slice(u);
+        bytes[0..u.len()].copy_from_slice(u);
         Self(bytes)
     }
 }

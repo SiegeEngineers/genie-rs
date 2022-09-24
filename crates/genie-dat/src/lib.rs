@@ -62,7 +62,7 @@ impl GameVersion {
 }
 
 /// A data file version.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FileVersion([u8; 8]);
 
 impl From<[u8; 8]> for FileVersion {
@@ -80,7 +80,7 @@ impl From<&str> for FileVersion {
     fn from(string: &str) -> Self {
         assert!(string.len() <= 8);
         let mut bytes = [0; 8];
-        (&mut bytes[..string.len()]).copy_from_slice(string.as_bytes());
+        (bytes[..string.len()]).copy_from_slice(string.as_bytes());
         Self::from(bytes)
     }
 }

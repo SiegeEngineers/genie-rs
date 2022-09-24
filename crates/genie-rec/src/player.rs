@@ -69,9 +69,7 @@ impl ReadableHeaderElement for Player {
         input.read_u32_into::<LE>(&mut player.diplomacy)?;
         player.allied_los = input.read_u32::<LE>()? != 0;
         player.allied_victory = input.read_u8()? != 0;
-        player.name = input
-            .read_u16_length_prefixed_str()?
-            .unwrap_or_else(String::new);
+        player.name = input.read_u16_length_prefixed_str()?.unwrap_or_default();
         dbg!(input.version());
         if input.version() >= 10.55 {
             assert_eq!(input.read_u8()?, 22);
@@ -494,6 +492,7 @@ impl ReadableHeaderElement for VisibleResource {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 pub struct VisibleResources {
     lists: Vec<Vec<VisibleResource>>,
@@ -521,7 +520,9 @@ impl ReadableHeaderElement for VisibleResources {
 
 #[derive(Debug, Default, Clone)]
 pub struct GaiaData {
+    #[allow(dead_code)]
     update_time: u32,
+    #[allow(dead_code)]
     update_nature: u32,
     creatures: [GaiaCreature; 5],
     next_wolf_attack_update_time: u32,
@@ -622,6 +623,7 @@ impl WritableHeaderElement for GaiaWolfInfo {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 struct DiplomacyOffer {
     sequence: u8,

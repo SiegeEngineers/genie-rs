@@ -111,14 +111,13 @@ impl AIErrorInfo {
     pub fn write_to(&self, mut output: impl Write) -> Result<()> {
         // TODO support non UTF8 encoding
         let mut filename_bytes = [0; 257];
-        (&mut filename_bytes[..self.filename.len()]).copy_from_slice(self.filename.as_bytes());
+        filename_bytes[..self.filename.len()].copy_from_slice(self.filename.as_bytes());
         output.write_all(&filename_bytes)?;
 
         output.write_i32::<LE>(self.line_number)?;
 
         let mut description_bytes = [0; 128];
-        (&mut description_bytes[..self.description.len()])
-            .copy_from_slice(self.description.as_bytes());
+        description_bytes[..self.description.len()].copy_from_slice(self.description.as_bytes());
         output.write_all(&description_bytes)?;
 
         output.write_u32::<LE>(self.error_code.into())?;
@@ -185,7 +184,7 @@ impl AIInfo {
     }
 
     pub fn write_to(&self, mut output: impl Write) -> Result<()> {
-        output.write_u32::<LE>(if self.files.is_empty() { 0 } else { 1 })?;
+        output.write_u32::<LE>(u32::from(!self.files.is_empty()))?;
 
         if let Some(error) = &self.error {
             output.write_u32::<LE>(1)?;

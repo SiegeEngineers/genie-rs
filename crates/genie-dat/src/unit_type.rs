@@ -577,28 +577,28 @@ impl StaticUnitTypeAttributes {
                 .unwrap_or(-1),
         )?;
         output.write_u8(self.sort_number)?;
-        output.write_u8(if self.can_be_built_on { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.can_be_built_on))?;
         output.write_i16::<LE>(
             self.button_picture
                 .map(|id| id.try_into().unwrap())
                 .unwrap_or(-1),
         )?;
-        output.write_u8(if self.hide_in_scenario_editor { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.hide_in_scenario_editor))?;
         output.write_i16::<LE>(
             self.portrait_picture
                 .map(|id| id.try_into().unwrap())
                 .unwrap_or(-1),
         )?;
-        output.write_u8(if self.enabled { 1 } else { 0 })?;
-        output.write_u8(if self.disabled { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.enabled))?;
+        output.write_u8(u8::from(self.disabled))?;
         output.write_i16::<LE>(self.tile_req.0)?;
         output.write_i16::<LE>(self.tile_req.1)?;
         output.write_i16::<LE>(self.center_tile_req.0)?;
         output.write_i16::<LE>(self.center_tile_req.1)?;
         output.write_f32::<LE>(self.construction_radius.0)?;
         output.write_f32::<LE>(self.construction_radius.1)?;
-        output.write_u8(if self.elevation_flag { 1 } else { 0 })?;
-        output.write_u8(if self.fog_flag { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.elevation_flag))?;
+        output.write_u8(u8::from(self.fog_flag))?;
         output.write_u16::<LE>(self.terrain_restriction_id)?;
         output.write_u8(self.movement_type)?;
         output.write_u16::<LE>(self.attribute_max_amount)?;
@@ -613,9 +613,9 @@ impl StaticUnitTypeAttributes {
         output.write_u32::<LE>((&self.help_string_id).try_into().unwrap())?;
         output.write_u32::<LE>(self.help_page_id)?;
         output.write_u32::<LE>(self.hotkey_id)?;
-        output.write_u8(if self.recyclable { 1 } else { 0 })?;
-        output.write_u8(if self.track_as_resource { 1 } else { 0 })?;
-        output.write_u8(if self.create_doppleganger { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.recyclable))?;
+        output.write_u8(u8::from(self.track_as_resource))?;
+        output.write_u8(u8::from(self.create_doppleganger))?;
         output.write_u8(self.resource_group)?;
         output.write_u8(self.occlusion_mask)?;
         output.write_u8(self.obstruction_type)?;
@@ -1218,12 +1218,12 @@ impl BuildingUnitTypeAttributes {
         }
         output.write_u8(self.connect_flag)?;
         output.write_i16::<LE>(self.facet)?;
-        output.write_u8(if self.destroy_on_build { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.destroy_on_build))?;
         output.write_u16::<LE>(self.on_build_make_unit.map_into().unwrap_or(0xFFFF))?;
         output.write_u16::<LE>(self.on_build_make_tile.map_into().unwrap_or(0xFFFF))?;
         output.write_i16::<LE>(self.on_build_make_overlay)?;
         output.write_u16::<LE>(self.on_build_make_tech.map_into().unwrap_or(0xFFFF))?;
-        output.write_u8(if self.can_burn { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.can_burn))?;
         for i in 0..self.linked_buildings.capacity() {
             match self.linked_buildings.get(i) {
                 Some(link) => link.write_to(&mut output)?,

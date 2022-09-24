@@ -402,8 +402,8 @@ impl AIOrderCommand {
         output.write_f32::<LE>(self.target_location.1)?;
         output.write_f32::<LE>(self.target_location.2)?;
         output.write_f32::<LE>(self.range)?;
-        output.write_u8(if self.immediate { 1 } else { 0 })?;
-        output.write_u8(if self.add_to_front { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.immediate))?;
+        output.write_u8(u8::from(self.add_to_front))?;
         output.write_all(&[0, 0])?;
         if self.objects.len() > 1 {
             self.objects.write_to(output)?;
@@ -440,7 +440,7 @@ impl ResignCommand {
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u8(self.player_id.into())?;
         output.write_u8(self.comm_player_id.into())?;
-        output.write_u8(if self.dropped { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.dropped))?;
         Ok(())
     }
 }
@@ -1575,6 +1575,7 @@ impl Meta {
 /// A chat message sent during the game.
 #[derive(Debug, Clone)]
 pub struct Chat {
+    #[allow(dead_code)]
     message: String,
 }
 

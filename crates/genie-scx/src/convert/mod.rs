@@ -30,13 +30,9 @@ pub enum ConvertError {
 /// use genie_scx::convert::AutoToWK;
 /// AutoToWK::default().convert(&mut scenario)?
 /// ```
-pub struct AutoToWK {}
 
-impl Default for AutoToWK {
-    fn default() -> Self {
-        AutoToWK {}
-    }
-}
+#[derive(Debug, Default)]
+pub struct AutoToWK {}
 
 /// Check if a scenario object is likely a WololoKingdoms one.
 fn is_wk_object(object: &ScenarioObject) -> bool {

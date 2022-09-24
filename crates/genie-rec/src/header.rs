@@ -33,6 +33,7 @@ impl ReadableHeaderElement for AICommand {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 pub struct AIListRule {
     in_use: bool,
@@ -67,6 +68,7 @@ impl ReadableHeaderElement for AIListRule {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 pub struct AIList {
     in_use: bool,
@@ -94,6 +96,7 @@ impl ReadableHeaderElement for AIList {
 
 #[derive(Debug, Default, Clone)]
 pub struct AIGroupTable {
+    #[allow(dead_code)]
     max_groups: u16,
     groups: Vec<u16>,
 }
@@ -376,6 +379,7 @@ impl ReadableHeaderElement for Header {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 struct Particle {
     pub start: u32,
@@ -403,6 +407,7 @@ impl ReadableHeaderElement for Particle {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 struct ParticleSystem {
     pub world_time: u32,

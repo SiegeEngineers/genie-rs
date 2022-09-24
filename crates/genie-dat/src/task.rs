@@ -103,7 +103,7 @@ impl Task {
 
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u16::<LE>(self.id)?;
-        output.write_u8(if self.is_default { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.is_default))?;
         output.write_u16::<LE>(self.action_type)?;
         output.write_i16::<LE>(self.object_class)?;
         output.write_i16::<LE>(
@@ -119,9 +119,9 @@ impl Task {
         output.write_f32::<LE>(self.work_values.0)?;
         output.write_f32::<LE>(self.work_values.1)?;
         output.write_f32::<LE>(self.work_range)?;
-        output.write_u8(if self.auto_search_targets { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.auto_search_targets))?;
         output.write_f32::<LE>(self.search_wait_time)?;
-        output.write_u8(if self.enable_targeting { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.enable_targeting))?;
         output.write_u8(self.combat_level)?;
         output.write_u16::<LE>(self.work_flags.0)?;
         output.write_u16::<LE>(self.work_flags.1)?;

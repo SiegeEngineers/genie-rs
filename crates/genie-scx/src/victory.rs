@@ -61,7 +61,7 @@ impl LegacyVictoryInfo {
     /// Write old-tyle victory settings to an output stream.
     pub fn write_to(&self, mut output: impl Write) -> Result<()> {
         output.write_i32::<LE>(self.object_type)?;
-        output.write_i32::<LE>(if self.all_flag { 1 } else { 0 })?;
+        output.write_i32::<LE>(i32::from(self.all_flag))?;
         output.write_i32::<LE>(self.player_id)?;
         output.write_i32::<LE>(self.dest_object_id)?;
         output.write_f32::<LE>(self.area.0)?;
@@ -374,7 +374,7 @@ impl VictoryInfo {
     }
 
     pub fn write_to(&self, mut output: impl Write) -> Result<()> {
-        output.write_i32::<LE>(if self.conquest { 1 } else { 0 })?;
+        output.write_i32::<LE>(i32::from(self.conquest))?;
         output.write_i32::<LE>(self.ruins)?;
         output.write_i32::<LE>(self.relics)?;
         output.write_i32::<LE>(self.discoveries)?;

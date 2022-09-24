@@ -2,7 +2,7 @@
 name = "genie-scx"
 version = "4.0.0"
 authors = ["Renée Kooi <renee@kooi.me>"]
-edition = "2018"
+edition = "2021"
 license = "GPL-3.0"
 description = "Read and write Age of Empires I/II scenario files."
 homepage = "https://github.com/SiegeEngineers/genie-rs"
@@ -12,7 +12,9 @@ exclude = ["test/scenarios"]
 [dependencies]
 byteorder = "1.4.3"
 flate2 = "1.0.24"
-genie-support = { version = "^1.0.0", path = "../genie-support", features = ["strings"] }
+genie-support = { version = "^1.0.0", path = "../genie-support", features = [
+    "strings",
+] }
 log = "0.4.17"
 nohash-hasher = "0.2.0"
 rgb = "0.8.34"

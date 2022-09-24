@@ -2,7 +2,7 @@
 name = "genie-cpx"
 version = "0.5.0"
 authors = ["Renée Kooi <renee@kooi.me>"]
-edition = "2018"
+edition = "2021"
 license = "GPL-3.0"
 description = "Read and write Age of Empires I/II campaign files."
 homepage = "https://github.com/SiegeEngineers/genie-rs"
