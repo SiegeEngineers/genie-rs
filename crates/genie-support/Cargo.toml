@@ -10,11 +10,11 @@ repository = "https://github.com/SiegeEngineers/genie-rs"
 
 [dependencies]
 byteorder = "1.4.3"
-encoding_rs = { version = "0.8.28", optional = true }
-thiserror = "1.0.24"
+encoding_rs = { version = "0.8.31", optional = true }
+thiserror = "1.0.35"
 
 [features]
 strings = ["encoding_rs"]
 
 [dev-dependencies]
-anyhow = "1.0.40"
+anyhow = "1.0.65"

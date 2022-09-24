@@ -11,13 +11,13 @@ exclude = ["test/scenarios"]
 
 [dependencies]
 byteorder = "1.4.3"
-flate2 = "1.0.20"
+flate2 = "1.0.24"
 genie-support = { version = "^1.0.0", path = "../genie-support", features = ["strings"] }
-log = "0.4.14"
+log = "0.4.17"
 nohash-hasher = "0.2.0"
-rgb = "0.8.27"
-thiserror = "1.0.24"
-num_enum = "0.5.1"
+rgb = "0.8.34"
+thiserror = "1.0.35"
+num_enum = "0.5.7"
 
 [dev-dependencies]
-anyhow = "1.0.40"
+anyhow = "1.0.65"

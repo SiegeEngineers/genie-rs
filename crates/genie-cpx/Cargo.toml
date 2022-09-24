@@ -12,9 +12,9 @@ exclude = ["test/campaigns"]
 [dependencies]
 byteorder = "1.4.3"
 chardet = "0.2.4"
-encoding_rs = "0.8.28"
+encoding_rs = "0.8.31"
 genie-scx = { version = "4.0.0", path = "../genie-scx" }
-thiserror = "1.0.24"
+thiserror = "1.0.35"
 
 [dev-dependencies]
-anyhow = "1.0.40"
+anyhow = "1.0.65"
