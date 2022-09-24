@@ -22,7 +22,7 @@ fn dump() -> Result<(), anyhow::Error> {
     let mut r = RecordedGame::new(&mut f)?;
     println!("version, {}", r.save_version());
     let header = r.get_header_data()?;
-    std::fs::write("/tmp/header.bin", header);
+    std::fs::write("/tmp/header.bin", header)?;
     match r.header() {
         Ok(_) => {}
         Err(err) => {
