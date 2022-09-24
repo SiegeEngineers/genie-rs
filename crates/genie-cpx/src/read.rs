@@ -34,11 +34,11 @@ fn decode_str(bytes: &[u8]) -> Result<String> {
         return Ok("".to_string());
     }
 
-    let (encoding_name, _confidence, _language) = detect_encoding(&bytes);
+    let (encoding_name, _confidence, _language) = detect_encoding(bytes);
     Encoding::for_label(encoding_name.as_bytes())
         .ok_or(ReadCampaignError::DecodeStringError)
         .and_then(|encoding| {
-            let (decoded, _enc, failed) = encoding.decode(&bytes);
+            let (decoded, _enc, failed) = encoding.decode(bytes);
             if failed {
                 return Err(ReadCampaignError::DecodeStringError);
             }
