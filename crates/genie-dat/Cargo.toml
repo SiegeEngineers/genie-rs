@@ -2,7 +2,7 @@
 name = "genie-dat"
 version = "0.1.0"
 authors = ["Renée Kooi <renee@kooi.me>"]
-edition = "2018"
+edition = "2021"
 license = "GPL-3.0"
 description = "Read and write Age of Empires I/II data files."
 homepage = "https://github.com/SiegeEngineers/genie-rs"
@@ -12,7 +12,9 @@ repository = "https://github.com/SiegeEngineers/genie-rs"
 arrayvec = "0.7.2"
 byteorder = "1.4.3"
 encoding_rs = "0.8.31"
-flate2 = { version = "1.0.24", features = ["rust_backend"], default-features = false }
+flate2 = { version = "1.0.24", features = [
+    "rust_backend",
+], default-features = false }
 genie-support = { version = "^1.0.0", path = "../genie-support" }
 jascpal = { version = "^0.1.0", path = "../jascpal" }
 thiserror = "1.0.35"

@@ -2,7 +2,7 @@
 name = "genie-hki"
 version = "0.2.1"
 authors = ["Renée Kooi <renee@kooi.me>"]
-edition = "2018"
+edition = "2021"
 license = "GPL-3.0"
 description = "Read Age of Empires I/II hotkey files."
 homepage = "https://github.com/SiegeEngineers/genie-rs"
