@@ -82,7 +82,7 @@ pub enum Error {
     ParseDLCPackageError(#[from] ParseDLCPackageError),
     /// The given ID is not a known starting age in AoE1 or AoE2.
     #[error(transparent)]
-    ParseStartingAgeError(#[from] ParseStartingAgeError),
+    ParseStartingAgeError(#[from] ParseAgeIdentifierError),
     /// The given ID is not a known error code.
     #[error(transparent)]
     ParseAIErrorCodeError(#[from] num_enum::TryFromPrimitiveError<ai::AIErrorCode>),

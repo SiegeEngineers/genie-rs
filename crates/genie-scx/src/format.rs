@@ -560,7 +560,7 @@ pub struct TribeScen {
     /// Whether "All Techs" is enabled.
     all_techs: bool,
     /// The starting age per player.
-    player_start_ages: Vec<StartingAge>,
+    player_start_ages: Vec<AgeIdentifier>,
     /// The initial camera location.
     view: (i32, i32),
     /// The map type.
@@ -766,10 +766,10 @@ impl TribeScen {
             (0, false)
         };
 
-        let mut player_start_ages = vec![StartingAge::Default; 16];
+        let mut player_start_ages = vec![AgeIdentifier::Default; 16];
         if version > 1.05 {
             for start_age in player_start_ages.iter_mut() {
-                *start_age = StartingAge::try_from(input.read_i32::<LE>()?, version)?;
+                *start_age = AgeIdentifier::try_from(input.read_i32::<LE>()?, version)?;
             }
         }
 

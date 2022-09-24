@@ -1,17 +1,21 @@
-use crate::element::ReadableHeaderElement;
-use crate::map::Map;
 use crate::player::Player;
 use crate::reader::RecordingHeaderReader;
 use crate::string_table::StringTable;
 use crate::GameVariant::DefinitiveEdition;
+use crate::{element::ReadableHeaderElement, VictoryType};
+use crate::{map::Map, StartingResources};
 use crate::{Difficulty, GameVersion, Result};
 use byteorder::{ReadBytesExt, LE};
-use genie_scx::TribeScen;
+use genie_scx::{AgeIdentifier, TribeScen};
 pub use genie_support::SpriteID;
 use genie_support::{ReadSkipExt, ReadStringsExt};
 use std::convert::TryInto;
 use std::fmt::{self, Debug};
 use std::io::Read;
+
+const DE_HEADER_SEPARATOR: u32 = u32::from_le_bytes(*b"\xa3_\x02\x00");
+const DE_STRING_SEPARATOR: u16 = u16::from_le_bytes(*b"\x60\x0A");
+const DE_PLAYER_SEPARATOR: u32 = u32::from_le_bytes(*b"\x00\x00\x00\x00");
 
 #[derive(Debug, Default, Clone)]
 pub struct AICommand {
@@ -249,9 +253,12 @@ impl Header {
 
 impl ReadableHeaderElement for Header {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
-        let mut header = Header::default();
-        header.game_version = GameVersion::read_from(input)?;
-        header.save_version = input.read_f32::<LE>()?;
+        let mut header = Header {
+            game_version: GameVersion::read_from(input)?,
+            save_version: input.read_f32::<LE>()?,
+            ..Default::default()
+        };
+
         // update reader state
         input.set_version(header.game_version, header.save_version);
 
@@ -380,27 +387,36 @@ impl ReadableHeaderElement for Header {
 
 #[derive(Debug, Default, Clone)]
 pub struct DeExtensionHeader {
+    pub build: Option<f32>,     // save_version >= 25.22
+    pub timestamp: Option<f32>, // save_version >= 26.16
     pub version: f32,
     pub interval_version: u32,
     pub game_options_version: u32,
+    pub dlc_count: u32,
     pub dlc_ids: Vec<u32>,
     pub dataset_ref: u32,
     pub difficulty: Difficulty,
     pub selected_map_id: u32,
     pub resolved_map_id: u32,
     pub reveal_map: u32,
-    pub victory_condition: u32,
-    pub resource_level: u32,
-    pub starting_age: u32,
-    pub ending_age: u32,
+    pub victory_type_id: u32,
+    pub victory_type: VictoryType,
+    pub starting_resources_id: i32,
+    pub starting_resources: StartingResources,
+    pub starting_age_id: i32,
+    pub starting_age: AgeIdentifier,
+    pub ending_age_id: i32,
+    pub ending_age: AgeIdentifier,
     pub game_type: u32,
+    // DE_HEADER_SEPARATOR,
+    // DE_HEADER_SEPARATOR,
     pub speed: f32,
     pub treaty_length: u32,
     pub population_limit: u32,
     pub num_players: u32,
-    // what the fuck
     pub unused_player_color: u32,
     pub victory_amount: u32,
+    // DE_HEADER_SEPARATOR,
     pub trade_enabled: bool,
     pub team_bonus_disabled: bool,
     pub random_positions: bool,
@@ -416,25 +432,68 @@ pub struct DeExtensionHeader {
     pub turbo_enabled: bool,
     pub shared_exploration: bool,
     pub team_positions: bool,
+    pub sub_game_mode: Option<u32>,      // save_version >= 13.34
+    pub battle_royale_time: Option<u32>, // save_version >= 13.34
+    pub handicap: Option<bool>,          // save_version >= 25.06
+    // DE_HEADER_SEPARATOR,
     pub players: [DePlayer; 8],
+    // 9 bytes
     pub fog_of_war: bool,
     pub cheat_notifications: bool,
     pub colored_chat: bool,
+    // DE_HEADER_SEPARATOR
+    pub ranked: bool,
+    pub allow_spectators: bool,
+    pub lobby_visibility: u32,
+    pub hidden_civs: bool,
+    pub matchmaking: bool,
+    pub spectator_delay: u32,
+    pub scenario_civ: Option<u8>, // save_version >= 13.13
+    pub rms_crc: Option<[u8; 4]>, // save_version >= 13.13
+    // Skipped for now, check https://github.com/happyleavesaoc/aoc-mgz/blob/44cd0a6d8ea19524c82893f11be928b468c46bea/mgz/header/de.py#L111
+    // 8 bytes; save_version >= 25.02
+    pub num_ai_files: i64,
+    // TODO: ai_files, skipped
     pub guid: u128,
     pub lobby_name: String,
+    // 8 bytes; save_version >= 25.22
     pub modded_dataset: String,
+    // 19 bytes
+    // 5 bytes; save_version >= 13.13
+    // 9 bytes; save_version >= 13.17
+    // 1 bytes; save_version >= 20.06
+    // 8 bytes; save_version >= 20.16
+    // 21 bytes; save_version >= 25.06
+    // 4 bytes; save_version >= 25.22
+    // 8 bytes; save_version >= 26.16
+    // DeString
+    // 5 bytes
+    // 1 byte; save_version >= 13.13
+    // Struct
+    // 2 byte; save_version >= 13.17
 }
-
-const DE_HEADER_SEPARATOR: u32 = u32::from_le_bytes(*b"\xa3_\x02\x00");
 
 impl ReadableHeaderElement for DeExtensionHeader {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
         let mut header = Self::default();
+        if input.version() >= 25.22 {
+            header.build = Some(input.read_f32::<LE>()?)
+        } else {
+            header.build = None
+        };
+
+        if input.version() >= 26.16 {
+            header.timestamp = Some(input.read_f32::<LE>()?)
+        } else {
+            header.timestamp = None
+        };
+
         header.version = input.read_f32::<LE>()?;
         header.interval_version = input.read_u32::<LE>()?;
         header.game_options_version = input.read_u32::<LE>()?;
-        let dlcs = input.read_u32::<LE>()?;
-        for _ in 0..dlcs {
+        header.dlc_count = input.read_u32::<LE>()?;
+
+        for _ in 0..header.dlc_count {
             header.dlc_ids.push(input.read_u32::<LE>()?)
         }
 
@@ -443,10 +502,17 @@ impl ReadableHeaderElement for DeExtensionHeader {
         header.selected_map_id = input.read_u32::<LE>()?;
         header.resolved_map_id = input.read_u32::<LE>()?;
         header.reveal_map = input.read_u32::<LE>()?;
-        header.victory_condition = input.read_u32::<LE>()?.into();
-        header.resource_level = input.read_u32::<LE>()?.into();
-        header.starting_age = input.read_u32::<LE>()?.into();
-        header.ending_age = input.read_u32::<LE>()?.into();
+        header.victory_type_id = input.read_u32::<LE>()?;
+        header.victory_type = input.read_u32::<LE>()?.into();
+        header.starting_resources_id = input.read_i32::<LE>()?;
+        header.starting_resources = input.read_i32::<LE>()?.into();
+        header.starting_age_id = input.read_i32::<LE>()?;
+        dbg!(&header);
+        header.starting_age = AgeIdentifier::try_from(input.read_i32::<LE>()?, input.version())
+            .expect("Converting starting age identifier failed.");
+        header.ending_age_id = input.read_i32::<LE>()?;
+        header.ending_age = AgeIdentifier::try_from(input.read_i32::<LE>()?, input.version())
+            .expect("Converting ending age identifier failed.");
         header.game_type = input.read_u32::<LE>()?;
         assert_eq!(input.read_u32::<LE>()?, DE_HEADER_SEPARATOR);
         assert_eq!(input.read_u32::<LE>()?, DE_HEADER_SEPARATOR);
@@ -472,9 +538,24 @@ impl ReadableHeaderElement for DeExtensionHeader {
         header.turbo_enabled = input.read_u8()? == 1;
         header.shared_exploration = input.read_u8()? == 1;
         header.team_positions = input.read_u8()? == 1;
+
         if input.version() >= 13.34 {
-            input.skip(8)?;
-        }
+            header.sub_game_mode = Some(input.read_u32::<LE>()?)
+        } else {
+            header.sub_game_mode = None
+        };
+
+        if input.version() >= 13.34 {
+            header.battle_royale_time = Some(input.read_u32::<LE>()?)
+        } else {
+            header.battle_royale_time = None
+        };
+
+        if input.version() >= 25.06 {
+            header.handicap = Some(input.read_u8()? == 1)
+        } else {
+            header.handicap = None
+        };
 
         assert_eq!(input.read_u32::<LE>()?, DE_HEADER_SEPARATOR);
 
@@ -482,36 +563,71 @@ impl ReadableHeaderElement for DeExtensionHeader {
             header.players[i].apply_from(input)?;
         }
 
-        header.fog_of_war = input.read_u8()? == 1;
-        header.cheats_enabled = input.read_u8()? == 1;
-        header.colored_chat = input.read_u8()? == 1;
+        // Skip 9 unknown bytes
         input.skip(9)?;
+
+        header.fog_of_war = input.read_u8()? == 1;
+        header.cheat_notifications = input.read_u8()? == 1;
+        header.colored_chat = input.read_u8()? == 1;
+
         assert_eq!(input.read_u32::<LE>()?, DE_HEADER_SEPARATOR);
-        input.skip(12)?;
+
+        // input.skip(12)?;
+
+        header.ranked = input.read_u8()? == 1;
+        header.allow_spectators = input.read_u8()? == 1;
+        header.lobby_visibility = input.read_u32::<LE>()?;
+        header.hidden_civs = input.read_u8()? == 1;
+        header.matchmaking = input.read_u8()? == 1;
+        header.spectator_delay = input.read_u32::<LE>()?;
 
         if input.version() >= 13.13 {
-            input.skip(5)?;
-        }
+            header.scenario_civ = Some(input.read_u8()?)
+        } else {
+            header.scenario_civ = None
+        };
 
-        // what the actual fuck is this shit
+        if input.version() >= 13.13 {
+            let mut temp = [0u8; 4];
+            #[allow(clippy::needless_range_loop)]
+            for i in 0..temp.len() {
+                temp[i] = input.read_u8()?
+            }
+            header.rms_crc = Some(temp)
+        } else {
+            header.rms_crc = None
+        };
+
+        // TODO: read strings
         for _ in 0..23 {
             let _string = input.read_hd_style_str()?;
             while [3, 21, 23, 42, 44, 45].contains(&input.read_u32::<LE>()?) {}
         }
 
-        // "strategic numbers" or what the fuck that may be
+        // TODO "strategic numbers" ???
         input.skip(59 * 4)?;
-        // num ai files
-        let num_ai_files = input.read_u64::<LE>()?;
 
-        for _ in 0..num_ai_files {
+        // num ai files
+        header.num_ai_files = input.read_i64::<LE>()?;
+
+        for _ in 0..header.num_ai_files {
             input.skip(4)?;
             input.read_hd_style_str()?;
             input.skip(4)?;
         }
 
+        if input.version() >= 25.02 {
+            input.skip(8)?;
+        }
+
         header.guid = input.read_u128::<LE>()?;
+
         header.lobby_name = input.read_hd_style_str()?.unwrap_or_default();
+
+        if input.version() >= 25.22 {
+            input.skip(8)?;
+        }
+
         header.modded_dataset = input.read_hd_style_str()?.unwrap_or_default();
 
         input.skip(19)?;
@@ -528,6 +644,22 @@ impl ReadableHeaderElement for DeExtensionHeader {
             input.skip(1)?;
         }
 
+        if input.version() >= 20.16 {
+            input.skip(8)?;
+        }
+
+        if input.version() >= 25.06 {
+            input.skip(21)?;
+        }
+
+        if input.version() >= 25.22 {
+            input.skip(4)?;
+        }
+
+        if input.version() >= 26.16 {
+            input.skip(8)?;
+        }
+
         input.read_hd_style_str()?;
 
         input.skip(5)?;
@@ -538,7 +670,8 @@ impl ReadableHeaderElement for DeExtensionHeader {
 
         if input.version() < 13.17 {
             input.read_hd_style_str()?;
-            input.skip(8)?;
+            input.skip(4)?;
+            input.skip(4)?; // usually 0
         }
 
         if input.version() >= 13.17 {
@@ -549,13 +682,47 @@ impl ReadableHeaderElement for DeExtensionHeader {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum PlayerType {
+    Absent = 0,
+    Closed = 1,
+    Human = 2,
+    Eliminated = 3,
+    Computer = 4,
+    Cyborg = 5,
+    Spectator = 6,
+    Unknown = 999,
+}
+
+impl Default for PlayerType {
+    fn default() -> Self {
+        PlayerType::Human
+    }
+}
+
+impl From<u32> for PlayerType {
+    #[inline]
+    fn from(condition: u32) -> PlayerType {
+        match condition {
+            0 => PlayerType::Absent,
+            1 => PlayerType::Closed,
+            2 => PlayerType::Human,
+            3 => PlayerType::Eliminated,
+            4 => PlayerType::Computer,
+            5 => PlayerType::Cyborg,
+            6 => PlayerType::Spectator,
+            7..=u32::MAX => PlayerType::Unknown,
+        }
+    }
+}
+
 #[derive(Debug, Default, Clone)]
 pub struct DePlayer {
     dlc_id: u32,
     color_id: i32,
     selected_color: i8,
-    selected_team: u8,
-    resolved_team: u8,
+    selected_team_id: u8,
+    resolved_team_id: u8,
     dat_crc: u64,
     mp_game_version: u8,
     civ_id: u8,
@@ -563,14 +730,15 @@ pub struct DePlayer {
     ai_civ_name_index: u8,
     ai_name: String,
     name: String,
-    r#type: u32,
+    player_type: PlayerType,
     profile_id: u32,
+    // DE_PLAYER_SEPARATOR,
     player_number: i32,
-    hd_rm_elo: u32,
-    // becomes empire wars soon?
-    hd_dm_elo: u32,
-    animated_destruction_enabled: bool,
+    hd_rm_elo: Option<u32>, // save_version < 25.22
+    hd_dm_elo: Option<u32>, // save_version < 25.22
+    prefer_random: bool,
     custom_ai: bool,
+    handicap: Option<u8>, // save_version < 25.06
 }
 
 impl DePlayer {
@@ -578,26 +746,47 @@ impl DePlayer {
         self.dlc_id = input.read_u32::<LE>()?;
         self.color_id = input.read_i32::<LE>()?;
         self.selected_color = input.read_i8()?;
-        self.selected_team = input.read_u8()?;
-        self.resolved_team = input.read_u8()?;
+        self.selected_team_id = input.read_u8()?;
+        self.resolved_team_id = input.read_u8()?;
         self.dat_crc = input.read_u64::<LE>()?;
         self.mp_game_version = input.read_u8()?;
         self.civ_id = input.read_u8()?;
 
-        input.skip(3)?;
+        // TODO: Needed?
+        // input.skip(3)?;
 
         self.ai_type = input.read_hd_style_str()?.unwrap_or_default();
         self.ai_civ_name_index = input.read_u8()?;
         self.ai_name = input.read_hd_style_str()?.unwrap_or_default();
         self.name = input.read_hd_style_str()?.unwrap_or_default();
-        self.r#type = input.read_u32::<LE>()?;
+        self.player_type = input.read_u32::<LE>()?.into();
         self.profile_id = input.read_u32::<LE>()?;
+
+        // DE_PLAYER_SEPARATOR
         assert_eq!(input.read_u32::<LE>()?, 0);
+
         self.player_number = input.read_i32::<LE>()?;
-        self.hd_rm_elo = input.read_u32::<LE>()?;
-        self.hd_dm_elo = input.read_u32::<LE>()?;
-        self.animated_destruction_enabled = input.read_u8()? == 1;
+
+        if input.version() < 25.22 {
+            self.hd_rm_elo = Some(input.read_u32::<LE>()?)
+        } else {
+            self.hd_rm_elo = None
+        };
+
+        if input.version() < 25.22 {
+            self.hd_dm_elo = Some(input.read_u32::<LE>()?)
+        } else {
+            self.hd_dm_elo = None
+        };
+
+        self.prefer_random = input.read_u8()? == 1;
         self.custom_ai = input.read_u8()? == 1;
+
+        if input.version() < 25.06 {
+            self.handicap = Some(input.read_u8()?)
+        } else {
+            self.handicap = None
+        };
 
         Ok(())
     }

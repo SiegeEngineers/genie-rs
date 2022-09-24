@@ -235,6 +235,82 @@ where
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum StartingResources {
+    None = -1,
+    Standard = 0,
+    Low = 1,
+    Medium = 2,
+    High = 3,
+    Unknown1 = 4,
+    Unknown2 = 5,
+    Unknown3 = 6,
+}
+
+impl From<i32> for StartingResources {
+    fn from(val: i32) -> Self {
+        match val {
+            -1 => StartingResources::None,
+            0 => StartingResources::Standard,
+            1 => StartingResources::Low,
+            2 => StartingResources::Medium,
+            3 => StartingResources::High,
+            4 => StartingResources::Unknown1,
+            5 => StartingResources::Unknown2,
+            6 => StartingResources::Unknown3,
+            _ => unimplemented!("Don't know any starting resource with value {}", val),
+        }
+    }
+}
+
+impl Default for StartingResources {
+    fn default() -> Self {
+        StartingResources::Standard
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum VictoryType {
+    Standard = 0,
+    Conquest = 1,
+    Exploration = 2,
+    Ruins = 3,
+    Artifacts = 4,
+    Discoveries = 5,
+    Gold = 6,
+    TimeLimit = 7,
+    Score = 8,
+    Standard2 = 9,
+    Regicide = 10,
+    LastManStanding = 11,
+}
+
+impl From<u32> for VictoryType {
+    fn from(val: u32) -> Self {
+        match val {
+            0 => VictoryType::Standard,
+            1 => VictoryType::Conquest,
+            2 => VictoryType::Exploration,
+            3 => VictoryType::Ruins,
+            4 => VictoryType::Artifacts,
+            5 => VictoryType::Discoveries,
+            6 => VictoryType::Gold,
+            7 => VictoryType::TimeLimit,
+            8 => VictoryType::Score,
+            9 => VictoryType::Standard2,
+            10 => VictoryType::Regicide,
+            11 => VictoryType::LastManStanding,
+            _ => unimplemented!("Don't know any victory type with value {}", val),
+        }
+    }
+}
+
+impl Default for VictoryType {
+    fn default() -> Self {
+        VictoryType::Standard
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Difficulty {
     Easiest,
     // ???

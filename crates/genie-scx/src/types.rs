@@ -211,54 +211,60 @@ fn expected_range(version: f32) -> &'static str {
 /// Could not parse a starting age because given number refers to an unknown age.
 #[derive(Debug, Clone, Copy, thiserror::Error)]
 #[error("invalid starting age {} (must be {})", .found, expected_range(*.version))]
-pub struct ParseStartingAgeError {
+pub struct ParseAgeIdentifierError {
     version: f32,
     found: i32,
 }
 
 /// The starting age.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum StartingAge {
+pub enum AgeIdentifier {
     /// Use the game default.
     Default = -1,
-    /// Start in the Dark Age with Nomad resources.
+    /// Start/End in the Dark Age with Nomad resources.
     Nomad = -2,
-    /// Start in the Dark Age.
+    /// Start/End in the Dark Age.
     DarkAge = 0,
-    /// Start in the Feudal Age.
+    /// Start/End in the Feudal Age.
     FeudalAge = 1,
-    /// Start in the Castle Age.
+    /// Start/End in the Castle Age.
     CastleAge = 2,
-    /// Start in the Imperial Age.
+    /// Start/End in the Imperial Age.
     ImperialAge = 3,
-    /// Start in the Imperial Age with all technologies researched.
+    /// Start/End in the Imperial Age with all technologies researched.
     PostImperialAge = 4,
 }
 
-impl StartingAge {
-    /// Convert a starting age number to the appropriate enum for a particular
+impl Default for AgeIdentifier {
+    fn default() -> Self {
+        AgeIdentifier::Default
+    }
+}
+
+impl AgeIdentifier {
+    /// Convert a start/end age number to the appropriate enum for a particular
     /// data version.
-    pub fn try_from(n: i32, version: f32) -> Result<Self, ParseStartingAgeError> {
+    pub fn try_from(n: i32, version: f32) -> Result<Self, ParseAgeIdentifierError> {
         if version < 1.25 {
             match n {
-                -1 => Ok(StartingAge::Default),
-                0 => Ok(StartingAge::DarkAge),
-                1 => Ok(StartingAge::FeudalAge),
-                2 => Ok(StartingAge::CastleAge),
-                3 => Ok(StartingAge::ImperialAge),
-                4 => Ok(StartingAge::PostImperialAge),
-                _ => Err(ParseStartingAgeError { version, found: n }),
+                -1 => Ok(AgeIdentifier::Default),
+                0 => Ok(AgeIdentifier::DarkAge),
+                1 => Ok(AgeIdentifier::FeudalAge),
+                2 => Ok(AgeIdentifier::CastleAge),
+                3 => Ok(AgeIdentifier::ImperialAge),
+                4 => Ok(AgeIdentifier::PostImperialAge),
+                _ => Err(ParseAgeIdentifierError { version, found: n }),
             }
         } else {
             match n {
-                -1 | 0 => Ok(StartingAge::Default),
-                1 => Ok(StartingAge::Nomad),
-                2 => Ok(StartingAge::DarkAge),
-                3 => Ok(StartingAge::FeudalAge),
-                4 => Ok(StartingAge::CastleAge),
-                5 => Ok(StartingAge::ImperialAge),
-                6 => Ok(StartingAge::PostImperialAge),
-                _ => Err(ParseStartingAgeError { version, found: n }),
+                -1 | 0 => Ok(AgeIdentifier::Default),
+                1 => Ok(AgeIdentifier::Nomad),
+                2 => Ok(AgeIdentifier::DarkAge),
+                3 => Ok(AgeIdentifier::FeudalAge),
+                4 => Ok(AgeIdentifier::CastleAge),
+                5 => Ok(AgeIdentifier::ImperialAge),
+                6 => Ok(AgeIdentifier::PostImperialAge), // can be DM start as well
+                _ => Err(ParseAgeIdentifierError { version, found: n }),
             }
         }
     }
@@ -267,22 +273,22 @@ impl StartingAge {
     pub fn to_i32(self, version: f32) -> i32 {
         if version < 1.25 {
             match self {
-                StartingAge::Default => -1,
-                StartingAge::Nomad | StartingAge::DarkAge => 0,
-                StartingAge::FeudalAge => 1,
-                StartingAge::CastleAge => 2,
-                StartingAge::ImperialAge => 3,
-                StartingAge::PostImperialAge => 4,
+                AgeIdentifier::Default => -1,
+                AgeIdentifier::Nomad | AgeIdentifier::DarkAge => 0,
+                AgeIdentifier::FeudalAge => 1,
+                AgeIdentifier::CastleAge => 2,
+                AgeIdentifier::ImperialAge => 3,
+                AgeIdentifier::PostImperialAge => 4,
             }
         } else {
             match self {
-                StartingAge::Default => 0,
-                StartingAge::Nomad => 1,
-                StartingAge::DarkAge => 2,
-                StartingAge::FeudalAge => 3,
-                StartingAge::CastleAge => 4,
-                StartingAge::ImperialAge => 5,
-                StartingAge::PostImperialAge => 6,
+                AgeIdentifier::Default => 0,
+                AgeIdentifier::Nomad => 1,
+                AgeIdentifier::DarkAge => 2,
+                AgeIdentifier::FeudalAge => 3,
+                AgeIdentifier::CastleAge => 4,
+                AgeIdentifier::ImperialAge => 5,
+                AgeIdentifier::PostImperialAge => 6, // can be DM start as well
             }
         }
     }

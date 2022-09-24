@@ -20,7 +20,8 @@ fn dump() -> Result<(), anyhow::Error> {
 
     let mut f = File::open(filename)?;
     let mut r = RecordedGame::new(&mut f)?;
+    println!("{:?}", r.header()?);
     let mut header = r.get_header_deflate()?;
-    std::io::copy(&mut header, &mut stdout());
+    std::io::copy(&mut header, &mut stdout())?;
     Ok(())
 }
