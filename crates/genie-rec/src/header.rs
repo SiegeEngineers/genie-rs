@@ -503,15 +503,14 @@ impl ReadableHeaderElement for DeExtensionHeader {
         header.resolved_map_id = input.read_u32::<LE>()?;
         header.reveal_map = input.read_u32::<LE>()?;
         header.victory_type_id = input.read_u32::<LE>()?;
-        header.victory_type = input.read_u32::<LE>()?.into();
+        header.victory_type = header.victory_type_id.into();
         header.starting_resources_id = input.read_i32::<LE>()?;
-        header.starting_resources = input.read_i32::<LE>()?.into();
+        header.starting_resources = header.starting_resources_id.into();
         header.starting_age_id = input.read_i32::<LE>()?;
-        dbg!(&header);
-        header.starting_age = AgeIdentifier::try_from(input.read_i32::<LE>()?, input.version())
+        header.starting_age = AgeIdentifier::try_from(header.starting_age_id, input.version())
             .expect("Converting starting age identifier failed.");
         header.ending_age_id = input.read_i32::<LE>()?;
-        header.ending_age = AgeIdentifier::try_from(input.read_i32::<LE>()?, input.version())
+        header.ending_age = AgeIdentifier::try_from(header.ending_age_id, input.version())
             .expect("Converting ending age identifier failed.");
         header.game_type = input.read_u32::<LE>()?;
         assert_eq!(input.read_u32::<LE>()?, DE_HEADER_SEPARATOR);
@@ -538,7 +537,6 @@ impl ReadableHeaderElement for DeExtensionHeader {
         header.turbo_enabled = input.read_u8()? == 1;
         header.shared_exploration = input.read_u8()? == 1;
         header.team_positions = input.read_u8()? == 1;
-
         if input.version() >= 13.34 {
             header.sub_game_mode = Some(input.read_u32::<LE>()?)
         } else {
@@ -677,7 +675,7 @@ impl ReadableHeaderElement for DeExtensionHeader {
         if input.version() >= 13.17 {
             input.skip(2)?;
         }
-
+        dbg!(&header);
         Ok(header)
     }
 }
