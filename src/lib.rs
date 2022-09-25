@@ -82,6 +82,15 @@
 #![warn(unused)]
 #![allow(missing_docs)]
 
+pub extern crate genie_cpx;
+pub extern crate genie_dat;
+pub extern crate genie_drs;
+pub extern crate genie_hki;
+pub extern crate genie_lang;
+pub extern crate genie_rec;
+pub extern crate genie_scx;
+pub extern crate jascpal;
+
 pub use genie_cpx as cpx;
 pub use genie_dat as dat;
 pub use genie_drs as drs;

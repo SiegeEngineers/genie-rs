@@ -1,28 +1,7 @@
 [package]
 name = "genie"
 version = "0.5.0"
-authors = ["Renée Kooi <renee@kooi.me>"]
-edition = "2021"
-license = "GPL-3.0"
 description = "Libraries for reading/writing Age of Empires II data files"
-homepage = "https://github.com/SiegeEngineers/genie-rs"
-repository = "https://github.com/SiegeEngineers/genie-rs"
-readme = "README.md"
-
-[dependencies]
-genie-cpx = { version = "0.5.0", path = "crates/genie-cpx" }
-genie-dat = { version = "0.1.0", path = "crates/genie-dat" }
-genie-drs = { version = "0.2.1", path = "crates/genie-drs" }
-genie-hki = { version = "0.2.1", path = "crates/genie-hki" }
-genie-lang = { version = "0.2.1", path = "crates/genie-lang" }
-genie-rec = { version = "0.1.1", path = "crates/genie-rec" }
-genie-scx = { version = "4.0.0", path = "crates/genie-scx" }
-jascpal = { version = "0.1.1", path = "crates/jascpal" }
-
-[dev-dependencies]
-structopt = "0.3.26"
-anyhow = "1.0.65"
-simplelog = "0.12.0"
 
 [workspace]
 members = [
@@ -36,3 +15,42 @@ members = [
   "crates/genie-support",
   "crates/jascpal",
 ]
+
+[workspace.package]
+authors = ["Renée Kooi <renee@kooi.me>"]
+edition = "2021"
+license = "GPL-3.0"
+documentation = "https://docs.rs/genie/latest/genie/"
+homepage = "https://github.com/SiegeEngineers/genie-rs"
+repository = "https://github.com/SiegeEngineers/genie-rs"
+readme = "./README.md"
+
+[workspace.dependencies]
+structopt = "0.3.26"
+anyhow = "1.0.65"
+simplelog = "0.12.0"
+thiserror = "1.0.36"
+byteorder = "1.4.3"
+flate2 = { version = "1.0.24", features = [
+  "rust_backend",
+], default-features = false }
+encoding_rs = "0.8.31"
+encoding_rs_io = "0.1.7"
+rgb = "0.8.34"
+num_enum = "0.5.7"
+arrayvec = "0.7.2"
+
+[dependencies]
+genie-cpx = { version = "0.5.0", path = "crates/genie-cpx" }
+genie-dat = { version = "0.1.0", path = "crates/genie-dat" }
+genie-drs = { version = "0.2.1", path = "crates/genie-drs" }
+genie-hki = { version = "0.2.1", path = "crates/genie-hki" }
+genie-lang = { version = "0.2.1", path = "crates/genie-lang" }
+genie-rec = { version = "0.1.1", path = "crates/genie-rec" }
+genie-scx = { version = "4.0.0", path = "crates/genie-scx" }
+jascpal = { version = "0.1.1", path = "crates/jascpal" }
+
+[dev-dependencies]
+structopt.workspace = true
+anyhow.workspace = true
+simplelog.workspace = true

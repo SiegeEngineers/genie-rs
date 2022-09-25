@@ -1,17 +1,17 @@
 [package]
 name = "jascpal"
 version = "0.1.1"
-authors = ["Renée Kooi <renee@kooi.me>"]
-edition = "2018"
-license = "GPL-3.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
 description = "Read and write JASC palette files."
-homepage = "https://github.com/SiegeEngineers/genie-rs"
-repository = "https://github.com/SiegeEngineers/genie-rs"
+homepage.workspace = true
+repository.workspace = true
 
 [dependencies]
 nom = { version = "7.1.1", default-features = false, features = ["std"] }
-rgb = "0.8.34"
-thiserror = "1.0.35"
+rgb.workspace = true
+thiserror.workspace = true
 
 [dev-dependencies]
-anyhow = "1.0.65"
+anyhow.workspace = true

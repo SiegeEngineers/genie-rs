@@ -1,20 +1,21 @@
 [package]
 name = "genie-support"
 version = "1.0.0"
-authors = ["Renée Kooi <renee@kooi.me>"]
-edition = "2021"
-license = "GPL-3.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
 description = "Support library for genie-* crates"
-homepage = "https://github.com/SiegeEngineers/genie-rs"
-repository = "https://github.com/SiegeEngineers/genie-rs"
+homepage.workspace = true
+repository.workspace = true
+readme.workspace = true
 
 [dependencies]
-byteorder = "1.4.3"
+byteorder.workspace = true
 encoding_rs = { version = "0.8.31", optional = true }
-thiserror = "1.0.35"
+thiserror.workspace = true
 
 [features]
 strings = ["encoding_rs"]
 
 [dev-dependencies]
-anyhow = "1.0.65"
+anyhow.workspace = true
