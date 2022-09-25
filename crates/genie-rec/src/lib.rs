@@ -241,9 +241,9 @@ pub enum StartingResources {
     Low = 1,
     Medium = 2,
     High = 3,
-    Unknown1 = 4,
-    Unknown2 = 5,
-    Unknown3 = 6,
+    UltraHigh = 4,
+    Infinite = 5,
+    Random = 6,
 }
 
 impl From<i32> for StartingResources {
@@ -254,9 +254,9 @@ impl From<i32> for StartingResources {
             1 => StartingResources::Low,
             2 => StartingResources::Medium,
             3 => StartingResources::High,
-            4 => StartingResources::Unknown1,
-            5 => StartingResources::Unknown2,
-            6 => StartingResources::Unknown3,
+            4 => StartingResources::UltraHigh,
+            5 => StartingResources::Infinite,
+            6 => StartingResources::Random,
             _ => unimplemented!("Don't know any starting resource with value {}", val),
         }
     }
@@ -312,15 +312,13 @@ impl Default for VictoryType {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Difficulty {
-    Easiest,
-    // ???
-    Easy,
-    Standard,
-    Moderate,
-    Hard,
-    Hardest,
+    Easiest = 4,
     /// Age of Empires 2: Definitive Edition only.
-    Extreme,
+    Extreme = 5,
+    Hard = 1,
+    Hardest = 0,
+    Moderate = 2,
+    Standard = 3,
 }
 
 impl From<u32> for Difficulty {
@@ -344,13 +342,18 @@ impl Default for Difficulty {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum MapSize {}
+pub enum MapSize {
+    Tiny,
+    Small,
+    Medium,
+    Normal,
+    Large,
+    Giant,
+    Ludicrous,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum MapType {}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Visibility {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ResourceLevel {}
@@ -359,10 +362,63 @@ pub enum ResourceLevel {}
 pub enum Age {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum GameMode {}
+pub enum Visibility {
+    Normal,
+    Explored,
+    AllVisible,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum GameSpeed {}
+pub enum GameMode {
+    RM = 0,
+    Regicide = 1,
+    DM = 2,
+    Scenario = 3,
+    Campaign = 4,
+    KingOfTheHill = 5,
+    WonderRace = 6,
+    DefendTheWonder = 7,
+    TurboRandom = 8,
+    CaptureTheRelic = 10,
+    SuddenDeath = 11,
+    BattleRoyale = 12,
+    EmpireWars = 13,
+}
+
+impl From<u32> for GameMode {
+    fn from(n: u32) -> Self {
+        match n {
+            0 => GameMode::RM,
+            1 => GameMode::Regicide,
+            2 => GameMode::DM,
+            3 => GameMode::Scenario,
+            4 => GameMode::Campaign,
+            5 => GameMode::KingOfTheHill,
+            6 => GameMode::WonderRace,
+            7 => GameMode::DefendTheWonder,
+            8 => GameMode::TurboRandom,
+            10 => GameMode::CaptureTheRelic,
+            11 => GameMode::SuddenDeath,
+            12 => GameMode::BattleRoyale,
+            13 => GameMode::EmpireWars,
+            _ => unimplemented!("Don't know any game mode with value {}", n),
+        }
+    }
+}
+
+impl Default for GameMode {
+    fn default() -> Self {
+        GameMode::RM
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum GameSpeed {
+    Slow,
+    Casual,
+    Normal,
+    Fast,
+}
 
 #[derive(Debug, Clone)]
 pub struct HDGameOptions {

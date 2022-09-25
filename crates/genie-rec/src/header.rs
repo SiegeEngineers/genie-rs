@@ -1,9 +1,9 @@
-use crate::player::Player;
 use crate::reader::RecordingHeaderReader;
 use crate::string_table::StringTable;
 use crate::GameVariant::DefinitiveEdition;
 use crate::{element::ReadableHeaderElement, VictoryType};
 use crate::{map::Map, StartingResources};
+use crate::{player::Player, GameMode};
 use crate::{Difficulty, GameVersion, Result};
 use byteorder::{ReadBytesExt, LE};
 use genie_scx::{AgeIdentifier, TribeScen};
@@ -395,7 +395,7 @@ pub struct DeExtensionHeader {
     pub dlc_count: u32,
     pub dlc_ids: Vec<u32>,
     pub dataset_ref: u32,
-    pub difficulty: Difficulty,
+    pub difficulty: Difficulty, // unsure, always "4"
     pub selected_map_id: u32,
     pub resolved_map_id: u32,
     pub reveal_map: u32,
@@ -407,7 +407,7 @@ pub struct DeExtensionHeader {
     pub starting_age: AgeIdentifier,
     pub ending_age_id: i32,
     pub ending_age: AgeIdentifier,
-    pub game_type: u32,
+    pub game_mode: GameMode,
     // DE_HEADER_SEPARATOR,
     // DE_HEADER_SEPARATOR,
     pub speed: f32,
@@ -423,7 +423,7 @@ pub struct DeExtensionHeader {
     pub all_techs: bool,
     pub num_starting_units: u8,
     pub lock_teams: bool,
-    pub lock_speeds: bool,
+    pub lock_speed: bool,
     pub multiplayer: bool,
     pub cheats_enabled: bool,
     pub record_game: bool,
@@ -512,7 +512,7 @@ impl ReadableHeaderElement for DeExtensionHeader {
         header.ending_age_id = input.read_i32::<LE>()?;
         header.ending_age = AgeIdentifier::try_from(header.ending_age_id, input.version())
             .expect("Converting ending age identifier failed.");
-        header.game_type = input.read_u32::<LE>()?;
+        header.game_mode = input.read_u32::<LE>()?.into();
         assert_eq!(input.read_u32::<LE>()?, DE_HEADER_SEPARATOR);
         assert_eq!(input.read_u32::<LE>()?, DE_HEADER_SEPARATOR);
         header.speed = input.read_f32::<LE>()?;
@@ -528,7 +528,7 @@ impl ReadableHeaderElement for DeExtensionHeader {
         header.all_techs = input.read_u8()? == 1;
         header.num_starting_units = input.read_u8()?;
         header.lock_teams = input.read_u8()? == 1;
-        header.lock_speeds = input.read_u8()? == 1;
+        header.lock_speed = input.read_u8()? == 1;
         header.multiplayer = input.read_u8()? == 1;
         header.cheats_enabled = input.read_u8()? == 1;
         header.record_game = input.read_u8()? == 1;
@@ -557,7 +557,9 @@ impl ReadableHeaderElement for DeExtensionHeader {
 
         assert_eq!(input.read_u32::<LE>()?, DE_HEADER_SEPARATOR);
 
-        for i in 0..8 {
+        dbg!(&header);
+
+        for i in 0..header.num_players as usize {
             header.players[i].apply_from(input)?;
         }
 
@@ -675,7 +677,7 @@ impl ReadableHeaderElement for DeExtensionHeader {
         if input.version() >= 13.17 {
             input.skip(2)?;
         }
-        dbg!(&header);
+
         Ok(header)
     }
 }
