@@ -3,6 +3,7 @@ name = "genie"
 version = "0.5.0"
 description = "Libraries for reading/writing Age of Empires II data files"
 
+
 [workspace]
 members = [
   "crates/genie-cpx",
@@ -19,6 +20,7 @@ members = [
 [workspace.package]
 authors = ["Renée Kooi <renee@kooi.me>"]
 edition = "2021"
+rust-version = "1.64.0"
 license = "GPL-3.0"
 documentation = "https://docs.rs/genie/latest/genie/"
 homepage = "https://github.com/SiegeEngineers/genie-rs"
