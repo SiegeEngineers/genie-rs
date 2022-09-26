@@ -17,6 +17,8 @@
 #![deny(unsafe_code)]
 // #![warn(missing_docs)]
 #![warn(unused)]
+// Development
+#![allow(unused_imports)]
 #![allow(dead_code)]
 
 pub mod actions;
@@ -34,7 +36,7 @@ pub mod version;
 
 use crate::actions::{Action, Meta};
 use crate::element::ReadableElement;
-use crate::reader::{RecordingHeaderReader, SmallBufReader};
+use crate::reader::RecordingHeaderReader;
 use crate::Difficulty::{Easiest, Extreme, Hard, Hardest, Moderate, Standard};
 use byteorder::{ReadBytesExt, LE};
 use flate2::bufread::DeflateDecoder;
@@ -501,7 +503,7 @@ where
 
         let (game_version, save_version) = {
             input.seek(SeekFrom::Start(header_start))?;
-            let version_reader = SmallBufReader::new(&mut input);
+            let version_reader = BufReader::new(&mut input);
             let mut deflate = DeflateDecoder::new(version_reader);
             let game_version = GameVersion::read_from(&mut deflate)?;
             let save_version = deflate.read_f32::<LE>()?;

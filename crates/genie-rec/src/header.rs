@@ -568,7 +568,7 @@ impl ReadableHeaderElement for DeExtensionHeader {
         assert_eq!(input.read_u32::<LE>()?, DE_HEADER_SEPARATOR);
 
         // TODO DEBUG
-        // dbg!(&header);
+        dbg!(&header);
 
         for i in 0..header.num_players as usize {
             header.players[i].apply_from(input)?;

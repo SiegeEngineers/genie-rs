@@ -1,3 +1,6 @@
+#![allow(unused_imports)]
+#![allow(dead_code)]
+
 use anyhow::Context;
 use genie_rec::actions::Action;
 use genie_rec::RecordedGame;
