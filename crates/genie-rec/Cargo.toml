@@ -1,25 +1,26 @@
 [package]
 name = "genie-rec"
 version = "0.1.1"
-authors = ["Renée Kooi <renee@kooi.me>"]
-edition = "2021"
-license = "GPL-3.0"
+rust-version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
 description = "Read Age of Empires I/II recorded game files."
-homepage = "https://github.com/SiegeEngineers/genie-rs"
-repository = "https://github.com/SiegeEngineers/genie-rs"
+homepage = "https://github.com/SiegeEngineers/genie-rs/tree/default/crates/genie-rec"
+documentation = "https://docs.rs/genie-rec"
+repository.workspace = true
+readme = "./README.md"
 
 [dependencies]
-arrayvec = "0.7.2"
-byteorder = "1.4.3"
-flate2 = { version = "1.0.24", features = [
-    "rust_backend",
-], default-features = false }
+arrayvec.workspace = true
+byteorder.workspace = true
+flate2.workspace = true
 genie-dat = { version = "0.1.0", path = "../genie-dat" }
 genie-scx = { version = "4.0.0", path = "../genie-scx" }
 genie-support = { version = "1.0.0", path = "../genie-support", features = [
     "strings",
 ] }
-thiserror = "1.0.35"
+thiserror.workspace = true
 
 [dev-dependencies]
-anyhow = "1.0.65"
+anyhow.workspace = true

@@ -1,8 +1,11 @@
 # genie-rs
 
-Rust libraries for reading/writing various Age of Empires I/II files.
+[![docs.rs](https://img.shields.io/badge/docs.rs-genie-blue?style=flat-square)](https://docs.rs/genie/)
+[![crates.io](https://img.shields.io/crates/v/genie.svg?style=flat-square)](https://crates.io/crates/genie)
+[![GitHub license](https://img.shields.io/github/license/SiegeEngineers/genie-rs?style=flat-square&color=darkred)](https://github.com/SiegeEngineers/genie-rs/blob/default/LICENSE.md)
+![MSRV](https://img.shields.io/badge/MSRV-1.64.0%2B-blue?style=flat-square)
 
-See [docs.rs](https://docs.rs/genie) for documentation.
+Rust libraries for reading/writing various Age of Empires I/II files.
 
 ## Example Programs
 
