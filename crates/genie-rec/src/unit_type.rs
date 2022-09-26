@@ -66,7 +66,6 @@ impl ReadableHeaderElement for CompactUnitType {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 pub struct StaticUnitAttributes {
     id: UnitTypeID,
@@ -92,7 +91,6 @@ pub struct StaticUnitAttributes {
     disabled: bool,
     de: Option<StaticUnitAttributesDeExtension>,
 }
-
 #[derive(Debug, Default, Clone)]
 pub struct StaticUnitAttributesDeExtension {
     name_id: StringKey,
@@ -111,7 +109,7 @@ impl ReadableHeaderElement for StaticUnitAttributes {
             base_id: input.read_u16::<LE>()?.into(),
             ..Default::default()
         };
-        
+
         if input.variant() >= DefinitiveEdition {
             // repeat of id??
             input.skip(2)?;

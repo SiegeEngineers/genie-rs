@@ -663,7 +663,6 @@ impl ReadableHeaderElement for MissileUnitAttributes {
 
 impl WritableHeaderElement for MissileUnitAttributes {}
 
-#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 pub struct UnitAIOrder {
     issuer: u32,
@@ -716,7 +715,6 @@ impl ReadableHeaderElement for UnitAINotification {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 pub struct UnitAIOrderHistory {
     order: u32,
@@ -803,7 +801,6 @@ impl ReadableHeaderElement for PatrolPath {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 pub struct UnitAI {
     mood: Option<u32>,

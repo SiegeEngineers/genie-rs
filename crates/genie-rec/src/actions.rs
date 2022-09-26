@@ -1660,7 +1660,6 @@ impl Meta {
 /// A chat message sent during the game.
 #[derive(Debug, Clone)]
 pub struct Chat {
-    #[allow(dead_code)]
     message: String,
     de_info: Option<ChatDeInfo>,
 }

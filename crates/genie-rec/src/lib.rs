@@ -17,6 +17,7 @@
 #![deny(unsafe_code)]
 // #![warn(missing_docs)]
 #![warn(unused)]
+#![allow(dead_code)]
 
 pub mod actions;
 pub mod ai;
@@ -605,27 +606,27 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn aoe2de_rec() -> anyhow::Result<()> {
-        let f = File::open("test/AgeIIDE_Replay_90000059.aoe2record")?;
-        let mut r = RecordedGame::new(f)?;
-        println!("aoe2de save version {}", r.save_version);
-        let _header = r.header()?;
-        for act in r.actions()? {
-            let _ = act?;
-        }
-        Ok(())
-    }
+    // #[test]
+    // fn aoe2de_rec() -> anyhow::Result<()> {
+    //     let f = File::open("test/AgeIIDE_Replay_90000059.aoe2record")?;
+    //     let mut r = RecordedGame::new(f)?;
+    //     println!("aoe2de save version {}", r.save_version);
+    //     let _header = r.header()?;
+    //     for act in r.actions()? {
+    //         let _ = act?;
+    //     }
+    //     Ok(())
+    // }
 
-    #[test]
-    fn aoe2de_2_rec() -> anyhow::Result<()> {
-        let f = File::open("test/AgeIIDE_Replay_90889731.aoe2record")?;
-        let mut r = RecordedGame::new(f)?;
-        println!("aoe2de save version {}", r.save_version);
-        let _header = r.header()?;
-        for act in r.actions()? {
-            let _ = act?;
-        }
-        Ok(())
-    }
+    // #[test]
+    // fn aoe2de_2_rec() -> anyhow::Result<()> {
+    //     let f = File::open("test/AgeIIDE_Replay_90889731.aoe2record")?;
+    //     let mut r = RecordedGame::new(f)?;
+    //     println!("aoe2de save version {}", r.save_version);
+    //     let _header = r.header()?;
+    //     for act in r.actions()? {
+    //         let _ = act?;
+    //     }
+    //     Ok(())
+    // }
 }

@@ -594,7 +594,6 @@ impl ReadableHeaderElement for VisibleResource {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 pub struct VisibleResources {
     lists: Vec<Vec<VisibleResource>>,
@@ -622,9 +621,7 @@ impl ReadableHeaderElement for VisibleResources {
 
 #[derive(Debug, Default, Clone)]
 pub struct GaiaData {
-    #[allow(dead_code)]
     update_time: u32,
-    #[allow(dead_code)]
     update_nature: u32,
     creatures: [GaiaCreature; 5],
     next_wolf_attack_update_time: u32,
@@ -725,7 +722,6 @@ impl WritableHeaderElement for GaiaWolfInfo {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 struct DiplomacyOffer {
     sequence: u8,

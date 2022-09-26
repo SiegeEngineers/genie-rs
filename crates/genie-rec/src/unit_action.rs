@@ -163,7 +163,6 @@ impl WritableHeaderElement for ActionEnter {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 pub struct ActionAttack {
     range: f32,
