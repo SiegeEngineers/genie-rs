@@ -4,6 +4,9 @@
 //! The order in which string keys are written to the output file is currently
 //! unspecified.
 
+extern crate genie;
+extern crate structopt;
+
 use genie::lang::LangFileType::KeyValue;
 use std::fs::File;
 use std::path::PathBuf;

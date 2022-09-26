@@ -1,5 +1,8 @@
 //! Displays the key value pairs in a language file.
 
+extern crate genie;
+extern crate structopt;
+
 use genie::lang::LangFileType;
 use std::fs::File;
 use std::path::PathBuf;

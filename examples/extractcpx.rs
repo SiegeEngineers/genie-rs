@@ -1,3 +1,6 @@
+extern crate genie;
+extern crate structopt;
+
 use genie::Campaign;
 use std::{cmp, fs::File, path::PathBuf};
 use structopt::StructOpt;

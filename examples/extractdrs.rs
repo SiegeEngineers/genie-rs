@@ -1,3 +1,7 @@
+extern crate genie;
+extern crate genie_drs;
+extern crate structopt;
+
 use genie_drs::{DRSReader, DRSWriter, ReserveDirectoryStrategy};
 use std::collections::HashSet;
 use std::fs::{create_dir_all, File};
