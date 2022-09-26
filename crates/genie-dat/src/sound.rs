@@ -97,9 +97,11 @@ impl SoundItem {
 impl Sound {
     /// Read this sound from an input stream.
     pub fn read_from<R: Read>(input: &mut R, version: FileVersion) -> Result<Self> {
-        let mut sound = Sound::default();
-        sound.id = input.read_u16::<LE>()?.into();
-        sound.play_delay = input.read_i16::<LE>()?;
+        let mut sound = Sound {
+            id: input.read_u16::<LE>()?.into(),
+            play_delay: input.read_i16::<LE>()?,
+            ..Default::default()
+        };
         let num_items = input.read_u16::<LE>()?;
         sound.cache_time = input.read_i32::<LE>()?;
         if version.is_de2() {

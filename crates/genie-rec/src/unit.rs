@@ -118,15 +118,15 @@ pub struct SpriteNodeAnimation {
 
 impl ReadableHeaderElement for SpriteNodeAnimation {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
-        let mut animation = Self::default();
-        animation.animate_interval = input.read_u32::<LE>()?;
-        animation.animate_last = input.read_u32::<LE>()?;
-        animation.last_frame = input.read_u16::<LE>()?;
-        animation.frame_changed = input.read_u8()?;
-        animation.frame_looped = input.read_u8()?;
-        animation.animate_flag = input.read_u8()?;
-        animation.last_speed = input.read_f32::<LE>()?;
-        Ok(animation)
+        Ok(SpriteNodeAnimation {
+            animate_interval: input.read_u32::<LE>()?,
+            animate_last: input.read_u32::<LE>()?,
+            last_frame: input.read_u16::<LE>()?,
+            frame_changed: input.read_u8()?,
+            frame_looped: input.read_u8()?,
+            animate_flag: input.read_u8()?,
+            last_speed: input.read_f32::<LE>()?,
+        })
     }
 }
 
@@ -163,19 +163,21 @@ impl OptionalReadableElement for SpriteNode {
             return Ok(None);
         }
 
-        let mut node = Self::default();
-        node.id = input.read_u16::<LE>()?.into();
-        node.x = input.read_u32::<LE>()?;
-        node.y = input.read_u32::<LE>()?;
-        node.frame = input.read_u16::<LE>()?;
-        node.invisible = input.read_u8()? != 0;
-        if ty == 2 {
-            node.animation = Some(SpriteNodeAnimation::read_from(input)?);
-        }
-        node.order = input.read_u8()?;
-        node.flag = input.read_u8()?;
-        node.count = input.read_u8()?;
-        Ok(Some(node))
+        Ok(Some(SpriteNode {
+            id: input.read_u16::<LE>()?.into(),
+            x: input.read_u32::<LE>()?,
+            y: input.read_u32::<LE>()?,
+            frame: input.read_u16::<LE>()?,
+            invisible: input.read_u8()? != 0,
+            animation: if ty == 2 {
+                Some(SpriteNodeAnimation::read_from(input)?)
+            } else {
+                None
+            },
+            order: input.read_u8()?,
+            flag: input.read_u8()?,
+            count: input.read_u8()?,
+        }))
     }
 }
 
@@ -187,7 +189,7 @@ impl WritableHeaderElement for SpriteNode {
         output.write_u32::<LE>(self.x)?;
         output.write_u32::<LE>(self.y)?;
         output.write_u16::<LE>(self.frame)?;
-        output.write_u8(if self.invisible { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.invisible))?;
         if let Some(animation) = &self.animation {
             animation.write_to(output)?;
         }
@@ -261,25 +263,27 @@ pub struct DeEffectBlock {
 
 impl ReadableHeaderElement for StaticUnitAttributes {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
-        let mut attrs = Self::default();
-        attrs.owner_id = input.read_u8()?.into();
-        attrs.unit_type_id = input.read_u16::<LE>()?.into();
-        attrs.sprite_id = input.read_u16::<LE>()?.into();
-        attrs.garrisoned_in_id = read_opt_u32(input)?;
-        attrs.hit_points = input.read_f32::<LE>()?;
-        attrs.object_state = input.read_u8()?;
-        attrs.sleep_flag = input.read_u8()? != 0;
-        attrs.dopple_flag = input.read_u8()? != 0;
-        attrs.go_to_sleep_flag = input.read_u8()? != 0;
-        attrs.id = input.read_u32::<LE>()?.into();
-        attrs.facet = input.read_u8()?;
-        attrs.position = (
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-        );
-        attrs.screen_offset = (input.read_u16::<LE>()?, input.read_u16::<LE>()?);
-        attrs.shadow_offset = (input.read_u16::<LE>()?, input.read_u16::<LE>()?);
+        let mut attrs = StaticUnitAttributes {
+            owner_id: input.read_u8()?.into(),
+            unit_type_id: input.read_u16::<LE>()?.into(),
+            sprite_id: input.read_u16::<LE>()?.into(),
+            garrisoned_in_id: read_opt_u32(input)?,
+            hit_points: input.read_f32::<LE>()?,
+            object_state: input.read_u8()?,
+            sleep_flag: input.read_u8()? != 0,
+            dopple_flag: input.read_u8()? != 0,
+            go_to_sleep_flag: input.read_u8()? != 0,
+            id: input.read_u32::<LE>()?.into(),
+            facet: input.read_u8()?,
+            position: (
+                input.read_f32::<LE>()?,
+                input.read_f32::<LE>()?,
+                input.read_f32::<LE>()?,
+            ),
+            screen_offset: (input.read_u16::<LE>()?, input.read_u16::<LE>()?),
+            shadow_offset: (input.read_u16::<LE>()?, input.read_u16::<LE>()?),
+            ..Default::default()
+        };
         if input.version() < 11.58 {
             attrs.selected_group = match input.read_i8()? {
                 -1 => None,
@@ -401,12 +405,14 @@ pub struct PathData {
 
 impl ReadableHeaderElement for PathData {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
-        let mut path = Self::default();
-        path.id = input.read_u32::<LE>()?;
-        path.linked_path_type = input.read_u32::<LE>()?;
-        path.waypoint_level = input.read_u32::<LE>()?;
-        path.path_id = input.read_u32::<LE>()?;
-        path.waypoint = input.read_u32::<LE>()?;
+        let mut path = PathData {
+            id: input.read_u32::<LE>()?,
+            linked_path_type: input.read_u32::<LE>()?,
+            waypoint_level: input.read_u32::<LE>()?,
+            path_id: input.read_u32::<LE>()?,
+            waypoint: input.read_u32::<LE>()?,
+            ..Default::default()
+        };
         if input.version() < 10.25 {
             path.disable_flags = Some(input.read_u32::<LE>()?);
             if input.version() >= 10.20 {
@@ -484,28 +490,30 @@ pub struct MovingUnitAttributes {
 
 impl ReadableHeaderElement for MovingUnitAttributes {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
-        let mut attrs = Self::default();
-        attrs.trail_remainder = input.read_u32::<LE>()?;
-        attrs.velocity = (
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-        );
-        attrs.angle = input.read_f32::<LE>()?;
-        attrs.turn_towards_time = input.read_u32::<LE>()?;
-        attrs.turn_timer = input.read_u32::<LE>()?;
-        attrs.continue_counter = input.read_u32::<LE>()?;
-        attrs.current_terrain_exception = (read_opt_u32(input)?, read_opt_u32(input)?);
-        attrs.waiting_to_move = input.read_u8()?;
-        attrs.wait_delays_count = input.read_u8()?;
-        attrs.on_ground = input.read_u8()?;
-        attrs.path_data = {
-            let num_paths = input.read_u32::<LE>()?;
-            let mut paths = vec![];
-            for _ in 0..num_paths {
-                paths.push(PathData::read_from(input)?);
-            }
-            paths
+        let mut attrs = MovingUnitAttributes {
+            trail_remainder: input.read_u32::<LE>()?,
+            velocity: (
+                input.read_f32::<LE>()?,
+                input.read_f32::<LE>()?,
+                input.read_f32::<LE>()?,
+            ),
+            angle: input.read_f32::<LE>()?,
+            turn_towards_time: input.read_u32::<LE>()?,
+            turn_timer: input.read_u32::<LE>()?,
+            continue_counter: input.read_u32::<LE>()?,
+            current_terrain_exception: (read_opt_u32(input)?, read_opt_u32(input)?),
+            waiting_to_move: input.read_u8()?,
+            wait_delays_count: input.read_u8()?,
+            on_ground: input.read_u8()?,
+            path_data: {
+                let num_paths = input.read_u32::<LE>()?;
+                let mut paths = vec![];
+                for _ in 0..num_paths {
+                    paths.push(PathData::read_from(input)?);
+                }
+                paths
+            },
+            ..Default::default()
         };
         if input.read_u32::<LE>()? != 0 {
             attrs.future_path_data = Some(PathData::read_from(input)?);
@@ -574,8 +582,11 @@ pub struct ActionUnitAttributes {
 
 impl ReadableHeaderElement for ActionUnitAttributes {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
-        let mut attrs = Self::default();
-        attrs.waiting = input.read_u8()? != 0;
+        let mut attrs = ActionUnitAttributes {
+            waiting: input.read_u8()? != 0,
+            ..Default::default()
+        };
+
         if input.version() >= 6.5 {
             attrs.command_flag = input.read_u8()?;
         }
@@ -635,23 +646,24 @@ pub struct MissileUnitAttributes {
 
 impl ReadableHeaderElement for MissileUnitAttributes {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
-        let mut attrs = Self::default();
-        attrs.max_range = input.read_f32::<LE>()?;
-        attrs.fired_from_id = input.read_u32::<LE>()?.into();
-        attrs.own_base = {
-            if input.read_u8()? == 0 {
-                None
-            } else {
-                let version = input.version();
-                Some(UnitType::read_from(&mut *input, version)?)
-            }
-        };
-        Ok(attrs)
+        Ok(MissileUnitAttributes {
+            max_range: input.read_f32::<LE>()?,
+            fired_from_id: input.read_u32::<LE>()?.into(),
+            own_base: {
+                if input.read_u8()? == 0 {
+                    None
+                } else {
+                    let version = input.version();
+                    Some(UnitType::read_from(&mut *input, version)?)
+                }
+            },
+        })
     }
 }
 
 impl WritableHeaderElement for MissileUnitAttributes {}
 
+#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 pub struct UnitAIOrder {
     issuer: u32,
@@ -665,19 +677,19 @@ pub struct UnitAIOrder {
 
 impl ReadableHeaderElement for UnitAIOrder {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
-        let mut order = Self::default();
-        order.issuer = input.read_u32::<LE>()?;
-        order.order_type = input.read_u32::<LE>()?;
-        order.priority = input.read_u32::<LE>()?;
-        order.target_id = input.read_u32::<LE>()?.into();
-        order.target_player = input.read_u32::<LE>()?.try_into().unwrap();
-        order.target_location = (
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-        );
-        order.range = input.read_f32::<LE>()?;
-        Ok(order)
+        Ok(UnitAIOrder {
+            issuer: input.read_u32::<LE>()?,
+            order_type: input.read_u32::<LE>()?,
+            priority: input.read_u32::<LE>()?,
+            target_id: input.read_u32::<LE>()?.into(),
+            target_player: input.read_u32::<LE>()?.try_into().unwrap(),
+            target_location: (
+                input.read_f32::<LE>()?,
+                input.read_f32::<LE>()?,
+                input.read_f32::<LE>()?,
+            ),
+            range: input.read_f32::<LE>()?,
+        })
     }
 }
 
@@ -691,19 +703,20 @@ pub struct UnitAINotification {
 
 impl ReadableHeaderElement for UnitAINotification {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
-        let mut notify = Self::default();
-        notify.caller = input.read_u32::<LE>()?;
-        notify.recipient = input.read_u32::<LE>()?;
-        notify.notification_type = input.read_u32::<LE>()?;
-        notify.params = (
-            input.read_u32::<LE>()?,
-            input.read_u32::<LE>()?,
-            input.read_u32::<LE>()?,
-        );
-        Ok(notify)
+        Ok(UnitAINotification {
+            caller: input.read_u32::<LE>()?,
+            recipient: input.read_u32::<LE>()?,
+            notification_type: input.read_u32::<LE>()?,
+            params: (
+                input.read_u32::<LE>()?,
+                input.read_u32::<LE>()?,
+                input.read_u32::<LE>()?,
+            ),
+        })
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 pub struct UnitAIOrderHistory {
     order: u32,
@@ -717,25 +730,27 @@ pub struct UnitAIOrderHistory {
 
 impl ReadableHeaderElement for UnitAIOrderHistory {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
-        let mut order = Self::default();
-        order.order = input.read_u32::<LE>()?;
-        order.action = input.read_u32::<LE>()?;
-        order.time = input.read_u32::<LE>()?;
-        order.position = (
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-        );
-        order.target_id = input.read_u32::<LE>()?.into();
-        if input.version() >= 10.50 {
-            order.target_attack_category = read_opt_u32(input)?;
-        }
-        order.target_position = (
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-        );
-        Ok(order)
+        Ok(UnitAIOrderHistory {
+            order: input.read_u32::<LE>()?,
+            action: input.read_u32::<LE>()?,
+            time: input.read_u32::<LE>()?,
+            position: (
+                input.read_f32::<LE>()?,
+                input.read_f32::<LE>()?,
+                input.read_f32::<LE>()?,
+            ),
+            target_id: input.read_u32::<LE>()?.into(),
+            target_attack_category: if input.version() >= 10.50 {
+                read_opt_u32(input)?
+            } else {
+                Default::default()
+            },
+            target_position: (
+                input.read_f32::<LE>()?,
+                input.read_f32::<LE>()?,
+                input.read_f32::<LE>()?,
+            ),
+        })
     }
 }
 
@@ -764,13 +779,14 @@ pub struct Waypoint {
 
 impl ReadableHeaderElement for Waypoint {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
-        let mut waypoint = Self::default();
-        waypoint.location = (
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-        );
-        waypoint.facet_to_next_waypoint = input.read_u8()?;
+        let waypoint = Waypoint {
+            location: (
+                input.read_f32::<LE>()?,
+                input.read_f32::<LE>()?,
+                input.read_f32::<LE>()?,
+            ),
+            facet_to_next_waypoint: input.read_u8()?,
+        };
         let _padding = input.read_u8()?;
         let _padding = input.read_u8()?;
         let _padding = input.read_u8()?;
@@ -787,6 +803,7 @@ impl ReadableHeaderElement for PatrolPath {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 pub struct UnitAI {
     mood: Option<u32>,
@@ -832,15 +849,17 @@ pub struct UnitAI {
 
 impl ReadableHeaderElement for UnitAI {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
-        let mut ai = Self::default();
-        ai.mood = read_opt_u32(input)?;
-        ai.current_order = read_opt_u32(input)?;
-        ai.current_order_priority = read_opt_u32(input)?;
-        ai.current_action = read_opt_u32(input)?;
-        ai.current_target = read_opt_u32(input)?;
-        ai.current_target_type = match input.read_u16::<LE>()? {
-            0xFFFF => None,
-            id => Some(id.try_into().unwrap()),
+        let mut ai = UnitAI {
+            mood: read_opt_u32(input)?,
+            current_order: read_opt_u32(input)?,
+            current_order_priority: read_opt_u32(input)?,
+            current_action: read_opt_u32(input)?,
+            current_target: read_opt_u32(input)?,
+            current_target_type: match input.read_u16::<LE>()? {
+                0xFFFF => None,
+                id => Some(id.try_into().unwrap()),
+            },
+            ..Default::default()
         };
         input.skip(2)?;
         ai.current_target_location = (
@@ -1132,35 +1151,37 @@ pub struct BuildingUnitAttributes {
 
 impl ReadableHeaderElement for BuildingUnitAttributes {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
-        let mut attrs = Self::default();
-        attrs.built = input.read_u8()? != 0;
-        attrs.build_points = input.read_f32::<LE>()?;
-        attrs.unique_build_id = read_opt_u32(input)?;
-        attrs.culture = input.read_u8()?;
-        attrs.burning = input.read_u8()?;
-        attrs.last_burn_time = input.read_u32::<LE>()?;
-        attrs.last_garrison_time = input.read_u32::<LE>()?;
-        attrs.relic_count = input.read_u32::<LE>()?;
-        attrs.specific_relic_count = input.read_u32::<LE>()?;
-        attrs.gather_point = {
-            let exists = input.read_u32::<LE>()? != 0;
-            let location = GatherPoint::Location {
-                x: input.read_f32::<LE>()?,
-                y: input.read_f32::<LE>()?,
-                z: input.read_f32::<LE>()?,
-            };
-            let object_id = input.read_i32::<LE>()?;
-            let unit_type_id = input.read_i16::<LE>()?;
-            match (exists, object_id, unit_type_id) {
-                (false, _, _) => None,
-                (true, -1, -1) => Some(location),
-                (true, id, unit_type_id) => Some(GatherPoint::Object {
-                    id: id.try_into().unwrap(),
-                    unit_type: unit_type_id.try_into().unwrap(),
-                }),
-            }
+        let mut attrs = BuildingUnitAttributes {
+            built: input.read_u8()? != 0,
+            build_points: input.read_f32::<LE>()?,
+            unique_build_id: read_opt_u32(input)?,
+            culture: input.read_u8()?,
+            burning: input.read_u8()?,
+            last_burn_time: input.read_u32::<LE>()?,
+            last_garrison_time: input.read_u32::<LE>()?,
+            relic_count: input.read_u32::<LE>()?,
+            specific_relic_count: input.read_u32::<LE>()?,
+            gather_point: {
+                let exists = input.read_u32::<LE>()? != 0;
+                let location = GatherPoint::Location {
+                    x: input.read_f32::<LE>()?,
+                    y: input.read_f32::<LE>()?,
+                    z: input.read_f32::<LE>()?,
+                };
+                let object_id = input.read_i32::<LE>()?;
+                let unit_type_id = input.read_i16::<LE>()?;
+                match (exists, object_id, unit_type_id) {
+                    (false, _, _) => None,
+                    (true, -1, -1) => Some(location),
+                    (true, id, unit_type_id) => Some(GatherPoint::Object {
+                        id: id.try_into().unwrap(),
+                        unit_type: unit_type_id.try_into().unwrap(),
+                    }),
+                }
+            },
+            desolid_flag: input.read_u8()? != 0,
+            ..Default::default()
         };
-        attrs.desolid_flag = input.read_u8()? != 0;
         if input.version() >= 10.54 {
             attrs.pending_order = input.read_u32::<LE>()?;
         }

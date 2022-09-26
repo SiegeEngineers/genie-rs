@@ -293,3 +293,35 @@ impl Default for RecordingState {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::reader::{InflatableReader, Peek};
+    use std::io::{Cursor, Read};
+
+    #[test]
+    pub fn test_inflatable_buffer() {
+        let data = (0..20).into_iter().collect::<Vec<_>>();
+        let cursor = Cursor::new(data);
+        let mut inflatable_buffer = InflatableReader::new_with_capacity(cursor, 4);
+        let mut buffer = [0; 4];
+        inflatable_buffer
+            .read_exact(&mut buffer)
+            .expect("Failed to read");
+        assert_eq!(&[0, 1, 2, 3], &buffer);
+        assert_eq!(&[4, 5], inflatable_buffer.peek(2).expect("Failed to peek"));
+        assert_eq!(
+            &[4, 5, 6, 7],
+            inflatable_buffer.peek(4).expect("Failed to peek")
+        );
+        assert_eq!(
+            &[4, 5, 6, 7, 8, 9],
+            inflatable_buffer.peek(6).expect("Failed to peek")
+        );
+        let mut buffer = [0; 8];
+        inflatable_buffer
+            .read_exact(&mut buffer)
+            .expect("Failed to read");
+        assert_eq!(&[4, 5, 6, 7, 8, 9, 10, 11], &buffer);
+    }
+}

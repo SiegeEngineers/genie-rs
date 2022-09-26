@@ -60,7 +60,7 @@ impl UnitAction {
         let sprite_id = read_opt_u16(input)?;
         let params = ActionType::read_from(input, action_type)?;
 
-        Ok(Self {
+        Ok(UnitAction {
             state,
             target_object_id,
             target_object_id_2,
@@ -70,8 +70,8 @@ impl UnitAction {
             task_id,
             sub_action_value,
             sub_actions,
-            params,
             sprite_id,
+            params,
         })
     }
 
@@ -119,7 +119,7 @@ impl ActionType {
             13 => Self::Guard,
             21 => Self::Make(ActionMake::read_from(input)?),
             107 => Self::Artifact,
-            unknown => Self::Unknown(unknown),
+            _ => unimplemented!("action type {} not yet implemented", action_type),
         };
         Ok(data)
     }
@@ -163,6 +163,7 @@ impl WritableHeaderElement for ActionEnter {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 pub struct ActionAttack {
     range: f32,
@@ -180,23 +181,23 @@ pub struct ActionAttack {
 
 impl ReadableHeaderElement for ActionAttack {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
-        let mut props = Self::default();
-        props.range = input.read_f32::<LE>()?;
-        props.min_range = input.read_f32::<LE>()?;
-        props.missile_id = input.read_u16::<LE>()?.into();
-        props.frame_delay = input.read_u16::<LE>()?;
-        props.need_to_attack = input.read_u16::<LE>()?;
-        props.was_same_owner = input.read_u16::<LE>()?;
-        props.indirect_fire_flag = input.read_u8()?;
-        props.move_sprite_id = read_opt_u16(input)?;
-        props.fight_sprite_id = read_opt_u16(input)?;
-        props.wait_sprite_id = read_opt_u16(input)?;
-        props.last_target_position = (
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-        );
-        Ok(props)
+        Ok(ActionAttack {
+            range: input.read_f32::<LE>()?,
+            min_range: input.read_f32::<LE>()?,
+            missile_id: input.read_u16::<LE>()?.into(),
+            frame_delay: input.read_u16::<LE>()?,
+            need_to_attack: input.read_u16::<LE>()?,
+            was_same_owner: input.read_u16::<LE>()?,
+            indirect_fire_flag: input.read_u8()?,
+            move_sprite_id: read_opt_u16(input)?,
+            fight_sprite_id: read_opt_u16(input)?,
+            wait_sprite_id: read_opt_u16(input)?,
+            last_target_position: (
+                input.read_f32::<LE>()?,
+                input.read_f32::<LE>()?,
+                input.read_f32::<LE>()?,
+            ),
+        })
     }
 }
 

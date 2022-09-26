@@ -6,6 +6,9 @@
 // Example language file path:
 // D:\SteamLibrary\steamapps\common\Age2HD\resources\en\strings\key-value\key-value-strings-utf8.txt
 
+extern crate genie;
+extern crate structopt;
+
 use genie::hki::{self, HotkeyInfo};
 use genie::lang::LangFileType;
 use std::fs::File;
@@ -42,6 +45,6 @@ fn main() -> anyhow::Result<()> {
     let info = HotkeyInfo::from(&mut f_hki)?;
     let aoc_him = hki::default_him();
 
-    println!("{}", info.to_string_lang(&lang_file, &aoc_him));
+    println!("{}", info.get_string_from_lang(&lang_file, &aoc_him));
     Ok(())
 }

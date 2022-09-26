@@ -217,9 +217,12 @@ pub struct Map {
 impl ReadableHeaderElement for Map {
     /// Read map data from an input stream.
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
-        let mut map = Self::default();
-        map.width = input.read_u32::<LE>()?;
-        map.height = input.read_u32::<LE>()?;
+        let mut map = Map {
+            width: input.read_u32::<LE>()?,
+            height: input.read_u32::<LE>()?,
+            ..Default::default()
+        };
+
         input.set_map_size(map.width, map.height);
         let num_zones = input.read_u32::<LE>()?;
         map.zones = Vec::with_capacity(num_zones.try_into().unwrap());

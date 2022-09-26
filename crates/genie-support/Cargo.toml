@@ -1,20 +1,23 @@
 [package]
 name = "genie-support"
 version = "1.0.0"
-authors = ["Renée Kooi <renee@kooi.me>"]
-edition = "2018"
-license = "GPL-3.0"
+rust-version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
 description = "Support library for genie-* crates"
-homepage = "https://github.com/SiegeEngineers/genie-rs"
-repository = "https://github.com/SiegeEngineers/genie-rs"
+homepage = "https://github.com/SiegeEngineers/genie-rs/tree/default/crates/genie-support"
+documentation = "https://docs.rs/genie-support"
+repository.workspace = true
+readme = "./README.md"
 
 [dependencies]
-byteorder = "1.3.4"
-encoding_rs = { version = "0.8.24", optional = true }
-thiserror = "1.0.21"
+byteorder.workspace = true
+encoding_rs = { version = "0.8.31", optional = true }
+thiserror.workspace = true
 
 [features]
 strings = ["encoding_rs"]
 
 [dev-dependencies]
-anyhow = "1.0.33"
+anyhow.workspace = true

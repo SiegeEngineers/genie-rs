@@ -1,19 +1,22 @@
 [package]
 name = "genie-hki"
 version = "0.2.1"
-authors = ["Renée Kooi <renee@kooi.me>"]
-edition = "2018"
-license = "GPL-3.0"
+rust-version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
 description = "Read Age of Empires I/II hotkey files."
-homepage = "https://github.com/SiegeEngineers/genie-rs"
-repository = "https://github.com/SiegeEngineers/genie-rs"
+homepage = "https://github.com/SiegeEngineers/genie-rs/tree/default/crates/genie-hki"
+documentation = "https://docs.rs/genie-hki"
+repository.workspace = true
+readme = "./README.md"
 exclude = ["test/files"]
 
 [dependencies]
-byteorder = "1.3.4"
-flate2 = "1.0.18"
+byteorder.workspace = true
+flate2.workspace = true
 genie-lang = { version = "^0.2.0", path = "../genie-lang" }
-thiserror = "1.0.21"
+thiserror.workspace = true
 
 [dev-dependencies]
-anyhow = "1.0.33"
+anyhow.workspace = true

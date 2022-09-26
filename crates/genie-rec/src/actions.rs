@@ -123,8 +123,10 @@ pub struct OrderCommand {
 impl OrderCommand {
     /// Read an Order command from an input stream.
     pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let mut command = Self::default();
-        command.player_id = input.read_u8()?.into();
+        let mut command = OrderCommand {
+            player_id: input.read_u8()?.into(),
+            ..Default::default()
+        };
         input.skip(2)?;
         command.target_id = read_opt_u32(&mut input)?;
         let selected_count = input.read_i8()?;
@@ -230,8 +232,10 @@ pub struct MoveCommand {
 impl MoveCommand {
     /// Read a Move command from an input stream.
     pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let mut command = Self::default();
-        command.player_id = input.read_u8()?.into();
+        let mut command = MoveCommand {
+            player_id: input.read_u8()?.into(),
+            ..Default::default()
+        };
         input.skip(2)?;
         command.target_id = read_opt_u32(&mut input)?;
         let selected_count = input.read_i8()?;
@@ -423,8 +427,8 @@ impl AIOrderCommand {
         output.write_f32::<LE>(self.target_location.1)?;
         output.write_f32::<LE>(self.target_location.2)?;
         output.write_f32::<LE>(self.range)?;
-        output.write_u8(if self.immediate { 1 } else { 0 })?;
-        output.write_u8(if self.add_to_front { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.immediate))?;
+        output.write_u8(u8::from(self.add_to_front))?;
         output.write_all(&[0, 0])?;
         if self.objects.len() > 1 {
             self.objects.write_to(output)?;
@@ -461,7 +465,7 @@ impl ResignCommand {
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         output.write_u8(self.player_id.into())?;
         output.write_u8(self.comm_player_id.into())?;
-        output.write_u8(if self.dropped { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.dropped))?;
         Ok(())
     }
 }
@@ -1335,12 +1339,12 @@ macro_rules! buy_sell_impl {
     ($name:ident) => {
         impl $name {
             pub fn read_from(mut input: impl Read) -> Result<Self> {
-                let mut command = Self::default();
-                command.player_id = input.read_u8()?.into();
-                command.resource = input.read_u8()?;
-                command.amount = input.read_i8()?;
-                command.market_id = input.read_u32::<LE>()?.into();
-                Ok(command)
+                Ok(Self {
+                    player_id: input.read_u8()?.into(),
+                    resource: input.read_u8()?,
+                    amount: input.read_i8()?,
+                    market_id: input.read_u32::<LE>()?.into(),
+                })
             }
 
             pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
@@ -1544,8 +1548,10 @@ pub struct Time {
 
 impl Time {
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
-        let mut time = Self::default();
-        time.time = input.read_u32::<LE>()?;
+        let mut time = Time {
+            time: input.read_u32::<LE>()?,
+            ..Default::default()
+        };
         let is_old_record = false;
         if is_old_record {
             time.old_world_time = input.read_u32::<LE>()?;
@@ -1654,6 +1660,7 @@ impl Meta {
 /// A chat message sent during the game.
 #[derive(Debug, Clone)]
 pub struct Chat {
+    #[allow(dead_code)]
     message: String,
     de_info: Option<ChatDeInfo>,
 }

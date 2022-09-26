@@ -48,6 +48,7 @@ pub struct SpriteDelta {
 pub struct SoundProp {
     pub sound_delay: i16,
     pub sound_id: SoundID,
+    #[allow(dead_code)]
     wwise_sound_id: Option<u32>,
 }
 
@@ -113,8 +114,10 @@ pub struct Sprite {
 
 impl SpriteDelta {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let mut delta = SpriteDelta::default();
-        delta.sprite_id = read_opt_u16(&mut input)?;
+        let mut delta = SpriteDelta {
+            sprite_id: read_opt_u16(&mut input)?,
+            ..Default::default()
+        };
         let _padding = input.read_i16::<LE>()?;
         let _parent_sprite_pointer = input.read_i32::<LE>()?;
         delta.offset_x = input.read_i16::<LE>()?;
@@ -259,11 +262,11 @@ impl Sprite {
         output.write_all(&name)?;
         output.write_all(&filename)?;
         output.write_i32::<LE>(self.slp_id.map(|v| v.try_into().unwrap()).unwrap_or(-1))?;
-        output.write_u8(if self.is_loaded { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.is_loaded))?;
         output.write_u8(self.force_player_color.unwrap_or(0xFF))?;
         output.write_u8(self.layer)?;
         output.write_u16::<LE>(self.color_table)?;
-        output.write_u8(if self.transparent_selection { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.transparent_selection))?;
         output.write_i16::<LE>(self.bounding_box.0)?;
         output.write_i16::<LE>(self.bounding_box.1)?;
         output.write_i16::<LE>(self.bounding_box.2)?;
@@ -271,7 +274,7 @@ impl Sprite {
 
         output.write_u16::<LE>(self.deltas.len().try_into().unwrap())?;
         output.write_i16::<LE>(self.sound_id.map(|v| v.try_into().unwrap()).unwrap_or(-1))?;
-        output.write_u8(if self.attack_sounds.is_empty() { 0 } else { 1 })?;
+        output.write_u8(u8::from(!self.attack_sounds.is_empty()))?;
         output.write_u16::<LE>(self.num_frames)?;
         output.write_u16::<LE>(self.num_angles)?;
         output.write_f32::<LE>(self.base_speed)?;

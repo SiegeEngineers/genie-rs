@@ -154,10 +154,12 @@ pub struct TerrainBorder {
 
 impl TerrainPassGraphic {
     pub fn read_from(mut input: impl Read, version: FileVersion) -> Result<Self> {
-        let mut pass = TerrainPassGraphic::default();
-        pass.exit_tile_sprite = read_opt_u32(&mut input)?;
-        pass.enter_tile_sprite = read_opt_u32(&mut input)?;
-        pass.walk_tile_sprite = read_opt_u32(&mut input)?;
+        let mut pass = TerrainPassGraphic {
+            exit_tile_sprite: read_opt_u32(&mut input)?,
+            enter_tile_sprite: read_opt_u32(&mut input)?,
+            walk_tile_sprite: read_opt_u32(&mut input)?,
+            ..Default::default()
+        };
         if version.is_swgb() {
             pass.walk_rate = Some(input.read_f32::<LE>()?);
         } else {
@@ -246,23 +248,23 @@ impl TileSize {
 
 impl TerrainAnimation {
     pub fn read_from<R: Read>(input: &mut R) -> Result<Self> {
-        let mut anim = TerrainAnimation::default();
-        anim.enabled = input.read_u8()? != 0;
-        anim.num_frames = input.read_i16::<LE>()?;
-        anim.num_pause_frames = input.read_i16::<LE>()?;
-        anim.frame_interval = input.read_f32::<LE>()?;
-        anim.replay_delay = input.read_f32::<LE>()?;
-        anim.frame = input.read_i16::<LE>()?;
-        anim.draw_frame = input.read_i16::<LE>()?;
-        anim.animate_last = input.read_f32::<LE>()?;
-        anim.frame_changed = input.read_u8()? != 0;
-        anim.drawn = input.read_u8()? != 0;
-        Ok(anim)
+        Ok(TerrainAnimation {
+            enabled: input.read_u8()? != 0,
+            num_frames: input.read_i16::<LE>()?,
+            num_pause_frames: input.read_i16::<LE>()?,
+            frame_interval: input.read_f32::<LE>()?,
+            replay_delay: input.read_f32::<LE>()?,
+            frame: input.read_i16::<LE>()?,
+            draw_frame: input.read_i16::<LE>()?,
+            animate_last: input.read_f32::<LE>()?,
+            frame_changed: input.read_u8()? != 0,
+            drawn: input.read_u8()? != 0,
+        })
     }
 
     /// Serialize this object to a binary output stream.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        output.write_u8(if self.enabled { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.enabled))?;
         output.write_i16::<LE>(self.num_frames)?;
         output.write_i16::<LE>(self.num_pause_frames)?;
         output.write_f32::<LE>(self.frame_interval)?;
@@ -270,8 +272,8 @@ impl TerrainAnimation {
         output.write_i16::<LE>(self.frame)?;
         output.write_i16::<LE>(self.draw_frame)?;
         output.write_f32::<LE>(self.animate_last)?;
-        output.write_u8(if self.frame_changed { 1 } else { 0 })?;
-        output.write_u8(if self.drawn { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.frame_changed))?;
+        output.write_u8(u8::from(self.drawn))?;
         Ok(())
     }
 }
@@ -309,9 +311,11 @@ impl Terrain {
         version: FileVersion,
         num_terrains: u16,
     ) -> Result<Self> {
-        let mut terrain = Terrain::default();
-        terrain.enabled = input.read_u8()? != 0;
-        terrain.random = input.read_u8()?;
+        let mut terrain = Terrain {
+            enabled: input.read_u8()? != 0,
+            random: input.read_u8()?,
+            ..Default::default()
+        };
         read_terrain_name(&mut input, &mut terrain.name)?;
         read_terrain_name(&mut input, &mut terrain.slp_name)?;
         // println!("{}", terrain.name);
@@ -380,7 +384,7 @@ impl Terrain {
         num_terrains: u16,
     ) -> Result<()> {
         assert_eq!(self.borders.len(), num_terrains as usize);
-        output.write_u8(if self.enabled { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.enabled))?;
         output.write_u8(self.random)?;
         write_terrain_name(output, &self.name)?;
         write_terrain_name(output, &self.slp_name)?;
@@ -442,9 +446,11 @@ impl Terrain {
 
 impl TerrainBorder {
     pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let mut border = TerrainBorder::default();
-        border.enabled = input.read_u8()? != 0;
-        border.random = input.read_u8()?;
+        let mut border = TerrainBorder {
+            enabled: input.read_u8()? != 0,
+            random: input.read_u8()?,
+            ..Default::default()
+        };
         read_terrain_name(&mut input, &mut border.name)?;
         read_terrain_name(&mut input, &mut border.slp_name)?;
         border.slp_id = read_opt_u32(&mut input)?;
@@ -471,7 +477,7 @@ impl TerrainBorder {
 
     /// Serialize this object to a binary output stream.
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
-        output.write_u8(if self.enabled { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.enabled))?;
         output.write_u8(self.random)?;
         write_terrain_name(output, &self.name)?;
         write_terrain_name(output, &self.slp_name)?;
@@ -509,7 +515,7 @@ fn read_terrain_name<R: Read>(input: &mut R, output: &mut TerrainName) -> Result
 
 fn write_terrain_name<W: Write>(output: &mut W, name: &TerrainName) -> Result<()> {
     let bytes = &mut [0; 13];
-    (&mut bytes[..name.len()]).copy_from_slice(name.as_bytes());
+    bytes[..name.len()].copy_from_slice(name.as_bytes());
     output.write_all(bytes)?;
     Ok(())
 }

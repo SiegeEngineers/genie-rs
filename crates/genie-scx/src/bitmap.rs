@@ -25,18 +25,21 @@ pub struct BitmapInfo {
 impl BitmapInfo {
     /// Read a bitmap header info structure from a byte stream.
     pub fn read_from(mut input: impl Read) -> Result<Self> {
-        let mut bitmap = Self::default();
-        bitmap.size = input.read_u32::<LE>()?;
-        bitmap.width = input.read_i32::<LE>()?;
-        bitmap.height = input.read_i32::<LE>()?;
-        bitmap.planes = input.read_u16::<LE>()?;
-        bitmap.bit_count = input.read_u16::<LE>()?;
-        bitmap.compression = input.read_u32::<LE>()?;
-        bitmap.size_image = input.read_u32::<LE>()?;
-        bitmap.xpels_per_meter = input.read_i32::<LE>()?;
-        bitmap.ypels_per_meter = input.read_i32::<LE>()?;
-        bitmap.clr_used = input.read_u32::<LE>()?;
-        bitmap.clr_important = input.read_u32::<LE>()?;
+        let mut bitmap = BitmapInfo {
+            size: input.read_u32::<LE>()?,
+            width: input.read_i32::<LE>()?,
+            height: input.read_i32::<LE>()?,
+            planes: input.read_u16::<LE>()?,
+            bit_count: input.read_u16::<LE>()?,
+            compression: input.read_u32::<LE>()?,
+            size_image: input.read_u32::<LE>()?,
+            xpels_per_meter: input.read_i32::<LE>()?,
+            ypels_per_meter: input.read_i32::<LE>()?,
+            clr_used: input.read_u32::<LE>()?,
+            clr_important: input.read_u32::<LE>()?,
+            ..Default::default()
+        };
+
         for _ in 0..256 {
             let r = input.read_u8()?;
             let g = input.read_u8()?;

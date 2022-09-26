@@ -1,3 +1,6 @@
+extern crate genie;
+extern crate simplelog;
+
 use genie::Scenario;
 use simplelog::{ColorChoice, LevelFilter, TermLogger, TerminalMode};
 use std::fs::File;

@@ -169,7 +169,7 @@ impl SCXHeader {
         }
         intermediate.write_all(&description_bytes)?;
 
-        intermediate.write_u32::<LE>(if self.any_sp_victory { 1 } else { 0 })?;
+        intermediate.write_u32::<LE>(u32::from(self.any_sp_victory))?;
         intermediate.write_u32::<LE>(self.active_player_count)?;
 
         if version > 2 && format_version != *b"3.13" {

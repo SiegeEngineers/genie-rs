@@ -214,8 +214,7 @@ impl Scenario {
         self.format
             .player_objects
             .iter()
-            .map(|list| list.iter())
-            .flatten()
+            .flat_map(|list| list.iter())
     }
 
     /// Iterate mutably over all the objects placed in the scenario.
@@ -224,8 +223,7 @@ impl Scenario {
         self.format
             .player_objects
             .iter_mut()
-            .map(|list| list.iter_mut())
-            .flatten()
+            .flat_map(|list| list.iter_mut())
     }
 
     pub fn world_players(&self) -> &[WorldPlayerData] {

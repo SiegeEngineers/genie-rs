@@ -66,6 +66,7 @@ impl ReadableHeaderElement for CompactUnitType {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 pub struct StaticUnitAttributes {
     id: UnitTypeID,
@@ -104,10 +105,13 @@ pub struct StaticUnitAttributesDeExtension {
 
 impl ReadableHeaderElement for StaticUnitAttributes {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
-        let mut attrs = Self::default();
-        attrs.id = input.read_u16::<LE>()?.into();
-        attrs.copy_id = input.read_u16::<LE>()?.into();
-        attrs.base_id = input.read_u16::<LE>()?.into();
+        let mut attrs = StaticUnitAttributes {
+            id: input.read_u16::<LE>()?.into(),
+            copy_id: input.read_u16::<LE>()?.into(),
+            base_id: input.read_u16::<LE>()?.into(),
+            ..Default::default()
+        };
+        
         if input.variant() >= DefinitiveEdition {
             // repeat of id??
             input.skip(2)?;
@@ -261,11 +265,13 @@ pub struct BaseCombatUnitAttributesDeExtension {
 
 impl ReadableHeaderElement for BaseCombatUnitAttributes {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
-        let mut attrs = Self::default();
-        attrs.base_armor = if input.version() >= 11.52 {
-            input.read_u16::<LE>()?
-        } else {
-            input.read_u8()?.into()
+        let mut attrs = BaseCombatUnitAttributes {
+            base_armor: if input.version() >= 11.52 {
+                input.read_u16::<LE>()?
+            } else {
+                input.read_u8()?.into()
+            },
+            ..Default::default()
         };
         let num_attacks = input.read_u16::<LE>()?;
         for _ in 0..num_attacks {
@@ -438,6 +444,7 @@ impl ReadableHeaderElement for BuildingUnitAttributes {
 mod tests {
     use super::*;
 
+    #[allow(clippy::neg_cmp_op_on_partial_ord)]
     #[test]
     fn cmp_unit_base_class() {
         assert_eq!(UnitBaseClass::Static, UnitBaseClass::Static);

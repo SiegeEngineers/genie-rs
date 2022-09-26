@@ -129,7 +129,7 @@ impl From<&[u8]> for ResourceType {
     fn from(u: &[u8]) -> Self {
         assert!(u.len() <= 4);
         let mut bytes = [b' '; 4];
-        (&mut bytes[0..u.len()]).copy_from_slice(u);
+        bytes[0..u.len()].copy_from_slice(u);
         Self(bytes)
     }
 }
@@ -171,9 +171,9 @@ impl DRSHeader {
     #[inline]
     /// Read a DRS archive header from a `Read`able handle.
     fn from<R: Read>(source: &mut R) -> Result<DRSHeader, Error> {
-        let mut banner_msg = [0 as u8; 40];
-        let mut version = [0 as u8; 4];
-        let mut password = [0 as u8; 12];
+        let mut banner_msg = [0_u8; 40];
+        let mut version = [0_u8; 4];
+        let mut password = [0_u8; 12];
         source.read_exact(&mut banner_msg)?;
         source.read_exact(&mut version)?;
         source.read_exact(&mut password)?;
@@ -240,7 +240,7 @@ impl DRSTable {
     /// Read a DRS table header from a `Read`able handle.
     #[inline]
     fn from<R: Read>(source: &mut R) -> Result<DRSTable, Error> {
-        let mut resource_type = [0 as u8; 4];
+        let mut resource_type = [0_u8; 4];
         source.read_exact(&mut resource_type)?;
         let offset = source.read_u32::<LE>()?;
         let num_resources = source.read_u32::<LE>()?;

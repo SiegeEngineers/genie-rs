@@ -1,23 +1,28 @@
 [package]
 name = "genie-scx"
 version = "4.0.0"
-authors = ["Renée Kooi <renee@kooi.me>"]
-edition = "2018"
-license = "GPL-3.0"
+rust-version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
 description = "Read and write Age of Empires I/II scenario files."
-homepage = "https://github.com/SiegeEngineers/genie-rs"
-repository = "https://github.com/SiegeEngineers/genie-rs"
+homepage = "https://github.com/SiegeEngineers/genie-rs/tree/default/crates/genie-scx"
+documentation = "https://docs.rs/genie-scx"
+repository.workspace = true
+readme = "./README.md"
 exclude = ["test/scenarios"]
 
 [dependencies]
-byteorder = "1.3.4"
-flate2 = "1.0.18"
-genie-support = { version = "^1.0.0", path = "../genie-support", features = ["strings"] }
-log = "0.4.11"
+byteorder.workspace = true
+flate2.workspace = true
+genie-support = { version = "^1.0.0", path = "../genie-support", features = [
+    "strings",
+] }
+log = "0.4.17"
 nohash-hasher = "0.2.0"
-rgb = "0.8.25"
-thiserror = "1.0.21"
-num_enum = "0.5.1"
+rgb.workspace = true
+thiserror.workspace = true
+num_enum.workspace = true
 
 [dev-dependencies]
-anyhow = "1.0.33"
+anyhow.workspace = true

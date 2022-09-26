@@ -769,9 +769,9 @@ impl Hotkey {
     pub(crate) fn write_to<W: Write>(&self, output: &mut W) -> io::Result<()> {
         output.write_i32::<LE>(self.key)?;
         output.write_i32::<LE>(self.string_id)?;
-        output.write_u8(if self.ctrl { 1 } else { 0 })?;
-        output.write_u8(if self.alt { 1 } else { 0 })?;
-        output.write_u8(if self.shift { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.ctrl))?;
+        output.write_u8(u8::from(self.alt))?;
+        output.write_u8(u8::from(self.shift))?;
         output.write_i8(self.mouse)?;
         Ok(())
     }
@@ -788,12 +788,12 @@ impl Hotkey {
     /// let mut lang_file = LangFile::new();
     /// lang_file.insert(StringKey::from(5u32), String::from("A"));
     /// let hotkey = Hotkey::default().key(65).string_id(5).ctrl(true);
-    /// assert_eq!("A (5): ctrl-65", hotkey.to_string_lang(&lang_file));
+    /// assert_eq!("A (5): ctrl-65", hotkey.get_string_from_lang(&lang_file));
     ///
     /// let default = Hotkey::default();
-    /// assert_eq!("-1: 0", default.to_string_lang(&lang_file));
+    /// assert_eq!("-1: 0", default.get_string_from_lang(&lang_file));
     /// ```
-    pub fn to_string_lang(&self, lang_file: &genie_lang::LangFile) -> String {
+    pub fn get_string_from_lang(&self, lang_file: &genie_lang::LangFile) -> String {
         let ctrl = if self.ctrl { "ctrl-" } else { "" };
         let alt = if self.alt { "ctrl-" } else { "" };
         let shift = if self.shift { "ctrl-" } else { "" };
@@ -917,7 +917,7 @@ impl HotkeyGroup {
 
     /// Returns a string representation of this hotkey group, using the strings
     /// from `lang_file` and the group name string key `sk`.
-    pub fn to_string_lang(&self, lang_file: &LangFile, sk: &StringKey) -> String {
+    pub fn get_string_from_lang(&self, lang_file: &LangFile, sk: &StringKey) -> String {
         let group_name = if let Some(name) = lang_file.get(sk) {
             format!("{} ({}):\n  ", name, sk)
         } else {
@@ -926,7 +926,7 @@ impl HotkeyGroup {
         let hotkeys: Vec<String> = self
             .hotkeys
             .iter()
-            .map(|hki| hki.to_string_lang(&lang_file))
+            .map(|hki| hki.get_string_from_lang(lang_file))
             .collect();
         format!("{}{}", group_name, hotkeys.join("\n  "))
     }
@@ -1136,18 +1136,18 @@ impl HotkeyInfo {
     }
 
     /// Returns a string representation of this `HotkeyInfo` struct using the
-    /// strings from `lang_file` and the group name sting keys given in `him`.
+    /// strings from `lang_file` and the group name string keys given in `him`.
     ///
     /// # Panics
     ///
     /// Panics if the number of hotkeys in any group of this file differs from
     /// the number of hotkeys given to that group in `him`.
-    pub fn to_string_lang(&self, lang_file: &LangFile, him: &HotkeyInfoMetadata) -> String {
+    pub fn get_string_from_lang(&self, lang_file: &LangFile, him: &HotkeyInfoMetadata) -> String {
         let groups: Vec<String> = self
             .groups
             .iter()
             .zip(him.iter())
-            .map(|(grp, sk)| grp.to_string_lang(&lang_file, sk))
+            .map(|(grp, sk)| grp.get_string_from_lang(lang_file, sk))
             .collect();
         format!("Version: {}\n{}", self.version, groups.join("\n"))
     }

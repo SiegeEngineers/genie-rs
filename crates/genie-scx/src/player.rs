@@ -183,7 +183,7 @@ impl ScenarioPlayerData {
         output.write_i16::<LE>(self.location.1)?;
 
         if version > 1.0 {
-            output.write_u8(if self.allied_victory { 1 } else { 0 })?;
+            output.write_u8(u8::from(self.allied_victory))?;
         };
 
         output.write_i16::<LE>(self.relations.len() as i16)?;

@@ -26,15 +26,19 @@ pub struct AICommand {
 
 impl ReadableHeaderElement for AICommand {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
-        let mut cmd = Self::default();
-        cmd.command_type = input.read_i32::<LE>()?;
-        cmd.id = input.read_u16::<LE>()?;
+        let mut cmd = AICommand {
+            command_type: input.read_i32::<LE>()?,
+            id: input.read_u16::<LE>()?,
+            ..Default::default()
+        };
+
         input.skip(2)?;
         input.read_i32_into::<LE>(&mut cmd.parameters)?;
         Ok(cmd)
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 pub struct AIListRule {
     in_use: bool,
@@ -47,11 +51,13 @@ pub struct AIListRule {
 
 impl ReadableHeaderElement for AIListRule {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
-        let mut rule = Self::default();
-        rule.in_use = input.read_u32::<LE>()? != 0;
-        rule.enable = input.read_u32::<LE>()? != 0;
-        rule.rule_id = input.read_u16::<LE>()?;
-        rule.next_in_group = input.read_u16::<LE>()?;
+        let mut rule = AIListRule {
+            in_use: input.read_u32::<LE>()? != 0,
+            enable: input.read_u32::<LE>()? != 0,
+            rule_id: input.read_u16::<LE>()?,
+            next_in_group: input.read_u16::<LE>()?,
+            ..Default::default()
+        };
         let num_facts = input.read_u8()?;
         let num_facts_actions = input.read_u8()?;
         input.read_u16::<LE>()?;
@@ -67,6 +73,7 @@ impl ReadableHeaderElement for AIListRule {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 pub struct AIList {
     in_use: bool,
@@ -77,10 +84,12 @@ pub struct AIList {
 
 impl ReadableHeaderElement for AIList {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
-        let mut list = Self::default();
-        list.in_use = input.read_u32::<LE>()? != 0;
-        list.id = input.read_i32::<LE>()?;
-        list.max_rules = input.read_u16::<LE>()?;
+        let mut list = AIList {
+            in_use: input.read_u32::<LE>()? != 0,
+            id: input.read_i32::<LE>()?,
+            max_rules: input.read_u16::<LE>()?,
+            ..Default::default()
+        };
         let num_rules = input.read_u16::<LE>()?;
         input.read_u32::<LE>()?;
         for _ in 0..num_rules {
@@ -92,14 +101,18 @@ impl ReadableHeaderElement for AIList {
 
 #[derive(Debug, Default, Clone)]
 pub struct AIGroupTable {
+    #[allow(dead_code)]
     max_groups: u16,
     groups: Vec<u16>,
 }
 
 impl ReadableHeaderElement for AIGroupTable {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
-        let mut table = Self::default();
-        table.max_groups = input.read_u16::<LE>()?;
+        let mut table = AIGroupTable {
+            max_groups: input.read_u16::<LE>()?,
+            ..Default::default()
+        };
+
         let num_groups = input.read_u16::<LE>()?;
         input.read_u32::<LE>()?;
         for _ in 0..num_groups {
@@ -385,6 +398,7 @@ impl ReadableHeaderElement for Header {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 pub struct DeExtensionHeader {
     pub build: Option<f32>,     // save_version >= 25.22
@@ -804,21 +818,22 @@ struct Particle {
 
 impl ReadableHeaderElement for Particle {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
-        let mut particle = Self::default();
-        particle.start = input.read_u32::<LE>()?;
-        particle.facet = input.read_u32::<LE>()?;
-        particle.update = input.read_u32::<LE>()?;
-        particle.sprite_id = input.read_u16::<LE>()?.into();
-        particle.location = (
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-            input.read_f32::<LE>()?,
-        );
-        particle.flags = input.read_u8()?;
-        Ok(particle)
+        Ok(Particle {
+            start: input.read_u32::<LE>()?,
+            facet: input.read_u32::<LE>()?,
+            update: input.read_u32::<LE>()?,
+            sprite_id: input.read_u16::<LE>()?.into(),
+            location: (
+                input.read_f32::<LE>()?,
+                input.read_f32::<LE>()?,
+                input.read_f32::<LE>()?,
+            ),
+            flags: input.read_u8()?,
+        })
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Default, Clone)]
 struct ParticleSystem {
     pub world_time: u32,

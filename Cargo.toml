@@ -1,13 +1,45 @@
 [package]
 name = "genie"
 version = "0.5.0"
-authors = ["Renée Kooi <renee@kooi.me>"]
-edition = "2018"
-license = "GPL-3.0"
 description = "Libraries for reading/writing Age of Empires II data files"
+documentation = "https://docs.rs/genie/"
 homepage = "https://github.com/SiegeEngineers/genie-rs"
+readme = "./README.md"
+
+[workspace]
+members = [
+  "crates/genie-cpx",
+  "crates/genie-dat",
+  "crates/genie-drs",
+  "crates/genie-hki",
+  "crates/genie-lang",
+  "crates/genie-rec",
+  "crates/genie-scx",
+  "crates/genie-support",
+  "crates/jascpal",
+]
+
+[workspace.package]
+authors = ["Renée Kooi <renee@kooi.me>"]
+edition = "2021"
+rust-version = "1.64.0"
+license = "GPL-3.0"
 repository = "https://github.com/SiegeEngineers/genie-rs"
-readme = "README.md"
+
+[workspace.dependencies]
+structopt = "0.3.26"
+anyhow = "1.0.65"
+simplelog = "0.12.0"
+thiserror = "1.0.36"
+byteorder = "1.4.3"
+flate2 = { version = "1.0.24", features = [
+  "rust_backend",
+], default-features = false }
+encoding_rs = "0.8.31"
+encoding_rs_io = "0.1.7"
+rgb = "0.8.34"
+num_enum = "0.5.7"
+arrayvec = "0.7.2"
 
 [dependencies]
 genie-cpx = { version = "0.5.0", path = "crates/genie-cpx" }
@@ -20,19 +52,6 @@ genie-scx = { version = "4.0.0", path = "crates/genie-scx" }
 jascpal = { version = "0.1.1", path = "crates/jascpal" }
 
 [dev-dependencies]
-structopt = "0.3.20"
-anyhow = "1.0.33"
-simplelog = "0.10.0"
-
-[workspace]
-members = [
-  "crates/genie-cpx",
-  "crates/genie-dat",
-  "crates/genie-drs",
-  "crates/genie-hki",
-  "crates/genie-lang",
-  "crates/genie-rec",
-  "crates/genie-scx",
-  "crates/genie-support",
-  "crates/jascpal"
-]
+structopt.workspace = true
+anyhow.workspace = true
+simplelog.workspace = true

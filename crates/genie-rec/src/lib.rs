@@ -313,12 +313,14 @@ impl Default for VictoryType {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Difficulty {
     Easiest = 4,
+    Easy = -1,
     /// Age of Empires 2: Definitive Edition only.
     Extreme = 5,
     Hard = 1,
     Hardest = 0,
     Moderate = 2,
     Standard = 3,
+    
 }
 
 impl From<u32> for Difficulty {

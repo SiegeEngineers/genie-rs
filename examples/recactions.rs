@@ -1,3 +1,6 @@
+extern crate genie;
+extern crate structopt;
+
 use genie::RecordedGame;
 use std::fs::File;
 use std::path::PathBuf;

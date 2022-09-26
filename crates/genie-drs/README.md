@@ -1,5 +1,14 @@
 # genie-drs
 
+[![docs.rs](https://img.shields.io/badge/docs.rs-genie--drs-blue?style=flat-square&color=blue)](https://docs.rs/genie-drs/)
+[![crates.io](https://img.shields.io/crates/v/genie-drs.svg?style=flat-square&color=orange)](https://crates.io/crates/genie-drs)
+[![GitHub license](https://img.shields.io/github/license/SiegeEngineers/genie-rs?style=flat-square&color=darkred)](https://github.com/SiegeEngineers/genie-rs/blob/default/crates/genie-drs/LICENSE.md)
+![MSRV](https://img.shields.io/badge/MSRV-1.64.0%2B-blue?style=flat-square)
+
+Read .drs archive files from the Genie Engine, used in Age of Empires 1/2 and SWGB
+
+## About DRS
+
 .drs is the resource archive file format for the Genie Engine, used by Age of Empires 1/2 and
 Star Wars: Galactic Battlegrounds. .drs files contain tables, each of which contain resources
 of a single type. Resources are identified by a numeric identifier.
@@ -12,7 +21,7 @@ Add to Cargo.toml:
 
 ```toml
 [dependencies]
-genie-drs = "^0.1.1"
+genie-drs = "^0.2.1"
 ```
 
 ## Example

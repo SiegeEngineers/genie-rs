@@ -581,8 +581,8 @@ impl Trigger {
             objective_order,
             start_time,
             description,
-            short_description,
             short_description_id,
+            short_description,
             display_short_description,
             short_description_state,
             mute_objective,
@@ -597,19 +597,19 @@ impl Trigger {
 
     /// Write this trigger condition to an output stream, with the given trigger system version.
     pub fn write_to(&self, mut output: impl Write, version: f64) -> Result<()> {
-        output.write_i32::<LE>(if self.enabled { 1 } else { 0 })?;
-        output.write_i8(if self.looping { 1 } else { 0 })?;
+        output.write_i32::<LE>(i32::from(self.enabled))?;
+        output.write_i8(i8::from(self.looping))?;
         output.write_i32::<LE>(self.name_id)?;
-        output.write_i8(if self.is_objective { 1 } else { 0 })?;
+        output.write_i8(i8::from(self.is_objective))?;
         output.write_i32::<LE>(self.objective_order)?;
 
         if version >= 1.8 {
-            output.write_u8(if self.make_header { 1 } else { 0 })?;
+            output.write_u8(u8::from(self.make_header))?;
             write_opt_string_key(&mut output, &self.short_description_id)?;
-            output.write_u8(if self.display_short_description { 1 } else { 0 })?;
+            output.write_u8(u8::from(self.display_short_description))?;
             output.write_u8(self.short_description_state)?;
             output.write_u32::<LE>(self.start_time)?;
-            output.write_u8(if self.mute_objective { 1 } else { 0 })?;
+            output.write_u8(u8::from(self.mute_objective))?;
         } else {
             output.write_u32::<LE>(self.start_time)?;
         }
@@ -793,7 +793,7 @@ impl TriggerSystem {
             output.write_u32::<LE>(num_custom_names as u32)?;
             for (index, name) in custom_names {
                 output.write_u32::<LE>(index as u32)?;
-                write_i32_str(&mut output, &name)?;
+                write_i32_str(&mut output, name)?;
             }
         }
         Ok(())

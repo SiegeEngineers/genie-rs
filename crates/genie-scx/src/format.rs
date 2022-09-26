@@ -137,6 +137,7 @@ pub(crate) struct RGEScen {
     pregame_cinematic: Option<String>,
     victory_cinematic: Option<String>,
     loss_cinematic: Option<String>,
+    #[allow(dead_code)]
     mission_bmp: Option<String>,
     player_build_lists: Vec<Option<String>>,
     player_city_plans: Vec<Option<String>>,
@@ -379,7 +380,7 @@ impl RGEScen {
         }
 
         if version >= 1.07 {
-            output.write_u8(if self.victory_conquest { 1 } else { 0 })?;
+            output.write_u8(u8::from(self.victory_conquest))?;
         }
 
         // RGE_Timeline
@@ -551,11 +552,13 @@ pub struct TribeScen {
     ///
     /// According to [AoE2ScenarioParser][].
     /// [AoE2ScenarioParser]: https://github.com/KSneijders/AoE2ScenarioParser/blob/8e3abd422164961aa5c7857350475088790804f8/AoE2ScenarioParser/pieces/options.py
+    #[allow(dead_code)]
     combat_mode: i32,
     /// (What exactly?)
     ///
     /// According to [AoE2ScenarioParser][].
     /// [AoE2ScenarioParser]: https://github.com/KSneijders/AoE2ScenarioParser/blob/8e3abd422164961aa5c7857350475088790804f8/AoE2ScenarioParser/pieces/options.py
+    #[allow(dead_code)]
     naval_mode: i32,
     /// Whether "All Techs" is enabled.
     all_techs: bool,
@@ -901,7 +904,7 @@ impl TribeScen {
         }
 
         self.victory.write_to(&mut output)?;
-        output.write_i32::<LE>(if self.victory_all_flag { 1 } else { 0 })?;
+        output.write_i32::<LE>(i32::from(self.victory_all_flag))?;
 
         if version >= 1.13 {
             output.write_i32::<LE>(self.mp_victory_type)?;
@@ -933,12 +936,12 @@ impl TribeScen {
         }
 
         if version >= 1.24 {
-            output.write_i8(if self.teams_locked { 1 } else { 0 })?;
-            output.write_i8(if self.can_change_teams { 1 } else { 0 })?;
-            output.write_i8(if self.random_start_locations { 1 } else { 0 })?;
+            output.write_i8(i8::from(self.teams_locked))?;
+            output.write_i8(i8::from(self.can_change_teams))?;
+            output.write_i8(i8::from(self.random_start_locations))?;
             output.write_u8(self.max_teams)?;
         } else if f32_eq!(version, 1.23) {
-            output.write_i32::<LE>(if self.teams_locked { 1 } else { 0 })?;
+            output.write_i32::<LE>(i32::from(self.teams_locked))?;
         }
 
         if version >= 1.28 {
@@ -1052,7 +1055,7 @@ impl TribeScen {
         }
         if version >= 1.12 {
             output.write_i32::<LE>(0)?;
-            output.write_i32::<LE>(if self.all_techs { 1 } else { 0 })?;
+            output.write_i32::<LE>(i32::from(self.all_techs))?;
         }
 
         if version > 1.05 {
@@ -1091,10 +1094,10 @@ impl TribeScen {
             output.write_u8(0)?;
             output.write_u8(0)?;
             write_opt_str(&mut output, &self.color_mood)?;
-            output.write_u8(if self.collide_and_correct { 1 } else { 0 })?;
+            output.write_u8(u8::from(self.collide_and_correct))?;
         }
         if version >= 1.37 {
-            output.write_u8(if self.villager_force_drop { 1 } else { 0 })?;
+            output.write_u8(u8::from(self.villager_force_drop))?;
         }
 
         Ok(())

@@ -1,3 +1,6 @@
+extern crate genie;
+extern crate structopt;
+
 use genie::scx::{convert::AutoToWK, VersionBundle};
 use genie::Scenario;
 use std::{fs::File, path::PathBuf};
@@ -26,7 +29,7 @@ fn main() -> anyhow::Result<()> {
         version,
     } = Cli::from_args();
     let version_arg = version;
-    let version = match version_arg.as_ref().map(|s| &**s) {
+    let version = match version_arg.as_deref() {
         Some("aoe") => VersionBundle::aoe(),
         Some("ror") => VersionBundle::ror(),
         Some("aoc") => VersionBundle::aoc(),

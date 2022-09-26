@@ -121,7 +121,7 @@ impl PartialOrd for GameVariant {
 }
 
 /// The game data version string. In practice, this does not really reflect the game version.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
 pub struct GameVersion([u8; 8]);
 
 impl From<&[u8; 8]> for GameVersion {
@@ -209,6 +209,7 @@ mod test {
         );
     }
 
+    #[allow(clippy::bool_assert_comparison)]
     #[test]
     pub fn test_game_variant_comparison() {
         // Am I going add all cases here? WHO KNOWS

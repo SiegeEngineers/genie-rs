@@ -477,10 +477,7 @@ impl VersionBundle {
 
     /// Returns whether this version is (likely) for an AoK scenario.
     pub fn is_aok(&self) -> bool {
-        match self.format.as_bytes() {
-            b"1.18" | b"1.19" | b"1.20" => true,
-            _ => false,
-        }
+        matches!(self.format.as_bytes(), b"1.18" | b"1.19" | b"1.20")
     }
 
     /// Returns whether this version is (likely) for an AoC scenario.

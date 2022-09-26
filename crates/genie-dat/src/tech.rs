@@ -98,7 +98,7 @@ impl TechEffect {
         let mut bytes = [0; 31];
         input.read_exact(&mut bytes)?;
         let bytes = &bytes[..bytes.iter().position(|&c| c == 0).unwrap_or(bytes.len())];
-        let (name, _encoding, _failed) = WINDOWS_1252.decode(&bytes);
+        let (name, _encoding, _failed) = WINDOWS_1252.decode(bytes);
         effect.name = TechEffectName::from(&name).unwrap();
 
         let num_commands = input.read_u16::<LE>()?;
@@ -111,7 +111,7 @@ impl TechEffect {
 
     pub fn write_to<W: Write>(&self, output: &mut W) -> Result<()> {
         let mut buffer = [0; 31];
-        (&mut buffer[..self.name.len()]).copy_from_slice(self.name.as_bytes());
+        buffer[..self.name.len()].copy_from_slice(self.name.as_bytes());
         output.write_all(&buffer)?;
 
         output.write_u16::<LE>(self.commands.len() as u16)?;
@@ -134,7 +134,7 @@ impl TechEffectRef {
     pub fn write_to<W: Write>(self, output: &mut W) -> Result<()> {
         output.write_u16::<LE>(self.effect_type)?;
         output.write_u16::<LE>(self.amount)?;
-        output.write_u8(if self.enabled { 1 } else { 0 })?;
+        output.write_u8(u8::from(self.enabled))?;
         Ok(())
     }
 }
@@ -178,7 +178,7 @@ impl Tech {
             let mut bytes = vec![0; name_len as usize];
             input.read_exact(&mut bytes)?;
             let bytes = &bytes[..bytes.iter().position(|&c| c == 0).unwrap_or(bytes.len())];
-            let (name, _encoding, _failed) = WINDOWS_1252.decode(&bytes);
+            let (name, _encoding, _failed) = WINDOWS_1252.decode(bytes);
             name.to_string()
         };
         Ok(tech)

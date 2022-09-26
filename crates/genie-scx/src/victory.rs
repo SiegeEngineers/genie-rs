@@ -61,7 +61,7 @@ impl LegacyVictoryInfo {
     /// Write old-tyle victory settings to an output stream.
     pub fn write_to(&self, mut output: impl Write) -> Result<()> {
         output.write_i32::<LE>(self.object_type)?;
-        output.write_i32::<LE>(if self.all_flag { 1 } else { 0 })?;
+        output.write_i32::<LE>(i32::from(self.all_flag))?;
         output.write_i32::<LE>(self.player_id)?;
         output.write_i32::<LE>(self.dest_object_id)?;
         output.write_f32::<LE>(self.area.0)?;
@@ -263,7 +263,8 @@ impl VictoryConditions {
     #[deprecated = "Use VictoryConditions::read_from instead"]
     #[doc(hidden)]
     pub fn from<R: Read>(input: &mut R, has_version: bool) -> Result<Self> {
-        Ok(Self::read_from(input, has_version)?)
+        let result = Self::read_from(input, has_version)?;
+        Ok(result)
     }
 
     /// Read victory conditions from an input stream.
@@ -373,7 +374,7 @@ impl VictoryInfo {
     }
 
     pub fn write_to(&self, mut output: impl Write) -> Result<()> {
-        output.write_i32::<LE>(if self.conquest { 1 } else { 0 })?;
+        output.write_i32::<LE>(i32::from(self.conquest))?;
         output.write_i32::<LE>(self.ruins)?;
         output.write_i32::<LE>(self.relics)?;
         output.write_i32::<LE>(self.discoveries)?;
