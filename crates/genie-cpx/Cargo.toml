@@ -6,9 +6,10 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "Read and write Age of Empires I/II campaign files."
-homepage.workspace = true
+homepage = "https://github.com/SiegeEngineers/genie-rs/tree/default/crates/genie-cpx"
+documentation = "https://docs.rs/genie-cpx"
 repository.workspace = true
-readme.workspace = true
+readme = "./README.md"
 exclude = ["test/campaigns"]
 
 [dependencies]

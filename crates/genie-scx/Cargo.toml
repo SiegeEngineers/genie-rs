@@ -6,9 +6,10 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "Read and write Age of Empires I/II scenario files."
-homepage.workspace = true
+homepage = "https://github.com/SiegeEngineers/genie-rs/tree/default/crates/genie-scx"
+documentation = "https://docs.rs/genie-scx"
 repository.workspace = true
-readme.workspace = true
+readme = "./README.md"
 exclude = ["test/scenarios"]
 
 [dependencies]

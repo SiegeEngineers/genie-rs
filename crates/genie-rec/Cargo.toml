@@ -6,9 +6,10 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "Read Age of Empires I/II recorded game files."
-homepage.workspace = true
+homepage = "https://github.com/SiegeEngineers/genie-rs/tree/default/crates/genie-rec"
+documentation = "https://docs.rs/genie-rec"
 repository.workspace = true
-readme.workspace = true
+readme = "./README.md"
 
 [dependencies]
 arrayvec.workspace = true

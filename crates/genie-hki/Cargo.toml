@@ -6,9 +6,10 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "Read Age of Empires I/II hotkey files."
-homepage.workspace = true
+homepage = "https://github.com/SiegeEngineers/genie-rs/tree/default/crates/genie-hki"
+documentation = "https://docs.rs/genie-hki"
 repository.workspace = true
-readme.workspace = true
+readme = "./README.md"
 exclude = ["test/files"]
 
 [dependencies]

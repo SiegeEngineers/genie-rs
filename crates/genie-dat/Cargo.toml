@@ -6,8 +6,10 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "Read and write Age of Empires I/II data files."
-homepage.workspace = true
+homepage = "https://github.com/SiegeEngineers/genie-rs/tree/default/crates/genie-dat"
+documentation = "https://docs.rs/genie-dat"
 repository.workspace = true
+readme = "./README.md"
 
 [dependencies]
 arrayvec.workspace = true

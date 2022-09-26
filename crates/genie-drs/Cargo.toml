@@ -6,9 +6,10 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "Read .drs archive files from the Genie Engine, used in Age of Empires 1/2 and SWGB"
-homepage.workspace = true
+homepage = "https://github.com/SiegeEngineers/genie-rs/tree/default/crates/genie-drs"
+documentation = "https://docs.rs/genie-drs"
 repository.workspace = true
-readme.workspace = true
+readme = "./README.md"
 exclude = ["*.drs"]
 
 [dependencies]

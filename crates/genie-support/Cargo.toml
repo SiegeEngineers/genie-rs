@@ -6,9 +6,10 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "Support library for genie-* crates"
-homepage.workspace = true
+homepage = "https://github.com/SiegeEngineers/genie-rs/tree/default/crates/genie-support"
+documentation = "https://docs.rs/genie-support"
 repository.workspace = true
-readme.workspace = true
+readme = "./README.md"
 
 [dependencies]
 byteorder.workspace = true

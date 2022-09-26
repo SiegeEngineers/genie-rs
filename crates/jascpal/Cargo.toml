@@ -6,8 +6,11 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "Read and write JASC palette files."
-homepage.workspace = true
+homepage = "https://github.com/SiegeEngineers/genie-rs/tree/default/crates/jascpal"
+documentation = "https://docs.rs/jascpal"
 repository.workspace = true
+readme = "./README.md"
+
 
 [dependencies]
 nom = { version = "7.1.1", default-features = false, features = ["std"] }

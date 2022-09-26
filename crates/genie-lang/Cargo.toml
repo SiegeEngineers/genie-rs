@@ -6,8 +6,10 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "Read different types of language resource files from Age of Empires 1 and 2."
-homepage.workspace = true
+homepage = "https://github.com/SiegeEngineers/genie-rs/tree/default/crates/genie-lang"
+documentation = "https://docs.rs/genie-lang"
 repository.workspace = true
+readme = "./README.md"
 exclude = ["test/dlls"]
 
 [dependencies]
