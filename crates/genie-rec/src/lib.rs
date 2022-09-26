@@ -320,7 +320,6 @@ pub enum Difficulty {
     Hardest = 0,
     Moderate = 2,
     Standard = 3,
-    
 }
 
 impl From<u32> for Difficulty {

@@ -110,9 +110,7 @@ impl ReadableHeaderElement for Player {
         input.read_u32_into::<LE>(&mut player.diplomacy)?;
         player.allied_los = input.read_u32::<LE>()? != 0;
         player.allied_victory = input.read_u8()? != 0;
-        player.name = input
-            .read_u16_length_prefixed_str()?
-            .unwrap_or_else(String::new);
+        player.name = input.read_u16_length_prefixed_str()?.unwrap_or_default();
 
         if input.version() >= 10.55 {
             assert_marker!(input, 22);
@@ -780,7 +778,7 @@ pub struct HistoryInfo {
 
 impl ReadableHeaderElement for HistoryInfo {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
-		// TODO: Check for padding
+        // TODO: Check for padding
         // let _padding = input.read_u8()?;
         let num_entries = input.read_u32::<LE>()?;
         let _num_events = input.read_u32::<LE>()?;
@@ -895,7 +893,7 @@ impl ReadableHeaderElement for TechState {
                 input.read_i16::<LE>()?,
             ),
             time_modifier: input.read_i16::<LE>()?,
-        }
+        };
 
         if input.variant() >= DefinitiveEdition {
             input.skip(15)?;

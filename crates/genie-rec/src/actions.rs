@@ -250,7 +250,7 @@ impl MoveCommand {
 
         command.flags = if buffer.len() == size_with_flags {
             let mut flags = [false; 8];
-            for i in 0..8 {
+            for i in 0..flags.len() {
                 flags[i] = buffer_cursor.read_u8()? == 1
             }
 
@@ -1025,7 +1025,7 @@ impl BuildWallCommand {
         let (start, end) = if is_de {
             let _padding = input.read_u8()?;
             let start = (input.read_u16::<LE>()?, input.read_u16::<LE>()?);
-            let end = (input.read_u16::<LE>()?, input.read_u16::<LE>()?).into();
+            let end = (input.read_u16::<LE>()?, input.read_u16::<LE>()?);
             (start, end)
         } else {
             let start = (input.read_u8()?.into(), input.read_u8()?.into());
@@ -1715,13 +1715,11 @@ impl Chat {
             let message = value
                 .remove("message")
                 .and_then(|x| x.as_str().map(str::to_string))
-                .ok_or(Error::ParseDEChatMessageError("message"))?
-                .to_string();
+                .ok_or(Error::ParseDEChatMessageError("message"))?;
             let fallback_message = value
                 .remove("messageAGP")
                 .and_then(|x| x.as_str().map(str::to_string))
-                .ok_or(Error::ParseDEChatMessageError("messageAGP"))?
-                .to_string();
+                .ok_or(Error::ParseDEChatMessageError("messageAGP"))?;
 
             Ok(Self {
                 message: fallback_message,

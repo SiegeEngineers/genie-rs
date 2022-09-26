@@ -139,12 +139,6 @@ impl From<&[u8; 7]> for GameVersion {
     }
 }
 
-impl Default for GameVersion {
-    fn default() -> Self {
-        Self([0; 8])
-    }
-}
-
 impl Debug for GameVersion {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{:?}", std::str::from_utf8(&self.0).unwrap())

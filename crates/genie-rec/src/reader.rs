@@ -50,10 +50,12 @@ where
     }
 }
 
-/// dynamically allocated buffered reader, by method of "inflation"
+/// Dynamically allocated buffered reader, by method of "inflation"
 /// The inflation allows us to "peek" into streams, without destroying data
 /// Reading from the buffer also only advances the pointer inside the buffer
-/// Only once another peek is done, data is rearranged (or simply overwritten if the whole buffer has been consumed)
+///
+/// Only once another peek is done, data is rearranged (or simply overwritten
+///  if the whole buffer has been consumed)
 #[derive(Debug)]
 pub struct InflatableReader<R> {
     /// inner reader
@@ -89,6 +91,19 @@ impl<R: Read> Peek for &mut InflatableReader<R> {
 }
 
 impl<R: Read> Peek for InflatableReader<R> {
+    // TODO
+    // Would it make sense to reimplement with
+    // itertools::multipeek
+
+    // use itertools::Itertools;
+
+    // let mut iter = (0..10).multipeek();
+
+    // for it in count.iter().enumerate() {
+    //      val = iter.peek();
+    //
+    // }
+
     /// Peek into inner reader, returns a slice owned by the [InflatableReader],
     /// if data isn't available in the buffer yet, it will read it into the inner buffer
     /// and inflate the buffer if needed.
@@ -126,8 +141,27 @@ impl<R: Read> Peek for InflatableReader<R> {
         // Check what the length would be of our new buffer, and resize if needed
         let new_length = self.position_in_buffer + amount;
         if new_length != self.inflatable_buffer.len() {
+            // BUG: the old data needs to be kept here
+            // but instead is overwritten with 0
             self.inflatable_buffer.resize(new_length, 0);
         }
+
+        // Check what the length would be of our new buffer, and resize if needed
+        // let new_length = self.position_in_buffer + amount;
+        // if new_length > self.inflatable_buffer.len() {
+        //     // BUG: the old data needs to be kept here
+        //     // but instead is overwritten with 0
+        //     let mut tmp = self.inflatable_buffer.clone().into_iter();
+        //     self.inflatable_buffer.resize_with(new_length, || {
+        //         if let Some(val) = tmp.next() {
+        //             val
+        //         } else {
+        //             u8::default()
+        //         }
+        //     });
+        // } else {
+        //     self.inflatable_buffer.resize(new_length, u8::default())
+        // }
 
         // read the missing data
         let actually_read = self
@@ -304,6 +338,7 @@ mod tests {
         let data = (0..20).into_iter().collect::<Vec<_>>();
         let cursor = Cursor::new(data);
         let mut inflatable_buffer = InflatableReader::new_with_capacity(cursor, 4);
+
         let mut buffer = [0; 4];
         inflatable_buffer
             .read_exact(&mut buffer)
@@ -318,6 +353,7 @@ mod tests {
             &[4, 5, 6, 7, 8, 9],
             inflatable_buffer.peek(6).expect("Failed to peek")
         );
+
         let mut buffer = [0; 8];
         inflatable_buffer
             .read_exact(&mut buffer)
