@@ -28,6 +28,7 @@ command = ["cargo", "test", "--workspace", "--color", "always"]
 need_stdout = true
 watch = ["tests"]
 
+# Uses nextest
 [jobs.ntest]
 command = [
     "cargo",
@@ -45,7 +46,8 @@ command = [
 need_stdout = true
 watch = ["tests"]
 
-# Only test a package
+# Only test a single package
+# Uses nextest
 [jobs.mtest]
 command = [
     "cargo",
