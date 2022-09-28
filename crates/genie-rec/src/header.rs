@@ -1,10 +1,11 @@
+use crate::element::ReadableHeaderElement;
+use crate::game_options::{Difficulty, GameMode, StartingResources, VictoryType};
+use crate::map::Map;
+use crate::player::Player;
 use crate::reader::RecordingHeaderReader;
 use crate::string_table::StringTable;
 use crate::GameVariant::DefinitiveEdition;
-use crate::{element::ReadableHeaderElement, VictoryType};
-use crate::{map::Map, StartingResources};
-use crate::{player::Player, GameMode};
-use crate::{Difficulty, GameVersion, Result};
+use crate::{GameVersion, Result};
 use byteorder::{ReadBytesExt, LE};
 use genie_scx::{AgeIdentifier, TribeScen};
 pub use genie_support::SpriteID;

@@ -1,10 +1,11 @@
 use crate::ai::PlayerAI;
 use crate::element::{OptionalReadableElement, ReadableHeaderElement, WritableHeaderElement};
+use crate::error::Error;
 use crate::reader::RecordingHeaderReader;
 use crate::unit::Unit;
 use crate::unit_type::CompactUnitType;
 use crate::GameVariant::DefinitiveEdition;
-use crate::{Error, ObjectID, PlayerID, Result};
+use crate::{ObjectID, PlayerID, Result};
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
 use genie_dat::tech_tree::TechTree;
 use genie_dat::CivilizationID;

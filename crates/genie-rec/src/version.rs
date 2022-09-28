@@ -1,8 +1,17 @@
+use crate::game_options::Age;
+use crate::game_options::GameMode;
+use crate::game_options::GameSpeed;
 use std::cmp::Ordering;
 use std::fmt;
 use std::fmt::{Debug, Display};
 use std::io::Read;
 
+use crate::game_options::Difficulty;
+use crate::game_options::MapSize;
+use crate::game_options::MapType;
+use crate::game_options::ResourceLevel;
+use crate::game_options::Visibility;
+use crate::DLCOptions;
 /// the variant of AoE2 game
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum GameVariant {
@@ -158,6 +167,42 @@ impl GameVersion {
         input.read_exact(&mut game_version)?;
         Ok(Self(game_version))
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct HDGameOptions {
+    pub dlc_options: DLCOptions,
+    pub difficulty: Difficulty,
+    pub map_size: MapSize,
+    pub map_type: MapType,
+    pub visibility: Visibility,
+    pub starting_resources: ResourceLevel,
+    pub starting_age: Age,
+    pub ending_age: Age,
+    pub game_mode: GameMode,
+    // if version < 1001
+    pub random_map_name: Option<String>,
+    // if version < 1001
+    pub scenario_name: Option<String>,
+    pub game_speed: GameSpeed,
+    pub treaty_length: i32,
+    pub population_limit: i32,
+    pub num_players: i32,
+    pub victory_amount: i32,
+    pub trading_enabled: bool,
+    pub team_bonuses_enabled: bool,
+    pub randomize_positions_enabled: bool,
+    pub full_tech_tree_enabled: bool,
+    pub num_starting_units: i8,
+    pub teams_locked: bool,
+    pub speed_locked: bool,
+    pub multiplayer: bool,
+    pub cheats_enabled: bool,
+    pub record_game: bool,
+    pub animals_enabled: bool,
+    pub predators_enabled: bool,
+    // if version > 1.16 && version < 1002
+    pub scenario_player_indices: Vec<i32>,
 }
 
 #[cfg(test)]
