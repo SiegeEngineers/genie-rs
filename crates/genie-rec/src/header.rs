@@ -615,9 +615,6 @@ impl ReadableHeaderElement for DeExtensionHeader {
             while [3, 21, 23, 42, 44, 45, 46, 47].contains(&input.read_u32::<LE>()?) {}
         }
 
-        // CONTINUE HERE
-        dbg_dmp!(input, 8);
-
         // TODO "strategic numbers" ???
         input.skip(59 * 4)?;
 
@@ -626,7 +623,8 @@ impl ReadableHeaderElement for DeExtensionHeader {
 
         for _ in 0..header.num_ai_files {
             input.skip(4)?;
-
+            // CONTINUE HERE
+            dbg_dmp!(input, 32);
             input.read_hd_style_str()?;
             input.skip(4)?;
         }

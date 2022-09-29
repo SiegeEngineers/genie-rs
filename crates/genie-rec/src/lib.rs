@@ -59,33 +59,53 @@ pub use version::*;
 /// Print the current hex position in the file while parsing.
 macro_rules! dbg_dmp {
     ($x:expr, $y:expr) => {{
+
+        use comfy_table::*;
+        use comfy_table::presets::UTF8_FULL;
+        use comfy_table::modifiers::UTF8_ROUND_CORNERS;
+
         let pos = &($x).position();
         let peek = &($x)
             .peek($y)
             .expect(&format!("Peeking for {:?} bytes failed!", $y));
 
-        println!("Current position: {:#X}", pos);
+        println!("Current position: 0x{:08X}", pos);
         println!("Peeking for {:?} bytes", $y);
 
+        let mut table = Table::new();
+        table
+        .load_preset(UTF8_FULL)
+        .apply_modifier(UTF8_ROUND_CORNERS)
+        .set_content_arrangement(ContentArrangement::DynamicFullWidth);
+
         let mut pos_loop = pos.clone();
-        for elem in peek.iter() {
-            pos_loop += 1;
-            println!(
+        let mut cells = vec![];
+
+        peek.iter().for_each(
+            |elem| {
+
+            cells.push(
+                Cell::new(format!(
                 "
-                Position @ 0x{:X}:
-                Value: hex:0x{:X} u8:{} u16:{} u32:{} u64:{} i8:{} i16: {} i32:{} i64:{}",
+                Position @ 0x{:08X}:
+                Values: 
+                    hex:    0x{:X}
+                    u8:     {}",
                 pos_loop,
                 elem,
-                *elem as u8,
-                *elem as u16,
-                *elem as u32,
-                *elem as u64,
-                *elem as i8,
-                *elem as i16,
-                *elem as i32,
-                *elem as i64
-            );
-        }
+                u8::from(*elem)
+            )));
+
+            pos_loop += 1;
+        });
+
+
+        let rows = cells.chunks(4).map(|s| s.into()).collect::<Vec<Vec<Cell>>>();
+
+        table.add_rows(rows);
+
+        println!("{table}");
+
     }};
 
     ($x:expr) => {{
