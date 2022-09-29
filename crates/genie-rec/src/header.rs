@@ -7,12 +7,13 @@ use crate::string_table::StringTable;
 use crate::GameVariant::DefinitiveEdition;
 use crate::{GameVersion, Result};
 use byteorder::{ReadBytesExt, LE};
+use core::slice;
 use genie_scx::{AgeIdentifier, TribeScen};
 pub use genie_support::SpriteID;
 use genie_support::{ReadSkipExt, ReadStringsExt};
-use std::convert::TryInto;
 use std::fmt::{self, Debug};
 use std::io::Read;
+use std::{convert::TryInto, fmt::UpperHex};
 
 const DE_HEADER_SEPARATOR: u32 = u32::from_le_bytes(*b"\xa3_\x02\x00");
 const DE_STRING_SEPARATOR: u16 = u16::from_le_bytes(*b"\x60\x0A");
@@ -398,8 +399,8 @@ impl ReadableHeaderElement for Header {
 
 #[derive(Debug, Default, Clone)]
 pub struct DeExtensionHeader {
-    pub build: Option<f32>,     // save_version >= 25.22
-    pub timestamp: Option<f32>, // save_version >= 26.16
+    pub build: Option<u32>,     // save_version >= 25.22
+    pub timestamp: Option<u32>, // save_version >= 26.16
     pub version: f32,
     pub interval_version: u32,
     pub game_options_version: u32,
@@ -486,15 +487,19 @@ pub struct DeExtensionHeader {
 
 impl ReadableHeaderElement for DeExtensionHeader {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
+        // TODO: DEBUG
+        // println!("Current position: {:#X}", &input.position());
+        // dbg!(&self);
+
         let mut header = Self::default();
         if input.version() >= 25.22 {
-            header.build = Some(input.read_f32::<LE>()?)
+            header.build = Some(input.read_u32::<LE>()?)
         } else {
             header.build = None
         };
 
         if input.version() >= 26.16 {
-            header.timestamp = Some(input.read_f32::<LE>()?)
+            header.timestamp = Some(input.read_u32::<LE>()?)
         } else {
             header.timestamp = None
         };
@@ -509,6 +514,7 @@ impl ReadableHeaderElement for DeExtensionHeader {
         }
 
         header.dataset_ref = input.read_u32::<LE>()?;
+        // TODO: This is definitely wrong. Not the Difficulty.
         header.difficulty = input.read_u32::<LE>()?.into();
         header.selected_map_id = input.read_u32::<LE>()?;
         header.resolved_map_id = input.read_u32::<LE>()?;
@@ -568,11 +574,8 @@ impl ReadableHeaderElement for DeExtensionHeader {
 
         assert_eq!(input.read_u32::<LE>()?, DE_HEADER_SEPARATOR);
 
-        // TODO DEBUG
-        dbg!(&header);
-
-        for i in 0..header.num_players as usize {
-            header.players[i].apply_from(input)?;
+        for player in &mut header.players {
+            player.apply_from(input)?;
         }
 
         // Skip 9 unknown bytes
@@ -602,19 +605,24 @@ impl ReadableHeaderElement for DeExtensionHeader {
         if input.version() >= 13.13 {
             let mut temp = [0u8; 4];
             #[allow(clippy::needless_range_loop)]
-            for i in 0..temp.len() {
-                temp[i] = input.read_u8()?
+            for val in &mut temp {
+                *val = input.read_u8()?
             }
             header.rms_crc = Some(temp)
         } else {
             header.rms_crc = None
         };
 
-        // TODO: read strings
+        // TODO: read strings ???
         for _ in 0..23 {
             let _string = input.read_hd_style_str()?;
-            while [3, 21, 23, 42, 44, 45].contains(&input.read_u32::<LE>()?) {}
+            while [3, 21, 23, 42, 44, 45, 46, 47].contains(&input.read_u32::<LE>()?) {}
         }
+
+        // CONTINUE HERE
+        // TODO: DEBUG
+        println!("Current position: {:#X}", &input.position());
+        dbg!(&header);
 
         // TODO "strategic numbers" ???
         input.skip(59 * 4)?;
@@ -624,6 +632,9 @@ impl ReadableHeaderElement for DeExtensionHeader {
 
         for _ in 0..header.num_ai_files {
             input.skip(4)?;
+            // TODO: DEBUG
+            println!("Current position: {:#X}", &input.position());
+            dbg!(&header);
             input.read_hd_style_str()?;
             input.skip(4)?;
         }
@@ -633,6 +644,10 @@ impl ReadableHeaderElement for DeExtensionHeader {
         }
 
         header.guid = input.read_u128::<LE>()?;
+
+        // TODO: DEBUG
+        println!("Current position: {:#X}", &input.position());
+        dbg!(&header);
 
         header.lobby_name = input.read_hd_style_str()?.unwrap_or_default();
 
@@ -690,6 +705,10 @@ impl ReadableHeaderElement for DeExtensionHeader {
             input.skip(2)?;
         }
 
+        // TODO: DEBUG
+        println!("Current position: {:#X}", &input.position());
+        dbg!(&header);
+
         Ok(header)
     }
 }
@@ -735,7 +754,8 @@ pub struct DePlayer {
     selected_color: i8,
     selected_team_id: u8,
     resolved_team_id: u8,
-    dat_crc: u64,
+    // TODO: Not the actual dat_crc32/64, probably filler
+    // dat_crc: u64,
     mp_game_version: u8,
     civ_id: u8,
     ai_type: String,
@@ -745,7 +765,7 @@ pub struct DePlayer {
     player_type: PlayerType,
     profile_id: u32,
     // DE_PLAYER_SEPARATOR,
-    player_number: i32,
+    player_number: i8,
     hd_rm_elo: Option<u32>, // save_version < 25.22
     hd_dm_elo: Option<u32>, // save_version < 25.22
     prefer_random: bool,
@@ -760,12 +780,13 @@ impl DePlayer {
         self.selected_color = input.read_i8()?;
         self.selected_team_id = input.read_u8()?;
         self.resolved_team_id = input.read_u8()?;
-        self.dat_crc = input.read_u64::<LE>()?;
+        // TODO: Probably filler
+        //self.dat_crc = input.read_u64::<LE>()?;
+        input.skip(5)?;
         self.mp_game_version = input.read_u8()?;
+        input.skip(3)?;
         self.civ_id = input.read_u8()?;
-
-        // TODO: Needed?
-        // input.skip(3)?;
+        input.skip(3)?;
 
         self.ai_type = input.read_hd_style_str()?.unwrap_or_default();
         self.ai_civ_name_index = input.read_u8()?;
@@ -775,30 +796,46 @@ impl DePlayer {
         self.profile_id = input.read_u32::<LE>()?;
 
         // DE_PLAYER_SEPARATOR
-        assert_eq!(input.read_u32::<LE>()?, 0);
+        assert_eq!(
+            input.read_u32::<LE>()?,
+            0,
+            "DE Player Separator not found after Profile_ID!"
+        );
 
-        self.player_number = input.read_i32::<LE>()?;
+        self.player_number = input.read_i8()?;
 
         if input.version() < 25.22 {
             self.hd_rm_elo = Some(input.read_u32::<LE>()?)
         } else {
-            self.hd_rm_elo = None
+            self.hd_rm_elo = None;
         };
-
+        let _ = std::u16::MAX;
         if input.version() < 25.22 {
             self.hd_dm_elo = Some(input.read_u32::<LE>()?)
         } else {
-            self.hd_dm_elo = None
+            self.hd_dm_elo = None;
         };
 
         self.prefer_random = input.read_u8()? == 1;
         self.custom_ai = input.read_u8()? == 1;
 
-        if input.version() < 25.06 {
+        if input.version() >= 25.06 {
             self.handicap = Some(input.read_u8()?)
         } else {
-            self.handicap = None
+            self.handicap = None;
         };
+
+        input.skip(2)?;
+
+        let pos = input.position();
+        assert_eq!(
+            input.read_u32::<LE>()?,
+            u32::from_le_bytes(*b"\xFF\xFF\xFF\xFF"),
+            "DE Player Separator (End) not found at position {:#X}!",
+            pos
+        );
+
+        input.skip(4)?;
 
         Ok(())
     }

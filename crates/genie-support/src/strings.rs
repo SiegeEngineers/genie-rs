@@ -166,14 +166,16 @@ pub trait ReadStringsExt: Read {
     /// Reads a 'signature' value, then the `length` as an u16 value, then reads an optionally
     /// null-terminated WINDOWS-1252-encoded string of that length in bytes.
     fn read_hd_style_str(&mut self) -> Result<Option<String>, ReadStringError> {
-        let open = self.read_u16::<LE>()?;
+        let start = self.read_u16::<LE>()?;
+
         // Check that this actually is the start of a string
-        if open != 0x0A60 {
-            return Err(DecodeStringError.into());
-        }
+        assert_eq!(start, 0x0A60, "This doesn't seem to be the beginning of a TLV (Type–length–value)! Actual value: {start:#X}");
+
         let len = self.read_u16::<LE>()? as usize;
+
         let mut bytes = vec![0; len];
         self.read_exact(&mut bytes[0..len])?;
+
         Ok(Some(decode_str(&bytes)?))
     }
 }
