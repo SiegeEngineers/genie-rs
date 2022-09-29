@@ -1,19 +1,19 @@
-use crate::element::ReadableHeaderElement;
 use crate::game_options::{Difficulty, GameMode, StartingResources, VictoryType};
 use crate::map::Map;
 use crate::player::Player;
 use crate::reader::RecordingHeaderReader;
 use crate::string_table::StringTable;
 use crate::GameVariant::DefinitiveEdition;
+use crate::{element::ReadableHeaderElement, reader::Peek};
 use crate::{GameVersion, Result};
 use byteorder::{ReadBytesExt, LE};
-use core::slice;
 use genie_scx::{AgeIdentifier, TribeScen};
 pub use genie_support::SpriteID;
 use genie_support::{ReadSkipExt, ReadStringsExt};
 use std::fmt::{self, Debug};
 use std::io::Read;
-use std::{convert::TryInto, fmt::UpperHex};
+
+use crate::dbg_dmp;
 
 const DE_HEADER_SEPARATOR: u32 = u32::from_le_bytes(*b"\xa3_\x02\x00");
 const DE_STRING_SEPARATOR: u16 = u16::from_le_bytes(*b"\x60\x0A");
@@ -487,10 +487,6 @@ pub struct DeExtensionHeader {
 
 impl ReadableHeaderElement for DeExtensionHeader {
     fn read_from<R: Read>(input: &mut RecordingHeaderReader<R>) -> Result<Self> {
-        // TODO: DEBUG
-        // println!("Current position: {:#X}", &input.position());
-        // dbg!(&self);
-
         let mut header = Self::default();
         if input.version() >= 25.22 {
             header.build = Some(input.read_u32::<LE>()?)
@@ -620,9 +616,7 @@ impl ReadableHeaderElement for DeExtensionHeader {
         }
 
         // CONTINUE HERE
-        // TODO: DEBUG
-        println!("Current position: {:#X}", &input.position());
-        dbg!(&header);
+        dbg_dmp!(input, 8);
 
         // TODO "strategic numbers" ???
         input.skip(59 * 4)?;
@@ -632,9 +626,7 @@ impl ReadableHeaderElement for DeExtensionHeader {
 
         for _ in 0..header.num_ai_files {
             input.skip(4)?;
-            // TODO: DEBUG
-            println!("Current position: {:#X}", &input.position());
-            dbg!(&header);
+
             input.read_hd_style_str()?;
             input.skip(4)?;
         }
@@ -644,10 +636,6 @@ impl ReadableHeaderElement for DeExtensionHeader {
         }
 
         header.guid = input.read_u128::<LE>()?;
-
-        // TODO: DEBUG
-        println!("Current position: {:#X}", &input.position());
-        dbg!(&header);
 
         header.lobby_name = input.read_hd_style_str()?.unwrap_or_default();
 
@@ -704,10 +692,6 @@ impl ReadableHeaderElement for DeExtensionHeader {
         if input.version() >= 13.17 {
             input.skip(2)?;
         }
-
-        // TODO: DEBUG
-        println!("Current position: {:#X}", &input.position());
-        dbg!(&header);
 
         Ok(header)
     }

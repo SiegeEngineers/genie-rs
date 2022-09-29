@@ -16,7 +16,6 @@ fn main() {
 fn dump() -> Result<(), anyhow::Error> {
     let mut args = args();
     // skip executable
-    dbg!(&args);
     args.next();
     let filename = args
         .next()

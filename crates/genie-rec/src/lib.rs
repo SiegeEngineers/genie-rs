@@ -37,12 +37,15 @@ pub mod unit_action;
 pub mod unit_type;
 pub mod version;
 
-use crate::actions::{Action, Meta};
 use crate::element::ReadableElement;
 use crate::error::Error;
 use crate::error::SyncError;
 use crate::game_options::Difficulty::{Easiest, Extreme, Hard, Hardest, Moderate, Standard};
 use crate::reader::RecordingHeaderReader;
+use crate::{
+    actions::{Action, Meta},
+    reader::Peek,
+};
 use byteorder::{ReadBytesExt, LE};
 use flate2::bufread::DeflateDecoder;
 use genie_scx::DLCOptions;
@@ -51,6 +54,44 @@ pub use header::Header;
 use std::fmt::Debug;
 use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom};
 pub use version::*;
+
+#[macro_export]
+/// Print the current hex position in the file while parsing.
+macro_rules! dbg_dmp {
+    ($x:expr, $y:expr) => {{
+        let pos = &($x).position();
+        let peek = &($x)
+            .peek($y)
+            .expect(&format!("Peeking for {:?} bytes failed!", $y));
+
+        println!("Current position: {:#X}", pos);
+        println!("Peeking for {:?} bytes", $y);
+
+        let mut pos_loop = pos.clone();
+        for elem in peek.iter() {
+            pos_loop += 1;
+            println!(
+                "
+                Position @ 0x{:X}:
+                Value: hex:0x{:X} u8:{} u16:{} u32:{} u64:{} i8:{} i16: {} i32:{} i64:{}",
+                pos_loop,
+                elem,
+                *elem as u8,
+                *elem as u16,
+                *elem as u32,
+                *elem as u64,
+                *elem as i8,
+                *elem as i16,
+                *elem as i32,
+                *elem as i64
+            );
+        }
+    }};
+
+    ($x:expr) => {{
+        println!("Current position: {:#X}", &($x));
+    }};
+}
 
 /// ID identifying a player (0-8).
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
