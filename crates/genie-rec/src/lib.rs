@@ -90,10 +90,12 @@ macro_rules! dbg_dmp {
                 Position @ 0x{:08X}:
                 Values: 
                     hex:    0x{:X}
-                    u8:     {}",
+                    u8:     {}
+                    utf-8   {}",
                 pos_loop,
                 elem,
-                u8::from(*elem)
+                u8::from(*elem),
+                String::from_utf8_lossy(std::slice::from_ref(elem))
             )));
 
             pos_loop += 1;
