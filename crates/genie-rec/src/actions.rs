@@ -250,8 +250,9 @@ impl MoveCommand {
 
         command.flags = if buffer.len() == size_with_flags {
             let mut flags = [false; 8];
-            for i in 0..flags.len() {
-                flags[i] = buffer_cursor.read_u8()? == 1
+
+            for flag in &mut flags {
+                *flag = buffer_cursor.read_u8()? == 1
             }
 
             Some(flags)
