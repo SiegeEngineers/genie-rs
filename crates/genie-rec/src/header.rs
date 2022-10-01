@@ -612,7 +612,7 @@ impl ReadableHeaderElement for DeExtensionHeader {
 
         // TODO: read strings ???
         for _ in 0..23 {
-            let _string = input.read_hd_style_str()?;
+            let _string = input.read_tlv_str()?;
             while [3, 21, 23, 42, 44, 45, 46, 47].contains(&input.read_u32::<LE>()?) {}
         }
 
@@ -627,7 +627,7 @@ impl ReadableHeaderElement for DeExtensionHeader {
             // CONTINUE HERE
             #[cfg(debug_assertions)]
             dbg_dmp!(input, 32);
-            input.read_hd_style_str()?;
+            input.read_tlv_str()?;
             input.skip(4)?;
         }
 
@@ -637,13 +637,13 @@ impl ReadableHeaderElement for DeExtensionHeader {
 
         header.guid = input.read_u128::<LE>()?;
 
-        header.lobby_name = input.read_hd_style_str()?.unwrap_or_default();
+        header.lobby_name = input.read_tlv_str()?.unwrap_or_default();
 
         if input.version() >= 25.22 {
             input.skip(8)?;
         }
 
-        header.modded_dataset = input.read_hd_style_str()?.unwrap_or_default();
+        header.modded_dataset = input.read_tlv_str()?.unwrap_or_default();
 
         input.skip(19)?;
 
@@ -675,7 +675,7 @@ impl ReadableHeaderElement for DeExtensionHeader {
             input.skip(8)?;
         }
 
-        input.read_hd_style_str()?;
+        input.read_tlv_str()?;
 
         input.skip(5)?;
 
@@ -684,7 +684,7 @@ impl ReadableHeaderElement for DeExtensionHeader {
         }
 
         if input.version() < 13.17 {
-            input.read_hd_style_str()?;
+            input.read_tlv_str()?;
             input.skip(4)?;
             input.skip(4)?; // usually 0
         }
@@ -772,10 +772,10 @@ impl DePlayer {
         self.civ_id = input.read_u8()?;
         input.skip(3)?;
 
-        self.ai_type = input.read_hd_style_str()?.unwrap_or_default();
+        self.ai_type = input.read_tlv_str()?.unwrap_or_default();
         self.ai_civ_name_index = input.read_u8()?;
-        self.ai_name = input.read_hd_style_str()?.unwrap_or_default();
-        self.name = input.read_hd_style_str()?.unwrap_or_default();
+        self.ai_name = input.read_tlv_str()?.unwrap_or_default();
+        self.name = input.read_tlv_str()?.unwrap_or_default();
         self.player_type = input.read_u32::<LE>()?.into();
         self.profile_id = input.read_u32::<LE>()?;
 

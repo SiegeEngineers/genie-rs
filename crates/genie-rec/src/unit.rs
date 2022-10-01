@@ -322,7 +322,7 @@ impl ReadableHeaderElement for StaticUnitAttributes {
             let effect_name = if has_effect {
                 input.skip(1)?;
 
-                let effect_name = input.read_hd_style_str()?;
+                let effect_name = input.read_tlv_str()?;
                 if effect_name.is_some() {
                     // effect arguments?
                     input.skip(34)?;

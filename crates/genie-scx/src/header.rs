@@ -101,7 +101,7 @@ impl SCXHeader {
             0
         };
         let description = if format_version == *b"3.13" {
-            input.read_hd_style_str()?
+            input.read_tlv_str()?
         } else {
             input.read_u32_length_prefixed_str()?
         };

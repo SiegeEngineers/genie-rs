@@ -165,7 +165,7 @@ pub trait ReadStringsExt: Read {
     ///
     /// Reads a 'signature' value, then the `length` as an u16 value, then reads an optionally
     /// null-terminated WINDOWS-1252-encoded string of that length in bytes.
-    fn read_hd_style_str(&mut self) -> Result<Option<String>, ReadStringError> {
+    fn read_tlv_str(&mut self) -> Result<Option<String>, ReadStringError> {
         let start = self.read_u16::<LE>()?;
 
         // Check that this actually is the start of a string
