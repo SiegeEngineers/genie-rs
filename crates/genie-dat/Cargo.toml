@@ -16,7 +16,7 @@ arrayvec.workspace = true
 byteorder.workspace = true
 encoding_rs.workspace = true
 flate2.workspace = true
-genie-support = { version = "^1.0.0", path = "../genie-support" }
+genie-support = { version = "^2.0.0", path = "../genie-support" }
 jascpal = { version = "^0.1.0", path = "../jascpal" }
 thiserror.workspace = true
 

@@ -16,7 +16,7 @@ exclude = ["test/dlls"]
 byteorder.workspace = true
 encoding_rs.workspace = true
 encoding_rs_io.workspace = true
-genie-support = { version = "1.0.0", path = "../genie-support" }
+genie-support = { version = "2.0.0", path = "../genie-support" }
 pelite = { version = "0.9.1", default-features = false, features = ["mmap"] }
 thiserror.workspace = true
 

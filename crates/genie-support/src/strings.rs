@@ -161,7 +161,7 @@ pub trait ReadStringsExt: Read {
         }
     }
 
-    /// Read an HD Edition style string.
+    /// Read TLV (Type-Length-Value) string.
     ///
     /// Reads a 'signature' value, then the `length` as an u16 value, then reads an optionally
     /// null-terminated WINDOWS-1252-encoded string of that length in bytes.

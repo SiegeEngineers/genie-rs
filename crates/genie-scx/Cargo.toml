@@ -15,7 +15,7 @@ exclude = ["test/scenarios"]
 [dependencies]
 byteorder.workspace = true
 flate2.workspace = true
-genie-support = { version = "^1.0.0", path = "../genie-support", features = [
+genie-support = { version = "^2.0.0", path = "../genie-support", features = [
     "strings",
 ] }
 log = "0.4.17"

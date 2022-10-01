@@ -17,7 +17,7 @@ byteorder.workspace = true
 flate2.workspace = true
 genie-dat = { version = "0.1.0", path = "../genie-dat" }
 genie-scx = { version = "4.0.0", path = "../genie-scx" }
-genie-support = { version = "1.0.0", path = "../genie-support", features = [
+genie-support = { version = "2.0.0", path = "../genie-support", features = [
     "strings",
 ] }
 thiserror.workspace = true
