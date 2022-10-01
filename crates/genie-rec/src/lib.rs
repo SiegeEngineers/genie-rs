@@ -55,6 +55,7 @@ use std::fmt::Debug;
 use std::io::{self, BufRead, BufReader, Read, Seek, SeekFrom};
 pub use version::*;
 
+#[cfg(debug_assertions)]
 #[macro_export]
 /// Print the current hex position in the file while parsing.
 macro_rules! dbg_dmp {

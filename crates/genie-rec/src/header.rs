@@ -13,6 +13,7 @@ use genie_support::{ReadSkipExt, ReadStringsExt};
 use std::fmt::{self, Debug};
 use std::io::Read;
 
+#[cfg(debug_assertions)]
 use crate::dbg_dmp;
 
 const DE_HEADER_SEPARATOR: u32 = u32::from_le_bytes(*b"\xa3_\x02\x00");
@@ -624,6 +625,7 @@ impl ReadableHeaderElement for DeExtensionHeader {
         for _ in 0..header.num_ai_files {
             input.skip(4)?;
             // CONTINUE HERE
+            #[cfg(debug_assertions)]
             dbg_dmp!(input, 32);
             input.read_hd_style_str()?;
             input.skip(4)?;
