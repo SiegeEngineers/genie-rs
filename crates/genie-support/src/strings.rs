@@ -169,7 +169,13 @@ pub trait ReadStringsExt: Read {
         let start = self.read_u16::<LE>()?;
 
         // Check that this actually is the start of a string
+        #[cfg(debug_assertions)]
         assert_eq!(start, 0x0A60, "This doesn't seem to be the beginning of a TLV (Type–length–value)! Actual value: {start:#X}");
+
+        #[cfg(not(debug_assertions))]
+        if !start.eq(&0x0A60) {
+            return Err(DecodeStringError.into());
+        }
 
         let len = self.read_u16::<LE>()? as usize;
 
