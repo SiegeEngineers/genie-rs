@@ -17,7 +17,7 @@ byteorder.workspace = true
 encoding_rs.workspace = true
 encoding_rs_io.workspace = true
 genie-support = { version = "1.0.0", path = "../genie-support" }
-pelite = { version = "0.9.1", default-features = false, features = ["mmap"] }
+pelite = { version = "0.10.0", default-features = false, features = ["mmap"] }
 thiserror.workspace = true
 
 [dev-dependencies]
